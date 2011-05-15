@@ -1,10 +1,11 @@
-
 * Manipulación de términos con operadores que construyen
   proposiciones. Esos operadores pueden ser funciones 
   definidas inductivamente y un paso de equivalencia podría
   ser la evaluación de una de esas funciones. Probablemente
   la justificación de ese paso no se muestre, pero querríamos
-  tener la posibilidad de ver la justificación.
+  tener la posibilidad de ver la justificación. Estas teorías
+  definen además un conjunto de tipos, posiblemente junto con 
+  una relación de subtipado.
 
 * Poder instanciar variables con los posibles valores.
 
@@ -16,7 +17,6 @@
 
 * Modularización: el core consiste en fórmulas proposicionales
   cuyas variables pueden instanciarse con fórmulas construidas
-
   a partir de la aplicación de operadores booleanos de términos
   de cierta teoría.
 
@@ -45,4 +45,5 @@ sum.[]  == 2 * sum.[]
 * Permitir pruebas de implicaciones usando debilitamiento y
   meta-teorema de la deducción.
 
-
+* Poder guardar módulos con teoremas ya demostrados para reusarlos
+  más adelante.
