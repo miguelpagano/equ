@@ -16,7 +16,6 @@
 
 * Modularización: el core consiste en fórmulas proposicionales
   cuyas variables pueden instanciarse con fórmulas construidas
-
   a partir de la aplicación de operadores booleanos de términos
   de cierta teoría.
 
