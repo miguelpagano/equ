@@ -1,0 +1,45 @@
+\documentclass{article}
+\usepackage[utf8]{inputenx}
+\newcommand{\equ}{EQU}
+\title{\equ\\
+  Diseño y especificación funcional general}
+\begin{document}
+\maketitle
+
+\section{Introducción}
+\label{sec:intro}
+\equ\ permite realizar demostraciones, automáticamente verificadas, de
+fórmulas ecuacionales.
+
+\section{Caso de uso}
+\label{sec:usecase}
+\begin{enumerate}
+\item El usuario ingresa un \textbf{string} que se intenta \emph{parsear}.
+\item Si el parseo fue exitoso entonces producimos un
+  \textbf{pre-término} del que se intenta \emph{chequear tipos}. El
+  parseo implica reconocer \textbf{operadores}; más allá de la
+  representación siempre se debe poder recuperar el parentizado dado.
+  Si el parseo falla, entonces se da un mensaje de error informativo.
+\item Si el chequeo fue exitoso entonces construimos una
+  \textbf{expresión}. El chequeo de tipos consiste básicamente en
+  inferir tipos para variables y constantes; se trata de armar el
+  árbol de tipado y si se falla entonces se permite que usuario
+  encuentre el error guiándolo a que explicité los tipos inconsistentes
+  para variables o constantes no-unificables. En este punto también
+  se debería permitir que el usuario complete en el árbol de tipado
+  todos los tipos. Se podría permitir que el usuario redefina el tipo
+  de un operador ``por el momento'' y que se use ese tipo para chequear
+  el pre-término; luego se le muestra el tipo real del operador así
+  se entiende por qué no se puede tipar la expresión.
+\item Dada una expresión se elige una \emph{estrategia} (notar que 
+  también es una \textbf{estrategia}) y generamos una \textbf{prueba}.
+  Una prueba es una secuencia de pasos de re-escritura. La expresión
+  define qué estrategias se pueden aplicar: por ejemplo, si se trata
+  de una expresión aritmética sólo podemos aplicar las estrategias de 
+  \texttt{evaluación}; si en cambio es una fórmula podemos usar cualquier
+  regla (que viene de un axioma o un teorema) para reescribirla.
+\item Si todos los pasos son correctos entonces se genera un \textbf{teorema}
+  o una nueva regla.
+\end{enumerate}
+
+\end{document}
