@@ -76,12 +76,12 @@ auxiliares.
   (temporalmente). De esta forma se pretende que se hagan mas evidentes
   los errores y se pueda aprender de ellos.
     
-\item Dada una expresión se elige una \emph{estrategia} para su reducción
+\item Dada una expresión se elige una \emph{estrategia} (o más) para su reducción
   a forma normal. Normalmente será una estrategia de prueba para reducir una
   formula. La estrategias posibles dependen del tipo de la expresión. Por 
   ejemplo, una expresión aritmética sólo aceptara una estrategia de
   reducción directa, aplicando pasos de ``unfolding'' de los operadores
-  involucrados. Una expresion del tipo fórmula podría aceptar diversas 
+  involucrados. Una expresión del tipo fórmula podría aceptar diversas 
   estrategias: análisis por casos, inducción (si involucra expresiones 
   aritméticas o de listas), absurdo, etc.
   
@@ -91,16 +91,18 @@ auxiliares.
   Si la estrategia es adecuada, se genera una \textbf{prueba}, que debe ser 
   completada.
   
-\item Una \textbf{prueba} es un conjunto de una o mas expresiones que
+\item Una \textbf{prueba} es un estructura arbórea de una o mas expresiones que
   que deben ser reducidas, y para cada una de ellas, una secuencia de pasos de 
   re-escritura que demuestran la reducción. Cada paso de reescritura esta
-  justificado por un axioma (propio de la teoria), definicion de operador
-  (predeterminado en la teoria o definido por el usuario) o un \textbf{teorema}
+  justificado por un axioma (propio de la teoría), definición de operador
+  (predeterminado en la teoría o definido por el usuario) o un \textbf{teorema}
   (dado por la relación entre una expresión y su forma reducida, una vez
   que ha sido demostrada).
   
-\item Una vez que que cada expresión a sido reducida a su forma canónica, 
-  la prueba de reducción se considera terminada.
+\item Una vez que que cada expresión ha sido reducida a su forma canónica, 
+  la prueba de reducción se considera terminada y se genera un \textbf{teorema}
+  que sintetiza la reescritura demostrada y puede ser utilizada como paso
+  fundamental en pruebas posteriores.
 \end{enumerate}
 
 \end{document}
