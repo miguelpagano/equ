@@ -2,6 +2,7 @@
 -- poco de una PreExpresión.
 module Equ.Expr where
 
+import Equ.PreExpr
 import Equ.Theories
 import Equ.Syntax
 
