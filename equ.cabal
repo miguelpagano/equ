@@ -1,0 +1,38 @@
+Name:                equ
+Category:            Proof Checker
+Version:             0.1
+Synopsis:            A proof checker for propositional calculus.
+Description:         
+  equ is a program for checking derivations of propositional
+  calculus.
+License:             GPL
+License-file:        LICENSE
+Author:              Renato Cherini, Alejandro Gadea, Emmanuel Gunther, Miguel Pagano
+Maintainer:          Miguel Pagano <pagano@famaf.unc.edu.ar>
+Build-Type:          Simple
+Cabal-Version:       >=1.2
+tested-with:         GHC==6.10.1
+build-type:          Simple
+
+Source-repository this
+  type:     git
+  location: http://github.com/miguelpagano/equ
+  tag:      0.1.0
+
+Library
+  -- Modules exported by the library.
+  Exposed-modules:     Equ.PreExpr,
+                       Equ.Expr,
+                       Equ.TypeChecker
+
+  -- Packages needed in order to build this package.
+  Build-depends:       base >= 4.2, text >= 0.11.0.8
+
+  GHC-Options:         -Odph -Wall
+  -- HS-Source-Dirs:   Equ   
+  
+  -- Modules not exported by this package.
+  -- Other-modules:       
+  
+  -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
+  -- Build-tools:    
