@@ -43,3 +43,42 @@ data Quantifier = Quantifier {
 data Hole = Hole {
       holeTy :: Type
     }
+    
+-- | La clase syntax abstrae la informacion común de los diferenctes 
+--  constituyentes de los árboles sintácticos. Como información común
+--  tenemos nombre y tipo.
+--  Definicion completa minima: tName y tType.
+class Syntactic t where
+    tName :: t -> Text
+    tType :: t -> Type
+    
+-- | Instancia de syntax para el tipo Varible.
+instance Syntactic Variable where
+    tName t = varName t
+    tType t = varTy t
+    
+-- | Instancia de syntax para el tipo Constant.
+instance Syntactic Constant where
+    tName t = conName t
+    tType t = conTy t
+
+-- | Instancia de syntax para el tipo Operator.
+instance Syntactic Operator where
+    tName t = opName t
+    tType t = opTy t
+
+-- | Instancia de syntax para el tipo Function.
+instance Syntactic Func where
+    tName t = funcName t
+    tType t = funcTy t
+    
+-- | Instancia de syntax para el tipo Quantifier.
+instance Syntactic Quantifier where
+    tName t = quantName t
+    tType t = quantTy t
+
+-- | Instancia de syntax para el tipo Hole.
+instance Syntactic Hole where
+    -- Decidir como tratar el nombre de los huecos.
+    tName _ = error"Los huecos no tiene nombre." 
+    tType t = holeTy t
