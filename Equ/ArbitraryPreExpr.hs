@@ -59,8 +59,6 @@ instance Arbitrary Constant where
                 , liftM (Constant $ pack "C") arbitrary
                 , liftM (Constant $ pack "D") arbitrary
                 , liftM (Constant $ pack "E") arbitrary
-                , liftM (Constant $ pack "F") arbitrary
-                , liftM (Constant $ pack "G") arbitrary
                 ]
 
 -- Instancia arbitrary para los operadores binarios, en realidad no necesariamente
