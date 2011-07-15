@@ -14,26 +14,31 @@ data Variable = Variable {
       varName :: Text
     , varTy   :: Type
     }
+    deriving Eq
 
 data Constant = Constant {
       conName :: Text
     , conTy   :: Type
     }
-
+    deriving Eq
+    
 data Operator = Operator {
       opName :: Text               
     , opTy   :: Type
     } 
-
+    deriving Eq
+    
 data Func = Func {
       funcName :: Text
     , funcTy   :: Type
     }
-
+    deriving Eq
+    
 data Quantifier = Quantifier {
       quantName :: Text
     , quantTy   :: Type
     }
+    deriving Eq
 
 -- | Un hueco corresponde a una expresión o pre-expresión ausente
 -- pero en el contexto de otra expresión más grande. Esta es una
@@ -43,6 +48,7 @@ data Quantifier = Quantifier {
 data Hole = Hole {
       holeTy :: Type
     }
+    deriving Eq
     
 -- | La clase syntax abstrae la informacion común de los diferenctes 
 --  constituyentes de los árboles sintácticos. Como información común

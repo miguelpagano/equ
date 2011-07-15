@@ -6,6 +6,7 @@ module Equ.PreExpr where
 
 import Equ.Syntax
 import Data.Text
+
 {- Propiedades de PreExpresiones (QC): queremos poder respetar la forma
    de escribir una expresión.
    
@@ -24,16 +25,23 @@ data PreExpr = Var Variable
              | Paren PreExpr
             deriving (Eq)
 
+-- | Pretty print para las preExpresiones.
 instance Show PreExpr where
-  show (Var x) = unpack $ tName x
-  show (Con k) = unpack $ tName k
-  show (Fun f) = unpack $ tName f
-  show (PrExHole h) = "[ ]"
-  show (UnOp op p) = unpack (tName op) ++ "(" ++ show p ++ ")"
-  show (BinOp op p p') = "(" ++ show p ++ ")" ++ unpack (tName op)
-		       ++ "(" ++ show p' ++ ")"
-  show _ = ""
-  
+    show (Var x) = unpack $ tName x
+    show (Con k) = unpack $ tName k
+    show (Fun f) = unpack $ tName f
+    show (PrExHole h) = "[ ]"
+    show (UnOp op preExp) = unpack (tName op) ++ "(" ++ show preExp ++ ")"
+    show (BinOp op preExp0 preExp1) = "(" ++ show preExp0 ++ ")" ++ unpack (tName op)
+                ++ "(" ++ show preExp1 ++ ")"
+    show (App preExp0 preExp1) = "(" ++ show preExp0 ++ ")" ++
+                                 "(" ++ show preExp1 ++ ")"
+    show (Quant qua var preExp0 preExp1) = "(" ++ unpack (tName qua) ++ ")" ++ 
+                                           "(" ++ unpack (tName var) ++ ") in " ++ 
+                                           "(" ++ show preExp0 ++ ") | " ++ 
+                                           "(" ++ show preExp1 ++ ")"
+    show (Paren preExp) = "[" ++ show preExp ++ "]"
+
  -- Los zippers pueden ser convenientes; la referencia es: ``The
 -- Zipper'' de Gérard Huet en JFP. 
 
@@ -70,45 +78,39 @@ toExpr (preExp, ParenD path) = toExpr (Paren preExp, path)
 toFocus :: PreExpr -> Focus
 toFocus e = (e,Top)
 
-
 -- Funcion auxiliar para calcular la lista de todos los focus de una expresion
 -- dado un focus inicial. En nuestro caso particular la llamamos con (preExp, Top)
 -- donde preExp es la expresion de la que queremos la lista de focus posibles.
 focusToFocuses :: Maybe Focus -> [Focus]
 focusToFocuses Nothing = []
 focusToFocuses (Just (Var (Variable varName varTy), path)) = 
-    [((Var (Variable varName varTy)), path)]
+    [(Var (Variable varName varTy), path)]
 focusToFocuses (Just (Con (Constant conName conTy), path)) = 
-    [((Con (Constant conName conTy)), path)]
+    [(Con (Constant conName conTy), path)]
 focusToFocuses (Just (Fun (Func funcName funcTy), path)) = 
-    [((Fun (Func funcName funcTy)), path)]
+    [(Fun (Func funcName funcTy), path)]
 focusToFocuses (Just (PrExHole (Hole holeTy), path)) = 
-    [((PrExHole (Hole holeTy)), path)]
+    [(PrExHole (Hole holeTy), path)]
 focusToFocuses (Just focus) = 
     case focus of
         (UnOp op preExp, path) -> 
-            ((preExp, UnOpD op path) : (focusToFocuses (goDown focus)))
+            ((preExp, UnOpD op path) : focusToFocuses (goDown focus))
         (BinOp op preExp0 preExp1, path) -> 
-            ((preExp0, BinOpL op path preExp1) : (focusToFocuses (goDownL (focus)))) ++
-            ((preExp1, BinOpR op preExp0 path) : (focusToFocuses (goDownR (focus))))
+            ((preExp0, BinOpL op path preExp1) : focusToFocuses (goDownL focus)) ++
+            ((preExp1, BinOpR op preExp0 path) : focusToFocuses (goDownR focus))
         (App preExp0 preExp1, path) ->
-            ((preExp0, AppL path preExp1) : (focusToFocuses (goDownL focus))) ++
-            ((preExp1, AppR preExp0 path) : (focusToFocuses (goDownR focus)))
+            ((preExp0, AppL path preExp1) : focusToFocuses (goDownL focus)) ++
+            ((preExp1, AppR preExp0 path) : focusToFocuses (goDownR focus))
         (Quant qua var preExp0 preExp1, path) ->
-            ((preExp0, QuantL qua var path preExp1) : (focusToFocuses (goDownL focus))) ++
-            ((preExp1, QuantR qua var preExp0 path) : (focusToFocuses (goDownR focus)))
+            ((preExp0, QuantL qua var path preExp1) : focusToFocuses (goDownL focus)) ++
+            ((preExp1, QuantR qua var preExp0 path) : focusToFocuses (goDownR focus))
         (Paren preExp, path) ->
-            (preExp, ParenD path) : (focusToFocuses (goDown focus))
+            (preExp, ParenD path) : focusToFocuses (goDown focus)
 
 -- Propiedades (forall e):
 --   forall t \in toFocuses e, toExpr t = e
 toFocuses :: PreExpr -> [Focus]
 toFocuses preExp = (preExp, Top) : focusToFocuses (Just (preExp, Top))
-
-valid :: PreExpr -> [Focus] -> Bool
-valid preExp [] = True
-valid preExp (x:xs) | ((toExpr x) == preExp) = valid preExp xs
-                    | otherwise = False
 
 -- Reemplaza la expresión enfocada por una nueva expresión.
 replace :: Focus -> PreExpr -> Focus
@@ -120,7 +122,7 @@ goDownL = goDown
 
 -- Bajar un nivel en el focus, yendo por derecha.
 goDownR :: Focus -> Maybe Focus
-goDownR f = (Just f) >>= goDown >>= goRight
+goDownR f = goDown f >>= goRight
 
 -- Navegación dentro de un Zipper: TODO (ver el artículo).
 goDown :: Focus -> Maybe Focus
