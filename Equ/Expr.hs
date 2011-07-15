@@ -3,7 +3,7 @@
 module Equ.Expr where
 
 import Equ.PreExpr
-import Equ.Theories
+-- import Equ.Theories
 import Equ.Syntax
 
 -- | Las expresiones son pre-expresiones bien tipadas. Es decir,

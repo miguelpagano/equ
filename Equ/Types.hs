@@ -20,7 +20,14 @@ data Type = TyUnknown
           | TyAtom AtomTy
           | Type :-> Type
     deriving (Eq,Show)
+    
+-- | Constructor de TyVar
+tyVar :: String -> Type
+tyVar = TyVar . pack 
 
+-- | Constructor de TyAtom ATyBool
+tyBool :: Type
+tyBool = TyAtom ATyBool
 
 instance Poset Type where
     (TyAtom ATyNat) <= (TyAtom ATyInt) = True

@@ -7,8 +7,10 @@
 -- ejemplo en variables) por el type-checker.
 module Equ.Syntax where
 
-import Data.Text
 import Equ.Types
+import Equ.Theories.AbsName
+
+import Data.Text
 
 data Variable = Variable {
       varName :: Text
@@ -16,12 +18,14 @@ data Variable = Variable {
     }
 
 data Constant = Constant {
-      conName :: Text
+      conRepr :: Text
+    , conName :: ConName
     , conTy   :: Type
     }
 
 data Operator = Operator {
-      opName :: Text               
+      opRepr :: Text   
+    , opName :: OpName
     , opTy   :: Type
     } 
 
@@ -31,7 +35,8 @@ data Func = Func {
     }
 
 data Quantifier = Quantifier {
-      quantName :: Text
+      quantRepr :: Text
+    , quantName :: QuantName
     , quantTy   :: Type
     }
 
@@ -44,40 +49,45 @@ data Hole = Hole {
       holeTy :: Type
     }
     
+var :: String -> Type -> Variable
+var s t = Variable { varName = pack s
+                   , varTy = t
+                   }   
+    
 -- | La clase syntax abstrae la informacion común de los diferenctes 
 --  constituyentes de los árboles sintácticos. Como información común
 --  tenemos nombre y tipo.
 --  Definicion completa minima: tName y tType.
 class Syntactic t where
-    tName :: t -> Text
+    tRepr :: t -> Text
     tType :: t -> Type
     
 -- | Instancia de syntax para el tipo Varible.
 instance Syntactic Variable where
-    tName = varName
+    tRepr = varName
     tType = varTy
     
 -- | Instancia de syntax para el tipo Constant.
 instance Syntactic Constant where
-    tName = conName
+    tRepr = conRepr
     tType = conTy
 
 -- | Instancia de syntax para el tipo Operator.
 instance Syntactic Operator where
-    tName = opName
+    tRepr = opRepr
     tType = opTy
 
 -- | Instancia de syntax para el tipo Function.
 instance Syntactic Func where
-    tName = funcName
+    tRepr = funcName
     tType = funcTy
     
 -- | Instancia de syntax para el tipo Quantifier.
 instance Syntactic Quantifier where
-    tName = quantName
+    tRepr = quantRepr
     tType = quantTy
 
 -- | Instancia de syntax para el tipo Hole.
 instance Syntactic Hole where  
-    tName _ = pack ""
+    tRepr _ = pack ""
     tType = holeTy
