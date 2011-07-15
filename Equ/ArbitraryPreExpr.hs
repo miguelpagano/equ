@@ -23,6 +23,7 @@ instance Arbitrary Text where
                 , return (pack "implies")
                 , return (pack "iff")
                 ]
+
 -- Instancia arbitrary para los tipos atómicos.
 instance Arbitrary AtomTy where
     arbitrary = elements [ATyNum, ATyInt, ATyNat, ATyBool]

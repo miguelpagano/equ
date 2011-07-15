@@ -40,7 +40,10 @@ instance Show PreExpr where
                                            "(" ++ unpack (tName var) ++ ") in " ++ 
                                            "(" ++ show preExp0 ++ ") | " ++ 
                                            "(" ++ show preExp1 ++ ")"
-    show (Paren preExp) = "[" ++ show preExp ++ "]"
+    -- Aca no estoy seguro si es que Paren hace referencia a una expresion 
+    -- encerrarda entre parentesis. En cuyo caso por como esta construido el
+    -- show no se diferenciaria entonces ponemos [ y ].
+    show (Paren preExp) = "[" ++ show preExp ++ "]" 
 
  -- Los zippers pueden ser convenientes; la referencia es: ``The
 -- Zipper'' de Gérard Huet en JFP. 
@@ -54,8 +57,6 @@ data Path = Top
           | QuantL Quantifier Variable Path PreExpr
           | QuantR Quantifier Variable PreExpr Path 
           | ParenD Path
-
-
 
 -- | Un Focus representa la expresión que consiste de completar el
 -- hueco denotado por Path con la expresión PreExpr (eso es lo que
@@ -75,6 +76,8 @@ toExpr (preExp, QuantR qua var preExp0 path) =
     toExpr (Quant qua var preExp0 preExp, path)
 toExpr (preExp, ParenD path) = toExpr (Paren preExp, path)
 
+-- | Dado una expresión la enfocamos. Es decir luego de llamar a toFocus con 
+-- preExp queda el focus que tiene a la expresión y estamos en el Top.
 toFocus :: PreExpr -> Focus
 toFocus e = (e,Top)
 
@@ -107,6 +110,8 @@ focusToFocuses (Just focus) =
         (Paren preExp, path) ->
             (preExp, ParenD path) : focusToFocuses (goDown focus)
 
+-- Dado una preExpresion obtenemos todas las subexpresiones navegando con el
+-- zipper.
 -- Propiedades (forall e):
 --   forall t \in toFocuses e, toExpr t = e
 toFocuses :: PreExpr -> [Focus]
@@ -125,6 +130,7 @@ goDownR :: Focus -> Maybe Focus
 goDownR f = goDown f >>= goRight
 
 -- Navegación dentro de un Zipper: TODO (ver el artículo).
+-- Bajar un nivel en el focus.
 goDown :: Focus -> Maybe Focus
 goDown (Var (Variable _ _), _) = Nothing
 goDown (Con (Constant _ _), _) = Nothing
@@ -136,6 +142,7 @@ goDown (App preExp0 preExp1, path) = Just (preExp0, AppL path preExp1)
 goDown (Quant qua var preExp0 preExp1, path) = Just (preExp0, QuantL qua var path preExp1)
 goDown (Paren preExp, path) = Just (preExp, ParenD path)
 
+-- Subir un nivel en el focus.
 goUp :: Focus -> Maybe Focus
 goUp (_, Top) = Nothing
 goUp (preExp, UnOpD op path) = Just (UnOp op preExp, path)
@@ -147,6 +154,7 @@ goUp (preExp, QuantL qua var path preExp0) = Just (Quant qua var preExp preExp0,
 goUp (preExp, QuantR qua var preExp0 path) = Just (Quant qua var preExp0 preExp, path)
 goUp (preExp, ParenD path) = Just (Paren preExp, path)
 
+-- Ir a la izquierda en un focus, sin cambiar de nivel.
 goLeft :: Focus -> Maybe Focus
 goLeft (_, Top) = Nothing
 goLeft (_, UnOpD _ _) = Nothing
@@ -158,6 +166,7 @@ goLeft (_, QuantL _ _ _ _) = Nothing
 goLeft (preExp, QuantR qua var preExp0 path) = Just (preExp0, QuantL qua var path preExp)
 goLeft (_, ParenD _) = Nothing
 
+-- Ir a la derecha en un focus, sin cambiar de nivel.
 goRight :: Focus -> Maybe Focus
 goRight (_, Top) = Nothing
 goRight (_, UnOpD _ _) = Nothing
