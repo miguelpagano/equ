@@ -54,31 +54,30 @@ class Syntactic t where
     
 -- | Instancia de syntax para el tipo Varible.
 instance Syntactic Variable where
-    tName t = varName t
-    tType t = varTy t
+    tName = varName
+    tType = varTy
     
 -- | Instancia de syntax para el tipo Constant.
 instance Syntactic Constant where
-    tName t = conName t
-    tType t = conTy t
+    tName = conName
+    tType = conTy
 
 -- | Instancia de syntax para el tipo Operator.
 instance Syntactic Operator where
-    tName t = opName t
-    tType t = opTy t
+    tName = opName
+    tType = opTy
 
 -- | Instancia de syntax para el tipo Function.
 instance Syntactic Func where
-    tName t = funcName t
-    tType t = funcTy t
+    tName = funcName
+    tType = funcTy
     
 -- | Instancia de syntax para el tipo Quantifier.
 instance Syntactic Quantifier where
-    tName t = quantName t
-    tType t = quantTy t
+    tName = quantName
+    tType = quantTy
 
 -- | Instancia de syntax para el tipo Hole.
-instance Syntactic Hole where
-    -- Decidir como tratar el nombre de los huecos.
-    tName _ = error"Los huecos no tiene nombre." 
-    tType t = holeTy t
+instance Syntactic Hole where  
+    tName _ = pack ""
+    tType = holeTy
