@@ -87,3 +87,27 @@ instance Syntactic Quantifier where
 instance Syntactic Hole where  
     tName _ = pack ""
     tType = holeTy
+
+-- | PrettyPrint para variables. 
+instance Show Variable where
+    show = unpack . tName
+
+-- | PrettyPrint para constantes. 
+instance Show Constant where
+    show = unpack . tName
+
+-- | PrettyPrint para operadores. 
+instance Show Operator where
+    show = unpack . tName
+
+-- | PrettyPrint para funciones. 
+instance Show Func where
+    show = unpack . tName
+
+-- | PrettyPrint para cuantificadores. 
+instance Show Quantifier where
+    show = unpack . tName
+
+-- | PrettyPrint para huecos. 
+instance Show Hole where
+    show _ = "_"
