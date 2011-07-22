@@ -16,29 +16,34 @@ data Variable = Variable {
       varName :: Text
     , varTy   :: Type
     }
+    deriving Eq
 
 data Constant = Constant {
       conRepr :: Text
     , conName :: ConName
     , conTy   :: Type
     }
-
+    deriving Eq
+    
 data Operator = Operator {
       opRepr :: Text   
     , opName :: OpName
     , opTy   :: Type
     } 
-
+    deriving Eq
+    
 data Func = Func {
       funcName :: Text
     , funcTy   :: Type
     }
-
+    deriving Eq
+    
 data Quantifier = Quantifier {
       quantRepr :: Text
     , quantName :: QuantName
     , quantTy   :: Type
     }
+    deriving Eq
 
 -- | Un hueco corresponde a una expresión o pre-expresión ausente
 -- pero en el contexto de otra expresión más grande. Esta es una
@@ -48,6 +53,7 @@ data Quantifier = Quantifier {
 data Hole = Hole {
       holeTy :: Type
     }
+    deriving Eq
     
 var :: String -> Type -> Variable
 var s t = Variable { varName = pack s
@@ -91,3 +97,27 @@ instance Syntactic Quantifier where
 instance Syntactic Hole where  
     tRepr _ = pack ""
     tType = holeTy
+
+-- | PrettyPrint para variables. 
+instance Show Variable where
+    show = unpack . tName
+
+-- | PrettyPrint para constantes. 
+instance Show Constant where
+    show = unpack . tName
+
+-- | PrettyPrint para operadores. 
+instance Show Operator where
+    show = unpack . tName
+
+-- | PrettyPrint para funciones. 
+instance Show Func where
+    show = unpack . tName
+
+-- | PrettyPrint para cuantificadores. 
+instance Show Quantifier where
+    show = unpack . tName
+
+-- | PrettyPrint para huecos. 
+instance Show Hole where
+    show _ = "_"
