@@ -26,7 +26,7 @@ data PreExpr = Var Variable
              | App PreExpr PreExpr
              | Quant Quantifier Variable PreExpr PreExpr
              | Paren PreExpr
-            deriving (Eq)
+
 
 -- | Pretty print para las preExpresiones.
 instance Show PreExpr where

@@ -5,7 +5,6 @@
 
 module Equ.Types where
 import Data.Text
-import Prelude hiding ((<=),(>=),compare,(<),(>))
 import Data.Poset
 
 data AtomTy = ATyNum
@@ -30,10 +29,10 @@ tyBool :: Type
 tyBool = TyAtom ATyBool
 
 instance Poset Type where
-    (TyAtom ATyNat) <= (TyAtom ATyInt) = True
-    (TyAtom ATyInt) <= (TyAtom ATyNum) = True
-    (TyAtom ATyNat) <= (TyAtom ATyNum) = True
-    (TyList t1) <= (TyList t2) = t1 <= t2
-    (t1 :-> t2) <= (s1 :-> s2) = s1 <= t1 && t2 <= s2
-    t1 <= t2 = t1==t2
+    (TyAtom ATyNat) `leq` (TyAtom ATyInt) = True
+    (TyAtom ATyInt) `leq` (TyAtom ATyNum) = True
+    (TyAtom ATyNat) `leq` (TyAtom ATyNum) = True
+    (TyList t1) `leq` (TyList t2) = t1 `leq` t2
+    (t1 :-> t2) `leq` (s1 :-> s2) = s1 `leq` t1 && t2 `leq` s2
+    t1 `leq` t2 = t1==t2
 
