@@ -34,6 +34,10 @@ data Func = Func {
     , funcTy   :: Type
     }
     
+    
+-- En el tipo de los cuantificadores, en general se tendrá:
+-- tipo1 :-> tipo2, donde tipo1 es el tipo de la variable cuantificada
+-- y tipo2 es el tipo del termino y consecuentemente de toda la expresion.
 data Quantifier = Quantifier {
       quantRepr :: Text
     , quantName :: QuantName

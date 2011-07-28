@@ -13,25 +13,39 @@ import Equ.Theories.AbsName
 import Data.Text (pack)
 
 
--- Constantes lógicas
+-- CONSTANTES
 
 folTrue :: Constant
 folTrue = Constant { conRepr = pack "True"
-                     , conName = CTrue
-                     , conTy = tyBool
-                     }
+                   , conName = CTrue
+                   , conTy = tyBool
+                   }
                      
 folFalse :: Constant
 folFalse = Constant { conRepr = pack "False"
-                     , conName = CFalse
-                     , conTy = tyBool
-                     }
+                    , conName = CFalse
+                    , conTy = tyBool
+                    }
+                     
+-- CUANTIFICADORES
+
+folForall :: Quantifier
+folForall = Quantifier { quantRepr = pack "∀"
+                       , quantName = Forall
+                       , quantTy = tyVar "A" :-> tyBool
+                       }
+                    
+folExist :: Quantifier
+folExist = Quantifier { quantRepr = pack "∃"
+                      , quantName = Exist
+                      , quantTy = tyVar "A" :-> tyBool
+                      }
+
+-- OPERACIONES
 
 -- Tipo de las operaciones logicas
 folBinOpType = tyBool :-> tyBool :-> tyBool
 folUnOpType = tyBool :-> tyBool
-
--- Operaciones logicas
 
 -- Equivalencia
 folEquiv :: Operator
@@ -82,6 +96,7 @@ folConseq = Operator { opRepr = pack "⇐"
                     , opTy = folBinOpType
                     }
                     
+-- A continuacion definimos constructores de expresiones, para su facil manejo
 
 -- | Constructor de Constantes logicas
 true :: Expr
@@ -120,7 +135,19 @@ impl (Expr p) (Expr q) = Expr $ BinOp folImpl p q
 conseq :: Expr -> Expr -> Expr
 conseq (Expr p) (Expr q) = Expr $ BinOp folConseq p q
 
+-- Constructor de para todo:
 
+-- DUDA: En el cuantificador paraTodo, y creo que en todos los cuantificadores
+--       tenemos una variable y luego el rango es la aplicacion de un predicado a esa variable
+--       termino es tambien la aplicacion de un predicado a esa variable. Lo cual me sugiere
+--       que el constructor de forAll y exist tome una variable y dos funciones (predicados).
+
+forAll :: Variable -> Expr -> Expr -> Expr
+forAll v (Expr r) (Expr t) = Expr $ Quant folForall v r t
+
+-- Constructor del existe:
+exist :: Variable -> Expr -> Expr -> Expr
+exist v (Expr r) (Expr t) = Expr $ Quant folExist v r t
 
 -- AXIOMAS DEL CALCULO PROPOSICIONAL
 -- Los axiomas del calculo proposicional son Expresiones dentro de Eq
@@ -403,3 +430,78 @@ conseqRule2 = Rule { lhs = conseq varP varQ
                    , desc = pack ""
                    }
 
+-- AXIOMAS PARA LOS CUANTIFICADORES
+
+-- ===========
+-- PARA TODO
+-- ===========
+
+-- ------------------------------
+-- Intercambio entre rango y término: <∀x : r.x : f.x> ≡ <∀x : : r.x ⇒ f.x>
+-- ------------------------------
+
+interRangeTermForall_Rule :: Rule
+interRangeTermForall_Rule = Rule { lhs = forAll varX range term
+                           , rhs = forAll varX true $ impl range term
+                           , rel = relEquiv
+                           , desc = pack ""
+                           }
+    where varX = var "x" $ tyVar "A"
+          range = Expr $ Var $ var "r" $ tyBool
+          term = Expr $ Var $ var "t" $ tyBool
+          
+-- Axioma 5.3 (distributividad con or): X ∨ ∀x : : f.x ≡ ∀x : : X ∨ f.x , siempre que x no ocurra en X. 
+-- DUDA: Cómo se implementa eso?
+
+-- ------------------------------
+-- Distributividad con ∧: <∀x : : f.x> ∧ <∀x : : g.x> ≡ <∀x : : f.x ∧ g.x>
+-- ------------------------------
+distribAndForall_Rule :: Rule
+distribAndForall_Rule = Rule { lhs = and (forAll varX true term1) (forAll varX true term2)
+                             , rhs = forAll varX true (and term1 term2)
+                             , rel = relEquiv
+                             , desc = pack ""
+                             }
+    where varX = var "x" $ tyVar "A"
+          term1 = Expr $ Var $ var "t1" $ tyBool
+          term2 = Expr $ Var $ var "t2" $ tyBool
+                             
+-- ------------------------------
+-- Rango Unitario: <∀x : x = Y : f.x> ≡ f.Y
+-- DUDA: Para definir esto tendriamos que saber si el tipo de la variable x tiene definida la igualdad. 
+--       Algo como las typeclasses de haskell donde digamos que el tipo A es instancia de Eq, o algo así.
+-- ------------------------------
+-- unitRangeForall_Rule :: Rule
+-- unitRangeForall_Rule = Rule { lhs = forAll (
+
+-- ------------------------------
+-- Intercambio de ∀: <∀x : : <∀y : : f.x.y> ≡ <∀y : : <∀x : : f.x.y>
+-- DUDA: Es necesario que el termino sea una funcion que toma x e y? No podria ser cualquier termino?
+-- ------------------------------
+intercForall_Rule :: Rule
+intercForall_Rule = Rule { lhs = forAll varX true $ forAll varY true term
+                         , rhs = forAll varY true $ forAll varX true term
+                         , rel = relEquiv
+                         , desc = pack ""
+                         }
+    where varX = var "x" $ tyVar "A"
+          varY = var "y" $ tyVar "A"
+          term = Expr $ Var $ var "t" $ tyBool   
+
+
+-- =======
+-- EXISTE
+-- =======
+
+-- ------------------------------
+-- Definicion de Existe: <∃x : r.x : f.x> ≡ ¬ <∀x : r.x : ¬f.x>
+-- ------------------------------
+existRule :: Rule
+existRule = Rule { lhs = exist varX range term
+                 , rhs = neg $ forAll varX range (neg term)
+                 , rel = relEquiv
+                 , desc = pack ""
+                 }
+    where varX = var "x" $ tyVar "A"
+          range = Expr $ Var $ var "r" $ tyBool
+          term = Expr $ Var $ var "t" $ tyBool
