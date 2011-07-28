@@ -98,6 +98,11 @@ drop (Expr xs) (Expr n) = Expr $ BinOp listDrop xs n
 index :: Expr -> Expr -> Expr
 index (Expr xs) (Expr n) = Expr $ BinOp listIndex xs n
 
+
+-- Reglas para la definicion de Concatenar (++)
+
+-- Caso base:
+-- [] ++ ys = ys
 emptyConcat :: Rule
 emptyConcat = Rule { lhs = concat emptyList varYS
                    , rhs = varYS
@@ -105,7 +110,10 @@ emptyConcat = Rule { lhs = concat emptyList varYS
                    , desc = pack ""
                    }
     where varYS = varList "ys" "A"
-                          
+
+
+-- Caso inductivo
+-- (x ▹ xs) ++ ys = x ▹ (xs ++ ys)
 consConcat :: Rule
 consConcat = Rule { lhs = concat (append varX varXS) varYS
                   , rhs = append varX (concat varXS varYS)
@@ -118,6 +126,9 @@ consConcat = Rule { lhs = concat (append varX varXS) varYS
 
 
 -- Reglas para la definicion de length (#)
+
+-- Caso base:
+-- #[] = 0
 emptyLength :: Rule
 emptyLength = Rule { lhs = length emptyList
                    , rhs = zero
@@ -125,6 +136,8 @@ emptyLength = Rule { lhs = length emptyList
                    , desc = pack ""
                    }
 
+-- Caso inductivo
+-- # (x ▹ xs) = 1 + # xs
 consLength :: Rule
 consLength = Rule { lhs = length (append varX varXS)
                   , rhs = successor (length varXS)
@@ -134,7 +147,15 @@ consLength = Rule { lhs = length (append varX varXS)
     where varX = Expr $ Var $ var "x" $ tyVar "A"
           varXS = varList "xs" "A"
 
+-- NOTA: En el libro Calculo de Programas, se incluyen otras reglas para la definicion de length
+--       con respecto a las operaciones concat, take y drop. Se optó por incluir solo las que involucran
+--       constructores, las demas pueden derivarse.
+
+
 -- Reglas para la definicion de take
+
+-- Caso base 1:
+-- xs ↑ 0 = []
 zeroTake :: Rule
 zeroTake = Rule { lhs = take varXS zero
                 , rhs = emptyList
@@ -143,7 +164,8 @@ zeroTake = Rule { lhs = take varXS zero
                 }
     where varXS = varList "xs" "A"
                       
-                
+-- Caso base 2:
+-- [] ↑ n = []
 emptyTake :: Rule
 emptyTake = Rule { lhs = take emptyList varN
                  , rhs = emptyList
@@ -152,6 +174,8 @@ emptyTake = Rule { lhs = take emptyList varN
                  }
     where varN = Expr $ Var $ var "x" $ TyAtom ATyNat
 
+-- Caso inductivo:
+-- (x ▹ xs) ↑ (n+1) = x ▹ (xs ↑ n)
 consTake :: Rule
 consTake = Rule { lhs = take (append varX varXS) (successor varN)
                 , rhs = append varX $ take varXS varN
@@ -164,6 +188,9 @@ consTake = Rule { lhs = take (append varX varXS) (successor varN)
           
 
 -- Reglas para la definicion de drop
+
+-- Caso base 1:
+-- xs ↓ 0 = xs
 zeroDrop :: Rule
 zeroDrop = Rule { lhs = drop varXS zero
                 , rhs = varXS
@@ -171,7 +198,9 @@ zeroDrop = Rule { lhs = drop varXS zero
                 , desc = pack ""
                 }
     where varXS = varList "xs" "A"
-                
+
+-- Caso base 2:
+-- [] ↓ n = []
 emptyDrop :: Rule
 emptyDrop = Rule { lhs = drop emptyList varN
                  , rhs = emptyList
@@ -180,6 +209,8 @@ emptyDrop = Rule { lhs = drop emptyList varN
                  }
     where varN = Expr $ Var $ var "x" $ TyAtom ATyNat
 
+-- Caso inductivo
+-- (x ▹ xs) ↓ (n+1) = xs ↓ n
 consDrop :: Rule
 consDrop = Rule { lhs = drop (append varX varXS) (successor varN)
                 , rhs = drop varXS varN
@@ -191,6 +222,9 @@ consDrop = Rule { lhs = drop (append varX varXS) (successor varN)
           varN = Expr $ Var $ var "x" $ TyAtom ATyNat
           
 -- Reglas para la definicion de Index
+
+-- Caso base:
+-- (x ▹ xs).0 = x
 zeroIndex :: Rule
 zeroIndex = Rule { lhs = index (append varX varXS) zero
                  , rhs = varX
@@ -200,6 +234,8 @@ zeroIndex = Rule { lhs = index (append varX varXS) zero
     where varXS = varList "xs" "A"
           varX = Expr $ Var $ var "x" $ tyVar "A"
 
+-- Caso inductivo
+-- (x ▹ xs).(n+1) = xs.n
 consIndex :: Rule
 consIndex = Rule { lhs = index (append varX varXS) (successor varN)
                  , rhs = index varXS varN
@@ -210,3 +246,4 @@ consIndex = Rule { lhs = index (append varX varXS) (successor varN)
           varX = Expr $ Var $ var "x" $ tyVar "A"
           varN = Expr $ Var $ var "x" $ TyAtom ATyNat
 
+-- NOTA: No hay reglas para lista vacia en la operacion index.
