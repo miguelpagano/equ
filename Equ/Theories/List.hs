@@ -199,3 +199,14 @@ zeroIndex = Rule { lhs = index (append varX varXS) zero
                  }
     where varXS = varList "xs" "A"
           varX = Expr $ Var $ var "x" $ tyVar "A"
+
+consIndex :: Rule
+consIndex = Rule { lhs = index (append varX varXS) (successor varN)
+                 , rhs = index varXS varN
+                 , rel = relEq
+                 , desc = pack ""
+                 }
+    where varXS = varList "xs" "A"
+          varX = Expr $ Var $ var "x" $ tyVar "A"
+          varN = Expr $ Var $ var "x" $ TyAtom ATyNat
+

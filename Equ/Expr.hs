@@ -10,3 +10,7 @@ import Equ.Syntax
 -- ningún constituyente de una expresión puede tener TyUnknown como
 -- tipo.
 newtype Expr = Expr PreExpr
+
+instance Show Expr where 
+    show (Expr e) = show e
+    
