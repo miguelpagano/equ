@@ -56,7 +56,7 @@ folEquiv = Operator { opRepr = pack "≡"
                     
 -- Discrepancia
 folDiscrep :: Operator
-folDiscrep = Operator { opRepr = pack "/≡"
+folDiscrep = Operator { opRepr = pack "≢"
                       , opName = Discrep
                       , opTy = folBinOpType
                       }
