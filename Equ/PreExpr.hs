@@ -9,6 +9,8 @@ module Equ.PreExpr (  PreExpr (..), Focus
     where
 
 import Equ.Syntax
+import Control.Applicative ((<$>), (<*>))
+import Test.QuickCheck(Arbitrary, arbitrary, oneof)
 
 {- Propiedades de PreExpresiones (QC): queremos poder respetar la forma
    de escribir una expresión.
@@ -26,7 +28,7 @@ data PreExpr = Var Variable
              | App PreExpr PreExpr
              | Quant Quantifier Variable PreExpr PreExpr
              | Paren PreExpr
-
+            deriving Eq
 
 -- | Pretty print para las preExpresiones.
 instance Show PreExpr where
@@ -39,8 +41,8 @@ instance Show PreExpr where
                 ++ "(" ++ show preExp1 ++ ")"
     show (App preExp0 preExp1) = "(" ++ show preExp0 ++ ")" ++
                                  "(" ++ show preExp1 ++ ")"
-    show (Quant qua var preExp0 preExp1) = "(" ++ show qua ++ ")" ++ 
-                                           "(" ++ show var ++ ") in " ++ 
+    show (Quant qua v preExp0 preExp1) = "(" ++ show qua ++ ")" ++ 
+                                           "(" ++ show v ++ ") in " ++ 
                                            "(" ++ show preExp0 ++ ") | " ++ 
                                            "(" ++ show preExp1 ++ ")"
     -- Aca no estoy seguro si es que Paren hace referencia a una expresion 
@@ -48,8 +50,23 @@ instance Show PreExpr where
     -- show no se diferenciaria entonces ponemos [ y ].
     show (Paren preExp) = "[" ++ show preExp ++ "]" 
 
- -- Los zippers pueden ser convenientes; la referencia es: ``The
+-- Los zippers pueden ser convenientes; la referencia es: ``The
 -- Zipper'' de Gérard Huet en JFP. 
+
+-- | Instancia arbitrary para las preExpresiones, lo único que dejamos fijo es el 
+-- operador unario, esto para simplificar la forma de las preExpresiones.
+instance Arbitrary PreExpr where
+    arbitrary =
+        oneof [   Var <$> arbitrary
+                , Con <$> arbitrary
+                , Fun <$> arbitrary
+                , PrExHole <$> arbitrary
+                , UnOp <$> arbitrary <*> arbitrary
+                , BinOp <$> arbitrary <*> arbitrary <*> arbitrary
+                , App <$> arbitrary <*> arbitrary
+                , Quant <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+                , Paren <$> arbitrary
+                ]
 
 data Path = Top
           | UnOpD Operator Path
@@ -73,10 +90,10 @@ toExpr (preExp, BinOpL op path preExp0) = toExpr (BinOp op preExp preExp0, path)
 toExpr (preExp, BinOpR op preExp0 path) = toExpr (BinOp op preExp0 preExp, path)
 toExpr (preExp, AppL path preExp0) = toExpr (App preExp preExp0, path)
 toExpr (preExp, AppR preExp0 path) = toExpr (App preExp0 preExp, path)
-toExpr (preExp, QuantL qua var path preExp0) = 
-    toExpr (Quant qua var preExp preExp0, path)
-toExpr (preExp, QuantR qua var preExp0 path) = 
-    toExpr (Quant qua var preExp0 preExp, path)
+toExpr (preExp, QuantL qua v path preExp0) = 
+    toExpr (Quant qua v preExp preExp0, path)
+toExpr (preExp, QuantR qua v preExp0 path) = 
+    toExpr (Quant qua v preExp0 preExp, path)
 toExpr (preExp, ParenD path) = toExpr (Paren preExp, path)
 
 -- | Dado una expresión la enfocamos. Es decir luego de llamar a toFocus con 
@@ -101,9 +118,9 @@ focusToFocuses (Just focus) =
         (App preExp0 preExp1, path) ->
             ((preExp0, AppL path preExp1) : focusToFocuses (goDownL focus)) ++
             ((preExp1, AppR preExp0 path) : focusToFocuses (goDownR focus))
-        (Quant qua var preExp0 preExp1, path) ->
-            ((preExp0, QuantL qua var path preExp1) : focusToFocuses (goDownL focus)) ++
-            ((preExp1, QuantR qua var preExp0 path) : focusToFocuses (goDownR focus))
+        (Quant qua v preExp0 preExp1, path) ->
+            ((preExp0, QuantL qua v path preExp1) : focusToFocuses (goDownL focus)) ++
+            ((preExp1, QuantR qua v preExp0 path) : focusToFocuses (goDownR focus))
         (Paren preExp, path) ->
             (preExp, ParenD path) : focusToFocuses (goDown focus)
         _ -> [] -- El wildcard simboliza los casos de var, const, fun y hole.
@@ -140,7 +157,7 @@ goDown (PrExHole _, _) = Nothing
 goDown (UnOp op preExp, path) = Just (preExp, UnOpD op path)
 goDown (BinOp op preExp0 preExp1, path) = Just (preExp0, BinOpL op path preExp1)
 goDown (App preExp0 preExp1, path) = Just (preExp0, AppL path preExp1)
-goDown (Quant qua var preExp0 preExp1, path) = Just (preExp0, QuantL qua var path preExp1)
+goDown (Quant qua v preExp0 preExp1, path) = Just (preExp0, QuantL qua v path preExp1)
 goDown (Paren preExp, path) = Just (preExp, ParenD path)
 
 -- | Subir un nivel en el focus.
@@ -151,8 +168,8 @@ goUp (preExp, BinOpL op path preExp0) = Just (BinOp op preExp preExp0, path)
 goUp (preExp, BinOpR op preExp0 path) = Just (BinOp op preExp0 preExp, path)
 goUp (preExp, AppL path preExp0) = Just (App preExp preExp0, path)
 goUp (preExp, AppR preExp0 path) = Just (App preExp0 preExp, path)
-goUp (preExp, QuantL qua var path preExp0) = Just (Quant qua var preExp preExp0, path)
-goUp (preExp, QuantR qua var preExp0 path) = Just (Quant qua var preExp0 preExp, path)
+goUp (preExp, QuantL qua v path preExp0) = Just (Quant qua v preExp preExp0, path)
+goUp (preExp, QuantR qua v preExp0 path) = Just (Quant qua v preExp0 preExp, path)
 goUp (preExp, ParenD path) = Just (Paren preExp, path)
 
 -- | Ir a la izquierda en un focus, sin cambiar de nivel.
@@ -164,7 +181,7 @@ goLeft (preExp, BinOpR op preExp0 path) = Just (preExp0, BinOpL op path preExp)
 goLeft (_, AppL _ _) = Nothing
 goLeft (preExp, AppR preExp0 path) = Just (preExp0, AppL path preExp)
 goLeft (_, QuantL _ _ _ _) = Nothing
-goLeft (preExp, QuantR qua var preExp0 path) = Just (preExp0, QuantL qua var path preExp)
+goLeft (preExp, QuantR qua v preExp0 path) = Just (preExp0, QuantL qua v path preExp)
 goLeft (_, ParenD _) = Nothing
 
 -- | Ir a la derecha en un focus, sin cambiar de nivel.
@@ -175,6 +192,6 @@ goRight (preExp, BinOpL op path preExp0) = Just (preExp0, BinOpR op preExp path)
 goRight (_, BinOpR _ _ _) = Nothing
 goRight (preExp, AppL path preExp0) = Just (preExp0, AppR preExp path)
 goRight (_, AppR _ _) = Nothing
-goRight (preExp, QuantL qua var path preExp0) = Just (preExp0, QuantR qua var preExp path)
+goRight (preExp, QuantL qua v path preExp0) = Just (preExp0, QuantR qua v preExp path)
 goRight (_, QuantR _ _ _ _) = Nothing
 goRight (_, ParenD _) = Nothing
