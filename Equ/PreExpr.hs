@@ -1,11 +1,13 @@
 -- | Las PreExpresiones son árboles de expresiones no necesariamente
 -- tipables con huecos. Como se comenta en el módulo Equ.Syntax, el
 -- tipo que posiblemente puso el usuario está en las hojas del árbol.
-module Equ.PreExpr (  PreExpr (..), Focus
-                    , toExpr, toFocus, toFocuses
-                    , replace
-                    , goDown, goUp, goLeft, goRight
-                    ) 
+module Equ.PreExpr ( PreExpr (..)
+                   , Focus
+                   , Path (..)
+                   , toExpr, toFocus, toFocuses
+                   , replace
+                   , goDown, goUp, goLeft, goRight
+                   ) 
     where
 
 import Equ.Syntax

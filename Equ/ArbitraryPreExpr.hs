@@ -1,3 +1,5 @@
+module Equ.ArbitraryPreExpr where
+
 import Equ.Syntax
 import Equ.Types
 import Equ.PreExpr
@@ -37,7 +39,7 @@ instance Arbitrary Type where
                 , liftM TyAtom arbitrary
                 , liftM2 (:->) arbitrary arbitrary
                 ]
-
+{-
 -- Instancia arbitrary para las variables, acá es donde usaríamos la instancia
 -- arbitraty de Text pero en su lugar nos concentramos en un conjunto reducido
 -- pero mucho mas útil de indicadores de variable.
@@ -123,6 +125,7 @@ giveMePreExpAux n m = let l = unGen arbitrary (mkStdGen m) m :: [PreExpr]
                                 then giveMePreExpAux n (m+1)
                                 else l
 
+
 -- Dado un n retorna una lista de preExpresiones tal que #[PreExpr] >=n
 giveMePreExp :: Int -> [PreExpr]
 giveMePreExp n = giveMePreExpAux n 0
@@ -137,3 +140,4 @@ prop_toFocusesAux :: PreExpr -> [Focus] -> Bool
 prop_toFocusesAux preExp [] = True
 prop_toFocusesAux preExp (x:xs) | toExpr x == preExp = prop_toFocusesAux preExp xs
                                 | otherwise = False
+-}

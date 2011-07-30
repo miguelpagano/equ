@@ -12,8 +12,11 @@ import Equ.Theories.AbsName
 
 import Data.Text
 
+type VarName = Text
+type FuncName = Text
+
 data Variable = Variable {
-      varName :: Text
+      varName :: VarName
     , varTy   :: Type
     }
 
@@ -30,7 +33,7 @@ data Operator = Operator {
     } 
     
 data Func = Func {
-      funcName :: Text
+      funcName :: FuncName
     , funcTy   :: Type
     }
     

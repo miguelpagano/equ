@@ -7,6 +7,7 @@ data ConName = Empty  -- ^ Lista: vacia
                | Zero -- ^ Num (polimorfico): cero
                | CTrue -- ^ FOL: true
                | CFalse -- ^ FOL: false
+                 deriving (Eq,Ord)
                
 -- | Nombres de operadores
 data OpName = Append    -- ^ Lista: agregar por la izquierda 
@@ -24,7 +25,10 @@ data OpName = Append    -- ^ Lista: agregar por la izquierda
               | And     -- ^ FOL: "y" lógico
               | Or      -- ^ FOL: "o" lógico
               | Neg     -- ^ FOL: Negación
+                 deriving (Eq,Ord)
+
               
 -- | Nombres de cuantificadores
 data QuantName = Forall  -- ^ FOL: para todo
-                 | Exist -- ^ FOL: existe
+               | Exist -- ^ FOL: existe
+                 deriving (Eq,Ord)

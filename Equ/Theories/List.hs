@@ -78,6 +78,14 @@ emptyList = Expr $ Con $ listEmpty
 append :: Expr -> Expr -> Expr
 append (Expr x) (Expr xs) = Expr $ BinOp listApp x xs
 
+{-
+append' :: Expr -> Expr -> Either TyErr Expr
+append' x xs = case (typeOf x, typeOf xs) of
+                 (t1, TyList t2) -> if t1 == t2 then Right . Expr $ BinOp listApp x xs
+                                   else Left TypesDontMatch
+                 (t1,t2)           -> Left $ ExpectedType (TyList t1) t2
+-} 
+
 -- | Constructor de concatenacion
 concat :: Expr -> Expr -> Expr
 concat (Expr xs) (Expr ys) = Expr $ BinOp listConcat xs ys
@@ -110,7 +118,6 @@ emptyConcat = Rule { lhs = concat emptyList varYS
                    , desc = pack ""
                    }
     where varYS = varList "ys" "A"
-
 
 -- Caso inductivo
 -- (x ▹ xs) ++ ys = x ▹ (xs ++ ys)

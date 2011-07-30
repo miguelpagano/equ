@@ -26,7 +26,7 @@ Library
                        Equ.TypeChecker
 
   -- Packages needed in order to build this package.
-  Build-depends:       base >= 4.2, text >= 0.11.0.8, ordered
+  Build-depends:       base >= 4.2, text >= 0.11.0.8, ordered, mtl >= 2.0, containers >= 0.4
 
   GHC-Options:         -Odph -Wall
   -- HS-Source-Dirs:   Equ   
