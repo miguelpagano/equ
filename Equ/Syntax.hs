@@ -9,6 +9,8 @@ module Equ.Syntax where
 
 import Equ.Types
 import Equ.Theories.AbsName
+import Control.Applicative((<$>),(<*>))
+import Test.QuickCheck(Arbitrary, arbitrary)
 
 import Data.Text
 
@@ -19,23 +21,27 @@ data Variable = Variable {
       varName :: VarName
     , varTy   :: Type
     }
+    deriving Eq
 
 data Constant = Constant {
       conRepr :: Text
     , conName :: ConName
     , conTy   :: Type
     }
+    deriving Eq
     
 data Operator = Operator {
       opRepr :: Text   
     , opName :: OpName
     , opTy   :: Type
     } 
+    deriving Eq
     
 data Func = Func {
       funcName :: FuncName
     , funcTy   :: Type
     }
+    deriving Eq
     
     
 -- En el tipo de los cuantificadores, en general se tendrá:
@@ -46,6 +52,7 @@ data Quantifier = Quantifier {
     , quantName :: QuantName
     , quantTy   :: Type
     }
+    deriving Eq
 
 -- | Un hueco corresponde a una expresión o pre-expresión ausente
 -- pero en el contexto de otra expresión más grande. Esta es una
@@ -55,6 +62,7 @@ data Quantifier = Quantifier {
 data Hole = Hole {
       holeTy :: Type
     }
+    deriving Eq
     
 var :: String -> Type -> Variable
 var s t = Variable { varName = pack s
@@ -122,3 +130,27 @@ instance Show Quantifier where
 -- | PrettyPrint para huecos. 
 instance Show Hole where
     show _ = "_"
+
+-- | Instancia arbitrary para las variables.
+instance Arbitrary Variable where
+    arbitrary = Variable <$> arbitrary <*> arbitrary
+
+-- | Instancia arbitrary para constantes.
+instance Arbitrary Constant where
+    arbitrary = Constant <$> arbitrary <*> arbitrary <*> arbitrary
+    
+-- | Instancia arbitrary para los operadores.
+instance Arbitrary Operator where
+    arbitrary = Operator <$> arbitrary <*> arbitrary <*> arbitrary
+
+-- | Instancia arbitrary para las funciones.
+instance Arbitrary Func where
+    arbitrary = Func <$> arbitrary <*> arbitrary
+        
+-- | Instancia arbitrary para los cuantificadores.
+instance Arbitrary Quantifier where
+    arbitrary = Quantifier <$> arbitrary <*> arbitrary <*> arbitrary
+
+-- | Instancia arbitrary para los huecos.
+instance Arbitrary Hole where
+    arbitrary = Hole <$> arbitrary

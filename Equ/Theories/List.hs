@@ -25,7 +25,7 @@ listEmpty = Constant { conRepr = pack "[ ]"
                      , conName = Empty
                      , conTy = tyListVar "A"
                      }
-            
+
 listApp :: Operator
 listApp = Operator { opRepr = pack "▹"
                    , opName = Append

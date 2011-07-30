@@ -26,13 +26,21 @@ Library
                        Equ.TypeChecker
 
   -- Packages needed in order to build this package.
-  Build-depends:       base >= 4.2, text >= 0.11.0.8, ordered, mtl >= 2.0, containers >= 0.4
+  -- Last three for test.
+  Build-depends:       base >= 4.2, text >= 0.11.0.8, ordered, random,
+                       QuickCheck == 2.4.1.1, test-framework-quickcheck2, 
+                       test-framework
 
   GHC-Options:         -Odph -Wall
-  -- HS-Source-Dirs:   Equ   
+  -- HS-Source-Dirs:
   
   -- Modules not exported by this package.
   -- Other-modules:       
   
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   -- Build-tools:    
+
+Test-Suite TpreExpr
+  type: exitcode-stdio-1.0
+  main-is: runtests.hs
+  hs-source-dirs: ., TestSuite
