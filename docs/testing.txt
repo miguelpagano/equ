@@ -1,0 +1,22 @@
+* Testing con cabal
+
+* Paquetes instalados:
+    - test-framework
+    - test-framework-quickcheck2
+    - quickcheck 2.4.1.1
+
+* Pasos simples para correr los test:
+    cabal configure --enable-tests
+    cabal build
+    cabal test
+
+* Para un prettyprint con cabal: 
+    cabal test --show-details=always
+    
+    Nota: Lo que imprime "de mas" esta relacionado con la impresion que hace
+        quickcheck. Si uno compilara el codigo haskell creando un ejecutable
+        entonces quickcheck nos da el prettyprint.
+
+* Corriendo cabal test, nos genera dos archivos de log, uno con la informacion 
+    de los tests que corrio y otro con las salidas IO que hayan dado las
+    distintas corridas de los tests.
