@@ -3,19 +3,22 @@ module Equ.TypeChecker
     ( module Equ.TypeChecker.Error
       -- * Algoritmo de unificación con relación de orden.
     , unify
+    , emptySubst
     , rewrite
-    , prop_unify
       -- * Algoritmo de TypeChecking.
     , check
+    , initCtx
+    , freshVars
     )
     where
+
 import Equ.Syntax
 import Equ.PreExpr
-import Equ.Expr
+import Equ.Expr ()
 import Equ.Types
 import Equ.Theories.AbsName
 import Equ.TypeChecker.Error
--- import Equ.ArbitraryPreExpr
+
 
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -55,7 +58,7 @@ data Ctx = Ctx { vars :: CtxSyn VarName
                , quants :: CtxSyn QuantName
                }
 
-
+-- | Agrega elementos en la lista de valores.
 insertList :: Ord k =>  k -> v -> M.Map k [v] -> M.Map k [v]
 insertList k v = M.insertWith (++) k [v] 
 
@@ -87,7 +90,8 @@ tyerr p t = Left (p,t)
 
 -- | Chequeo de diferentes elementos sintácticos simples como
 -- variables, constantes, símbolos de función y operadores.
-checkSyn :: (Syntactic s,Ord k) => s -> (s -> k) -> (s -> Type) -> (Ctx -> M.Map k [Type], Ctx -> M.Map k [Type] -> Ctx) -> Ctx -> TyMonad (Ctx,Type)
+checkSyn :: (Syntactic s,Ord k) => s -> (s -> k) -> (s -> Type) -> 
+           (Ctx -> M.Map k [Type], Ctx -> M.Map k [Type] -> Ctx) -> Ctx -> TyMonad (Ctx,Type)
 checkSyn s n t (i,j) ctxs = case M.lookup sName ctx of
                               Nothing -> return $ (j ctxs (insertList sName sTy ctx),sTy)
                               Just ts -> if head ts == sTy
@@ -96,55 +100,48 @@ checkSyn s n t (i,j) ctxs = case M.lookup sName ctx of
     where (sName, sTy) = (n s, t s)
           ctx = i ctxs
 
--- Las diferentes instancias de checkSyn.
+-- | Las diferentes instancias de checkSyn.
+checkVar,checkFun :: Syntactic s => s -> Ctx -> TyMonad (Ctx, Type)
 checkVar v = checkSyn v tRepr tType (vars, \ctx vctx -> ctx { vars = vctx})
-checkCon c = checkSyn c conName tType (cons, \ctx cctx -> ctx { cons = cctx})
 checkFun f = checkSyn f tRepr tType (funcs, \ctx fctx -> ctx { funcs = fctx})
+checkCon :: Constant -> Ctx -> TyMonad (Ctx, Type)
+checkCon c = checkSyn c conName tType (cons, \ctx cctx -> ctx { cons = cctx})
+checkOp :: Operator -> Ctx -> TyMonad (Ctx, Type)
 checkOp op = checkSyn op opName tType (ops, \ctx octx -> ctx { ops = octx})
+checkQuant :: Quantifier -> Ctx -> TyMonad (Ctx,Type)
 checkQuant q = checkSyn q quantName tType (quants, \ctx _ -> ctx)
 
 
 -- | Algoritmo de unificación. Suponemos que no hay 'TyUnknown'.
 unify :: Type -> Type -> TySubst -> Either TyErr TySubst
-unify t@(TyAtom a) t'@(TyAtom a') s | t `leq` t' = return s
-                                    | otherwise = Left $ ErrUnification t t'
+unify t@(TyAtom _) t'@(TyAtom _) s | t `leq` t' = return s
+                                   | otherwise = Left $ ErrUnification t t'
 unify (t :-> t') (r :-> r') s = unify r t s >>= unify t' r'
 unify (TyList t) (TyList t') s = unify t t' s
-unify (TyVar v) (TyVar w) s | v == w = return s
-                            | v `M.member` s = unify (M.findWithDefault TyUnknown v s) (TyVar w) s
-                            | otherwise = return . M.insert v (TyVar w) . M.map (tyreplace v (TyVar w)) $ s
-unify (TyVar v) t s | v `occurs` t = Left $ ErrUnification (TyVar v) t
-                    | v `M.member` s  = unify (M.findWithDefault TyUnknown v s) t s
-                    | otherwise = return . M.insert v t . M.map (flip (tyreplace v) t) $ s
+unify t@(TyVar v) t' s | t == t' = return s
+                       | v `occurs` t = Left $ ErrUnification (TyVar v) t
+                       | v `M.member` s  = unify (M.findWithDefault TyUnknown v s) t s
+                       | otherwise = return . M.insert v t . M.map (flip (tyreplace v) t) $ s
 unify t (TyVar v) s = unify (TyVar v) t s
 unify t t' _ = Left $ ErrUnification t t'
 
 -- | Uso de una sustitución para reemplazar todas las variables en un
 -- tipo.
 rewrite :: Type -> TySubst -> Type
-rewrite (TyAtom t) s = TyAtom t
+rewrite (TyAtom t) _ = TyAtom t
 rewrite (TyVar v) s = M.findWithDefault (TyVar v) v s
 rewrite (TyList t) s = TyList $ rewrite t s
 rewrite (t :-> t') s = rewrite t s :-> rewrite t' s
 rewrite TyUnknown _ = TyUnknown
 
 
--- | Si la unificación fue exitosa, entonces los tipos son iguales después
--- de aplicar la sustitución.
-prop_unify :: (Type,Type) -> Bool
-prop_unify (t,t') = case unify t t' (M.fromList []) of
-                      Left _ -> True
-                      Right s -> rewrite t s == rewrite t' s
-
+emptySubst :: TySubst
+emptySubst = M.empty
 
 -- | Generación de variables de tipo frescas.
 freshVars :: Type -> [TyVarName]
-freshVars t =  filter (not . flip occurs t) [(T.pack . ("t"++) . show) n | n <- [0..]]
+freshVars t =  filter (not . flip occurs t) [(T.pack . ("t"++) . show) n | n <- [(0::Int)..]]
 
-
--- | Si v in freshVars t, entonces no (occurs v t).
-prop_freshVars :: Type -> Bool
-prop_freshVars t = and . take 2 . map (not . flip occurs t) . freshVars $ t
 
 -- TODO: 
 --  * pensar el caso de cuantificadores; 

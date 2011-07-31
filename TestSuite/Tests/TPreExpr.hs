@@ -1,4 +1,4 @@
-module Tests.TPreExpr (
+module TestSuite.Tests.TPreExpr (
                 prop_toFocuses
                 )
     where

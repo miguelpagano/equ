@@ -18,3 +18,4 @@ data TyErr = ErrNotExpected Type Type -- ^ El tipo inferido/obtenido (primer
 instance Show TyErr where
     show (ErrNotExpected t t') = "[ERR] Expected " ++ show t ++ ", inferred " ++ show t'
     show (ErrClashTypes s ts) = "[ERR] " ++ show (tRepr s) ++ " has more than one type: " ++ show ts
+    show (ErrUnification t t') = "[ERR] Non-unifiable types: " ++ show t ++ " and " ++ show t'

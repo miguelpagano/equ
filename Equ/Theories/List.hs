@@ -23,7 +23,7 @@ tyListVar = TyList . tyVar
 listEmpty :: Constant
 listEmpty = Constant { conRepr = pack "[ ]"
                      , conName = Empty
-                     , conTy = tyListVar "A"
+                     , conTy = tyListVar "B"
                      }
 
 listApp :: Operator

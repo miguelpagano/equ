@@ -13,11 +13,22 @@ Build-Type:          Simple
 Cabal-Version:       >=1.2
 tested-with:         GHC==6.10.1
 build-type:          Simple
+bug-reports:         https://github.com/miguelpagano/equ/issues
+
+
+Flag coverage
+     Description: Generate coverage information with HPC.
+     Default:     False
+
+Flag tests
+     Description: Generate test.
+     Default:     False
+
 
 Source-repository this
   type:     git
   location: http://github.com/miguelpagano/equ
-  tag:      0.1.0
+  branch:   master
 
 Library
   -- Modules exported by the library.
@@ -27,9 +38,9 @@ Library
 
   -- Packages needed in order to build this package.
   -- Last three for test.
-  Build-depends:       base >= 4.2, text >= 0.11.0.8, ordered, random,
-                       QuickCheck == 2.4.1.1, test-framework-quickcheck2, 
-                       test-framework
+  Build-depends:       base >= 4.2, text >= 0.11.0.8, ordered, random, 
+                       mtl >= 2.0, QuickCheck == 2.4.1.1, test-framework-quickcheck2,
+                       test-framework, containers >= 0.4
 
   GHC-Options:         -Odph -Wall
   -- HS-Source-Dirs:
@@ -40,7 +51,12 @@ Library
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   -- Build-tools:    
 
-Test-Suite TpreExpr
-  type: exitcode-stdio-1.0
-  main-is: runtests.hs
-  hs-source-dirs: ., TestSuite
+Executable test-equ
+  main-is: TestSuite/Test.hs
+  if !flag(tests)
+    buildable: False
+  else
+    if flag(coverage)
+      ghc-options: -fhpc
+      x-hpc: true
+    ghc-options: -Wall

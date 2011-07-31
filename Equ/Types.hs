@@ -41,8 +41,6 @@ instance Poset Type where
     (t1 :-> t2) `leq` (s1 :-> s2) = s1 `leq` t1 && t2 `leq` s2
     t1 `leq` t2 = t1==t2
 
-<<<<<<< HEAD
-
 -- | Occurence of a type-variable in a type.
 occurs :: TyVarName -> Type -> Bool
 occurs v (TyVar w) = v == w
@@ -55,10 +53,10 @@ occurs _ _ = False
 tyreplace :: TyVarName -> Type -> Type -> Type
 tyreplace v (TyVar w) t | v == w = t
                         | otherwise = TyVar w
-tyreplace v (TyAtom s) _ = TyAtom s
 tyreplace v (TyList s) t = TyList $ tyreplace v s t
 tyreplace v (s :-> s') t = tyreplace v s t :-> tyreplace v s' t
-=======
+tyreplace _ t _ = t
+
 -- | Instancia arbitrary para text, en principio no la usamos; 
 -- generaba demasiada aleatoriedad de preExpr y no servia de mucho.
 -- Generaba por ejemplo cosas como (+)(Forall) in (and) | ((ForSome) + (A))
@@ -89,4 +87,3 @@ instance Arbitrary Type where
                 , TyAtom <$> arbitrary
                 , (:->) <$> arbitrary <*> arbitrary
                 ]
->>>>>>> 35ba8c7fc98de935caf41e72e562094f493f6d40

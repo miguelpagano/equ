@@ -4,7 +4,7 @@ module Equ.Expr where
 
 import Equ.PreExpr
 -- import Equ.Theories
-import Equ.Syntax
+-- import Equ.Syntax
 
 -- | Las expresiones son pre-expresiones bien tipadas. Es decir,
 -- ningún constituyente de una expresión puede tener TyUnknown como

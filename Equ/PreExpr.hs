@@ -7,6 +7,7 @@ module Equ.PreExpr ( PreExpr (..)
                    , toExpr, toFocus, toFocuses
                    , replace
                    , goDown, goUp, goLeft, goRight
+                   , module Equ.Syntax
                    ) 
     where
 
