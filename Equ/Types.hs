@@ -2,7 +2,7 @@
 -- en un árbol de tipado. Si se desea agregar una nueva teoría,
 -- entonces es necesario extender los tipos atómicos (o los 
 -- constructores de tipos, por ejemplo para árboles binarios).
-
+{-# Language TypeSynonymInstances #-}
 module Equ.Types where
 
 import Data.Text (Text, pack)
@@ -60,19 +60,9 @@ tyreplace _ t _ = t
 -- | Instancia arbitrary para text, en principio no la usamos; 
 -- generaba demasiada aleatoriedad de preExpr y no servia de mucho.
 -- Generaba por ejemplo cosas como (+)(Forall) in (and) | ((ForSome) + (A))
-instance Arbitrary Text where
+instance Arbitrary TyVarName where
     arbitrary = 
-        oneof [ return (pack "ForAll")
-                , return (pack "ForSome")
-                , return (pack "+")
-                , return (pack "-")
-                , return (pack "*")
-                , return (pack "/")
-                , return (pack "and")
-                , return (pack "or")
-                , return (pack "implies")
-                , return (pack "iff")
-                ]
+        elements [(pack . ("t"++) . show) n | n <- [(0::Int)..100]]
 
 -- | Instancia arbitrary para los tipos atómicos.
 instance Arbitrary AtomTy where
@@ -82,8 +72,8 @@ instance Arbitrary AtomTy where
 instance Arbitrary Type where
     arbitrary = 
         oneof [ return TyUnknown
-                , TyVar <$> arbitrary
-                , TyList <$> arbitrary
-                , TyAtom <$> arbitrary
-                , (:->) <$> arbitrary <*> arbitrary
-                ]
+              , TyVar <$> arbitrary
+              , TyList <$> arbitrary
+              , TyAtom <$> arbitrary
+              , (:->) <$> arbitrary <*> arbitrary
+              ]

@@ -62,13 +62,13 @@ usar otro flag:
  $ cabal build
 
 Luego podemos ejecutar el test como antes:
+ $ cd dist/build/test-equ/
+ $ ./test-equ
 
- $ dist/build/test-equ/test-equ
-
-y ver la cobertura con:
-
- $ hpc report dist/build/test-equ/test-equ --exclude=test-equ
+y ver la cobertura con (asumiendo que PWD=dist/build/test-equ/):
+ 
+ $ hpc report test-equ --exclude=test-equ
 
 Para generar esta información en HTML, cambiamos report por markup
 
- $ hpc markup dist/build/test-equ/test-equ --exclude=test-equ --destdir=dist/build/test-equ/coverage
+ $ hpc markup test-equ --exclude=test-equ --destdir=coverage
