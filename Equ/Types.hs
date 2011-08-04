@@ -2,10 +2,13 @@
 -- en un árbol de tipado. Si se desea agregar una nueva teoría,
 -- entonces es necesario extender los tipos atómicos (o los 
 -- constructores de tipos, por ejemplo para árboles binarios).
-
+{-# Language TypeSynonymInstances #-}
 module Equ.Types where
-import Data.Text
+
+import Data.Text (Text, pack)
 import Data.Poset
+import Control.Applicative((<$>),(<*>))
+import Test.QuickCheck(Arbitrary, arbitrary, elements, oneof)
 
 data AtomTy = ATyNum
             | ATyInt
@@ -13,8 +16,10 @@ data AtomTy = ATyNum
             | ATyBool -- ^ Corresponde a las fórmulas proposicionales.
      deriving (Eq,Show)
 
+type TyVarName = Text
+
 data Type = TyUnknown
-          | TyVar Text
+          | TyVar TyVarName
           | TyList Type
           | TyAtom AtomTy
           | Type :-> Type
@@ -36,3 +41,39 @@ instance Poset Type where
     (t1 :-> t2) `leq` (s1 :-> s2) = s1 `leq` t1 && t2 `leq` s2
     t1 `leq` t2 = t1==t2
 
+-- | Occurence of a type-variable in a type.
+occurs :: TyVarName -> Type -> Bool
+occurs v (TyVar w) = v == w
+occurs v (TyList t) = occurs v t
+occurs v (t :-> t') = occurs v t || occurs v t'
+occurs _ _ = False
+
+-- | Replace the occurrence of a type-variable for a type: 'replace v
+-- s t', replaces the occurences of 'v' in 's' for 't'.
+tyreplace :: TyVarName -> Type -> Type -> Type
+tyreplace v (TyVar w) t | v == w = t
+                        | otherwise = TyVar w
+tyreplace v (TyList s) t = TyList $ tyreplace v s t
+tyreplace v (s :-> s') t = tyreplace v s t :-> tyreplace v s' t
+tyreplace _ t _ = t
+
+-- | Instancia arbitrary para text, en principio no la usamos; 
+-- generaba demasiada aleatoriedad de preExpr y no servia de mucho.
+-- Generaba por ejemplo cosas como (+)(Forall) in (and) | ((ForSome) + (A))
+instance Arbitrary TyVarName where
+    arbitrary = 
+        elements [(pack . ("t"++) . show) n | n <- [(0::Int)..100]]
+
+-- | Instancia arbitrary para los tipos atómicos.
+instance Arbitrary AtomTy where
+    arbitrary = elements [ATyNum, ATyInt, ATyNat, ATyBool]
+    
+-- | Instancia arbitrary para los tipos generales.
+instance Arbitrary Type where
+    arbitrary = 
+        oneof [ return TyUnknown
+              , TyVar <$> arbitrary
+              , TyList <$> arbitrary
+              , TyAtom <$> arbitrary
+              , (:->) <$> arbitrary <*> arbitrary
+              ]
