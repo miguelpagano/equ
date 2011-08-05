@@ -52,13 +52,19 @@ folEquiv :: Operator
 folEquiv = Operator { opRepr = pack "≡"
                     , opName = Equival
                     , opTy = folBinOpType
+                    , opAssoc = ALeft
+                    , opNotationTy = NInfix
+                    , opPrec = 1
                     }
                     
 -- Discrepancia
 folDiscrep :: Operator
-folDiscrep = Operator { opRepr = pack "≢"
+folDiscrep = Operator { opRepr = pack "/≡"
                       , opName = Discrep
                       , opTy = folBinOpType
+                      , opAssoc = ALeft
+                      , opNotationTy = NInfix
+                      , opPrec = 1
                       }
 
 -- And
@@ -66,6 +72,9 @@ folAnd :: Operator
 folAnd = Operator { opRepr = pack "∧"
                   , opName = And
                   , opTy = folBinOpType
+                  , opAssoc = ALeft
+                  , opNotationTy = NInfix
+                  , opPrec = 3
                   }
 
 -- Or
@@ -73,6 +82,9 @@ folOr :: Operator
 folOr = Operator { opRepr = pack "∨"
                  , opName = Or
                  , opTy = folBinOpType
+                 , opAssoc = ALeft
+                 , opNotationTy = NInfix
+                 , opPrec = 3
                  }
      
 -- Negacion     
@@ -80,6 +92,9 @@ folNeg :: Operator
 folNeg = Operator { opRepr = pack "¬"
                   , opName = Neg
                   , opTy = folUnOpType
+                  , opAssoc = None
+                  , opNotationTy = NPrefix
+                  , opPrec = 4
                   }
 
 -- Implicación
@@ -87,6 +102,9 @@ folImpl :: Operator
 folImpl = Operator { opRepr = pack "⇒"
                    , opName = Implic
                    , opTy = folBinOpType
+                   , opAssoc = ARight
+                   , opNotationTy = NInfix
+                   , opPrec = 2
                    }
 
 -- Consecuencia
@@ -94,6 +112,9 @@ folConseq :: Operator
 folConseq = Operator { opRepr = pack "⇐"
                     , opName = Conseq
                     , opTy = folBinOpType
+                    , opAssoc = ALeft
+                    , opNotationTy = NInfix
+                    , opPrec = 2
                     }
                     
 -- A continuacion definimos constructores de expresiones, para su facil manejo
@@ -163,6 +184,10 @@ varR= Expr $ Var $ var "r" tyBool
 
 -- Ascociatividad: ((p ≡ q) ≡ r) ≡ (p ≡ (q ≡ r))
 -- VER CUANTAS SON LAS REGLAS QUE HAY QUE HACER PARA ESTE AXIOMA.
+-- Aca hay solo dos opciones, el equivalente del medio es siempre el de "relacion".
+-- Las dos formas posibles son conmutar ambos miembros.
+
+exprAsocEquiv = equiv (equiv (equiv varP varQ) varR) (equiv varP (equiv varQ varR))
 
 -- ---------------------------------
 -- Conmutatividad: p ≡ q ≡ q ≡ p
