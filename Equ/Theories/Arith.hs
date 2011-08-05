@@ -32,7 +32,18 @@ natSum = Operator { opRepr = pack "+"
                   , opName = Sum
                   , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyNat
                   }
-
+                  
+natProd :: Operator
+natProd = Operator { opRepr = pack "*"
+                   , opName = Prod
+                   , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyNat
+                   }
+                   
+natEq :: Operator
+natEq = Operator { opRepr = pack "="
+                 , opName = natEqual
+                 , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyBool
+                 }
 
 -- Constructor de Variable de tipo Nat.
 varNat :: String -> Expr
@@ -51,3 +62,9 @@ successor (Expr n) = Expr $ UnOp natSucc n
 -- PRE: Las expresiones deben ser del tipo correcto
 sum :: Expr -> Expr-> Expr
 sum (Expr n) (Expr m) = Expr $ BinOp natSum n m
+
+
+-- DEFINIR REGLAS PARA SUM Y PROD. NEUTRO Y OTRAS (ASOCIAT,CONMUT,..)
+
+prod :: Expr -> Expr -> Expr
+prod (Expr n) (Expr m) = Expr $ BinOp natProd n m

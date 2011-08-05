@@ -34,16 +34,27 @@ data Operator = Operator {
       opRepr :: Text   
     , opName :: OpName
     , opTy   :: Type
+    , opAssoc :: Assoc
+    , opNotationTy :: NotationType
+    , opPrec :: Int
     } 
     deriving Eq
+    
+instance Ord Operator where
+    compare a b = compare (opPrec a) (opPrec b) 
     
 data Func = Func {
       funcName :: FuncName
     , funcTy   :: Type
     }
     deriving Eq
-    
-    
+
+data Assoc = None | ALeft | ARight
+    deriving Eq
+
+data NotationType = NInfix | NPrefix | NPostfix
+    deriving Eq
+
 -- En el tipo de los cuantificadores, en general se tendrá:
 -- tipo1 :-> tipo2, donde tipo1 es el tipo de la variable cuantificada
 -- y tipo2 es el tipo del termino y consecuentemente de toda la expresion.
@@ -131,6 +142,7 @@ instance Show Quantifier where
 instance Show Hole where
     show _ = "_"
 
+{-
 -- | Instancia arbitrary para las variables.
 instance Arbitrary Variable where
     arbitrary = Variable <$> arbitrary <*> arbitrary
@@ -154,3 +166,4 @@ instance Arbitrary Quantifier where
 -- | Instancia arbitrary para los huecos.
 instance Arbitrary Hole where
     arbitrary = Hole <$> arbitrary
+    -}
