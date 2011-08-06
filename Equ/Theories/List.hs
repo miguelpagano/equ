@@ -21,7 +21,7 @@ tyListVar :: String -> Type
 tyListVar = TyList . tyVar
 
 listEmpty :: Constant
-listEmpty = Constant { conRepr = pack "[ ]"
+listEmpty = Constant { conRepr = pack "[]"
                      , conName = Empty
                      , conTy = tyListVar "B"
                      }
@@ -32,7 +32,7 @@ listApp = Operator { opRepr = pack "▹"
                    , opTy = tyVar "A" :-> tyListVar "A" :-> tyListVar "A"
                    , opAssoc = ARight
                    , opNotationTy = NInfix
-                   , opPrec = 1
+                   , opPrec = 12
                    }  
                   
 listIndex :: Operator
@@ -41,7 +41,7 @@ listIndex = Operator { opRepr = pack "."
                      , opTy = tyListVar "A" :-> TyAtom ATyNat :-> tyVar "A"
                      , opAssoc = ALeft
                      , opNotationTy = NInfix
-                     , opPrec = 1
+                     , opPrec = 11
                      }
                      
 listConcat :: Operator
@@ -50,7 +50,7 @@ listConcat = Operator { opRepr = pack "++"
                       , opTy = tyListVar "A" :-> tyListVar "A" :-> tyListVar "A"
                       , opAssoc = ALeft
                       , opNotationTy = NInfix
-                      , opPrec = 1
+                      , opPrec = 10
                       }
                       
 listLength :: Operator
@@ -59,7 +59,7 @@ listLength = Operator { opRepr = pack "#"
                     , opTy = tyListVar "A" :-> TyAtom ATyNat
                     , opAssoc = None
                     , opNotationTy = NPrefix
-                    , opPrec = 1
+                    , opPrec = 10
                     }
 
 listTake :: Operator
@@ -68,7 +68,7 @@ listTake = Operator { opRepr = pack "↑"
                     , opTy = tyListVar "A" :-> TyAtom ATyNat :-> tyListVar "A"
                     , opAssoc = ALeft
                     , opNotationTy = NInfix
-                    , opPrec = 1
+                    , opPrec = 10
                     }
 
 listDrop :: Operator
@@ -77,9 +77,12 @@ listDrop = Operator { opRepr = pack "↓"
                     , opTy = tyListVar "A" :-> TyAtom ATyNat :-> tyListVar "A"
                     , opAssoc = ALeft
                     , opNotationTy = NInfix
-                    , opPrec = 1
+                    , opPrec = 10
                     }
 
+theoryOperatorsList = [listApp,listConcat,listDrop,listIndex,listLength,listTake]
+theoryConstantsList = [listEmpty]
+theoryQuantifiersList = []
 
 -- | Constructor de variable de tipo lista polimorfica; el primer string es
 -- el nombre de la variable, el segundo el nombre de la variable de tipo

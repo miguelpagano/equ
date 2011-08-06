@@ -21,12 +21,12 @@ natZero = Constant { conRepr = pack "0"
                 }
 
 natSucc :: Operator
-natSucc = Operator { opRepr = pack "1+"
+natSucc = Operator { opRepr = pack "succ"
                     , opName = Succ
                     , opTy = TyAtom ATyNat :-> TyAtom ATyNat
                     , opAssoc = None
                     , opNotationTy = NPrefix
-                    , opPrec = 1 -- Analizar.
+                    , opPrec = 23 -- Analizar.
                     }
                     
                     
@@ -36,7 +36,7 @@ natSum = Operator { opRepr = pack "+"
                   , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyNat
                   , opAssoc = ALeft
                   , opNotationTy = NInfix
-                  , opPrec = 2
+                  , opPrec = 21
                   }
                   
 natProd :: Operator
@@ -45,7 +45,7 @@ natProd = Operator { opRepr = pack "*"
                    , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyNat
                    , opAssoc = ALeft
                    , opNotationTy = NInfix
-                   , opPrec = 3
+                   , opPrec = 22
                    }
                    
 natEq :: Operator
@@ -56,8 +56,12 @@ natEq = Operator { opRepr = pack "="
                  , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyBool
                  , opAssoc = ALeft
                  , opNotationTy = NInfix
-                 , opPrec = 1
+                 , opPrec = 20
                  }
+                 
+theoryOperatorsList = [natSucc,natSum,natProd,natEq]
+theoryConstantsList = [natZero]
+theoryQuantifiersList = []
 
 -- Constructor de Variable de tipo Nat.
 varNat :: String -> Expr
