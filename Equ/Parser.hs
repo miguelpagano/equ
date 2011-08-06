@@ -2,7 +2,8 @@
 {--
 Sobre Parsec
 
-# Informe de errores; Parece ser que con ParseError nos alcanza.
+# Informe de errores; Quisieramos poder marcar la posicion del error e 
+informacion bonita de cual fue el error. Parece ser que con ParseError nos alcanza.
 
 # Funcion que determina el conName.
 
