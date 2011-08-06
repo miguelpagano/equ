@@ -42,7 +42,7 @@ instance Show PreExpr where
     show (UnOp op preExp) = show op ++ "(" ++ show preExp ++ ")"
     show (BinOp op preExp0 preExp1) = "(" ++ show preExp0 ++ ")" ++ show op ++ 
                                       "(" ++ show preExp1 ++ ")"
-    show (App preExp0 preExp1) = show preExp0 ++ show preExp1
+    show (App preExp0 preExp1) = show preExp0 ++ " " ++ "(" ++ show preExp1 ++ ")"
     show (Quant qua v preExp0 preExp1) = show qua ++ show v ++ " in " 
                                         ++ show preExp0 ++ " | " 
                                         ++ show preExp1

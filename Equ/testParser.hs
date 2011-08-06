@@ -32,12 +32,16 @@ quantInit = "〈"
 quantEnd = "〉"
 quantSep = ":"
 
+
+-- Operador para la aplicacion:
+opApp = "@"
+
 lexer :: TokenParser ()
 lexer = makeTokenParser $
-            emptyDef { reservedOpNames = map (unpack . opRepr) folOperators
-                     , reservedNames = [quantInit,quantEnd,quantSep] ++ 
-                       (map (unpack . conRepr) folConst) ++
-                       (map (unpack .quantRepr) folQuants)
+            emptyDef { reservedOpNames = opApp : map (unpack . opRepr) folOperators
+                     , reservedNames = [quantInit,quantEnd,quantSep,"-"] ++ 
+                       map (unpack . conRepr) folConst ++
+                       map (unpack .quantRepr) folQuants
                      , identStart  = letter <|> char '_'
                      , identLetter = alphaNum <|> char '_'
             }
@@ -47,9 +51,12 @@ parseExpr = ParsecExpr.buildExpressionParser operatorTable subexpr <?> "Parser e
 
 
 -- Construimos la table que se le pasa a buildExpressionParser:
+-- Primero agregamos el operador aplicación, que precede a cualquier otro
 
 operatorTable :: ParsecExpr.OperatorTable String () Identity PreExpr
-operatorTable = makeTable folOperators
+operatorTable = [ParsecExpr.Infix (reservedOp lexer opApp >> return App) ParsecExpr.AssocLeft] :
+                makeTable folOperators
+
 
 makeTable :: [Operator] -> ParsecExpr.OperatorTable String () Identity PreExpr
 makeTable l = map makeSubList (group $ reverse $ sort l)
@@ -58,11 +65,11 @@ makeSubList :: [Operator] -> [ParsecExpr.Operator String () Identity PreExpr]
 makeSubList [] = []
 makeSubList (op:ops) =  case op of
                              Operator {opNotationTy=NPrefix} ->
-                                (ParsecExpr.Prefix ((reservedOp lexer) (unpack $ opRepr op) >> return (UnOp op))) : makeSubList ops
+                                ParsecExpr.Prefix (reservedOp lexer (unpack $ opRepr op) >> return (UnOp op)) : makeSubList ops
                              Operator {opNotationTy=NPostfix} ->
-                                (ParsecExpr.Postfix ((reservedOp lexer) (unpack $ opRepr op) >> return (UnOp op))) : makeSubList ops
+                                ParsecExpr.Postfix (reservedOp lexer (unpack $ opRepr op) >> return (UnOp op)) : makeSubList ops
                              otherwise ->
-                                (ParsecExpr.Infix ((reservedOp lexer) (unpack $ opRepr op) >> return (BinOp op)) (convertAssoc $ opAssoc op)) : makeSubList ops
+                                ParsecExpr.Infix (reservedOp lexer (unpack $ opRepr op) >> return (BinOp op)) (convertAssoc $ opAssoc op) : makeSubList ops
 
 convertAssoc :: Assoc -> ParsecExpr.Assoc
 convertAssoc None = ParsecExpr.AssocNone
@@ -70,29 +77,39 @@ convertAssoc ALeft = ParsecExpr.AssocLeft
 convertAssoc ARight = ParsecExpr.AssocRight
 
 -- Parseamos las subexpresiones
+-- Una expresion puede ser una expresion con parentesis, o 
 subexpr :: Parser PreExpr
-subexpr = ((parens lexer) parseExpr >>= return . Paren)
+subexpr = fmap Paren (parens lexer parseExpr)
           <|>  parseConst folConst
           <|>  parseQuant folQuants
           <|>  parseExprVar parseVar
           <|>  parseFunc
                             
--- Parseo de Constantes definidas en la teoria                            
+-- Parseo de Constantes definidas en la teoria
+
+-- Vamos juntando las opciones de parseo de acuerdo a cada constante en la lista.
+-- En el caso en que la lista es vacia, la opcion es un error
 parseConst :: [Constant] -> Parser PreExpr
-parseConst (c:cs) = ((reserved lexer) (unpack $ conRepr c) >> return (Con c)) <|> parseConst cs
-parseConst [] = fail "Parser error: Expresión mal formada"
+parseConst = foldr
+                (\ c ->
+                (<|>) (reserved lexer (unpack $ conRepr c) >> return (Con c)))
+                (fail "Parser error: Expresion mal formada")
+                    
    
    
 -- Parseo de Cuantificadores definidos en la teoria
 parseQuant :: [Quantifier] -> Parser PreExpr
-parseQuant (q:qs) = (try $
-                        (reserved lexer) (quantInit) >>
-                        (reserved lexer) (unpack $ quantRepr q) >> (parseVar <?> "Cuantificador sin variable") >>=
-                         \v -> (reserved lexer) quantSep >> parseExpr >>=
-                         \r -> (reserved lexer) quantSep >> parseExpr >>=
-                         \t -> (reserved lexer) quantEnd >> return (Quant q v r t))
-                     <|> parseQuant qs
-parseQuant [] = fail "Parse error: Expresión mal formada"
+parseQuant = foldr
+                (\ q ->
+                    (<|>) (try $
+                            reserved lexer quantInit >>
+                            reserved lexer (unpack $ quantRepr q) >>
+                            (parseVar <?> "Cuantificador sin variable") >>=
+                            \v -> reserved lexer quantSep >> parseExpr >>=
+                            \r -> reserved lexer quantSep >> parseExpr >>=
+                            \t -> reserved lexer quantEnd >> return (Quant q v r t)))
+                (fail "Parse error: Expresi\243n mal formada")
+
 
 
 -- Parseo de expresiones variable
@@ -102,24 +119,32 @@ parseExprVar pars_v = pars_v >>= \v -> return (Var v)
 -- Esta funcion parsea una variable. Nos fijamos que empiece con minuscula para distinguirla
 -- de las funciones que empiezan con mayuscula. La idea es tomada de Yahc.
 parseVar :: Parser Variable
-parseVar = try $ (identifier lexer) >>= \s -> if (not . null) s && (isLower . head) s
-                                           then return (Variable { varName= pack s
+parseVar = try $ identifier lexer >>= \s -> if (not . null) s && (isLower . head) s
+                                           then return Variable { varName= pack s
                                                                  , varTy= TyUnknown
                                                                  }
-                                                       )
                                            else parserZero
 
 -- Parseo de funciones
 parseFunc :: Parser PreExpr
-parseFunc = (identifier lexer) >>= \s -> if (not . null) s && (isUpper . head) s
-                                           then return (Fun (Func { funcName= pack s
+parseFunc = identifier lexer >>= \s -> if (not . null) s && (isUpper . head) s
+                                           then return . Fun $ Func { funcName= pack s
                                                                   , funcTy= TyUnknown
-                                                                   })
-                                                       )
-                                           else fail "Error parseando funcion"
+                                                                   }
+                                           else parserZero
 
 
+
+parseApp :: Parser PreExpr
+parseApp = try $ fmap (foldl1 App) (sepEndBy1 parseExpr (whiteSpace lexer))
+
+   
 -- Funcion principal de parseo
 parser :: String -> Either ParseError PreExpr
-parser s = parse parseExpr "" s
+parser = parse parseExpr ""
+
+
+-- Expresiones de prueba:
+-- F 〈 ∃ x : True : p ⇒ q 〉
+-- 
 
