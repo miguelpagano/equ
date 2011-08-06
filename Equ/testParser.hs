@@ -132,12 +132,6 @@ parseFunc = identifier lexer >>= \s -> if (not . null) s && (isUpper . head) s
                                                                   , funcTy= TyUnknown
                                                                    }
                                            else parserZero
-
-
-
-parseApp :: Parser PreExpr
-parseApp = try $ fmap (foldl1 App) (sepEndBy1 parseExpr (whiteSpace lexer))
-
    
 -- Funcion principal de parseo
 parser :: String -> Either ParseError PreExpr
