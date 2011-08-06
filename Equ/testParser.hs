@@ -43,11 +43,13 @@ makeTable l = map makeSubList (group $ reverse $ sort l)
 
 makeSubList :: [Operator] -> [ParsecExpr.Operator String () Identity PreExpr]
 makeSubList [] = []
-makeSubList (op:ops) =  if (opNotationTy op == NPrefix)
-                        then (ParsecExpr.Prefix ((reservedOp lexer) (unpack $ opRepr op) >> return (UnOp op))) : makeSubList ops
-                        else if (opNotationTy op == NPostfix)
-                            then (ParsecExpr.Postfix ((reservedOp lexer) (unpack $ opRepr op) >> return (UnOp op))) : makeSubList ops
-                            else (ParsecExpr.Infix ((reservedOp lexer) (unpack $ opRepr op) >> return (BinOp op)) (convertAssoc $ opAssoc op)) : makeSubList ops
+makeSubList (op:ops) =  case op of
+                             Operator {opNotationTy=NPrefix} ->
+                                (ParsecExpr.Prefix ((reservedOp lexer) (unpack $ opRepr op) >> return (UnOp op))) : makeSubList ops
+                             Operator {opNotationTy=NPostfix} ->
+                                (ParsecExpr.Postfix ((reservedOp lexer) (unpack $ opRepr op) >> return (UnOp op))) : makeSubList ops
+                             otherwise ->
+                                (ParsecExpr.Infix ((reservedOp lexer) (unpack $ opRepr op) >> return (BinOp op)) (convertAssoc $ opAssoc op)) : makeSubList ops
 
 convertAssoc :: Assoc -> ParsecExpr.Assoc
 convertAssoc None = ParsecExpr.AssocNone
