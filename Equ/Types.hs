@@ -106,9 +106,7 @@ tyreplace :: TyVarName -> Type -> Type -> Type
 tyreplace v t t' = t' >>= (\w -> if v == w then t else TyVar w) 
 
 
--- | Instancia arbitrary para text, en principio no la usamos; 
--- generaba demasiada aleatoriedad de preExpr y no servia de mucho.
--- Generaba por ejemplo cosas como (+)(Forall) in (and) | ((ForSome) + (A))
+-- | Instancia arbitrary para el tipo nombre de variable. 
 instance Arbitrary TyVarName where
     arbitrary = 
         elements [(pack . ("t"++) . show) n | n <- [(0::Int)..100]]

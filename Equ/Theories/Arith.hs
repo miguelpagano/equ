@@ -22,9 +22,12 @@ natZero = Constant { conRepr = pack "0"
                 }
 
 natSucc :: Operator
-natSucc = Operator { opRepr = pack "+1"
+natSucc = Operator { opRepr = pack "1+"
                     , opName = Succ
                     , opTy = TyAtom ATyNat :-> TyAtom ATyNat
+                    , opAssoc = None
+                    , opNotationTy = NPrefix
+                    , opPrec = 1 -- Analizar.
                     }
                     
                     
@@ -32,18 +35,29 @@ natSum :: Operator
 natSum = Operator { opRepr = pack "+"
                   , opName = Sum
                   , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyNat
+                  , opAssoc = ALeft
+                  , opNotationTy = NInfix
+                  , opPrec = 2
                   }
                   
 natProd :: Operator
 natProd = Operator { opRepr = pack "*"
                    , opName = Prod
                    , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyNat
+                   , opAssoc = ALeft
+                   , opNotationTy = NInfix
+                   , opPrec = 3
                    }
                    
 natEq :: Operator
 natEq = Operator { opRepr = pack "="
-                 , opName = natEqual
+                 , opName = NatEqual -- Aca habia natEqual, 
+                                     -- hice una parchada rapida agregando 
+                                     -- NatEqual a OpName.
                  , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyBool
+                 , opAssoc = ALeft
+                 , opNotationTy = NInfix
+                 , opPrec = 1
                  }
 
 -- Constructor de Variable de tipo Nat.
@@ -64,8 +78,11 @@ successor (Expr n) = Expr $ UnOp natSucc n
 sum :: Expr -> Expr-> Expr
 sum (Expr n) (Expr m) = Expr $ BinOp natSum n m
 
-
 -- DEFINIR REGLAS PARA SUM Y PROD. NEUTRO Y OTRAS (ASOCIAT,CONMUT,..)
 
 prod :: Expr -> Expr -> Expr
 prod (Expr n) (Expr m) = Expr $ BinOp natProd n m
+
+intToCon :: Int -> PreExpr
+intToCon 0 = Con $ natZero { conTy = TyUnknown }
+intToCon n = UnOp (natSucc { opTy = TyUnknown }) $ intToCon (n-1)

@@ -69,6 +69,9 @@ listApp :: Operator
 listApp = Operator { opRepr = pack "▹"
                    , opName = Append
                    , opTy = tyVar "A" :-> tyListVar "A" :-> tyListVar "A"
+                   , opAssoc = ARight
+                   , opNotationTy = NInfix
+                   , opPrec = 1
                    }  
 
 -- | Tomar el n-esimo elemento de la lista.
@@ -76,12 +79,18 @@ listIndex :: Operator
 listIndex = Operator { opRepr = pack "."
                      , opName = Index
                      , opTy = tyListVar "A" :-> TyAtom ATyNat :-> tyVar "A"
+                     , opAssoc = ALeft
+                     , opNotationTy = NInfix
+                     , opPrec = 1
                      }
 -- | Concatenacion de listas.                     
 listConcat :: Operator
 listConcat = Operator { opRepr = pack "++"
                       , opName = Concat
                       , opTy = tyListVar "A" :-> tyListVar "A" :-> tyListVar "A"
+                      , opAssoc = ALeft
+                      , opNotationTy = NInfix
+                      , opPrec = 1
                       }
 
 -- | Cardinal de la lista.
@@ -89,6 +98,9 @@ listLength :: Operator
 listLength = Operator { opRepr = pack "#"
                     , opName = Length
                     , opTy = tyListVar "A" :-> TyAtom ATyNat
+                    , opAssoc = None
+                    , opNotationTy = NPrefix
+                    , opPrec = 1
                     }
 
 -- | Toma los primeros n elementos de una lista.
@@ -96,6 +108,9 @@ listTake :: Operator
 listTake = Operator { opRepr = pack "↑"
                     , opName = Take
                     , opTy = tyListVar "A" :-> TyAtom ATyNat :-> tyListVar "A"
+                    , opAssoc = ALeft
+                    , opNotationTy = NInfix
+                    , opPrec = 1
                     }
 
 -- | Tira los primeros n elementos de una lista.
@@ -103,6 +118,9 @@ listDrop :: Operator
 listDrop = Operator { opRepr = pack "↓"
                     , opName = Drop
                     , opTy = tyListVar "A" :-> TyAtom ATyNat :-> tyListVar "A"
+                    , opAssoc = ALeft
+                    , opNotationTy = NInfix
+                    , opPrec = 1
                     }
 
 

@@ -39,19 +39,13 @@ instance Show PreExpr where
     show (Con k) = show k
     show (Fun f) = show f
     show (PrExHole h) = show h
-    show (UnOp op preExp) = show op ++ "(" ++ show preExp ++ ")"
-    show (BinOp op preExp0 preExp1) = "(" ++ show preExp0 ++ ")" ++ show op
-                ++ "(" ++ show preExp1 ++ ")"
-    show (App preExp0 preExp1) = "(" ++ show preExp0 ++ ")" ++
-                                 "(" ++ show preExp1 ++ ")"
-    show (Quant qua v preExp0 preExp1) = "(" ++ show qua ++ ")" ++ 
-                                           "(" ++ show v ++ ") in " ++ 
-                                           "(" ++ show preExp0 ++ ") | " ++ 
-                                           "(" ++ show preExp1 ++ ")"
-    -- Aca no estoy seguro si es que Paren hace referencia a una expresion 
-    -- encerrarda entre parentesis. En cuyo caso por como esta construido el
-    -- show no se diferenciaria entonces ponemos [ y ].
-    show (Paren preExp) = "[" ++ show preExp ++ "]" 
+    show (UnOp op preExp) = show op ++ show preExp
+    show (BinOp op preExp0 preExp1) = show preExp0 ++ show op ++ show preExp1
+    show (App preExp0 preExp1) = show preExp0 ++ show preExp1
+    show (Quant qua v preExp0 preExp1) = show qua ++ show v ++ " in " 
+                                        ++ show preExp0 ++ " | " 
+                                        ++ show preExp1
+    show (Paren preExp) = "(" ++ show preExp ++ ")" 
 
 -- Los zippers pueden ser convenientes; la referencia es: ``The
 -- Zipper'' de Gérard Huet en JFP. 
