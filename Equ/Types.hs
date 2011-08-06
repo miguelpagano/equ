@@ -57,9 +57,7 @@ tyreplace v (TyList s) t = TyList $ tyreplace v s t
 tyreplace v (s :-> s') t = tyreplace v s t :-> tyreplace v s' t
 tyreplace _ t _ = t
 
--- | Instancia arbitrary para text, en principio no la usamos; 
--- generaba demasiada aleatoriedad de preExpr y no servia de mucho.
--- Generaba por ejemplo cosas como (+)(Forall) in (and) | ((ForSome) + (A))
+-- | Instancia arbitrary para el tipo nombre de variable. 
 instance Arbitrary TyVarName where
     arbitrary = 
         elements [(pack . ("t"++) . show) n | n <- [(0::Int)..100]]

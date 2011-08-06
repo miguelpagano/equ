@@ -18,6 +18,7 @@ data OpName = Append    -- ^ Lista: agregar por la izquierda
               | Concat  -- ^ Lista: concatenar
               | Take    -- ^ Lista: tomar una cantidad de elementos
               | Drop    -- ^ Lista: tirar una cantidad de elementos
+              | NatEqual-- ^ Num (polimorfico): igualdad
               | Succ    -- ^ Num (polimorfico): sucesor
               | Sum     -- ^ Num (polimorfico): suma
               | Prod    -- ^ Num (polimorfico): producto
