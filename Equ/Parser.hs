@@ -70,7 +70,7 @@ lang = makeTokenParser $
 
 msymbol = P.symbol lang
 mparens = P.parens lang
-msquares = P.squares lang
+msquares = P.brackets lang
 mcomma = P.comma lang
 
 listOpTable :: OperatorTable String () Identity PreExpr
