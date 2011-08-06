@@ -59,7 +59,7 @@ tyListVar = TyList . tyVar
 
 -- | La lista vacia.
 listEmpty :: Constant
-listEmpty = Constant { conRepr = pack "[ ]"
+listEmpty = Constant { conRepr = pack "[]"
                      , conName = Empty
                      , conTy = tyListVar "B"
                      }
@@ -71,7 +71,7 @@ listApp = Operator { opRepr = pack "▹"
                    , opTy = tyVar "A" :-> tyListVar "A" :-> tyListVar "A"
                    , opAssoc = ARight
                    , opNotationTy = NInfix
-                   , opPrec = 1
+                   , opPrec = 12
                    }  
 
 -- | Tomar el n-esimo elemento de la lista.
@@ -81,7 +81,7 @@ listIndex = Operator { opRepr = pack "."
                      , opTy = tyListVar "A" :-> TyAtom ATyNat :-> tyVar "A"
                      , opAssoc = ALeft
                      , opNotationTy = NInfix
-                     , opPrec = 1
+                     , opPrec = 11
                      }
 -- | Concatenacion de listas.                     
 listConcat :: Operator
@@ -90,7 +90,7 @@ listConcat = Operator { opRepr = pack "++"
                       , opTy = tyListVar "A" :-> tyListVar "A" :-> tyListVar "A"
                       , opAssoc = ALeft
                       , opNotationTy = NInfix
-                      , opPrec = 1
+                      , opPrec = 10
                       }
 
 -- | Cardinal de la lista.
@@ -100,7 +100,7 @@ listLength = Operator { opRepr = pack "#"
                     , opTy = tyListVar "A" :-> TyAtom ATyNat
                     , opAssoc = None
                     , opNotationTy = NPrefix
-                    , opPrec = 1
+                    , opPrec = 10
                     }
 
 -- | Toma los primeros n elementos de una lista.
@@ -110,7 +110,7 @@ listTake = Operator { opRepr = pack "↑"
                     , opTy = tyListVar "A" :-> TyAtom ATyNat :-> tyListVar "A"
                     , opAssoc = ALeft
                     , opNotationTy = NInfix
-                    , opPrec = 1
+                    , opPrec = 10
                     }
 
 -- | Tira los primeros n elementos de una lista.
@@ -120,9 +120,12 @@ listDrop = Operator { opRepr = pack "↓"
                     , opTy = tyListVar "A" :-> TyAtom ATyNat :-> tyListVar "A"
                     , opAssoc = ALeft
                     , opNotationTy = NInfix
-                    , opPrec = 1
+                    , opPrec = 10
                     }
 
+theoryOperatorsList = [listApp,listConcat,listDrop,listIndex,listLength,listTake]
+theoryConstantsList = [listEmpty]
+theoryQuantifiersList = []
 
 -- | Constructor de variable de tipo lista polimorfica; el primer string es
 -- el nombre de la variable, el segundo el nombre de la variable de tipo

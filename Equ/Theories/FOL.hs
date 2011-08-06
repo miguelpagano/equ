@@ -116,7 +116,11 @@ folConseq = Operator { opRepr = pack "⇐"
                     , opNotationTy = NInfix
                     , opPrec = 2
                     }
-                    
+
+theoryOperatorsList = [folEquiv,folDiscrep,folAnd,folOr,folImpl,folConseq,folNeg]
+theoryConstantsList = [folTrue,folFalse]
+theoryQuantifiersList = [folForall,folExist]
+
 -- A continuacion definimos constructores de expresiones, para su facil manejo
 
 -- | Constructor de Constantes logicas

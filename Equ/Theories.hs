@@ -6,6 +6,10 @@ module Equ.Theories
     )
     where
 
--- import Equ.Theories.Arith
-import Equ.Theories.List
--- import Equ.Theories.FOL
+import qualified Equ.Theories.Arith as A
+import qualified Equ.Theories.List as L
+import qualified Equ.Theories.FOL as F
+
+operatorsList = A.theoryOperatorsList ++ L.theoryOperatorsList ++ F.theoryOperatorsList
+constantsList = A.theoryConstantsList ++ L.theoryConstantsList ++ F.theoryConstantsList
+quantifiersList = A.theoryQuantifiersList ++ L.theoryQuantifiersList ++ F.theoryQuantifiersList
