@@ -1,4 +1,5 @@
 {-# Language TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses #-}
+-- | Definición de la mónada del type-checker y sus instancias.
 module Equ.TypeChecker.Monad where
 
 
@@ -7,28 +8,28 @@ import Equ.Types
 import Equ.TypeChecker.Error
 
 import qualified Data.Map as M
+import qualified Data.Text as T
 import qualified Data.Sequence as S
-import Data.Maybe (fromJust)
 
 -- import Control.Arrow
 import Control.Monad.Trans.Class
-import Control.Applicative
 import Control.Monad.Trans.Either
-import Control.Monad.RWS (RWS,rws)
+import Control.Monad.RWS (RWS)
 import Control.Monad.RWS.Class
-
 
 
 -- | Tipo de la sustitución para unificar expresiones de tipo.
 type TySubst = M.Map TyVarName Type
 
--- TODO: cambiar la mónada de chequeo de tipos; debería ser un mónada
--- de error dentro de una mónada de estado: el estado tendría el foco
--- y el contexto.
+-- | Tipo correspondiente a nuestros logs.
+type Log = S.Seq T.Text
 
-type Log = S.Seq String
+-- | El error está acompañado de la expresión enfocada donde ocurrió.
 type TMErr = (Focus,TyErr)
 
+-- TODO: cambiar: el estado tendría el contexto además de la
+-- sustitución.
+-- | La mónada de estado del type-checker.
 type TyState = EitherT TMErr (RWS Focus Log TySubst) 
 
 instance MonadWriter Log TyState where
@@ -54,7 +55,7 @@ instance MonadState TySubst TyState where
 
 -- | Agrega una línea de log.
 addLog :: String -> TyState ()
-addLog s = tell . S.fromList $ [s]
+addLog s = tell . S.fromList $ [T.pack s]
 
 -- | Generación de mensaje de Error.
 tyerr :: TyErr -> TyState a

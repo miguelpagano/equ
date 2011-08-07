@@ -41,7 +41,7 @@ Library
   -- Last three for test.
   Build-depends:       base >= 4.2, text >= 0.11.0.8, ordered, random, either, 
                        transformers, mtl >= 2.0, QuickCheck == 2.4.1.1, test-framework-quickcheck2,
-                       test-framework, containers >= 0.4, test-framework-hunit
+                       test-framework, containers >= 0.4, test-framework-hunit, HUnit
 
   GHC-Options:         -Odph -Wall
   -- HS-Source-Dirs:

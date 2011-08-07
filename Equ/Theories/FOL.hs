@@ -172,6 +172,7 @@ conmEquiv_Rule1 :: Rule
 conmEquiv_Rule1 = Rule { lhs = varP
                   , rhs = equiv varQ (equiv varQ varP)
                   , rel = relEquiv
+                  , name = pack ""
                   , desc = pack ""
                   }
  
@@ -180,6 +181,7 @@ conmEquiv_Rule2 :: Rule
 conmEquiv_Rule2 = Rule { lhs = equiv varP varQ
                        , rhs = equiv varQ varP
                        , rel = relEquiv
+                       , name = pack ""
                        , desc = pack ""
                        }
                        
@@ -188,6 +190,7 @@ conmEquiv_Rule3 :: Rule
 conmEquiv_Rule3 = Rule { lhs = equiv (equiv varP varQ) varQ
                        , rhs = varP
                        , rel = relEquiv
+                       , name = pack ""
                        , desc = pack ""
                        }
                        
@@ -204,6 +207,7 @@ neuterEquiv_Rule1 :: Rule
 neuterEquiv_Rule1 = Rule { lhs = equiv varP true
                          , rhs = varP
                          , rel = relEquiv
+                         , name = pack ""
                          , desc = pack ""
                          }
                          
@@ -212,6 +216,7 @@ neuterEquiv_Rule2 :: Rule
 neuterEquiv_Rule2 = Rule { lhs = varP
                          , rhs = equiv true varP
                          , rel = relEquiv
+                         , name = pack ""
                          , desc = pack ""
                          }
 
@@ -228,6 +233,7 @@ equivNeg_Rule1 :: Rule
 equivNeg_Rule1 = Rule { lhs = neg $ equiv varP varQ
                       , rhs = equiv (neg varP) varQ
                       , rel = relEquiv
+                      , name = pack ""
                       , desc = pack ""
                       }
                       
@@ -236,6 +242,7 @@ equivNeg_Rule2 :: Rule
 equivNeg_Rule2 = Rule { lhs = equiv (neg $ equiv varP varQ) (neg varP)
                       , rhs = varQ
                       , rel = relEquiv
+                      , name = pack ""
                       , desc = pack ""
                       }
                       
@@ -245,10 +252,11 @@ equivNeg_Rule2 = Rule { lhs = equiv (neg $ equiv varP varQ) (neg varP)
 -- Unica regla
 false_Rule :: Rule
 false_Rule = Rule { lhs = false
-                 , rhs = neg true
-                 , rel = relEquiv
-                 , desc = pack ""
-                 }
+                  , rhs = neg true
+                  , rel = relEquiv
+                  , name = pack ""
+                  , desc = pack ""
+                  }
 
 -- ============
 -- DISCREPANCIA
@@ -260,10 +268,11 @@ false_Rule = Rule { lhs = false
 -- Unica regla
 discrep_Rule :: Rule
 discrep_Rule = Rule { lhs = discrep varP varQ
-                   , rhs = neg $ equiv varP varQ
-                   , rel = relEq
-                   , desc = pack ""
-                   }
+                    , rhs = neg $ equiv varP varQ
+                    , rel = relEq
+                    , name = pack ""
+                    , desc = pack ""
+                    }
                    
 -- ===========
 -- DISYUNCION
@@ -276,6 +285,7 @@ asocOr_Rule :: Rule
 asocOr_Rule = Rule { lhs = or (or varP varQ) varR
                   , rhs = or varP (or varQ varR)
                   , rel = relEq
+                  , name = pack ""
                   , desc = pack ""
                   }
                   
@@ -286,6 +296,7 @@ conmOr_Rule :: Rule
 conmOr_Rule = Rule { lhs = or varP varQ
                   , rhs = or varQ varP
                   , rel = relEq
+                  , name = pack ""
                   , desc = pack ""
                   }
                   
@@ -294,10 +305,11 @@ conmOr_Rule = Rule { lhs = or varP varQ
 -- ------------------------------
 idempotOr_Rule :: Rule
 idempotOr_Rule = Rule { lhs = or varP varP
-                     , rhs = varP
-                     , rel = relEq
-                     , desc = pack ""
-                     }
+                      , rhs = varP
+                      , rel = relEq
+                      , name = pack ""
+                      , desc = pack ""
+                      }
                      
 -- ------------------------------
 -- Distributividad con Equivalencia: p ∨ (q ≡ r) ≡ (p ∨ q) ≡ (p ∨ r)
@@ -307,6 +319,7 @@ distEqOr_Rule1 :: Rule
 distEqOr_Rule1 = Rule { lhs = or varP $ equiv varQ varR
                       , rhs = equiv (or varP varQ) (or varP varR)
                       , rel = relEquiv
+                      , name = pack ""
                       , desc = pack ""
                       }
                       
@@ -315,6 +328,7 @@ distEqOr_Rule2 :: Rule
 distEqOr_Rule2 = Rule { lhs = equiv (or varP $ equiv varQ varR) (or varP varQ)
                       , rhs = or varP varR
                       , rel = relEquiv
+                      , name = pack ""
                       , desc = pack ""
                       }
 
@@ -325,6 +339,7 @@ excludOr_Rule :: Rule
 excludOr_Rule = Rule { lhs = or varP $ neg varP
                      , rhs = true
                      , rel = relEquiv
+                     , name = pack ""
                      , desc = pack ""
                      }
                      
@@ -341,6 +356,7 @@ goldenRule1 :: Rule
 goldenRule1 = Rule { lhs = and varP varQ
                    , rhs = equiv varP $ equiv varQ $ or varP varQ
                    , rel = relEquiv
+                   , name = pack ""
                    , desc = pack ""
                    }
                    
@@ -349,6 +365,7 @@ goldenRule2 :: Rule
 goldenRule2 = Rule { lhs = and varP varQ
                    , rhs = equiv (equiv varP varQ) (or varP varQ)
                    , rel = relEquiv
+                   , name = pack ""
                    , desc = pack ""
                    }
                    
@@ -363,6 +380,7 @@ goldenRule3 :: Rule
 goldenRule3 = Rule { lhs = equiv (and varP varQ) varP
                    , rhs = equiv varQ $ or varP varQ
                    , rel = relEquiv
+                   , name = pack ""
                    , desc = pack ""
                    }
 
@@ -373,6 +391,7 @@ goldenRule4 :: Rule
 goldenRule4 = Rule { lhs = equiv (equiv (and varP varQ) varQ) (or varP varQ)
                    , rhs = or varP varQ
                    , rel = relEquiv
+                   , name = pack ""
                    , desc = pack ""
                    }
                    
@@ -381,6 +400,7 @@ goldenRule5 :: Rule
 goldenRule5 = Rule { lhs = equiv (and varP varQ) (equiv varP varQ)
                    , rhs = or varP varQ
                    , rel = relEquiv
+                   , name = pack ""
                    , desc = pack ""
                    }
                    
@@ -396,6 +416,7 @@ implRule1 :: Rule
 implRule1 = Rule { lhs = equiv (impl varP varQ) (or varP varQ)
                  , rhs = varQ
                  , rel = relEquiv
+                 , name = pack ""
                  , desc = pack ""
                  }
                  
@@ -404,6 +425,7 @@ implRule2 :: Rule
 implRule2 = Rule { lhs = impl varP varQ
                  , rhs = equiv (or varP varQ) varQ
                  , rel = relEquiv
+                 , name = pack ""
                  , desc = pack ""
                  }
                  
@@ -419,6 +441,7 @@ conseqRule1 :: Rule
 conseqRule1 = Rule { lhs = equiv (conseq varP varQ) (or varP varQ)
                    , rhs = varP
                    , rel = relEquiv
+                   , name = pack ""
                    , desc = pack ""
                    }
                    
@@ -427,6 +450,7 @@ conseqRule2 :: Rule
 conseqRule2 = Rule { lhs = conseq varP varQ
                    , rhs = equiv (or varP varQ) varP
                    , rel = relEquiv
+                   , name = pack ""
                    , desc = pack ""
                    }
 
@@ -442,10 +466,11 @@ conseqRule2 = Rule { lhs = conseq varP varQ
 
 interRangeTermForall_Rule :: Rule
 interRangeTermForall_Rule = Rule { lhs = forAll varX range term
-                           , rhs = forAll varX true $ impl range term
-                           , rel = relEquiv
-                           , desc = pack ""
-                           }
+                                 , rhs = forAll varX true $ impl range term
+                                 , rel = relEquiv
+                                 , name = pack ""
+                                 , desc = pack ""
+                                 }
     where varX = var "x" $ tyVar "A"
           range = Expr $ Var $ var "r" $ tyBool
           term = Expr $ Var $ var "t" $ tyBool
@@ -460,6 +485,7 @@ distribAndForall_Rule :: Rule
 distribAndForall_Rule = Rule { lhs = and (forAll varX true term1) (forAll varX true term2)
                              , rhs = forAll varX true (and term1 term2)
                              , rel = relEquiv
+                             , name = pack ""
                              , desc = pack ""
                              }
     where varX = var "x" $ tyVar "A"
@@ -482,6 +508,7 @@ intercForall_Rule :: Rule
 intercForall_Rule = Rule { lhs = forAll varX true $ forAll varY true term
                          , rhs = forAll varY true $ forAll varX true term
                          , rel = relEquiv
+                         , name = pack ""
                          , desc = pack ""
                          }
     where varX = var "x" $ tyVar "A"
@@ -500,6 +527,7 @@ existRule :: Rule
 existRule = Rule { lhs = exist varX range term
                  , rhs = neg $ forAll varX range (neg term)
                  , rel = relEquiv
+                 , name = pack ""
                  , desc = pack ""
                  }
     where varX = var "x" $ tyVar "A"

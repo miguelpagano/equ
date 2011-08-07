@@ -8,7 +8,8 @@ import Equ.Syntax
 import Equ.Types
 import Equ.Expr
 import Equ.PreExpr
-import Equ.Rule
+-- TODO: Agregar reglas para este módulo.
+-- import Equ.Rule 
 import Equ.Theories.AbsName
 
 -- Estos módulos definen los símbolos de función

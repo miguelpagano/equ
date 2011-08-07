@@ -50,6 +50,7 @@ data Rule = Rule {
       lhs :: Expr
     , rhs :: Expr
     , rel :: Relation  
+    , name :: Text
     , desc :: Text
     }
     

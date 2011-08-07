@@ -1,6 +1,6 @@
 -- | Transforma una PreExpresión en una Expresión.
 module Equ.TypeChecker 
-    ( module Equ.TypeChecker.Error
+    ( module Equ.TypeChecker.Error      
       -- * Algoritmo de unificación con relación de orden.
     , unify
     , emptySubst
@@ -115,12 +115,12 @@ checkQuant q = checkSyn q quantName tType (quants, \ctx _ -> ctx)
 unify :: Type -> Type -> TySubst -> Either TyErr TySubst
 unify t@(TyAtom _) t'@(TyAtom _) s | t `leq` t' = return s
                                    | otherwise = Left $ ErrUnification t t' (M.toList s)
-unify (t :-> t') (r :-> r') s = unify r t s >>= unify t' r'
+unify (t :-> t') (r :-> r') s = unify t r s >>= unify t' r'
 unify (TyList t) (TyList t') s = unify t t' s
 unify t@(TyVar v) t' s | t == t' = return s
                        | v `occurs` t' = Left $ ErrUnification (TyVar v) t' (M.toList s)
                        | v `M.member` s  = unify (M.findWithDefault TyUnknown v s) t' s
-                       | otherwise = return . M.insert v t' . M.map (flip (tyreplace v) t') $ s
+                       | otherwise = return . M.insert v t' . M.map ((tyreplace v) t') $ s
 unify t (TyVar v) s = unify (TyVar v) t s
 unify t t' s = Left $ ErrUnification t t' (M.toList s)
 
@@ -161,9 +161,9 @@ check ctx (UnOp op e) = do (ctx', t) <- checkAndUpdate ctx e goDown
                            (ctx'', t') <- checkOp op ctx'
                            addLog $ "Operador" ++ show op ++ " OK: " ++ show t'
                            s <- get 
-                           w <- return . head $ freshVars (t :-> t')
+                           w <- return . head . filter (not . (`elem` (M.keys s))) $ freshVars (t :-> t')
                            case unify t' (t :-> TyVar w) s of
-                             Left err -> tyerr err
+                             Left err -> addLog (show (t,t',w)) >> tyerr err
                              Right s' -> put s' >> (lift . return) (ctx'', findVar w s')
 check ctx (BinOp op e e') = do (ctx', te) <- checkAndUpdate ctx e goDown
                                addLog $ "Operando izquierda OK: " ++ show te
@@ -171,17 +171,17 @@ check ctx (BinOp op e e') = do (ctx', te) <- checkAndUpdate ctx e goDown
                                addLog $ "Operando derecha OK: " ++ show te'
                                (ctx''', tOp) <- checkOp op ctx''
                                addLog $ "Operador " ++ show op ++" OK: " ++ show tOp
-                               w <- return . head $ freshVars (te :-> te' :-> tOp)
                                s <- get
+                               w <- return . head . filter (not . (`elem` (M.keys s))) $ freshVars (te :-> te' :-> tOp)
                                case unify (te :-> te' :-> TyVar w) tOp s of
-                                 Left err -> tyerr err
+                                 Left err -> addLog (show w) >> tyerr err
                                  Right s'  -> put s' >> (lift . return) (ctx''', findVar w s')
 check ctx (App e e') = do (ctx', te) <- checkAndUpdate ctx e goDown
                           addLog "Funcion OK"
                           (ctx'', te') <- checkAndUpdate ctx' e' goDownR
                           addLog "Argumento OK"
                           s <- get
-                          w <- return . head $ freshVars (te :-> te')
+                          w <- return . head . filter (not . (`elem` (M.keys s))) $ freshVars (te :-> te')
                           case unify te (te' :-> TyVar w) s of 
                             Left err -> tyerr err
                             Right s' -> put s' >> (lift . return) (ctx'', findVar w s')

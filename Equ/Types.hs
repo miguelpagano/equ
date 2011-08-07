@@ -74,8 +74,8 @@ instance Monad Type' where
     TyUnknown >>= _ = TyUnknown
     TyAtom t >>= _ = TyAtom t
     TyVar v >>= f = f v
-    TyList t >>= f = t >>= (TyList . f)
-    t :-> t' >>= f = t >>= ((\x -> (t' >>= (x :->) . f)) . f)
+    TyList t >>= f = TyList $ t >>= f
+    t :-> t' >>= f = (:->) (t >>= f) (t' >>= f)
 
 -- | El tipo concreto de nuestras expresiones.
 type Type = Type' TyVarName
@@ -120,8 +120,7 @@ instance Arbitrary AtomTy where
 -- | Instancia arbitrary para los tipos generales.
 instance Arbitrary Type where
     arbitrary = 
-        oneof [ return TyUnknown
-              , TyVar <$> arbitrary
+        oneof [ TyVar <$> arbitrary
               , TyList <$> arbitrary
               , TyAtom <$> arbitrary
               , (:->) <$> arbitrary <*> arbitrary

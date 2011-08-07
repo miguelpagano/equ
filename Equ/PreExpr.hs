@@ -6,7 +6,7 @@ module Equ.PreExpr ( PreExpr (..)
                    , Path (..)
                    , toExpr, toFocus, toFocuses
                    , replace
-                   , goDown, goUp, goLeft, goRight
+                   , goDown, goUp, goLeft, goRight, goDownR
                    , module Equ.Syntax
                    ) 
     where
@@ -80,6 +80,7 @@ data Path = Top
           | QuantL Quantifier Variable Path PreExpr
           | QuantR Quantifier Variable PreExpr Path 
           | ParenD Path
+            deriving Show
 
 -- | Un Focus representa la expresión que consiste de completar el
 -- hueco denotado por Path con la expresión PreExpr (eso es lo que

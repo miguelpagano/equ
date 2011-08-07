@@ -3,8 +3,10 @@ module Main where
 
 import TestSuite.Tests.TPreExpr
 import TestSuite.Tests.TTypeChecker
+import TestSuite.Tests.TRules
 import Test.Framework (defaultMain, testGroup, Test)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
+import Test.Framework.Providers.HUnit (hUnitTestToTests)
 
 main :: IO ()
 main = defaultMain tests
@@ -19,4 +21,5 @@ tests = [ testGroup "PreExpr"
                     [ testProperty "Unification Algorithm" prop_unification
                     , testProperty "Generation of Fresh Type-Variables" prop_freshVars
                     ]
+        , testListRules 
         ]
