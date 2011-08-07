@@ -53,7 +53,7 @@ instance Show PreExpr where
 
 -- | Instancia arbitrary para las preExpresiones, lo único que dejamos fijo es el 
 -- operador unario, esto para simplificar la forma de las preExpresiones.
-{- instance Arbitrary PreExpr where
+instance Arbitrary PreExpr where
     arbitrary =
         oneof [   Var <$> arbitrary
                 , Con <$> arbitrary
@@ -65,7 +65,7 @@ instance Show PreExpr where
                 , Quant <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
                 , Paren <$> arbitrary
                 ]
-                -}
+
 data Path = Top
           | UnOpD Operator Path
           | BinOpL Operator Path PreExpr

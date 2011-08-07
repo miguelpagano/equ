@@ -10,6 +10,10 @@ module Equ.Theories.List
     , listLength
     , listTake
     , listDrop
+    -- ** Listas de constructores y operadores
+    , theoryConstantsList
+    , theoryOperatorsList
+    , theoryQuantifiersList
     -- * Versión tipada de operadores.
     , emptyList
     , append
@@ -123,8 +127,11 @@ listDrop = Operator { opRepr = pack "↓"
                     , opPrec = 10
                     }
 
-theoryOperatorsList = [listApp,listConcat,listDrop,listIndex,listLength,listTake]
+theoryConstantsList :: [Constant]
 theoryConstantsList = [listEmpty]
+theoryOperatorsList :: [Operator]
+theoryOperatorsList = [listApp,listConcat,listDrop,listIndex,listLength,listTake]
+theoryQuantifiersList :: [Quantifier]
 theoryQuantifiersList = []
 
 -- | Constructor de variable de tipo lista polimorfica; el primer string es

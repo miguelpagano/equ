@@ -10,7 +10,7 @@ module Equ.Syntax where
 import Equ.Types
 import Equ.Theories.AbsName
 import Control.Applicative((<$>),(<*>))
-import Test.QuickCheck(Arbitrary, arbitrary)
+import Test.QuickCheck(Arbitrary, arbitrary, elements)
 
 import Data.Text
 
@@ -142,7 +142,7 @@ instance Show Quantifier where
 instance Show Hole where
     show _ = "_"
 
-{-
+
 -- | Instancia arbitrary para las variables.
 instance Arbitrary Variable where
     arbitrary = Variable <$> arbitrary <*> arbitrary
@@ -153,7 +153,9 @@ instance Arbitrary Constant where
     
 -- | Instancia arbitrary para los operadores.
 instance Arbitrary Operator where
-    arbitrary = Operator <$> arbitrary <*> arbitrary <*> arbitrary
+    arbitrary = Operator <$> arbitrary <*> 
+                arbitrary <*> arbitrary <*> 
+                arbitrary <*> arbitrary <*> arbitrary
 
 -- | Instancia arbitrary para las funciones.
 instance Arbitrary Func where
@@ -165,5 +167,9 @@ instance Arbitrary Quantifier where
 
 -- | Instancia arbitrary para los huecos.
 instance Arbitrary Hole where
-    arbitrary = Hole <$> arbitrary
-    -}
+    arbitrary = Hole <$> arbitrary    
+
+instance Arbitrary Assoc where
+    arbitrary = elements [ None , ALeft , ARight ]
+instance Arbitrary NotationType where
+    arbitrary = elements [ NInfix , NPrefix , NPostfix ]

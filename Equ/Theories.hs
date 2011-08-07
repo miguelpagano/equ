@@ -2,7 +2,11 @@
 -- constructores necesarios de cada una.
 module Equ.Theories 
     ( -- * Teorías.
-     module Equ.Theories.List 
+      module L -- Equ.Theories.List 
+    , operatorsList
+    , constantsList
+    , quantifiersList
+    , L.listRules
     )
     where
 
