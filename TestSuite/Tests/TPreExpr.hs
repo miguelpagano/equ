@@ -12,6 +12,6 @@ prop_toFocuses pe = prop_toFocusesAux pe (toFocuses pe)
 
 -- Auxiliar para checkear la propiedad de arriba.
 prop_toFocusesAux :: PreExpr -> [Focus] -> Bool
-prop_toFocusesAux pe [] = True
+prop_toFocusesAux _ [] = True
 prop_toFocusesAux pe (f:fs) | toExpr f == pe = prop_toFocusesAux pe fs
                             | otherwise = False
