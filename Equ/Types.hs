@@ -105,7 +105,6 @@ occurs v = F.elem v
 tyreplace :: TyVarName -> Type -> Type -> Type
 tyreplace v t t' = t' >>= (\w -> if v == w then t else TyVar w) 
 
-
 -- | Instancia arbitrary para el tipo nombre de variable. 
 instance Arbitrary TyVarName where
     arbitrary = 
