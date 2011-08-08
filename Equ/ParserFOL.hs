@@ -159,7 +159,6 @@ parseSugarExpr = undefined
 parser :: String -> Either ParseError PreExpr
 parser = parse parseExpr ""
 
-
 -- Expresiones de prueba:
 -- (F@(succ 0) + x) ▹ [] ⇒ True
 -- 〈 ∃ x : (G@(# []) + x) ▹ [] ⇒ True : p ⇒ q 〉

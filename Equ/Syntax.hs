@@ -142,7 +142,6 @@ instance Show Quantifier where
 instance Show Hole where
     show _ = "_"
 
-
 -- | Instancia arbitrary para las variables.
 instance Arbitrary Variable where
     arbitrary = Variable <$> arbitrary <*> arbitrary
@@ -169,7 +168,10 @@ instance Arbitrary Quantifier where
 instance Arbitrary Hole where
     arbitrary = Hole <$> arbitrary    
 
+-- | Instancia arbitrary para las asociaciones.
 instance Arbitrary Assoc where
     arbitrary = elements [ None , ALeft , ARight ]
+
+-- | Instancia arbitrary para el tipo de notacion.
 instance Arbitrary NotationType where
     arbitrary = elements [ NInfix , NPrefix , NPostfix ]

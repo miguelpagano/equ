@@ -46,7 +46,7 @@ instance Show PreExpr where
     show (Quant qua v preExp0 preExp1) = show qua ++ show v ++ " in " 
                                         ++ show preExp0 ++ " | " 
                                         ++ show preExp1
-    show (Paren preExp) = "[" ++ show preExp ++ "]" 
+    show (Paren preExp) = "P" ++ show preExp ++ "ꟼ" 
 
 -- Los zippers pueden ser convenientes; la referencia es: ``The
 -- Zipper'' de Gérard Huet en JFP. 
