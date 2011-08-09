@@ -33,18 +33,12 @@ import Data.List
 import Data.Char
 import Control.Monad.Identity
 
--- Miguel: Excepto que haya muchas cosas importadas de un módulo
--- puede ayudar que los enumeremos caso por caso.
--- Ale: Creo que no entendí esta recomendación, tal vez sea
--- lo que pasa con los ultimos dos imports (?)
 import Equ.Theories
 import Equ.Syntax
 import Equ.PreExpr
 import Equ.Types
-import Equ.Theories.List
--- Solamente para listApp y listEmpty. Se podrian sacar de la lista de constantes y operadores.
-import Equ.Theories.Arith
--- Solamente para intToCon. Se podria hacer mejor?
+import Equ.Theories.List(listApp, listEmpty)
+import Equ.Theories.Arith(intToCon)
 
 type ParserTable = PE.OperatorTable String () Identity PreExpr
 type ParserOper = PE.Operator String () Identity PreExpr
@@ -65,9 +59,18 @@ quantSep = ":"
 opApp :: String
 opApp = "@"
 
+holeInfoInit :: String
+holeInfoInit = "{"
+
+holeInfoEnd :: String
+holeInfoEnd = "}"
+
+opHole :: String
+opHole = "?"
+
 -- | Representantes de los operadores. (Salvo para aplicacion)
 rOpNames :: [String]
-rOpNames = opApp : map (unpack . opRepr) operatorsList
+rOpNames = opApp : opHole : map (unpack . opRepr) operatorsList
 
 -- | Representantes de las constantes y cuantificadores.
 -- Ademas de los caracteres para representar expresiones cuantificadas.
@@ -122,6 +125,7 @@ subexpr = fmap Paren (parens lexer parsePreExpr)
           <|>  parseQuant quantifiersList
           <|>  parsePreExprVar parseVar
           <|>  parseFunc
+          <|>  parseHole
           <|>  parseSugarPreExpr parsePreExpr
                             
 -- Parseo de Constantes definidas en la teoria
@@ -142,6 +146,20 @@ parseQuant = foldr pQuan (fail "Parse error: Expresi\243n mal formada")
                     \v -> reserved lexer quantSep >> parsePreExpr >>=
                     \r -> reserved lexer quantSep >> parsePreExpr >>=
                     \t -> reserved lexer quantEnd >> return (Quant q v r t)
+
+-- Parseo de huecos.
+parseHole :: Parser PreExpr
+parseHole = (try $ reserved lexer opHole >> 
+                ((braces lexer parseInfo >>= \i ->
+                  return (PrExHole $ hole (pack i)))
+                  <|>
+                  return (PrExHole $ hole (pack ""))))
+            <|>
+            (fail "Parse error: Expresi\243n mal formada")
+
+-- Parseo de la informacion de un hueco.
+parseInfo :: Parser String
+parseInfo = many1 (letter <|> space)
 
 -- Parseo de expresiones variable
 parsePreExprVar :: Parser Variable -> Parser PreExpr
@@ -230,5 +248,5 @@ showPreExpr = id
 
 -- Expresiones de prueba:
 -- (F@(succ 0) + x) ▹ [] ⇒ True
--- 〈 ∃ x : (G@(# []) + x) ▹ [] ⇒ True : p ⇒ q 〉
+-- 〈∃ x : (G@(# []) + x) ▹ [] ⇒ True : p ⇒ q〉
 

@@ -12,10 +12,11 @@ import Equ.Theories.AbsName
 import Control.Applicative((<$>),(<*>))
 import Test.QuickCheck(Arbitrary, arbitrary, elements)
 
-import Data.Text
+import Data.Text hiding (null)
 
 type VarName = Text
 type FuncName = Text
+type HoleInfo = Text
 
 data Variable = Variable {
       varName :: VarName
@@ -72,9 +73,15 @@ data Quantifier = Quantifier {
 -- luego de aplicar una regla, pero sin el resultado de la regla.
 data Hole = Hole {
       holeTy :: Type
+    , info :: HoleInfo
     }
     deriving Eq
-    
+
+hole :: HoleInfo -> Hole
+hole i = Hole {holeTy = TyUnknown
+              , info = i
+              }
+  
 var :: String -> Type -> Variable
 var s t = Variable { varName = pack s
                    , varTy = t
@@ -140,7 +147,10 @@ instance Show Quantifier where
 
 -- | PrettyPrint para huecos. 
 instance Show Hole where
-    show _ = "_"
+    show s = let i = unpack $ info s in
+                if null i
+                then "_"
+                else "holeWithInfo: " ++ ((unpack . info) s)
 
 -- | Instancia arbitrary para las variables.
 instance Arbitrary Variable where
@@ -166,7 +176,7 @@ instance Arbitrary Quantifier where
 
 -- | Instancia arbitrary para los huecos.
 instance Arbitrary Hole where
-    arbitrary = Hole <$> arbitrary    
+    arbitrary = Hole <$> arbitrary <*> arbitrary 
 
 -- | Instancia arbitrary para las asociaciones.
 instance Arbitrary Assoc where
