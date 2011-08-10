@@ -77,7 +77,9 @@ rOpNames = opApp : opHole : map (unpack . opRepr) operatorsList
 rNames :: [String]
 rNames = [quantInit,quantEnd,quantSep,"-"] ++ 
          map (unpack . conRepr) constantsList ++
-         map (unpack .quantRepr) quantifiersList
+         map (unpack .quantRepr) quantifiersList ++
+         listAtomTy
+         
 
 lexer :: TokenParser ()
 lexer = makeTokenParser $
@@ -240,11 +242,102 @@ showPreExpr = id
 -- parser :: Text -> Either ParseError PreExpr
 -- parser = undefined
 
+
 -- | Para definir la función anterior podemos necesitar definir 
 -- esta función para poder parsear los tipos que el usuario quiera
 -- asignar a los diferentes constituyentes de pre-expresiones.
 -- parserTy :: Text -> Either ParseError Type
 -- parserTy = undefined
+
+type ParserTypeTable = PE.OperatorTable String () Identity Type
+
+-- Numeros
+num :: String
+num = "Num"
+
+-- Enteros
+int :: String
+int = "Int"
+
+-- Naturales
+nat :: String
+nat = "Nat"
+
+-- Booleanos.
+bool :: String
+bool = "Bool"
+
+-- Operador de funcion.
+opFun :: String
+opFun = ":->"
+
+-- | Nombre de los tipos atomicos.
+listAtomTy :: [String]
+listAtomTy = [num, int, nat, bool]
+
+-- | Nombre para indicar tipo desconocido.
+typeUnknown :: String
+typeUnknown = "¿Type?"
+
+lexerTy :: TokenParser ()
+lexerTy = makeTokenParser $
+            emptyDef { reservedOpNames = [opFun]
+                     , reservedNames = typeUnknown : listAtomTy
+                     , identStart  = letter <|> char '_'
+                     , identLetter = alphaNum <|> char '_'
+                     }
+
+operatorTypeTable :: ParserTypeTable
+operatorTypeTable = [[PE.Infix (reservedOp lexerTy opFun >> return (:->)) PE.AssocRight]]
+
+typeSubExpr :: Parser Type
+typeSubExpr =  parseUnknown
+           <|> parseTyVar
+           <|> parseTyList
+           <|> parseTyAtom
+
+-- Parseo de tipos.
+parseType :: Parser Type
+parseType = PE.buildExpressionParser operatorTypeTable typeSubExpr 
+               <?> "Parser error: Expresión mal formada"
+
+-- | Parser para los tipos atomicos.
+parseAtomTy :: Parser AtomTy
+parseAtomTy =  (try $ reserved lexerTy num >> return ATyNum)
+           <|> (try $ reserved lexerTy int >> return ATyInt)
+           <|> (try $ reserved lexerTy nat >> return ATyNat)
+           <|> (try $ reserved lexerTy bool >> return ATyBool)
+
+-- | Parser para el tipo Unknown.
+parseUnknown :: Parser Type
+parseUnknown = (try $ reserved lexerTy typeUnknown) >> return TyUnknown
+
+-- | Parser para el tipo variable.
+parseTyVar :: Parser Type
+parseTyVar = try $ identifier lexer >>= 
+                    \s -> if (not . null) s && (isLower . head) s
+                            then return (tyVar s)
+                            else parserZero
+
+-- | Parser para el tipo lista.
+parseTyList :: Parser Type
+parseTyList = brackets lexer parseType >>= return . TyList
+
+-- | Parser para el tipo de tipos atomicos.
+parseTyAtom :: Parser Type
+parseTyAtom = (try parseAtomTy) >>= return . TyAtom
+
+-- | Funcion principal de parseo desde string.
+parseTyFromString :: String -> Either ParseError Type
+parseTyFromString = parse parseType ""
+
+-- | Parser de tipos.
+parseTy :: String -> Type
+parseTy = either showError showType . parseTyFromString
+
+-- | Imprimimos Types usando que es instancia de show.
+showType :: a -> a
+showType = id
 
 -- Expresiones de prueba:
 -- (F@(succ 0) + x) ▹ [] ⇒ True
