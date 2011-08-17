@@ -29,6 +29,7 @@ data OpName = Append    -- ^ Lista: agregar por la izquierda
               | And     -- ^ FOL: "y" lógico
               | Or      -- ^ FOL: "o" lógico
               | Neg     -- ^ FOL: Negación
+              | Equal
                  deriving (Eq,Ord)
 
               

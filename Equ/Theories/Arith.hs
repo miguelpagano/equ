@@ -7,7 +7,7 @@ import Data.Text (pack)
 import Equ.Syntax
 import Equ.Types
 import Equ.Expr
-import Equ.PreExpr
+import Equ.PreExpr.Internal
 -- TODO: Agregar reglas para este módulo.
 -- import Equ.Rule 
 import Equ.Theories.AbsName
@@ -48,19 +48,8 @@ natProd = Operator { opRepr = pack "*"
                    , opNotationTy = NInfix
                    , opPrec = 22
                    }
-                   
-natEq :: Operator
-natEq = Operator { opRepr = pack "="
-                 , opName = NatEqual -- Aca habia natEqual, 
-                                     -- hice una parchada rapida agregando 
-                                     -- NatEqual a OpName.
-                 , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyBool
-                 , opAssoc = ALeft
-                 , opNotationTy = NInfix
-                 , opPrec = 20
-                 }
                  
-theoryOperatorsList = [natSucc,natSum,natProd,natEq]
+theoryOperatorsList = [natSucc,natSum,natProd]
 theoryConstantsList = [natZero]
 theoryQuantifiersList = []
 

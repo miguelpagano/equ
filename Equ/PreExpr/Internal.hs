@@ -39,6 +39,20 @@ instance Functor PreExpr' where
     fmap f (Quant q a e e') = Quant q (f a) (fmap f e) (fmap f e')
     fmap f (Paren e) = Paren $ fmap f e
 
+instance Monad PreExpr' where
+    return a = Var a
+    Var v >>= f = f v
+    Con c >>= _ = Con c
+    Fun f >>= _ = Fun f
+    PrExHole h >>= _ = PrExHole h
+    -- quise escribir todos los casos que siguen asi, pero no compila:
+    --e >>= f = fmap (>>= f) e
+    UnOp op e >>= f = UnOp op (e >>= f)
+    BinOp op e1 e2 >>= f = BinOp op (e1 >>= f) (e2 >>= f)
+    App e1 e2 >>= f = App (e1 >>= f) (e2 >>= f)
+    --Quant q v e1 e2 >>= f = Quant q v (e1 >>= f) (e2 >>= f)
+    Paren e >>= f = Paren (e >>= f)
+
 instance Foldable PreExpr' where
     foldMap f (Var v) = f v
     foldMap f (UnOp _ e) = foldMap f e

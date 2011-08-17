@@ -6,10 +6,12 @@ import Prelude hiding (and,or)
 import Equ.Syntax
 import Equ.Types
 import Equ.Expr
-import Equ.PreExpr
+import Equ.PreExpr.Internal
 import Equ.Rule
 import Equ.Theories.AbsName
+import Equ.Rewrite(applySubst)
 
+import qualified Data.Map as M
 import Data.Text (pack)
 
 
@@ -46,6 +48,16 @@ folExist = Quantifier { quantRepr = pack "∃"
 -- Tipo de las operaciones logicas
 folBinOpType = tyBool :-> tyBool :-> tyBool
 folUnOpType = tyBool :-> tyBool
+
+-- Igualdad
+folEqual :: Operator
+folEqual = Operator { opRepr = pack "="
+                  , opName = Equal
+                  , opTy = tyVar "A" :-> tyVar "A" :-> tyBool
+                  , opAssoc = ALeft
+                  , opNotationTy = NInfix
+                  , opPrec = 5
+                  }
 
 -- Equivalencia
 folEquiv :: Operator
@@ -117,7 +129,7 @@ folConseq = Operator { opRepr = pack "⇐"
                     , opPrec = 2
                     }
 
-theoryOperatorsList = [folEquiv,folDiscrep,folAnd,folOr,folImpl,folConseq,folNeg]
+theoryOperatorsList = [folEqual,folEquiv,folDiscrep,folAnd,folOr,folImpl,folConseq,folNeg]
 theoryConstantsList = [folTrue,folFalse]
 theoryQuantifiersList = [folForall,folExist]
 
@@ -131,6 +143,10 @@ false :: Expr
 false = Expr $ Con $ folFalse
 
 -- | Constructores de Operaciones lógicas
+
+-- Igualdad
+equal :: Expr -> Expr -> Expr
+equal (Expr a) (Expr b) = Expr $ BinOp folEqual a b
 
 -- Equivalencia
 equiv :: Expr -> Expr -> Expr
@@ -526,9 +542,20 @@ distribAndForall_Rule = Rule { lhs = and (forAll varX true term1) (forAll varX t
 -- DUDA: Para definir esto tendriamos que saber si el tipo de la variable x tiene definida la igualdad. 
 --       Algo como las typeclasses de haskell donde digamos que el tipo A es instancia de Eq, o algo así.
 -- ------------------------------
--- unitRangeForall_Rule :: Rule
--- unitRangeForall_Rule = Rule { lhs = forAll (
-
+{-unitRangeForall_Rule :: Rule
+unitRangeForall_Rule = Rule { lhs = forAll varX (equal expr_varX expr_varY) term
+                            , rhs = Expr $ applySubst subst term
+                            , rel = relEquiv
+                            , name = pack ""
+                            , desc = pack ""
+                            }
+    where varX = var "x" $ tyVar "A"
+          varY = var "y" $ tyVar "A"
+          expr_varX = Expr $ Var $ varX
+          expr_varY = Expr $ Var $ varY
+          term = Expr $ Var $ var "t" $ tyBool
+          subst = M.insert varX (Expr varY) M.empty
+          -}
 -- ------------------------------
 -- Intercambio de ∀: <∀x : : <∀y : : f.x.y> ≡ <∀y : : <∀x : : f.x.y>
 -- DUDA: Es necesario que el termino sea una funcion que toma x e y? No podria ser cualquier termino?
