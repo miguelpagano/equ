@@ -48,19 +48,8 @@ natProd = Operator { opRepr = pack "*"
                    , opNotationTy = NInfix
                    , opPrec = 22
                    }
-                   
-natEq :: Operator
-natEq = Operator { opRepr = pack "="
-                 , opName = NatEqual -- Aca habia natEqual, 
-                                     -- hice una parchada rapida agregando 
-                                     -- NatEqual a OpName.
-                 , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyBool
-                 , opAssoc = ALeft
-                 , opNotationTy = NInfix
-                 , opPrec = 20
-                 }
                  
-theoryOperatorsList = [natSucc,natSum,natProd,natEq]
+theoryOperatorsList = [natSucc,natSum,natProd]
 theoryConstantsList = [natZero]
 theoryQuantifiersList = []
 

@@ -11,6 +11,8 @@ import Equ.PreExpr.Internal
 -- tipo.
 newtype Expr = Expr PreExpr
 
+getPreExpr (Expr e) = e
+
 instance Show Expr where 
     show (Expr e) = show e
     
