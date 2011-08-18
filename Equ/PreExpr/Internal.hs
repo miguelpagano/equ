@@ -28,6 +28,20 @@ data PreExpr' a = Var a
 
 type PreExpr = PreExpr' Variable
 
+instance Monad PreExpr' where
+    return a = Var a
+    Var v >>= f = f v
+    Con c >>= _ = Con c
+    Fun f >>= _ = Fun f
+    PrExHole h >>= _ = PrExHole h
+    -- quise escribir todos los casos que siguen asi, pero no compila:
+    --e >>= f = fmap (>>= f) e
+    UnOp op e >>= f = UnOp op (e >>= f)
+    BinOp op e1 e2 >>= f = BinOp op (e1 >>= f) (e2 >>= f)
+    App e1 e2 >>= f = App (e1 >>= f) (e2 >>= f)
+    Quant q v e1 e2 >>= f = let (Var v') = f v in Quant q v' (e1 >>= f) (e2 >>= f)
+    Paren e >>= f = Paren (e >>= f)
+
 instance Functor PreExpr' where
     fmap f (Var a) = Var $ f a
     fmap _ (Con c) = Con c

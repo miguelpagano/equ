@@ -35,7 +35,7 @@ import Control.Monad.Identity
 
 import Equ.Theories
 import Equ.Syntax
-import Equ.PreExpr
+import Equ.PreExpr.Internal
 import Equ.Types
 import Equ.Theories.List(listApp, listEmpty)
 import Equ.Theories.Arith(intToCon)

@@ -7,7 +7,7 @@ import Data.Text (pack)
 import Equ.Syntax
 import Equ.Types
 import Equ.Expr
-import Equ.PreExpr
+import Equ.PreExpr.Internal
 -- TODO: Agregar reglas para este módulo.
 -- import Equ.Rule 
 import Equ.Theories.AbsName

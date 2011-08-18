@@ -44,6 +44,9 @@ data Operator = Operator {
 instance Ord Operator where
     compare a b = compare (opPrec a) (opPrec b) 
     
+instance Ord Variable where
+    compare v v' = compare (tRepr v) (tRepr v')
+    
 data Func = Func {
       funcName :: FuncName
     , funcTy   :: Type
