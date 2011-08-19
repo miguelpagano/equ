@@ -90,7 +90,7 @@ hole i = Hole {holeTy = TyUnknown
 var :: String -> Type -> Variable
 var s t = Variable { varName = pack s
                    , varTy = t
-                   }   
+                   }
     
 -- | La clase syntax abstrae la informacion común de los diferenctes 
 --  constituyentes de los árboles sintácticos. Como información común

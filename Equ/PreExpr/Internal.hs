@@ -110,7 +110,7 @@ substVar v v' v'' = if v == v'' then v' else v''
 
 -- Substitucion de variable por variable en preExpresiones.
 -- PRE = { v' variable fresca para pe }
-substitution :: Variable -> Variable -> PreExpr -> PreExpr
+{-substitution :: Variable -> Variable -> PreExpr -> PreExpr
 substitution v v' (Var v'') = Var $ substVar v v' v''
 substitution v v' (UnOp op pe) = UnOp op $ substitution v v' pe
 substitution v v' (BinOp op pe pe') = 
@@ -119,7 +119,10 @@ substitution v v' (App pe pe') = App (substitution v v' pe) (substitution v v' p
 substitution v v' (Quant q v'' pe pe') =
     Quant q (substVar v v' v'') (substitution v v' pe) (substitution v v' pe')
 substitution v v' (Paren pe) = Paren (substitution v v' pe)
-substitution _ _ pe = pe
+substitution _ _ pe = pe-}
+
+
+substitution v v' e = fmap (substVar v v') e
 
 
 -- Substitucion de variable por variable en preExpresiones.
