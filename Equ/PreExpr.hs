@@ -7,64 +7,44 @@ module Equ.PreExpr ( PreExpr (..)
                    , toExpr, toFocus, toFocuses
                    , replace
                    , goDown, goUp, goLeft, goRight, goDownR
+                   , freeVars, freshVar
                    , module Equ.Syntax
+                   , module Equ.PreExpr.Internal
                    ) 
     where
 
 import Equ.Syntax
 import Control.Applicative ((<$>), (<*>))
 import Test.QuickCheck(Arbitrary, arbitrary, oneof)
+import qualified Data.Set as S
+import qualified Data.Text as T
+import Equ.Types
+import Equ.PreExpr.Internal
 
-{- Propiedades de PreExpresiones (QC): queremos poder respetar la forma
-   de escribir una expresión.
-   
-    * 'pretty . parser = id'
-    * 'parser . pretty = id'
--}
+-- | Esta funcion devuelve todas las variables libres de una expresion
+freeVars :: PreExpr -> S.Set Variable
+freeVars (Var v) = S.insert v S.empty
+freeVars (Con c) = S.empty
+freeVars (Fun g) = S.empty
+freeVars (PrExHole h) = S.empty
+freeVars (UnOp op e) = freeVars e
+freeVars (BinOp op e1 e2) = freeVars e1 `S.union` freeVars e2
+freeVars (App e1 e2) = freeVars e1 `S.union` freeVars e2
+freeVars (Quant q v e1 e2) = S.delete v $ freeVars e1 `S.union` freeVars e2
+freeVars (Paren e) = freeVars e
 
-data PreExpr = Var Variable
-             | Con Constant
-             | Fun Func
-             | PrExHole Hole
-             | UnOp Operator PreExpr
-             | BinOp Operator PreExpr PreExpr
-             | App PreExpr PreExpr
-             | Quant Quantifier Variable PreExpr PreExpr
-             | Paren PreExpr
-            deriving Eq
-
--- | Pretty print para las preExpresiones.
-instance Show PreExpr where
-    show (Var x) = show x
-    show (Con k) = show k
-    show (Fun f) = show f
-    show (PrExHole h) = show h
-    show (UnOp op preExp) = show op ++ "(" ++ show preExp ++ ")"
-    show (BinOp op preExp0 preExp1) = "(" ++ show preExp0 ++ ")" ++ show op ++ 
-                                      "(" ++ show preExp1 ++ ")"
-    show (App preExp0 preExp1) = show preExp0 ++ " " ++ "(" ++ show preExp1 ++ ")"
-    show (Quant qua v preExp0 preExp1) = show qua ++ show v ++ " in " 
-                                        ++ show preExp0 ++ " | " 
-                                        ++ show preExp1
-    show (Paren e) = "〔" ++ show e ++ " 〕"
+-- | Esta funcion devuelve una variable fresca con respecto a un conjunto de variables
+freshVar :: S.Set Variable -> Variable
+freshVar s = firstNotIn s infListVar
+    where infListVar = [Variable {varName= (T.pack . ("v" ++) . show) n,
+                                    varTy= TyUnknown} | n <- [(0::Int)..]]
+          -- PRE: xs es infinita
+          firstNotIn set xs | S.member (head xs) set = firstNotIn set $ tail xs
+                            | otherwise = head xs
 
 -- Los zippers pueden ser convenientes; la referencia es: ``The
 -- Zipper'' de Gérard Huet en JFP. 
 
--- | Instancia arbitrary para las preExpresiones, lo único que dejamos fijo es el 
--- operador unario, esto para simplificar la forma de las preExpresiones.
-instance Arbitrary PreExpr where
-    arbitrary =
-        oneof [   Var <$> arbitrary
-                , Con <$> arbitrary
-                , Fun <$> arbitrary
-                , PrExHole <$> arbitrary
-                , UnOp <$> arbitrary <*> arbitrary
-                , BinOp <$> arbitrary <*> arbitrary <*> arbitrary
-                , App <$> arbitrary <*> arbitrary
-                , Quant <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
-                , Paren <$> arbitrary
-                ]
 
 data Path = Top
           | UnOpD Operator Path

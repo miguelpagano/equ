@@ -29,6 +29,7 @@ data PreExpr' a = Var a
                 | Paren (PreExpr' a)
                   deriving Eq
 
+
 type PreExpr = PreExpr' Variable
 
 instance Monad PreExpr' where
@@ -87,8 +88,21 @@ instance Applicative PreExpr' where
 -}
 -}
 
-
-
+-- | Pretty print para las preExpresiones.
+instance Show PreExpr where
+    show (Var x) = show x
+    show (Con k) = show k
+    show (Fun f) = show f
+    show (PrExHole h) = show h
+    show (UnOp op preExp) = show op ++ "(" ++ show preExp ++ ")"
+    show (BinOp op preExp0 preExp1) = "(" ++ show preExp0 ++ ")" ++ show op ++ 
+                                      "(" ++ show preExp1 ++ ")"
+    show (App preExp0 preExp1) = show preExp0 ++ " " ++ "(" ++ show preExp1 ++ ")"
+    show (Quant qua v preExp0 preExp1) = show qua ++ show v ++ " in " 
+                                        ++ show preExp0 ++ " | " 
+                                        ++ show preExp1
+    show (Paren e) = "〔" ++ show e ++ " 〕"
+                
 -- | Instancia arbitrary para las preExpresiones, lo único que dejamos fijo es el 
 -- operador unario, esto para simplificar la forma de las preExpresiones.
 instance Arbitrary PreExpr where
@@ -104,27 +118,14 @@ instance Arbitrary PreExpr where
                 , Paren <$> arbitrary
                 ]
 
--- Substituir variables.
-substVar :: Variable -> Variable -> Variable -> Variable
-substVar v v' v'' = if v == v'' then v' else v''
 
 -- Substitucion de variable por variable en preExpresiones.
 -- PRE = { v' variable fresca para pe }
-{-substitution :: Variable -> Variable -> PreExpr -> PreExpr
-substitution v v' (Var v'') = Var $ substVar v v' v''
-substitution v v' (UnOp op pe) = UnOp op $ substitution v v' pe
-substitution v v' (BinOp op pe pe') = 
-    BinOp op (substitution v v' pe) (substitution v v' pe')
-substitution v v' (App pe pe') = App (substitution v v' pe) (substitution v v' pe')
-substitution v v' (Quant q v'' pe pe') =
-    Quant q (substVar v v' v'') (substitution v v' pe) (substitution v v' pe')
-substitution v v' (Paren pe) = Paren (substitution v v' pe)
-substitution _ _ pe = pe-}
-
-
+substitution :: Eq a => a -> a -> PreExpr' a -> PreExpr' a
 substitution v v' e = fmap (substVar v v') e
-
-
+    where substVar v v' v'' | v==v' = v'
+                            | otherwise = v''
+{-
 -- Substitucion de variable por variable en preExpresiones.
 -- A diferencia de substitution, no tenemos la precondicion
 -- sobre que v' sea una variable fresca.
@@ -180,18 +181,4 @@ subsfreeVars' lv (Quant _ v pe pe') = L.delete v $ subsfreeVars' lv pe ++
 -- Dada una preExpresion devuelve una lista con las variables libres.
 subsfreeVars :: PreExpr -> [Variable]
 subsfreeVars = subsfreeVars' []
-
--- | Pretty print para las preExpresiones.
-instance Show PreExpr where
-    show (Var x) = show x
-    show (Con k) = show k
-    show (Fun f) = show f
-    show (PrExHole h) = show h
-    show (UnOp op preExp) = show op ++ "(" ++ show preExp ++ ")"
-    show (BinOp op preExp0 preExp1) = "(" ++ show preExp0 ++ ")" ++ show op ++ 
-                                      "(" ++ show preExp1 ++ ")"
-    show (App preExp0 preExp1) = show preExp0 ++ " " ++ "(" ++ show preExp1 ++ ")"
-    show (Quant qua v preExp0 preExp1) = show qua ++ show v ++ " in " 
-                                        ++ show preExp0 ++ " | " 
-                                        ++ show preExp1
-    show (Paren e) = "〔" ++ show e ++ " 〕"
+    -}
