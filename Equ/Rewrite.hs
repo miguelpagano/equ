@@ -1,8 +1,13 @@
-module Equ.Rewrite where
+module Equ.Rewrite
+    ( match
+    , exprRewrite
+    )
+    where
 
 import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.Text as T
+import Control.Monad
 
 import Equ.PreExpr.Internal
 import Equ.Syntax
@@ -12,61 +17,13 @@ import Equ.Types
 
 type ExprSubst = M.Map Variable PreExpr
 
-
-match :: [Variable] -> PreExpr -> PreExpr -> ExprSubst -> Maybe ExprSubst
--- [match v -> e] U s = si s(v) es algo distinto de e, entonces no hay matching.
-match bvs e@(Var v) e' s | e == e' = Just s
-                         | v `elem` bvs = Nothing
-                         | otherwise =
-                            case M.lookup v s of
-                                Nothing -> Just $ M.insert v e' s
-                                Just f -> if e' == f then Just s else Nothing
-
-
-match bvs (UnOp op1 e1) (UnOp op2 e2) s = if op1==op2
-                                            then match bvs e1 e2 s
-                                            else Nothing
-
-match bvs (BinOp op1 e1 e2) (BinOp op2 f1 f2) s = if op1==op2
-                                                    then match bvs e1 f1 s >>= \t -> match bvs e2 f2 t
-                                                    else Nothing
-    
-match bvs (App e1 e2) (App f1 f2) s = match bvs e1 f1 s >>= \t -> match bvs e2 f2 t
-
-match bvs (Paren e1) e2 s = match bvs e1 e2 s
-match bvs e1 (Paren e2) s = match bvs e1 e2 s
-
--- CUANTIFICADORES
-{- EJEMPLO INSPIRADOR:
-    queremos matchear con la expresion: E1= <∀x : x = z : F@x>, la expresion E2= <∀z : z = F@a : F@z>
-    Lo primero que deberiamos hacer es sustituir x por z en E1. Pero al hacer esto, vemos que se nos captura
-    una variable que era libre. Por lo tanto, primero deberiamos reemplazar z por una NUEVA variable en E1.
-    Si hacemos eso, entonces, primero nos queda la substitucion z->v_new:
-    <∀x : x = v_new : F@x>
-    luego, sustituimos x por z:
-    <∀z : z = v_new : F@z>
-    y ahora aplicamos match a las expresiones rango y termino del cuantificador, con lo cual obtendriamos la sustitucion
-    v_new -> F@a.
--}
-    
-match bvs (Quant q v e1 e2) (Quant p w f1 f2) s =
-    if q==p
-       then if v==w
-                -- Si tenemos la misma variable cuantificada, entonces realizamos el match en las subexpresiones
-                then match (v:bvs) e1 f1 s >>= \t -> match (v:bvs) e2 f2 t
-                -- Si no, tenemos que reemplazar la variable cuantificada de la primera expresion, por la de la segunda,
-                -- pero cuidando de no capturar una variable libre, para eso aplicamos una sustitucion que pone una variable
-                -- nueva
-                else match (fv:bvs) (substitution v fv e1) (substitution w fv f1) s >>=
-                     \t -> match (fv:bvs) (substitution v fv e2) (substitution w fv f2) t
-        else Nothing
-    where fv= freshVar $ S.unions [freeVars $ Var v,freeVars $ Var w, freeVars e1, freeVars e2,
-                                   freeVars f1, freeVars f2]
-
-
-match bvs e1 e2 s | e1==e2 = Just s
-                  | otherwise = Nothing
-
+whenM :: MonadPlus m => Bool -> m a -> m a
+whenM True = id
+whenM False = const mzero
+  
+whenML :: MonadPlus m => Bool -> a -> m a
+whenML True = return
+whenML False = const mzero
 
 -- Esta funcion devuelve todas las variables libres de una expresion
 freeVars :: PreExpr -> S.Set Variable
@@ -90,8 +47,6 @@ freshVar s = firstNotIn s infListVar
           firstNotIn set xs | S.member (head xs) set = firstNotIn set $ tail xs
                             | otherwise = head xs
 
-exprRewrite :: Expr -> Rule -> Maybe Expr
-exprRewrite (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) = match [] l e M.empty >>= \subst -> Just $ Expr $ applySubst subst r
 
 -- Esta funcion es igua a la que hizo miguel en TypeChecker. Se puede escribir asi, ya que
 -- PreExpr' es instancia de Monad
@@ -103,3 +58,77 @@ applySubst s (App e f) = App (applySubst s e) (applySubst s f)
 applySubst s (Quant q v e1 e2) = Quant q v (applySubst s e1) (applySubst s e2)
 applySubst s (Paren e) = Paren $ applySubst s e
 applySubst s e = e
+
+
+{- Función que implementa el algoritmo de matching. Toma una lista de variables
+que están ligadas a algún cuantificador, una expresión patrón, otra expresión y
+un mapa de sustituciones. 
+-}
+match' :: [Variable] -> PreExpr -> PreExpr -> ExprSubst -> Maybe ExprSubst
+
+{- El caso principal del algoritmo, donde el patrón es una variable. 
+* Si la expresión e' es igual al patrón Var v, se devuelve el mismo mapa de 
+sustituciones (es decir, no hay que reemplazar nada para llegar desde una 
+expresión a la otra).
+* Si las expresiones son distintas y v pertenece bvs, entonces no hay matching.
+(para que dos expresiones cuantificadas matcheen, se considera a sus variables 
+ligadas como la misma variable, y es la que se agrega a la lista bvs, por eso 
+no hay matching entre una de esas variables y cualquier otra cosa distinta).
+* Si las expresiones son distintas y v no pertenece a bvs, nos fijamos si en el 
+mapa de sustituciones se encuentra la variable. Si no, entonces podemos matchear
+v por e'. Si v está en el mapa, entonces para que haya matching tiene que estar 
+asociada con la expresión e'.
+-}
+match' bvs e@(Var v) e' s | e == e' = return s
+                         | v `elem` bvs = mzero
+                         | otherwise = maybe (return $ M.insert v e' s)
+                                             (\f -> whenML (e' == f) s)
+                                             $ M.lookup v s
+
+match' bvs (UnOp op1 e1) (UnOp op2 e2) s = whenM (op1==op2) $ match' bvs e1 e2 s
+
+match' bvs (BinOp op1 e1 e2) 
+          (BinOp op2 f1 f2) s = whenM (op1==op2) $ match' bvs e1 f1 s >>= 
+                                                 match' bvs e2 f2
+    
+match' bvs (App e1 e2) (App f1 f2) s = match' bvs e1 f1 s >>= match' bvs e2 f2 
+
+match' bvs (Paren e1) e2 s = match' bvs e1 e2 s
+match' bvs e1 (Paren e2) s = match' bvs e1 e2 s
+
+{-
+Para matchear dos expresiones cuantificadas, deben ser el mismo cuantificador.
+Si las variables cuantificadas v y w son la misma, entonces hacemos matching en 
+las subexpresiones, agregando v a la lista de variables ligadas bvs.
+Si v/=w, entonces reemplazamos v y w por una variable fresca en ambas expresiones
+y luego realizamos matching en las subexpresiones, agregando la variable fresca
+a bvs.
+-}    
+match' bvs (Quant q v e1 e2) (Quant p w f1 f2) s =
+    whenM (q==p) $
+        if v==w then match' (v:bvs) e1 f1 s >>= match' (v:bvs) e2 f2
+                else match' (fv:bvs) (subst v fv e1) (subst w fv f1) s >>=
+                     match' (fv:bvs) (subst v fv e2) (subst w fv f2)
+    where fv= freshVar $ S.unions [freeVars $ Var v,freeVars $ Var w,
+                                   freeVars e1, freeVars e2,freeVars f1, 
+                                   freeVars f2]
+          subst = substitution
+
+-- Si no estamos en ningun caso anterior, entonces solo hay matching
+-- si las expresiones son iguales.
+match' bvs e1 e2 s = whenML (e1==e2) s
+
+{-| match toma una expresión patrón y otra que quiere matchearse con el patrón.
+Si hay matching, retorna el mapa de sustituciones que deben realizarse
+simultáneamente para llegar desde la expresión patrón a la expresión dada.
+-}
+match :: PreExpr -> PreExpr -> Maybe ExprSubst
+match e e' = match' [] e e' M.empty
+
+{- | Dada una expresión y una regla, si la expresión matchea con el lado
+izquierdo de la regla, entonces se reescribe de acuerdo al lado derecho
+de la regla.
+-}
+exprRewrite :: Expr -> Rule -> Maybe Expr
+exprRewrite (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) = match l e >>= 
+                                    \subst -> Just $ Expr $ applySubst subst r
