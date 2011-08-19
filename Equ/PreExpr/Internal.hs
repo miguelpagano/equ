@@ -8,6 +8,9 @@ import qualified Data.Foldable as F
 import Control.Applicative ((<$>), (<*>),Applicative(..))
 import Test.QuickCheck(Arbitrary, arbitrary, oneof)
 
+import qualified Data.List as L (delete, notElem)
+import qualified Data.Text as T (unpack)
+
 {- Propiedades de PreExpresiones (QC): queremos poder respetar la forma
    de escribir una expresión.
    
@@ -29,7 +32,7 @@ data PreExpr' a = Var a
 type PreExpr = PreExpr' Variable
 
 instance Monad PreExpr' where
-    return a = Var a
+    return = Var
     Var v >>= f = f v
     Con c >>= _ = Con c
     Fun f >>= _ = Fun f
@@ -52,20 +55,6 @@ instance Functor PreExpr' where
     fmap f (App e e') = App (fmap f e) (fmap f e')
     fmap f (Quant q a e e') = Quant q (f a) (fmap f e) (fmap f e')
     fmap f (Paren e) = Paren $ fmap f e
-
-instance Monad PreExpr' where
-    return a = Var a
-    Var v >>= f = f v
-    Con c >>= _ = Con c
-    Fun f >>= _ = Fun f
-    PrExHole h >>= _ = PrExHole h
-    -- quise escribir todos los casos que siguen asi, pero no compila:
-    --e >>= f = fmap (>>= f) e
-    UnOp op e >>= f = UnOp op (e >>= f)
-    BinOp op e1 e2 >>= f = BinOp op (e1 >>= f) (e2 >>= f)
-    App e1 e2 >>= f = App (e1 >>= f) (e2 >>= f)
-    --Quant q v e1 e2 >>= f = Quant q v (e1 >>= f) (e2 >>= f)
-    Paren e >>= f = Paren (e >>= f)
 
 instance Foldable PreExpr' where
     foldMap f (Var v) = f v
@@ -115,7 +104,79 @@ instance Arbitrary PreExpr where
                 , Paren <$> arbitrary
                 ]
 
+-- Substituir variables.
+substVar :: Variable -> Variable -> Variable -> Variable
+substVar v v' v'' = if v == v'' then v' else v''
 
+-- Substitucion de variable por variable en preExpresiones.
+-- PRE = { v' variable fresca para pe }
+substitution :: Variable -> Variable -> PreExpr -> PreExpr
+substitution v v' (Var v'') = Var $ substVar v v' v''
+substitution v v' (UnOp op pe) = UnOp op $ substitution v v' pe
+substitution v v' (BinOp op pe pe') = 
+    BinOp op (substitution v v' pe) (substitution v v' pe')
+substitution v v' (App pe pe') = App (substitution v v' pe) (substitution v v' pe')
+substitution v v' (Quant q v'' pe pe') =
+    Quant q (substVar v v' v'') (substitution v v' pe) (substitution v v' pe')
+substitution v v' (Paren pe) = Paren (substitution v v' pe)
+substitution _ _ pe = pe
+
+
+-- Substitucion de variable por variable en preExpresiones.
+-- A diferencia de substitution, no tenemos la precondicion
+-- sobre que v' sea una variable fresca.
+-- Sustituye v por v' en pe.
+substitution2 :: Variable -> Variable -> PreExpr -> PreExpr
+substitution2 v v' (Var v'') = Var $ substVar v v' v''
+substitution2 v v' (UnOp op pe) = UnOp op $ substitution2 v v' pe
+substitution2 v v' (BinOp op pe pe') = 
+    BinOp op (substitution2 v v' pe) (substitution2 v v' pe')
+substitution2 v v' (App pe pe') = App (substitution2 v v' pe) (substitution2 v v' pe')
+substitution2 v v' (Quant q v'' pe pe') =
+    let v_new = searchFreshVar v'' pe pe' -- Variable nueva.
+        pe_new = substitution2 v'' v_new pe -- Substitucion de la nueva variable.
+        pe_new' = substitution2 v'' v_new pe'-- Substitucion de la nueva variable.
+    in Quant q v_new 
+            (substitution2 v v' pe_new) 
+            (substitution2 v v' pe_new')
+substitution2 v v' (Paren pe) = Paren (substitution2 v v' pe)
+substitution2 _ _ pe = pe
+
+-- Busca una variable fresca para usar. Asume que la variable
+-- que se le pasa por argumento no es fresca.
+searchFreshVar :: Variable -> PreExpr -> PreExpr -> Variable
+-- Quedo para acomodar a gusto el sufijo de la variable nueva.
+searchFreshVar = searchFreshVar' "_new"
+
+-- Auxiliar para calcular searchFreshVar
+searchFreshVar' :: String -> Variable -> PreExpr -> PreExpr -> Variable
+searchFreshVar' sufix v pe pe' = 
+    let name = (T.unpack . tRepr) v ++ sufix
+        -- Acá conservo el tipo de v 
+        -- Parece no ser necesario, la instancia de Eq
+        -- para Variable usa no mas el representante.
+        w = var name (varTy v)
+    in if   w `L.notElem` subsfreeVars pe &&
+            w `L.notElem` subsfreeVars pe'
+        then w
+        else searchFreshVar' (sufix++sufix) v pe pe'
+
+-- Auxiliar para calcular las variables libres de una preExpresion.
+subsfreeVars' :: [Variable] -> PreExpr -> [Variable]
+subsfreeVars' lv (Var v) = v : lv
+subsfreeVars' lv (Con _) = lv
+subsfreeVars' lv (Fun _) = lv
+subsfreeVars' lv (PrExHole _) = lv
+subsfreeVars' lv (UnOp _ pe) = subsfreeVars' lv pe
+subsfreeVars' lv (BinOp _ pe pe') = subsfreeVars' lv pe ++ subsfreeVars' lv pe'
+subsfreeVars' lv (App pe pe') = subsfreeVars' lv pe ++ subsfreeVars' lv pe'
+subsfreeVars' lv (Paren pe) = subsfreeVars' lv pe
+subsfreeVars' lv (Quant _ v pe pe') = L.delete v $ subsfreeVars' lv pe ++ 
+                                                   subsfreeVars' lv pe'
+
+-- Dada una preExpresion devuelve una lista con las variables libres.
+subsfreeVars :: PreExpr -> [Variable]
+subsfreeVars = subsfreeVars' []
 
 -- | Pretty print para las preExpresiones.
 instance Show PreExpr where

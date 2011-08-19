@@ -42,3 +42,19 @@ testFreeVars = freeVars (exp1)
 testFreshVar= freshVar (Variable {varName = pack "w",
                                  varTy = TyUnknown}) (freeVars exp1)
 testQuants= match (parser "〈∀ x : x = z : F@x〉") (parser "〈∀ z : z = F@a : F@z〉") M.empty
+
+-- /////////// Algunos casos que probe para substitution2.
+x = var "x" TyUnknown 
+y = var "y" TyUnknown 
+q = var "q" TyUnknown 
+
+pe = parser "〈∃ a: (〈∃ z: F@z : F@a〉) : F@x〉"
+spe = substitution2 x y pe
+
+pe1 = parser "〈∃ x : (G@(# []) + x) ▹ [] ⇒ True : w ⇒ q〉"
+spe1 = substitution2 q x pe1
+spe2 = substitution2 x q pe1
+
+pe2 = parser "F@x = True ∨ x ⇒ y"
+spe3 = substitution2 x y pe2
+-- /////////// Algunos casos que probe para substitution2.

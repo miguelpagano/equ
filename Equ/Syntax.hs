@@ -22,10 +22,9 @@ data Variable = Variable {
       varName :: VarName
     , varTy   :: Type
     }
-    deriving Eq
-    
-instance Ord Variable where
-    compare v1 v2 = compare (varName v1) (varName v2)
+
+instance Eq Variable where 
+    v == v' = tRepr v == tRepr v'
 
 data Constant = Constant {
       conRepr :: Text
