@@ -15,15 +15,13 @@ type ExprSubst = M.Map Variable PreExpr
 
 match :: [Variable] -> PreExpr -> PreExpr -> ExprSubst -> Maybe ExprSubst
 -- [match v -> e] U s = si s(v) es algo distinto de e, entonces no hay matching.
-match bvs e@(Var v) e' s = if e==e'
-                            then Just s
-                            else if v `elem` bvs
-                                    then Nothing
-                                    else case M.lookup v s of
-                                        Nothing -> Just $ M.insert v e' s
-                                        Just f -> if e'==f
-                                                    then Just s
-                                                    else Nothing
+match bvs e@(Var v) e' s | e == e' = Just s
+                         | v `elem` bvs = Nothing
+                         | otherwise =
+                            case M.lookup v s of
+                                Nothing -> Just $ M.insert v e' s
+                                Just f -> if e' == f then Just s else Nothing
+
 
 match bvs (UnOp op1 e1) (UnOp op2 e2) s = if op1==op2
                                             then match bvs e1 e2 s
@@ -77,23 +75,23 @@ freeVars (Con c) = S.empty
 freeVars (Fun g) = S.empty
 freeVars (PrExHole h) = S.empty
 freeVars (UnOp op e) = freeVars e
-freeVars (BinOp op e1 e2) = S.union (freeVars e1) (freeVars e2)
-freeVars (App e1 e2) = S.union (freeVars e1) (freeVars e2)
-freeVars (Quant q v e1 e2) = S.union (freeVars e1) (freeVars e2)
+freeVars (BinOp op e1 e2) = freeVars e1 `S.union` freeVars e2
+freeVars (App e1 e2) = freeVars e1 `S.union` freeVars e2
+freeVars (Quant q v e1 e2) = freeVars e1 `S.union` freeVars e2
 freeVars (Paren e) = freeVars e
 
 -- Esta funcion devuelve una variable fresca con respecto a un conjunto de variables
 -- Necesito la variable para mantener el tipo.
 freshVar :: S.Set Variable -> Variable
-freshVar s = firstNotIn s (infListVar)
+freshVar s = firstNotIn s infListVar
     where infListVar = [Variable {varName= (T.pack . ("v" ++) . show) n,
                                     varTy= TyUnknown} | n <- [(0::Int)..]]
           -- PRE: xs es infinita
           firstNotIn set xs | S.member (head xs) set = firstNotIn set $ tail xs
                             | otherwise = head xs
 
-expr_rewrite :: Expr -> Rule -> Maybe Expr
-expr_rewrite (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) = match [] l e M.empty >>= \subst -> Just $ Expr $ applySubst subst r
+exprRewrite :: Expr -> Rule -> Maybe Expr
+exprRewrite (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) = match [] l e M.empty >>= \subst -> Just $ Expr $ applySubst subst r
 
 -- Esta funcion es igua a la que hizo miguel en TypeChecker. Se puede escribir asi, ya que
 -- PreExpr' es instancia de Monad

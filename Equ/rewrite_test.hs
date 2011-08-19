@@ -17,10 +17,10 @@ test3 = match [] (parser "succ x * (x * y)") (parser "succ (e*x) * ((e*z) * y)")
 
 
 -- TEST SENCILLOS:
-rewrite_test01 = expr_rewrite (Expr $ parser "F@a ⇒ True") implRule2
+rewrite_test01 = exprRewrite (Expr $ parser "F@a ⇒ True") implRule2
 
 -- distEqOr_Rule1: p ∨ (q ≡ r) ≡ ((p ∨ q) ≡ (p ∨ r))
-rewrite_test02 = expr_rewrite (Expr $ parser "F@a ∨ (False ≡ r)") distEqOr_Rule1
+rewrite_test02 = exprRewrite (Expr $ parser "F@a ∨ (False ≡ r)") distEqOr_Rule1
 match_test02 = match [] (parser "p ∨ (q ≡ r)") (parser "F@a ∨ (False ≡ r)") M.empty
 
 -- este test lo hago porq no esta matcheando el lado izquierdo de la regla distEqOr_Rule1 con la expresion
@@ -33,8 +33,8 @@ rewrite_test03 = match [] (getPreExpr $ or (Expr $ parser "p") (equiv (Expr $ pa
 str1 = "((F@(succ 0) + x) ▹ [] ⇒ True)"
 str2 = "((G@(# []) + x) ▹ [] ⇒ True ∨ p ⇒ q)"
 
-rewrite_test1 = expr_rewrite (Expr $ parser $ str1 ++ "∨" ++str1) idempotOr_Rule
-rewrite_test2 = expr_rewrite (Expr $ parser (str1 ++ "∧" ++str2)) goldenRule1
+rewrite_test1 = exprRewrite (Expr $ parser $ str1 ++ "∨" ++str1) idempotOr_Rule
+rewrite_test2 = exprRewrite (Expr $ parser (str1 ++ "∧" ++str2)) goldenRule1
 
 
 exp1= parser "〈∃ x : (G@(# []) + x) ▹ [] ⇒ True : w ⇒ q〉"
@@ -64,4 +64,4 @@ spe3 = substitution2 x y pe2
 {- Mas test de reescritura -}
 -- Intercambio entre rango y término: <∀x : r.x : f.x> ≡ <∀x : : r.x ⇒ f.x>
 
-testR= expr_rewrite (Expr $ parser "〈∀ xs : # xs = 0 : [] ↓ n = []〉") interRangeTermForall_Rule
+testR= exprRewrite (Expr $ parser "〈∀ xs : # xs = 0 : [] ↓ n = []〉") interRangeTermForall_Rule
