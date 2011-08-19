@@ -16,4 +16,4 @@ de la regla.
 -}
 exprRewrite :: Expr -> Rule -> Maybe Expr
 exprRewrite (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) = match l e >>= 
-                                                    Just $ Expr $ applySubst r
+                                                    Just . Expr . applySubst r

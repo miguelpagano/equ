@@ -25,6 +25,7 @@ whenML :: MonadPlus m => Bool -> a -> m a
 whenML True = return
 whenML False = const mzero
 
+-- | Aplica una substitución a una expresión dada.
 applySubst :: PreExpr -> ExprSubst -> PreExpr
 applySubst (Var v) s = M.findWithDefault (Var v) v s
 applySubst (UnOp op e) s = applySubst e s
