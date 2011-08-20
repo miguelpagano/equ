@@ -123,7 +123,7 @@ instance Arbitrary PreExpr where
 -- PRE = { v' variable fresca para pe }
 substitution :: Eq a => a -> a -> PreExpr' a -> PreExpr' a
 substitution v v' e = fmap (substVar v v') e
-    where substVar v v' v'' | v==v' = v'
+    where substVar v v' v'' | v==v'' = v'
                             | otherwise = v''
 {-
 -- Substitucion de variable por variable en preExpresiones.
