@@ -70,6 +70,8 @@ testCase5 = testMatch (parser "〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉")
                          , (q, parser "w")
                          ]
 
+-- Uno mas complicado con cuantificadores. Dejamos libre en la segunda expresion
+-- una variable que es ligada en la primera.
 testCase6 :: Assertion
 testCase6 = testMatch (parser "〈∃ xs : 〈∀ y : y = xs.0 : F@y ∧ p〉 : xs↓1 = ys↓1〉")
                       (parser "〈∃ ys : 〈∀ z : z = ys.0 : F@z ∧ (True ⇒ p ∨ q)〉 : ys↓1 = (xs++zs)↓1〉")
@@ -77,6 +79,14 @@ testCase6 = testMatch (parser "〈∃ xs : 〈∀ y : y = xs.0 : F@y ∧ p〉 : 
     where s = M.fromList [ (p,parser "(True ⇒ p ∨ q)")
                          , (ys,parser "(xs++zs)")
                          ]
+
+testCaseParens :: Assertion
+testCaseParens = testMatch (parser "(p ⇒ q)") (parser "((True ∨ False) ∧ r) ⇒ (p ≡ q)")
+                 (Just s)
+    where s = M.fromList [ (p,parser "((True ∨ False) ∧ r)")
+                         , (q,parser "(p ≡ q)")
+                         ]
+                 
 
 -- | Controla que el matching entre las expresiones sea el correcto.
 -- Toma dos expresiones y una substitución esperada.
@@ -112,5 +122,9 @@ testGroupMatch =
                 "〈∃ xs : 〈∀ y : y = xs.0 : F@y ∧ p〉 : xs↓1 = ys↓1〉 :"++
                 "[p -> True ⇒ p ∨ q, ys -> (xs++zs)]")
         testCase6
+    , testCase ("((True ∨ False) ∧ r) ⇒ (p ≡ q) -m-> " ++
+                      "(p ⇒ q) :" ++
+                      "[p -> ((True ∨ False) ∧ r), q -> (p ≡ q)]")
+        testCaseParens
                 
     ]
