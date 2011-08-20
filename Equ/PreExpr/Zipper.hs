@@ -2,7 +2,9 @@
 -- Zipper'' de Gérard Huet en JFP. 
 
 module Equ.PreExpr.Zipper 
-    (toExpr, toFocus, toFocuses
+    ( Focus
+    , Path
+    , toExpr, toFocus, toFocuses
     , replace
     , goDown, goUp, goLeft, goRight, goDownR
     ) where

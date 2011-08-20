@@ -10,9 +10,7 @@ import qualified Data.Set as S
 import Control.Monad
 
 import Equ.Syntax
-import Equ.Rule
 import Equ.PreExpr
-import Equ.Types
 
 type ExprSubst = M.Map Variable PreExpr
 
@@ -28,12 +26,14 @@ whenML False = const mzero
 -- | Aplica una substitución a una expresión dada.
 applySubst :: PreExpr -> ExprSubst -> PreExpr
 applySubst (Var v) s = M.findWithDefault (Var v) v s
-applySubst (UnOp op e) s = applySubst e s
+applySubst (UnOp op e) s = UnOp op $ applySubst e s
 applySubst (BinOp op e f) s = BinOp op (applySubst e s) (applySubst f s)
 applySubst (App e f) s = App (applySubst e s) (applySubst f s)
 applySubst (Quant q v e1 e2) s = Quant q v (applySubst e1 s) (applySubst e2 s)
 applySubst (Paren e) s = Paren $ applySubst e s
-applySubst e s = e
+applySubst (PrExHole h) _ = PrExHole h
+applySubst (Con c) _ = Con c
+applySubst (Fun f) _ = Fun f
 
 {- Función que implementa el algoritmo de matching. Toma una lista de variables
 que están ligadas a algún cuantificador, una expresión patrón, otra expresión y
@@ -92,7 +92,7 @@ match' bvs (Quant q v e1 e2) (Quant p w f1 f2) s =
 
 -- Si no estamos en ningun caso anterior, entonces solo hay matching
 -- si las expresiones son iguales.
-match' bvs e1 e2 s = whenML (e1==e2) s
+match' _ e1 e2 s = whenML (e1==e2) s
 
 {-| match toma una expresión patrón y otra que quiere matchearse con el patrón.
 Si hay matching, retorna el mapa de sustituciones que deben realizarse

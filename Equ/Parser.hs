@@ -2,21 +2,22 @@
 {--
 Sobre Parsec
 
--- Informe de errores; Quisieramos poder marcar la posicion del error e 
-informacion bonita de cual fue el error. Parece ser que con ParseError nos alcanza.
+-- Informe de errores; Quisieramos poder marcar la posicion del error
+e informacion bonita de cual fue el error. Parece ser que con
+ParseError nos alcanza.
 
 -- Funcion que determina el conName.
 
 -- Hace falta hacer algun tipo de analisis para los tipos. Parseando
-una funcion no hay problema debido a los constructores definidos en las teorias
-pero que pasa con las constantes? por ejemplo, parseExpr 3; deberia quedar
-parseado con su tipo? que pasa si el usuario lo especifico o no.
-Resolucion: Parseamos con TyUnknown
+una funcion no hay problema debido a los constructores definidos en
+las teorias pero que pasa con las constantes? por ejemplo, parseExpr
+3; deberia quedar parseado con su tipo? que pasa si el usuario lo
+especifico o no.  Resolucion: Parseamos con TyUnknown
 
 -- Syntaxis de una escritura general; Como es una prueba bien escrita.
 Se permiten comentarios?
 
--- Operadores de lista; Presedencia, de momento todos tienen la misma.
+-- Operadores de lista; Precedencia, de momento todos tienen la misma.
 
 -- Libreria; criterion para testear rendimiento.
 --}
@@ -26,12 +27,11 @@ module Equ.Parser where
 import Text.Parsec
 import Text.Parsec.Token
 import Text.Parsec.Language
-import Text.Parsec.String
 import qualified Text.Parsec.Expr as PE
 import Data.Text (pack,unpack)
 import Data.List
-import Data.Char
 import Control.Monad.Identity
+import Control.Applicative ((<$>),(<$),(<*>))
 
 import Equ.Theories
 import Equ.Syntax
@@ -41,8 +41,14 @@ import Equ.Theories.List(listApp, listEmpty)
 import Equ.Theories.Arith(intToCon)
 import Equ.Parser.Types(listAtomTy)
 
-type ParserTable = PE.OperatorTable String () Identity PreExpr
-type ParserOper = PE.Operator String () Identity PreExpr
+data PError = UnOpNotApplied Operator 
+            | BinOpNotApplied Operator
+
+type PState = PreExpr
+
+type ParserTable = PE.OperatorTable String PState Identity PreExpr
+type Parser' a = ParsecT String PState Identity a
+type ParserOper = PE.Operator String PState Identity PreExpr
 
 -- | Inicio de una cuantificación.
 quantInit :: String
@@ -69,6 +75,7 @@ holeInfoEnd = "}"
 opHole :: String
 opHole = "?"
 
+
 -- | Representantes de los operadores. (Salvo para aplicacion)
 rOpNames :: [String]
 rOpNames = opApp : opHole : map (unpack . opRepr) operatorsList
@@ -76,21 +83,21 @@ rOpNames = opApp : opHole : map (unpack . opRepr) operatorsList
 -- | Representantes de las constantes y cuantificadores.
 -- Ademas de los caracteres para representar expresiones cuantificadas.
 rNames :: [String]
-rNames = [quantInit,quantEnd,quantSep,"-"] ++ 
-         map (unpack . conRepr) constantsList ++
-         map (unpack .quantRepr) quantifiersList ++
-         listAtomTy
+rNames = [quantInit,quantEnd,quantSep,"-"] 
+         ++ map (unpack . conRepr) constantsList
+         ++ map (unpack . quantRepr) quantifiersList
+         ++ listAtomTy
          
 
-lexer :: TokenParser ()
+lexer :: TokenParser PState
 lexer = makeTokenParser $
             emptyDef { reservedOpNames = rOpNames
                      , reservedNames = rNames
-                     , identStart  = letter <|> char '_'
+                     , identStart  = letter
                      , identLetter = alphaNum <|> char '_'
                      }
 
-parsePreExpr :: Parser PreExpr
+parsePreExpr :: Parser' PreExpr
 parsePreExpr = PE.buildExpressionParser operatorTable subexpr 
                <?> "Parser error: Expresión mal formada"
 
@@ -101,14 +108,15 @@ operatorTable = [parserApp] : makeTable operatorsList
     where parserApp = PE.Infix (reservedOp lexer opApp >> return App) PE.AssocLeft
 
 makeTable :: [Operator] -> ParserTable
-makeTable = map makeSubList . group . reverse . sort
+makeTable = map makeSubList . group . reverse . sort 
 
 makeOp :: Operator -> ParserOper
 makeOp op = case opNotationTy op of 
-              NPrefix  -> PE.Prefix  $ parseOp >> return (UnOp op)
-              NPostfix -> PE.Postfix $ parseOp >> return (UnOp op)
-              NInfix   -> PE.Infix    (parseOp >> return (BinOp op)) assoc
-    where parseOp = reservedOp lexer . unpack . opRepr $ op
+              NPrefix  -> PE.Prefix  $ UnOp op <$ parseOp
+              NPostfix -> PE.Postfix $ UnOp op <$ parseOp
+              NInfix   -> PE.Infix   (BinOp op <$ parseOp) assoc
+    where parseOp = (reservedOp lexer . unpack . opRepr $ op) >>
+                    putState (UnOp op $ PrExHole . hole . pack $ "")
           assoc = convertAssoc . opAssoc $ op
 
 makeSubList :: [Operator] -> [ParserOper]
@@ -122,102 +130,98 @@ convertAssoc ARight = PE.AssocRight
 -- Parseamos las subexpresiones
 -- Una expresion puede ser una expresion con parentesis, una constante, una expresion cuantificada,
 -- una variable, una función o una expresion que viene desde un parseo por syntactic sugar
-subexpr :: Parser PreExpr
-subexpr = fmap Paren (parens lexer parsePreExpr)
-          <|>  parseConst constantsList
-          <|>  parseQuant quantifiersList
-          <|>  parsePreExprVar parseVar
-          <|>  parseFunc
-          <|>  parseHole
-          <|>  parseSugarPreExpr parsePreExpr
+subexpr :: Parser' PreExpr
+subexpr = Paren <$> parens lexer parsePreExpr
+          <|> parseConst constantsList
+          <|> parseQuant quantifiersList
+          <|> parsePreExprVar parseVar
+          <|> parseFunc
+          <|> parseHole
+          <|> parseSugarPreExpr parsePreExpr
                             
 -- Parseo de Constantes definidas en la teoria
 
 -- Vamos juntando las opciones de parseo de acuerdo a cada constante en la lista.
 -- En el caso en que la lista es vacia, la opcion es un error
-parseConst :: [Constant] -> Parser PreExpr
-parseConst = foldr pConst (fail "Parser error: Expresion mal formada")
-    where pConst c =  (<|>) $ reserved lexer (unpack $ conRepr c) >> return (Con c)
+parseConst :: [Constant] -> Parser' PreExpr
+parseConst = foldr pConst $ fail "Constante"
+    where pConst c = (<|>) $ reserved lexer (unpack $ conRepr c) >> return (Con c)
    
 -- Parseo de Cuantificadores definidos en la teoria
-parseQuant :: [Quantifier] -> Parser PreExpr
-parseQuant = foldr pQuan (fail "Parse error: Expresi\243n mal formada")
-    where pQuan q = (<|>) $ try $ 
-                    reserved lexer quantInit >>
-                    reserved lexer (unpack $ quantRepr q) >>
-                    (parseVar <?> "Cuantificador sin variable") >>=
-                    \v -> reserved lexer quantSep >> parsePreExpr >>=
-                    \r -> reserved lexer quantSep >> parsePreExpr >>=
-                    \t -> reserved lexer quantEnd >> return (Quant q v r t)
+parseQuant :: [Quantifier] -> Parser' PreExpr
+parseQuant = foldr pquant $ fail "Cuantificador"
+    where pquant q = ( pQuan q <|>)
+
+pQuan :: Quantifier -> Parser' PreExpr
+pQuan q = try $ symbol lexer quantInit >>
+          (symbol lexer . unpack . quantRepr) q >>
+          (parseVar <?> "Cuantificador sin variable") >>= 
+          \v -> symbol lexer quantSep >> parsePreExpr >>=
+          \r -> symbol lexer quantSep >> parsePreExpr >>=
+          \t -> symbol lexer quantEnd >> return (Quant q v r t)
 
 -- Parseo de huecos.
-parseHole :: Parser PreExpr
-parseHole = (try $ reserved lexer opHole >> 
-                ((braces lexer parseInfo >>= \i ->
-                  return (PrExHole $ hole (pack i)))
-                  <|>
-                  return (PrExHole $ hole (pack ""))))
-            <|>
-            (fail "Parse error: Expresi\243n mal formada")
+parseHole :: Parser' PreExpr
+parseHole = PrExHole . hole . pack <$> 
+                (try $ reserved lexer opHole >> braces lexer parseInfo)
+            <|> fail "Hueco"
 
 -- Parseo de la informacion de un hueco.
-parseInfo :: Parser String
-parseInfo = many1 (letter <|> space)
+parseInfo :: Parser' String
+parseInfo = many $ letter <|> space
 
 -- Parseo de expresiones variable
-parsePreExprVar :: Parser Variable -> Parser PreExpr
-parsePreExprVar pars_v = pars_v >>= \v -> return (Var v)
+parsePreExprVar :: Parser' Variable -> Parser' PreExpr
+parsePreExprVar = (Var <$>)
 
--- Esta funcion parsea una variable. Nos fijamos que empiece con minuscula para distinguirla
--- de las funciones (que empiezan con mayuscula). La idea es tomada de Yahc.
-parseVar :: Parser Variable
-parseVar = try $ identifier lexer >>= \s -> if (not . null) s && (isLower . head) s
-                                           then return Variable { varName= pack s
-                                                                , varTy= TyUnknown
-                                                                }
-                                           else parserZero
-
--- Parseo de funciones
--- Una simbolo de funcion es un string que empieza con mayúscula.
-parseFunc :: Parser PreExpr
-parseFunc = identifier lexer >>= \s -> if (not . null) s && (isUpper . head) s
-                                           then return . Fun $ Func { funcName= pack s
-                                                                    , funcTy= TyUnknown
-                                                                    }
-                                           else parserZero
+-- Esta funcion parsea una variable. Nos fijamos que empiece con
+-- minuscula para distinguirla de las funciones (que empiezan con
+-- mayuscula). 
+parseVar :: Parser' Variable
+parseVar = try $ lexeme lexer ((:) <$> lower <*> many letter) >>= 
+           \v -> return Variable { varName = pack v 
+                                , varTy = TyUnknown 
+                                }
+-- Parseo de funciones. Un símbolo de funcion es un string que empieza
+-- con mayúscula.
+parseFunc :: Parser' PreExpr
+parseFunc = try $ lexeme lexer ((:) <$> upper <*> many letter) >>=
+            \f -> return . Fun $ Func { funcName= pack f
+                                     , funcTy= TyUnknown
+                                     }
 
 
 -- //////// Parser de syntax sugar ////////
 
 -- Parseo de expresiones azucaradas.
-parseSugarPreExpr :: Parser PreExpr -> Parser PreExpr
+parseSugarPreExpr :: Parser' PreExpr -> Parser' PreExpr
 parseSugarPreExpr p = parseSugarList p <|> parseIntPreExpr
 
 -- | Parseo de la lista escrita con syntax sugar.
-sugarList :: Parser PreExpr -> Parser PreExpr
-sugarList p = do {  x <- p;
-                    xs <- ((comma lexer <?> "\",\"") >> sugarList p) 
-                        <|> return (Con listEmpty);
-                    return $ BinOp listApp x xs;
-                 }
+sugarList :: Parser' PreExpr -> Parser' PreExpr
+sugarList p = foldl (BinOp listApp) (Con listEmpty) <$> (p `sepBy` char ',')
 
 -- | Parseo de la lista escrita con syntax sugar.
-parseSugarList :: Parser PreExpr -> Parser PreExpr
-parseSugarList p = brackets lexer (sugarList p)
+parseSugarList :: Parser' PreExpr -> Parser' PreExpr
+parseSugarList = brackets lexer . sugarList
+
+-- | Parseo de una función aplicada: f(a,b)
+parseSugarApp :: Parser' PreExpr
+parseSugarApp = undefined 
 
 -- | Parseo de enteros.
-parseInt :: Parser Int
-parseInt = fmap fromInteger (integer lexer) <?> "Numero"
+parseInt :: Parser' Int
+parseInt = fromInteger <$> natural lexer <?> fail "Numero"
 
 -- | Parseo de enteros preExpr.
-parseIntPreExpr :: Parser PreExpr
-parseIntPreExpr = fmap intToCon parseInt
+parseIntPreExpr :: Parser' PreExpr
+parseIntPreExpr = intToCon <$> parseInt
 
 -- //////// Parser de syntax sugar ////////
 
 -- | Funcion principal de parseo desde string.
 parseFromString :: String -> Either ParseError PreExpr
-parseFromString = parse parsePreExpr ""
+parseFromString = runParser parsePreExpr (PrExHole . hole . pack $ "") "TEST" 
 
 -- | Funcion principal de parseo.
 parser :: String -> PreExpr
@@ -230,4 +234,3 @@ showError = error . show
 -- Imprimimos la preExpresion, usando que tenemos definido la instancia show.
 showPreExpr :: a -> a
 showPreExpr = id
-

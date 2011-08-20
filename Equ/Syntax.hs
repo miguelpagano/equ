@@ -5,6 +5,7 @@
 -- las expresiones es el tipo definido por la teoría correspondiente
 -- a donde se definió el término en cuestión o el tipo inferido (por 
 -- ejemplo en variables) por el type-checker.
+{-# Language OverloadedStrings #-}
 module Equ.Syntax where
 
 import Equ.Types
@@ -44,10 +45,10 @@ data Operator = Operator {
     deriving Eq
     
 instance Ord Operator where
-    compare a b = compare (opPrec a) (opPrec b) 
+    compare a b = opPrec a `compare` opPrec b
     
 instance Ord Variable where
-    compare v v' = compare (tRepr v) (tRepr v')
+    compare v v' = tRepr v `compare` tRepr v'
     
 data Func = Func {
       funcName :: FuncName
@@ -87,8 +88,8 @@ hole i = Hole {holeTy = TyUnknown
               , info = i
               }
   
-var :: String -> Type -> Variable
-var s t = Variable { varName = pack s
+var :: Text -> Type -> Variable
+var s t = Variable { varName = s
                    , varTy = t
                    }
     
@@ -127,12 +128,12 @@ instance Syntactic Quantifier where
 
 -- | Instancia de syntax para el tipo Hole.
 instance Syntactic Hole where  
-    tRepr _ = pack ""
+    tRepr _ = ""
     tType = holeTy
 
 -- | PrettyPrint para variables. 
 instance Show Variable where
-    show = unpack . tRepr
+    show =  unpack . tRepr
 
 -- | PrettyPrint para constantes. 
 instance Show Constant where
@@ -152,10 +153,8 @@ instance Show Quantifier where
 
 -- | PrettyPrint para huecos. 
 instance Show Hole where
-    show s = let i = unpack $ info s in
-                if null i
-                then "_"
-                else "holeWithInfo: " ++ ((unpack . info) s)
+    show s = if null i then "_" else "holeWithInfo: " ++ i
+        where i = unpack $ info s
 
 -- | Instancia arbitrary para las variables.
 instance Arbitrary Variable where

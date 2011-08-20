@@ -35,6 +35,14 @@ data Type' v = TyUnknown            -- ^ Representa falta de información.
              | Type' v :-> Type' v  -- ^ Espacios de funciones.
     deriving (Eq,Show)
 
+
+instance Functor Type' where
+    fmap f (TyVar v) = TyVar $ f v
+    fmap f (TyList t) = TyList $ fmap f t
+    fmap f (t :-> t') = fmap f t :-> fmap f t'
+    fmap _ (TyAtom a) = TyAtom a
+    fmap _ TyUnknown = TyUnknown
+
 instance Applicative Type' where
     pure = TyVar
     _ <*> TyUnknown = TyUnknown
@@ -46,13 +54,6 @@ instance Applicative Type' where
     (f :-> f') <*> TyVar v = (f <*> TyVar v) :-> (f' <*> TyVar v)
     f <*> TyList t = TyList $ (f <*> t)
     f <*> t :-> t' = (f <*> t) :-> (f <*> t')
-
-instance Functor Type' where
-    fmap f (TyVar v) = TyVar $ f v
-    fmap f (TyList t) = TyList $ fmap f t
-    fmap f (t :-> t') = fmap f t :-> fmap f t'
-    fmap _ (TyAtom a) = TyAtom a
-    fmap _ TyUnknown = TyUnknown
 
 instance F.Foldable Type' where
     foldMap f (TyVar e) = f e

@@ -1,7 +1,6 @@
 -- | Test correspondientes a las reglas de re-escritura.
+{-# Language OverloadedStrings #-}
 module TestSuite.Tests.Matching where
-
-import Equ.Theories
 
 import qualified Data.Map as M
 
@@ -9,7 +8,6 @@ import Equ.Matching
 import Equ.Parser
 import Equ.PreExpr
 import Equ.Types
-import Equ.Syntax
 import Test.HUnit (Assertion, assertFailure)
 import Test.Framework (testGroup, Test)
 import Test.Framework.Providers.HUnit (testCase)
@@ -53,7 +51,7 @@ testCase3 = testMatch (parser "#([x] ++ [y,w]) + z")
                          ]
 
 -- | 〈∀ z : 〈∀ z : z = z : F@z@z〉 : G@z〉 -m->
---   〈∀ x : 〈∀ y : y = x : F@y@x〉 : G@x〉 : No exite match.
+--   〈∀ x : 〈∀ y : y = x : F@y@x〉 : G@x〉 : No existe match.
 testCase4 :: Assertion
 testCase4 = testMatch (parser "〈∀ x : 〈∀ y : y = x : F@y@x〉 : G@x〉")
                       (parser "〈∀ z : 〈∀ z : z = z : F@z@z〉 : G@z〉") Nothing

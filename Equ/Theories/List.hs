@@ -1,6 +1,6 @@
 -- | El modulo de constructores de listas y sus símbolos de
 -- función.
-
+{-# Language OverloadedStrings #-}
 module Equ.Theories.List 
     ( -- * Constructores y operadores.
       listEmpty
@@ -52,7 +52,7 @@ import Equ.PreExpr.Internal
 import Equ.Rule
 import Equ.Theories.AbsName
 
-import Data.Text (pack)
+import Data.Text (Text)
 
 import Equ.Theories.Arith (zero,successor)
 
@@ -63,14 +63,14 @@ tyListVar = TyList . tyVar
 
 -- | La lista vacia.
 listEmpty :: Constant
-listEmpty = Constant { conRepr = pack "[]"
+listEmpty = Constant { conRepr = "[]"
                      , conName = Empty
                      , conTy = tyListVar "B"
                      }
 
 -- | Extender la lista con un elemento por la izquierda.
 listApp :: Operator
-listApp = Operator { opRepr = pack "▹"
+listApp = Operator { opRepr = "▹"
                    , opName = Append
                    , opTy = tyVar "A" :-> tyListVar "A" :-> tyListVar "A"
                    , opAssoc = ARight
@@ -80,7 +80,7 @@ listApp = Operator { opRepr = pack "▹"
 
 -- | Tomar el n-esimo elemento de la lista.
 listIndex :: Operator
-listIndex = Operator { opRepr = pack "."
+listIndex = Operator { opRepr = "."
                      , opName = Index
                      , opTy = tyListVar "A" :-> TyAtom ATyNat :-> tyVar "A"
                      , opAssoc = ALeft
@@ -89,7 +89,7 @@ listIndex = Operator { opRepr = pack "."
                      }
 -- | Concatenacion de listas.                     
 listConcat :: Operator
-listConcat = Operator { opRepr = pack "++"
+listConcat = Operator { opRepr = "++"
                       , opName = Concat
                       , opTy = tyListVar "A" :-> tyListVar "A" :-> tyListVar "A"
                       , opAssoc = ALeft
@@ -99,7 +99,7 @@ listConcat = Operator { opRepr = pack "++"
 
 -- | Cardinal de la lista.
 listLength :: Operator
-listLength = Operator { opRepr = pack "#"
+listLength = Operator { opRepr = "#"
                     , opName = Length
                     , opTy = tyListVar "A" :-> TyAtom ATyNat
                     , opAssoc = None
@@ -109,7 +109,7 @@ listLength = Operator { opRepr = pack "#"
 
 -- | Toma los primeros n elementos de una lista.
 listTake :: Operator
-listTake = Operator { opRepr = pack "↑"
+listTake = Operator { opRepr = "↑"
                     , opName = Take
                     , opTy = tyListVar "A" :-> TyAtom ATyNat :-> tyListVar "A"
                     , opAssoc = ALeft
@@ -119,7 +119,7 @@ listTake = Operator { opRepr = pack "↑"
 
 -- | Tira los primeros n elementos de una lista.
 listDrop :: Operator
-listDrop = Operator { opRepr = pack "↓"
+listDrop = Operator { opRepr = "↓"
                     , opName = Drop
                     , opTy = tyListVar "A" :-> TyAtom ATyNat :-> tyListVar "A"
                     , opAssoc = ALeft
@@ -136,7 +136,7 @@ theoryQuantifiersList = []
 
 -- | Constructor de variable de tipo lista polimorfica; el primer string es
 -- el nombre de la variable, el segundo el nombre de la variable de tipo
-varList :: String -> String -> Expr
+varList :: Text -> String -> Expr
 varList s t = Expr $ Var $ listVar s t
     where listVar v ty = var v $ tyListVar ty
 
@@ -178,8 +178,8 @@ emptyConcat :: Rule
 emptyConcat = Rule { lhs = concat emptyList varYS
                    , rhs = varYS
                    , rel = relEq
-                   , name = pack "concatenacion-vacia"
-                   , desc = pack ""
+                   , name = "concatenacion-vacia"
+                   , desc = ""
                    }
     where varYS = varList "ys" "A"
 
@@ -189,8 +189,8 @@ consConcat :: Rule
 consConcat = Rule { lhs = concat (append varX varXS) varYS
                   , rhs = append varX (concat varXS varYS)
                   , rel = relEq
-                  , name = pack "concatenacion-cons"
-                  , desc = pack ""
+                  , name = "concatenacion-cons"
+                  , desc = ""
                   }
     where varX = Expr $ Var $ var "x" $ tyVar "A"
           varXS = varList "xs" "A"
@@ -205,8 +205,8 @@ emptyLength :: Rule
 emptyLength = Rule { lhs = length emptyList
                    , rhs = zero
                    , rel = relEq
-                   , name = pack "longitud-vacia"
-                   , desc = pack ""
+                   , name = "longitud-vacia"
+                   , desc = ""
                    }
 
 -- Caso inductivo
@@ -215,8 +215,8 @@ consLength :: Rule
 consLength = Rule { lhs = length (append varX varXS)
                   , rhs = successor $ length varXS
                   , rel = relEq
-                  , name = pack "longitud-cons"
-                  , desc = pack ""
+                  , name = "longitud-cons"
+                  , desc = ""
                   }
     where varX = Expr $ Var $ var "x" $ tyVar "A"
           varXS = varList "xs" "A"
@@ -234,8 +234,8 @@ zeroTake :: Rule
 zeroTake = Rule { lhs = take varXS zero
                 , rhs = emptyList
                 , rel = relEq
-                , name = pack "tomar-cero"
-                , desc = pack ""
+                , name = "tomar-cero"
+                , desc = ""
                 }
     where varXS = varList "xs" "A"
                       
@@ -245,8 +245,8 @@ emptyTake :: Rule
 emptyTake = Rule { lhs = take emptyList varN
                  , rhs = emptyList
                  , rel = relEq
-                 , name = pack "tomar-vacia"
-                 , desc = pack ""
+                 , name = "tomar-vacia"
+                 , desc = ""
                  }
     where varN = Expr $ Var $ var "x" $ TyAtom ATyNat
 
@@ -256,8 +256,8 @@ consTake :: Rule
 consTake = Rule { lhs = take (append varX varXS) (successor varN)
                 , rhs = append varX $ take varXS varN 
                 , rel = relEq
-                , name = pack "tomar-inductivo"
-                , desc = pack ""
+                , name = "tomar-inductivo"
+                , desc = ""
                 }
     where varXS = varList "xs" "A"
           varX = Expr $ Var $ var "x" $ tyVar "A"
@@ -272,8 +272,8 @@ zeroDrop :: Rule
 zeroDrop = Rule { lhs = drop varXS zero
                 , rhs = varXS
                 , rel = relEq
-                , name = pack "tirar-cero"
-                , desc = pack ""
+                , name = "tirar-cero"
+                , desc = ""
                 }
     where varXS = varList "xs" "A"
 
@@ -283,8 +283,8 @@ emptyDrop :: Rule
 emptyDrop = Rule { lhs = drop emptyList varN
                  , rhs = emptyList
                  , rel = relEq
-                 , name = pack "tirar-vacia"
-                 , desc = pack ""
+                 , name = "tirar-vacia"
+                 , desc = ""
                  }
     where varN = Expr $ Var $ var "x" $ TyAtom ATyNat
 
@@ -294,8 +294,8 @@ consDrop :: Rule
 consDrop = Rule { lhs = drop (append varX varXS) (successor varN)
                 , rhs = drop varXS varN
                 , rel = relEq
-                , name = pack "tirar-inductivo"
-                , desc = pack ""
+                , name = "tirar-inductivo"
+                , desc = ""
                 }
     where varXS = varList "xs" "A"
           varX = Expr $ Var $ var "x" $ tyVar "A"
@@ -312,8 +312,8 @@ zeroIndex :: Rule
 zeroIndex = Rule { lhs = index (append varX varXS) zero
                  , rhs = varX
                  , rel = relEq
-                 , name = pack "indizar-cero"
-                 , desc = pack ""
+                 , name = "indizar-cero"
+                 , desc = ""
                  }
     where varXS = varList "xs" "A"
           varX = Expr $ Var $ var "x" $ tyVar "A"
@@ -327,8 +327,8 @@ consIndex :: Rule
 consIndex = Rule { lhs = index (append varX varXS) (successor varN)
                  , rhs = index varXS varN
                  , rel = relEq
-                 , name = pack "indizar-ind"
-                 , desc = pack ""
+                 , name = "indizar-ind"
+                 , desc = ""
                  }
     where varXS = varList "xs" "A"
           varX = Expr $ Var $ var "x" $ tyVar "A"

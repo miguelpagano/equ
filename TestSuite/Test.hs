@@ -7,7 +7,6 @@ import TestSuite.Tests.Rules
 import TestSuite.Tests.Matching
 import Test.Framework (defaultMain, testGroup, Test)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
-import Test.Framework.Providers.HUnit (hUnitTestToTests)
 
 main :: IO ()
 main = defaultMain tests

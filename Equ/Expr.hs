@@ -1,5 +1,5 @@
--- | Una Expresión es algo que se puede manipular. Difiere relativamente
--- poco de una PreExpresión.
+-- | Una Expresión es algo que se puede manipular. Difiere
+-- relativamente poco de una PreExpresión.
 module Equ.Expr where
 
 import Equ.PreExpr.Internal
@@ -11,8 +11,8 @@ import Equ.PreExpr.Internal
 -- tipo.
 newtype Expr = Expr PreExpr
 
-getPreExpr (Expr e) = e
-
 instance Show Expr where 
     show (Expr e) = show e
     
+getPreExpr :: Expr -> PreExpr
+getPreExpr (Expr e) = e

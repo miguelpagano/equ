@@ -1,5 +1,5 @@
 -- | El módulo de expresiones de fórmulas de primer orden.
-
+{-# Language OverloadedStrings #-}
 module Equ.Theories.FOL where
 
 import Prelude hiding (and,or) 
@@ -10,20 +10,17 @@ import Equ.PreExpr.Internal
 import Equ.Rule
 import Equ.Theories.AbsName
 
-import qualified Data.Map as M
-import Data.Text (pack)
-
 
 -- CONSTANTES
 
 folTrue :: Constant
-folTrue = Constant { conRepr = pack "True"
+folTrue = Constant { conRepr = "True"
                    , conName = CTrue
                    , conTy = tyBool
                    }
                      
 folFalse :: Constant
-folFalse = Constant { conRepr = pack "False"
+folFalse = Constant { conRepr = "False"
                     , conName = CFalse
                     , conTy = tyBool
                     }
@@ -31,13 +28,13 @@ folFalse = Constant { conRepr = pack "False"
 -- CUANTIFICADORES
 
 folForall :: Quantifier
-folForall = Quantifier { quantRepr = pack "∀"
+folForall = Quantifier { quantRepr = "∀"
                        , quantName = Forall
                        , quantTy = tyVar "A" :-> tyBool
                        }
                     
 folExist :: Quantifier
-folExist = Quantifier { quantRepr = pack "∃"
+folExist = Quantifier { quantRepr = "∃"
                       , quantName = Exist
                       , quantTy = tyVar "A" :-> tyBool
                       }
@@ -45,12 +42,13 @@ folExist = Quantifier { quantRepr = pack "∃"
 -- OPERACIONES
 
 -- Tipo de las operaciones logicas
-folBinOpType = tyBool :-> tyBool :-> tyBool
+folUnOpType,folBinOpType :: Type
 folUnOpType = tyBool :-> tyBool
+folBinOpType = tyBool :-> tyBool :-> tyBool
 
 -- Igualdad
 folEqual :: Operator
-folEqual = Operator { opRepr = pack "="
+folEqual = Operator { opRepr = "="
                   , opName = Equal
                   , opTy = tyVar "A" :-> tyVar "A" :-> tyBool
                   , opAssoc = ALeft
@@ -60,7 +58,7 @@ folEqual = Operator { opRepr = pack "="
 
 -- Equivalencia
 folEquiv :: Operator
-folEquiv = Operator { opRepr = pack "≡"
+folEquiv = Operator { opRepr = "≡"
                     , opName = Equival
                     , opTy = folBinOpType
                     , opAssoc = ALeft
@@ -70,7 +68,7 @@ folEquiv = Operator { opRepr = pack "≡"
                     
 -- Discrepancia
 folDiscrep :: Operator
-folDiscrep = Operator { opRepr = pack "/≡"
+folDiscrep = Operator { opRepr = "/≡"
                       , opName = Discrep
                       , opTy = folBinOpType
                       , opAssoc = ALeft
@@ -80,7 +78,7 @@ folDiscrep = Operator { opRepr = pack "/≡"
 
 -- And
 folAnd :: Operator
-folAnd = Operator { opRepr = pack "∧"
+folAnd = Operator { opRepr = "∧"
                   , opName = And
                   , opTy = folBinOpType
                   , opAssoc = ALeft
@@ -90,7 +88,7 @@ folAnd = Operator { opRepr = pack "∧"
 
 -- Or
 folOr :: Operator
-folOr = Operator { opRepr = pack "∨"
+folOr = Operator { opRepr = "∨"
                  , opName = Or
                  , opTy = folBinOpType
                  , opAssoc = ALeft
@@ -100,7 +98,7 @@ folOr = Operator { opRepr = pack "∨"
      
 -- Negacion     
 folNeg :: Operator
-folNeg = Operator { opRepr = pack "¬"
+folNeg = Operator { opRepr = "¬"
                   , opName = Neg
                   , opTy = folUnOpType
                   , opAssoc = None
@@ -110,7 +108,7 @@ folNeg = Operator { opRepr = pack "¬"
 
 -- Implicación
 folImpl :: Operator
-folImpl = Operator { opRepr = pack "⇒"
+folImpl = Operator { opRepr = "⇒"
                    , opName = Implic
                    , opTy = folBinOpType
                    , opAssoc = ARight
@@ -120,16 +118,21 @@ folImpl = Operator { opRepr = pack "⇒"
 
 -- Consecuencia
 folConseq :: Operator
-folConseq = Operator { opRepr = pack "⇐"
-                    , opName = Conseq
-                    , opTy = folBinOpType
-                    , opAssoc = ALeft
-                    , opNotationTy = NInfix
-                    , opPrec = 2
-                    }
+folConseq = Operator { opRepr = "⇐"
+                     , opName = Conseq
+                     , opTy = folBinOpType
+                     , opAssoc = ALeft
+                     , opNotationTy = NInfix
+                     , opPrec = 2
+                     }
 
+theoryOperatorsList :: [Operator]
 theoryOperatorsList = [folEqual,folEquiv,folDiscrep,folAnd,folOr,folImpl,folConseq,folNeg]
+
+theoryConstantsList :: [Constant]
 theoryConstantsList = [folTrue,folFalse]
+
+theoryQuantifiersList :: [Quantifier]
 theoryQuantifiersList = [folForall,folExist]
 
 -- A continuacion definimos constructores de expresiones, para su facil manejo
@@ -193,6 +196,7 @@ exist v (Expr r) (Expr t) = Expr $ Quant folExist v r t
 -- Los axiomas del calculo proposicional son Expresiones dentro de Eq
 
 -- Variables a usar en las reglas:
+varP,varQ,varR :: Expr
 varP= Expr $ Var $ var "p" tyBool
 varQ= Expr $ Var $ var "q" tyBool
 varR= Expr $ Var $ var "r" tyBool
@@ -206,6 +210,7 @@ varR= Expr $ Var $ var "r" tyBool
 -- Aca hay solo dos opciones, el equivalente del medio es siempre el de "relacion".
 -- Las dos formas posibles son conmutar ambos miembros.
 
+exprAsocEquiv :: Expr
 exprAsocEquiv = equiv (equiv (equiv varP varQ) varR) (equiv varP (equiv varQ varR))
 
 -- ---------------------------------
@@ -216,8 +221,8 @@ conmEquiv_Rule1 :: Rule
 conmEquiv_Rule1 = Rule { lhs = varP
                   , rhs = equiv varQ (equiv varQ varP)
                   , rel = relEquiv
-                  , name = pack ""
-                  , desc = pack ""
+                  , name = ""
+                  , desc = ""
                   }
  
  -- Regla2; (p ≡ q) ≡ (q ≡ p)
@@ -225,8 +230,8 @@ conmEquiv_Rule2 :: Rule
 conmEquiv_Rule2 = Rule { lhs = equiv varP varQ
                        , rhs = equiv varQ varP
                        , rel = relEquiv
-                       , name = pack ""
-                       , desc = pack ""
+                       , name = ""
+                       , desc = ""
                        }
                        
 -- Regla3: ((p ≡ q) ≡ q) ≡ p
@@ -234,8 +239,8 @@ conmEquiv_Rule3 :: Rule
 conmEquiv_Rule3 = Rule { lhs = equiv (equiv varP varQ) varQ
                        , rhs = varP
                        , rel = relEquiv
-                       , name = pack ""
-                       , desc = pack ""
+                       , name = ""
+                       , desc = ""
                        }
                        
 -- NOTA: No se si hace falta poner dos reglas mas, que serian:
@@ -251,8 +256,8 @@ neuterEquiv_Rule1 :: Rule
 neuterEquiv_Rule1 = Rule { lhs = equiv varP true
                          , rhs = varP
                          , rel = relEquiv
-                         , name = pack ""
-                         , desc = pack ""
+                         , name = ""
+                         , desc = ""
                          }
                          
 -- Regla2: p ≡ (True ≡ p)
@@ -260,8 +265,8 @@ neuterEquiv_Rule2 :: Rule
 neuterEquiv_Rule2 = Rule { lhs = varP
                          , rhs = equiv true varP
                          , rel = relEquiv
-                         , name = pack ""
-                         , desc = pack ""
+                         , name = ""
+                         , desc = ""
                          }
 
 
@@ -277,8 +282,8 @@ equivNeg_Rule1 :: Rule
 equivNeg_Rule1 = Rule { lhs = neg $ equiv varP varQ
                       , rhs = equiv (neg varP) varQ
                       , rel = relEquiv
-                      , name = pack ""
-                      , desc = pack ""
+                      , name = ""
+                      , desc = ""
                       }
                       
 -- Regla2; (¬(p ≡ q) ≡ ¬p) ≡ q
@@ -286,8 +291,8 @@ equivNeg_Rule2 :: Rule
 equivNeg_Rule2 = Rule { lhs = equiv (neg $ equiv varP varQ) (neg varP)
                       , rhs = varQ
                       , rel = relEquiv
-                      , name = pack ""
-                      , desc = pack ""
+                      , name = ""
+                      , desc = ""
                       }
                       
 -- ------------------------------
@@ -298,8 +303,8 @@ false_Rule :: Rule
 false_Rule = Rule { lhs = false
                   , rhs = neg true
                   , rel = relEquiv
-                  , name = pack ""
-                  , desc = pack ""
+                  , name = ""
+                  , desc = ""
                   }
 
 -- ============
@@ -314,8 +319,8 @@ discrep_Rule :: Rule
 discrep_Rule = Rule { lhs = discrep varP varQ
                     , rhs = neg $ equiv varP varQ
                     , rel = relEq
-                    , name = pack ""
-                    , desc = pack ""
+                    , name = ""
+                    , desc = ""
                     }
                    
 -- ===========
@@ -329,8 +334,8 @@ asocOr_Rule :: Rule
 asocOr_Rule = Rule { lhs = or (or varP varQ) varR
                   , rhs = or varP (or varQ varR)
                   , rel = relEq
-                  , name = pack ""
-                  , desc = pack ""
+                  , name = ""
+                  , desc = ""
                   }
                   
 -- ------------------------------
@@ -340,8 +345,8 @@ conmOr_Rule :: Rule
 conmOr_Rule = Rule { lhs = or varP varQ
                   , rhs = or varQ varP
                   , rel = relEq
-                  , name = pack ""
-                  , desc = pack ""
+                  , name = ""
+                  , desc = ""
                   }
                   
 -- ------------------------------
@@ -351,8 +356,8 @@ idempotOr_Rule :: Rule
 idempotOr_Rule = Rule { lhs = or varP varP
                       , rhs = varP
                       , rel = relEq
-                      , name = pack ""
-                      , desc = pack ""
+                      , name = ""
+                      , desc = ""
                       }
                      
 -- ------------------------------
@@ -363,8 +368,8 @@ distEqOr_Rule1 :: Rule
 distEqOr_Rule1 = Rule { lhs = or varP $ equiv varQ varR
                       , rhs = equiv (or varP varQ) (or varP varR)
                       , rel = relEquiv
-                      , name = pack ""
-                      , desc = pack ""
+                      , name = ""
+                      , desc = ""
                       }
                       
 -- Regla2: (p ∨ (q ≡ r) ≡ (p ∨ q)) ≡ (p ∨ r)
@@ -372,8 +377,8 @@ distEqOr_Rule2 :: Rule
 distEqOr_Rule2 = Rule { lhs = equiv (or varP $ equiv varQ varR) (or varP varQ)
                       , rhs = or varP varR
                       , rel = relEquiv
-                      , name = pack ""
-                      , desc = pack ""
+                      , name = ""
+                      , desc = ""
                       }
 
 -- ------------------------------
@@ -383,8 +388,8 @@ excludOr_Rule :: Rule
 excludOr_Rule = Rule { lhs = or varP $ neg varP
                      , rhs = true
                      , rel = relEquiv
-                     , name = pack ""
-                     , desc = pack ""
+                     , name = ""
+                     , desc = ""
                      }
                      
 
@@ -400,8 +405,8 @@ goldenRule1 :: Rule
 goldenRule1 = Rule { lhs = and varP varQ
                    , rhs = equiv varP $ equiv varQ $ or varP varQ
                    , rel = relEquiv
-                   , name = pack ""
-                   , desc = pack ""
+                   , name = ""
+                   , desc = ""
                    }
                    
 -- Regla2: p ∧ q ≡ ((p ≡ q) ≡ p ∨ q)
@@ -409,8 +414,8 @@ goldenRule2 :: Rule
 goldenRule2 = Rule { lhs = and varP varQ
                    , rhs = equiv (equiv varP varQ) (or varP varQ)
                    , rel = relEquiv
-                   , name = pack ""
-                   , desc = pack ""
+                   , name = ""
+                   , desc = ""
                    }
                    
 -- DUDA: Hace falta definir dos reglas para lo anterior? 
@@ -424,8 +429,8 @@ goldenRule3 :: Rule
 goldenRule3 = Rule { lhs = equiv (and varP varQ) varP
                    , rhs = equiv varQ $ or varP varQ
                    , rel = relEquiv
-                   , name = pack ""
-                   , desc = pack ""
+                   , name = ""
+                   , desc = ""
                    }
 
 
@@ -435,8 +440,8 @@ goldenRule4 :: Rule
 goldenRule4 = Rule { lhs = equiv (equiv (and varP varQ) varQ) (or varP varQ)
                    , rhs = or varP varQ
                    , rel = relEquiv
-                   , name = pack ""
-                   , desc = pack ""
+                   , name = ""
+                   , desc = ""
                    }
                    
 -- Regla5: (p ∧ q ≡ (p ≡ q)) ≡ p ∨ q
@@ -444,8 +449,8 @@ goldenRule5 :: Rule
 goldenRule5 = Rule { lhs = equiv (and varP varQ) (equiv varP varQ)
                    , rhs = or varP varQ
                    , rel = relEquiv
-                   , name = pack ""
-                   , desc = pack ""
+                   , name = ""
+                   , desc = ""
                    }
                    
 -- ===========
@@ -460,8 +465,8 @@ implRule1 :: Rule
 implRule1 = Rule { lhs = equiv (impl varP varQ) (or varP varQ)
                  , rhs = varQ
                  , rel = relEquiv
-                 , name = pack ""
-                 , desc = pack ""
+                 , name = ""
+                 , desc = ""
                  }
                  
 -- Regla2: p ⇒ q ≡ (p ∨ q ≡ q)
@@ -469,8 +474,8 @@ implRule2 :: Rule
 implRule2 = Rule { lhs = impl varP varQ
                  , rhs = equiv (or varP varQ) varQ
                  , rel = relEquiv
-                 , name = pack ""
-                 , desc = pack ""
+                 , name = ""
+                 , desc = ""
                  }
                  
 -- ===========
@@ -485,8 +490,8 @@ conseqRule1 :: Rule
 conseqRule1 = Rule { lhs = equiv (conseq varP varQ) (or varP varQ)
                    , rhs = varP
                    , rel = relEquiv
-                   , name = pack ""
-                   , desc = pack ""
+                   , name = ""
+                   , desc = ""
                    }
                    
 -- Regla2: p ⇐ q ≡ (p ∨ q ≡ p)
@@ -494,8 +499,8 @@ conseqRule2 :: Rule
 conseqRule2 = Rule { lhs = conseq varP varQ
                    , rhs = equiv (or varP varQ) varP
                    , rel = relEquiv
-                   , name = pack ""
-                   , desc = pack ""
+                   , name = ""
+                   , desc = ""
                    }
 
 -- AXIOMAS PARA LOS CUANTIFICADORES
@@ -512,8 +517,8 @@ interRangeTermForall_Rule :: Rule
 interRangeTermForall_Rule = Rule { lhs = forAll varX range term
                                  , rhs = forAll varX true $ impl range term
                                  , rel = relEquiv
-                                 , name = pack ""
-                                 , desc = pack ""
+                                 , name = ""
+                                 , desc = ""
                                  }
     where varX = var "x" $ tyVar "A"
           range = Expr $ Var $ var "r" $ tyBool
@@ -529,8 +534,8 @@ distribAndForall_Rule :: Rule
 distribAndForall_Rule = Rule { lhs = and (forAll varX true term1) (forAll varX true term2)
                              , rhs = forAll varX true (and term1 term2)
                              , rel = relEquiv
-                             , name = pack ""
-                             , desc = pack ""
+                             , name = ""
+                             , desc = ""
                              }
     where varX = var "x" $ tyVar "A"
           term1 = Expr $ Var $ var "t1" $ tyBool
@@ -545,8 +550,8 @@ distribAndForall_Rule = Rule { lhs = and (forAll varX true term1) (forAll varX t
 unitRangeForall_Rule = Rule { lhs = forAll varX (equal expr_varX expr_varY) term
                             , rhs = Expr $ applySubst subst term
                             , rel = relEquiv
-                            , name = pack ""
-                            , desc = pack ""
+                            , name = ""
+                            , desc = ""
                             }
     where varX = var "x" $ tyVar "A"
           varY = var "y" $ tyVar "A"
@@ -563,8 +568,8 @@ intercForall_Rule :: Rule
 intercForall_Rule = Rule { lhs = forAll varX true $ forAll varY true term
                          , rhs = forAll varY true $ forAll varX true term
                          , rel = relEquiv
-                         , name = pack ""
-                         , desc = pack ""
+                         , name = ""
+                         , desc = ""
                          }
     where varX = var "x" $ tyVar "A"
           varY = var "y" $ tyVar "A"
@@ -582,8 +587,8 @@ existRule :: Rule
 existRule = Rule { lhs = exist varX range term
                  , rhs = neg $ forAll varX range (neg term)
                  , rel = relEquiv
-                 , name = pack ""
-                 , desc = pack ""
+                 , name = ""
+                 , desc = ""
                  }
     where varX = var "x" $ tyVar "A"
           range = Expr $ Var $ var "r" $ tyBool

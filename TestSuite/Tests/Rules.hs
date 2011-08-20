@@ -6,7 +6,6 @@ import Equ.Expr (Expr(..))
 import Equ.PreExpr (PreExpr)
 import Equ.TypeChecker
 import Equ.Rule(Rule(..))
-import Data.Traversable
 import Data.Text (unpack)
 import Test.HUnit (Assertion, assertFailure)
 import Test.Framework (testGroup, Test)
@@ -26,7 +25,7 @@ testEqTypes e e' = case checkPreExpr e of
                                            Right t' -> if t /= t' 
                                                       then err' t t'
                                                       else return ()
-    where err e = assertFailure $ "No se pudo tipar la expresión: " ++ show e
+    where err er = assertFailure $ "No se pudo tipar la expresión: " ++ show er
           err' t t' = assertFailure $ "No coinciden los tipos de lhs con rhs: (" 
                                     ++ show t ++"," ++ show t' ++")"
 

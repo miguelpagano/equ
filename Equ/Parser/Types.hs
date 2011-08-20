@@ -7,7 +7,6 @@ import Text.Parsec.Token
 import Text.Parsec.Language
 import Text.Parsec.String
 import qualified Text.Parsec.Expr as PE
-import Data.Text (pack,unpack)
 
 import Control.Monad.Identity
 import Control.Applicative ((<$>),(<$))

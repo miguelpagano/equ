@@ -1,8 +1,9 @@
 -- | La teoría de aritmética.
+{-# Language OverloadedStrings #-}
 module Equ.Theories.Arith where
 
 import Prelude hiding (sum)
-import Data.Text (pack)
+import Data.Text (Text)
 
 import Equ.Syntax
 import Equ.Types
@@ -16,23 +17,23 @@ import Equ.Theories.AbsName
 -- que devuelven expresiones de tipo Num.
 
 natZero :: Constant
-natZero = Constant { conRepr = pack "0"
-                , conName = Zero
-                , conTy = TyAtom ATyNat
-                }
+natZero = Constant { conRepr = "0"
+                   , conName = Zero
+                   , conTy = TyAtom ATyNat
+                   }
 
 natSucc :: Operator
-natSucc = Operator { opRepr = pack "succ"
-                    , opName = Succ
-                    , opTy = TyAtom ATyNat :-> TyAtom ATyNat
-                    , opAssoc = None
-                    , opNotationTy = NPrefix
-                    , opPrec = 23 -- Analizar.
-                    }
+natSucc = Operator { opRepr = "succ"
+                   , opName = Succ
+                   , opTy = TyAtom ATyNat :-> TyAtom ATyNat
+                   , opAssoc = None
+                   , opNotationTy = NPrefix
+                   , opPrec = 23 -- Analizar.
+                   }
                     
                     
 natSum :: Operator
-natSum = Operator { opRepr = pack "+"
+natSum = Operator { opRepr = "+"
                   , opName = Sum
                   , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyNat
                   , opAssoc = ALeft
@@ -41,20 +42,24 @@ natSum = Operator { opRepr = pack "+"
                   }
                   
 natProd :: Operator
-natProd = Operator { opRepr = pack "*"
+natProd = Operator { opRepr = "*"
                    , opName = Prod
                    , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyNat
                    , opAssoc = ALeft
                    , opNotationTy = NInfix
                    , opPrec = 22
                    }
-                 
+theoryOperatorsList :: [Operator]
 theoryOperatorsList = [natSucc,natSum,natProd]
+
+theoryConstantsList :: [Constant]
 theoryConstantsList = [natZero]
+
+theoryQuantifiersList :: [Quantifier]
 theoryQuantifiersList = []
 
 -- Constructor de Variable de tipo Nat.
-varNat :: String -> Expr
+varNat :: Text -> Expr
 varNat s = Expr $ Var $ var s (TyAtom ATyNat)
 
 -- Constructor de Constante zero
