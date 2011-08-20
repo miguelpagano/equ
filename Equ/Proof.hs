@@ -4,6 +4,7 @@
 module Equ.Proof where
 
 import Equ.Expr
+import Equ.PreExpr
 import Equ.Theories
 import Equ.Rule
 
@@ -26,28 +27,42 @@ Queremos una relación de orden entre las relaciones para poder
 debilitar una prueba de equivalente en una prueba de implicación.
 
 -}
-    
-data Basic ctx where
-    Ax  :: Axiom -> Basic ctx    -- ^ Un axioma de cierta teoría.
-    Teo :: Theorem -> Basic ctx  -- ^ Un teorema ya probado.
-    Hyp :: Name -> Basic ctx  -- ^ Una hipótesis que aparece en el contexto.               
 
-data Proof ctx expr rel  where
-    Hole   :: expr -> rel -> expr -> Proof ctx expr rel     -- ^ No hay todavía una prueba.
-    Simple :: expr -> rel -> expr -> Basic ctx -> Proof ctx expr rel  -- ^ Una prueba con un solo paso.
-    Trans  :: expr -> rel -> expr -> Proof ctx expr rel -> Proof ctx expr rel -> Proof ctx expr rel -- ^
+data Name where
+    Name :: Int -> Name
+
+data Axiom = Axiom 
+data Theorem = Theorem
+data Hypothesis = Hypo
+
+type Ctx = Map Name Hypothesis
+
+data Basic where
+    Ax  :: Axiom -> Basic    -- ^ Un axioma de cierta teoría.
+    Teo :: Theorem -> Basic  -- ^ Un teorema ya probado.
+    Hyp :: Name -> Ctx -> Basic   -- ^ Una hipótesis que aparece en el contexto.               
+
+data Proof where
+    Hole   :: Ctx -> Relation -> Focus -> Focus -> Proof     -- ^ No hay todavía una prueba.
+    Simple :: Ctx -> Relation -> Focus -> Focus -> Basic -> Proof  -- ^ Una prueba con un solo paso.
+    Trans  :: Ctx -> Relation -> Focus -> Focus -> Focus -> Proof -> Proof -> Proof -- ^
     -- | Cases e r e' [(e0,p0),...,(en,pn)] p es una prueba de e r e'
     -- con sub-pruebas p0...pn de e r e' con hipótesis e_i para cada i
     -- y la exhaustividad de e0 ... en está dada por p.
-    Cases  :: expr -> rel -> expr -> [(expr,Proof ctx expr rel)] -> Proof ctx expr rel -> Proof ctx expr rel 
-    -- | Demostración por inducción en varias expresiones. Es distinta de la anterior en el 
-    -- sentido que no hay una prueba de exhaustividad.
-    Ind    :: expr -> rel -> expr -> [expr] -> [([expr],Proof ctx expr rel)] -> Proof ctx expr rel 
+    Cases  :: Ctx -> Relation -> Focus -> Focus -> Focus -> [(Focus,Proof)] -> Proof
+    -- | Demostración por inducción en varias expresiones. Es distinta
+    -- de la anterior en el sentido que no hay una prueba de
+    -- exhaustividad.
+    Ind    :: Ctx -> Relation -> Focus -> Focus -> [Focus] -> [([Focus],Proof)] -> Proof
     -- | Meta-teorema de la deducción.
-    Deduc  :: expr -> expr -> Proof ctx expr rel -> Proof ctx expr rel
-    -- | Enfocarse en una ocurrencia de una subexpresión para "reescribir" la expresión
-    -- original en otra.
-    Focus  :: expr -> rel -> expr -> Occur expr -> Proof ctx expr rel -> Proof ctx expr rel
+    Deduc  :: Ctx -> Focus -> Focus -> Proof -> Proof
+    -- | Enfocarse en una ocurrencia de una subexpresión para
+    -- "reescribir" la expresión original en otra.
+    Focus  :: Ctx -> Relation -> Focus -> Focus -> Proof -> Proof
+
+{- 
+
+Prueba por casos:
 
 {- En principio tendríamos lo siguiente.
 
