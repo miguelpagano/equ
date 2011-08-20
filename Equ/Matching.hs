@@ -63,7 +63,7 @@ match' bvs e@(Var v) e' s | e == e' = return s
 match' bvs (UnOp op1 e1) (UnOp op2 e2) s = whenM (op1==op2) $ match' bvs e1 e2 s
 
 match' bvs (BinOp op1 e1 e2) 
-          (BinOp op2 f1 f2) s = whenM (op1==op2) $ match' bvs e1 f1 s >>= 
+           (BinOp op2 f1 f2) s = whenM (op1==op2) $ match' bvs e1 f1 s >>= 
                                                  match' bvs e2 f2
     
 match' bvs (App e1 e2) (App f1 f2) s = match' bvs e1 f1 s >>= match' bvs e2 f2 

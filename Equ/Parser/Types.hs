@@ -1,6 +1,6 @@
 -- | Este modulo es el parser de expresiones de tipos. 
 
-module Equ.Parser.Types (parseTy) where
+module Equ.Parser.Types (listAtomTy, parseTy) where
 
 import Text.Parsec
 import Text.Parsec.Token

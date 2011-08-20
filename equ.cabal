@@ -22,7 +22,7 @@ Flag coverage
 
 Flag tests
      Description: Generate test.
-     Default:     True
+     Default:     False
 
 
 Source-repository this
