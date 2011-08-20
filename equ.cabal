@@ -22,7 +22,7 @@ Flag coverage
 
 Flag tests
      Description: Generate test.
-     Default:     False
+     Default:     True
 
 
 Source-repository this
@@ -41,7 +41,7 @@ Library
   -- Last three for test.
   Build-depends:       base >= 4.2, text >= 0.11.0.8, ordered, random, either, 
                        transformers, mtl >= 2.0, QuickCheck == 2.4.1.1, test-framework-quickcheck2,
-                       test-framework, containers >= 0.4, test-framework-hunit, HUnit
+                       test-framework, containers >= 0.4, test-framework-hunit, HUnit,parsec
 
   GHC-Options:         -Odph -Wall
   -- HS-Source-Dirs:

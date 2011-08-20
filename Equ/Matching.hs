@@ -55,10 +55,10 @@ v por e'. Si v está en el mapa, entonces para que haya matching tiene que estar
 asociada con la expresión e'.
 -}
 match' bvs e@(Var v) e' s | e == e' = return s
-                         | v `elem` bvs = mzero
-                         | otherwise = maybe (return $ M.insert v e' s)
-                                             (\f -> whenML (e' == f) s)
-                                             $ M.lookup v s
+                          | v `elem` bvs = mzero
+                          | otherwise = maybe (return $ M.insert v e' s)
+                                              (\f -> whenML (e' == f) s)
+                                              $ M.lookup v s
 
 match' bvs (UnOp op1 e1) (UnOp op2 e2) s = whenM (op1==op2) $ match' bvs e1 e2 s
 
@@ -79,6 +79,7 @@ Si v/=w, entonces reemplazamos v y w por una variable fresca en ambas expresione
 y luego realizamos matching en las subexpresiones, agregando la variable fresca
 a bvs.
 -}    
+
 match' bvs (Quant q v e1 e2) (Quant p w f1 f2) s =
     whenM (q==p) $
         if v==w then match' (v:bvs) e1 f1 s >>= match' (v:bvs) e2 f2
@@ -99,5 +100,3 @@ simultáneamente para llegar desde la expresión patrón a la expresión dada.
 -}
 match :: PreExpr -> PreExpr -> Maybe ExprSubst
 match e e' = match' [] e e' M.empty
-
-

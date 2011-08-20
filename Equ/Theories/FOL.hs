@@ -9,7 +9,6 @@ import Equ.Expr
 import Equ.PreExpr.Internal
 import Equ.Rule
 import Equ.Theories.AbsName
-import Equ.Rewrite(applySubst)
 
 import qualified Data.Map as M
 import Data.Text (pack)

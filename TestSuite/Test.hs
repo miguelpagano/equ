@@ -1,9 +1,10 @@
 -- | Declaración de test-suites.
 module Main where
 
-import TestSuite.Tests.TPreExpr
-import TestSuite.Tests.TTypeChecker
-import TestSuite.Tests.TRules
+import TestSuite.Tests.PreExpr
+import TestSuite.Tests.TypeChecker
+import TestSuite.Tests.Rules
+import TestSuite.Tests.Matching
 import Test.Framework (defaultMain, testGroup, Test)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.Framework.Providers.HUnit (hUnitTestToTests)
@@ -22,4 +23,5 @@ tests = [ testGroup "PreExpr"
                     , testProperty "Generation of Fresh Type-Variables" prop_freshVars
                     ]
         , testListRules 
+        , testGroupMatch
         ]
