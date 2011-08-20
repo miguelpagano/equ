@@ -25,6 +25,8 @@ z :: Variable
 z = var "z" TyUnknown
 w :: Variable
 w = var "w" TyUnknown
+ys :: Variable
+ys = var "ys" TyUnknown
 
 -- | True v False -m-> p v p : No existe match.
 testCase0 :: Assertion
@@ -68,6 +70,14 @@ testCase5 = testMatch (parser "〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉")
                          , (q, parser "w")
                          ]
 
+testCase6 :: Assertion
+testCase6 = testMatch (parser "〈∃ xs : 〈∀ y : y = xs.0 : F@y ∧ p〉 : xs↓1 = ys↓1〉")
+                      (parser "〈∃ ys : 〈∀ z : z = ys.0 : F@z ∧ (True ⇒ p ∨ q)〉 : ys↓1 = (xs++zs)↓1〉")
+                      (Just s)
+    where s = M.fromList [ (p,parser "(True ⇒ p ∨ q)")
+                         , (ys,parser "(xs++zs)")
+                         ]
+
 -- | Controla que el matching entre las expresiones sea el correcto.
 -- Toma dos expresiones y una substitución esperada.
 testMatch :: PreExpr -> PreExpr -> Maybe ExprSubst -> Assertion
@@ -98,4 +108,9 @@ testGroupMatch =
                 "〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉 :" ++
                 "[y->(# []), p->True , w->q, q->w]")
         testCase5
+    , testCase ("〈∃ ys : 〈∀ z : z = ys.0 : F@y ∧ (True ⇒ p ∨ q)〉 : ys↓1 = (xs++zs)↓1〉 -m->" ++
+                "〈∃ xs : 〈∀ y : y = xs.0 : F@y ∧ p〉 : xs↓1 = ys↓1〉 :"++
+                "[p -> True ⇒ p ∨ q, ys -> (xs++zs)]")
+        testCase6
+                
     ]
