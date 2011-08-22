@@ -29,7 +29,9 @@ import Text.Parsec.Token
 import Text.Parsec.Language
 import qualified Text.Parsec.Expr as PE
 import Data.Text (pack,unpack)
-import Data.List
+import Data.List(group,sort)
+import Data.Map (Map,insert,member,(!))
+import qualified Data.Map as M
 import Control.Monad.Identity
 import Control.Applicative ((<$>),(<$),(<*>))
 
@@ -44,21 +46,23 @@ import Equ.Parser.Types(listAtomTy)
 data PError = UnOpNotApplied Operator 
             | BinOpNotApplied Operator
 
-type PState = PreExpr
+type VarTy = (Int,Map (Either VarName FuncName) Type)
+
+type PState = VarTy
 
 type ParserTable = PE.OperatorTable String PState Identity PreExpr
 type Parser' a = ParsecT String PState Identity a
 type ParserOper = PE.Operator String PState Identity PreExpr
 
--- | Inicio de una cuantificación.
+-- | Inicio de una cuantificaci&#243;n.
 quantInit :: String
-quantInit = "〈"
+quantInit = "&#12296;"
 
--- | Final de una cuantificación.
+-- | Final de una cuantificaci&#243;n.
 quantEnd :: String
-quantEnd = "〉"
+quantEnd = "&#12297;"
 
--- | Separador de la cuantificación.
+-- | Separador de la cuantificaci&#243;n.
 quantSep :: String
 quantSep = ":"
 
@@ -99,13 +103,13 @@ lexer = makeTokenParser $
 
 parsePreExpr :: Parser' PreExpr
 parsePreExpr = PE.buildExpressionParser operatorTable subexpr 
-               <?> "Parser error: Expresión mal formada"
+               <?> "Parser error: Expresi&#243;n mal formada"
 
 -- Construimos la table que se le pasa a buildExpressionParser:
--- Primero agregamos el operador aplicación, que precede a cualquier otro
+-- Primero agregamos el operador aplicaci&#243;n, que precede a cualquier otro
 operatorTable :: ParserTable
 operatorTable = [parserApp] : makeTable operatorsList
-    where parserApp = PE.Infix (reservedOp lexer opApp >> return App) PE.AssocLeft
+    where parserApp = PE.Infix (App <$ reservedOp lexer opApp) PE.AssocLeft
 
 makeTable :: [Operator] -> ParserTable
 makeTable = map makeSubList . group . reverse . sort 
@@ -115,8 +119,8 @@ makeOp op = case opNotationTy op of
               NPrefix  -> PE.Prefix  $ UnOp op <$ parseOp
               NPostfix -> PE.Postfix $ UnOp op <$ parseOp
               NInfix   -> PE.Infix   (BinOp op <$ parseOp) assoc
-    where parseOp = (reservedOp lexer . unpack . opRepr $ op) >>
-                    putState (UnOp op $ PrExHole . hole . pack $ "")
+    where parseOp = (reservedOp lexer . unpack . opRepr $ op)
+--                    putState (UnOp op $ PrExHole . hole . pack $ "")
           assoc = convertAssoc . opAssoc $ op
 
 makeSubList :: [Operator] -> [ParserOper]
@@ -129,13 +133,13 @@ convertAssoc ARight = PE.AssocRight
 
 -- Parseamos las subexpresiones
 -- Una expresion puede ser una expresion con parentesis, una constante, una expresion cuantificada,
--- una variable, una función o una expresion que viene desde un parseo por syntactic sugar
+-- una variable, una funci&#243;n o una expresion que viene desde un parseo por syntactic sugar
 subexpr :: Parser' PreExpr
 subexpr = Paren <$> parens lexer parsePreExpr
           <|> parseConst constantsList
           <|> parseQuant quantifiersList
           <|> parsePreExprVar parseVar
-          <|> parseFunc
+          <|> parsePreExprFunc parseFunc
           <|> parseHole
           <|> parseSugarPreExpr parsePreExpr
                             
@@ -170,6 +174,14 @@ parseHole = PrExHole . hole . pack <$>
 parseInfo :: Parser' String
 parseInfo = many $ letter <|> space
 
+
+-- Calcula el tipo de una variable o funcion
+setType :: (Either VarName FuncName) -> PState -> (PState,Type)
+setType name (n,st) = if name `M.member` st
+                      then ((n,st), st ! name)
+                      else ((n+1, insert name newvar st), newvar)
+    where newvar = tyVar $ "VInt" ++ show n
+
 -- Parseo de expresiones variable
 parsePreExprVar :: Parser' Variable -> Parser' PreExpr
 parsePreExprVar = (Var <$>)
@@ -179,16 +191,28 @@ parsePreExprVar = (Var <$>)
 -- mayuscula). 
 parseVar :: Parser' Variable
 parseVar = try $ lexeme lexer ((:) <$> lower <*> many letter) >>= 
-           \v -> return Variable { varName = pack v 
-                                , varTy = TyUnknown 
-                                }
--- Parseo de funciones. Un símbolo de funcion es un string que empieza
--- con mayúscula.
-parseFunc :: Parser' PreExpr
+           \v -> getState >>= 
+           \st -> return (setType (Left $ pack v) st) >>=
+           \(st',t) -> putState st' >> 
+           return Variable { varName = pack v 
+                           , varTy = t
+                           }
+
+-- Parseo de expresiones funcion
+parsePreExprFunc :: Parser' Func -> Parser' PreExpr
+parsePreExprFunc = (Fun <$>)
+
+-- Parseo de funciones. Un s&#237;mbolo de funcion es un string que empieza
+-- con may&#250;scula.
+parseFunc :: Parser' Func
 parseFunc = try $ lexeme lexer ((:) <$> upper <*> many letter) >>=
-            \f -> return . Fun $ Func { funcName= pack f
-                                     , funcTy= TyUnknown
-                                     }
+            \f -> getState >>=
+            \st -> return (setType (Right $ pack f) st) >>=
+            \(st',t) -> putState st' >>
+            return Func { funcName= pack f
+                        , funcTy= t
+                        }
+
 
 
 -- //////// Parser de syntax sugar ////////
@@ -205,7 +229,7 @@ sugarList p = foldl (BinOp listApp) (Con listEmpty) <$> (p `sepBy` char ',')
 parseSugarList :: Parser' PreExpr -> Parser' PreExpr
 parseSugarList = brackets lexer . sugarList
 
--- | Parseo de una función aplicada: f(a,b)
+-- | Parseo de una funci&#243;n aplicada: f(a,b)
 parseSugarApp :: Parser' PreExpr
 parseSugarApp = undefined 
 
@@ -221,7 +245,7 @@ parseIntPreExpr = intToCon <$> parseInt
 
 -- | Funcion principal de parseo desde string.
 parseFromString :: String -> Either ParseError PreExpr
-parseFromString = runParser parsePreExpr (PrExHole . hole . pack $ "") "TEST" 
+parseFromString = runParser parsePreExpr (0,M.empty) "TEST" 
 
 -- | Funcion principal de parseo.
 parser :: String -> PreExpr
