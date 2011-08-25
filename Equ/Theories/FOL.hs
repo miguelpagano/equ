@@ -1,6 +1,58 @@
 -- | El módulo de expresiones de fórmulas de primer orden.
 {-# Language OverloadedStrings #-}
-module Equ.Theories.FOL where
+module Equ.Theories.FOL 
+    ( -- * Constructores y operadores.
+      folTrue , folFalse , folForall , folExist , folEqual
+    , folEquiv, folDiscrep, folAnd, folOr, folNeg, folImpl, folConseq
+    -- ** Listas de constructores y operadores
+    , theoryConstantsList
+    , theoryOperatorsList
+    , theoryQuantifiersList
+    -- * Versión tipada de operadores.
+    , true, false, equal, equiv, discrep
+    , neg, and, or, impl, conseq, forAll, exist
+    -- * Reglas de la teoría.
+    , folRules
+    -- ** Conmutatividad.
+    , conmEquiv_Rule1, conmEquiv_Rule2, conmEquiv_Rule3
+    -- ** Neutro.
+    , neuterEquiv_Rule1, neuterEquiv_Rule2
+    -- ** Negacion.
+    , equivNeg_Rule1, equivNeg_Rule2
+    -- ** False.
+    , false_Rule
+    -- ** Discrepancia.
+    , discrep_Rule
+    -- ** Disyuncion
+    -- *** Asociatividad.
+    , asocOr_Rule
+    -- *** Conmutatividad.
+    , conmOr_Rule
+    -- *** Idempotencia.
+    , idempotOr_Rule
+    -- *** Distributividad.
+    , distEqOr_Rule1, distEqOr_Rule2
+    -- *** Tercero excluido.
+    , excludOr_Rule
+    -- ** Conjuncion.
+    , goldenRule1, goldenRule2
+    , goldenRule3, goldenRule4, goldenRule5
+    -- ** Implicacion.
+    , implRule1, implRule2
+    -- ** Consecuencia.
+    , conseqRule1, conseqRule2
+    -- ** Cuantificador \"Para todo\"
+    -- *** Intercambio entre rango y termino.
+    , interRangeTermForall_Rule
+    -- *** Distributividad.
+    , distribAndForall_Rule
+    -- *** Intercambio de ∀
+    , intercForall_Rule
+    -- ** Cuantificador \"Existe\"
+    -- *** Definicion
+    , existRule
+    )
+    where
 
 import Prelude hiding (and,or) 
 import Equ.Syntax
@@ -13,12 +65,14 @@ import Equ.Theories.AbsName
 
 -- CONSTANTES
 
+-- | Constante True
 folTrue :: Constant
 folTrue = Constant { conRepr = "True"
                    , conName = CTrue
                    , conTy = tyBool
                    }
-                     
+
+-- | Constante False  
 folFalse :: Constant
 folFalse = Constant { conRepr = "False"
                     , conName = CFalse
@@ -26,13 +80,14 @@ folFalse = Constant { conRepr = "False"
                     }
                      
 -- CUANTIFICADORES
-
+-- | Cuantificador ∀
 folForall :: Quantifier
 folForall = Quantifier { quantRepr = "∀"
                        , quantName = Forall
                        , quantTy = tyVar "A" :-> tyBool
                        }
-                    
+
+-- | Cuantificador ∃
 folExist :: Quantifier
 folExist = Quantifier { quantRepr = "∃"
                       , quantName = Exist
@@ -46,7 +101,7 @@ folUnOpType,folBinOpType :: Type
 folUnOpType = tyBool :-> tyBool
 folBinOpType = tyBool :-> tyBool :-> tyBool
 
--- Igualdad
+-- | Igualdad =
 folEqual :: Operator
 folEqual = Operator { opRepr = "="
                   , opName = Equal
@@ -56,7 +111,7 @@ folEqual = Operator { opRepr = "="
                   , opPrec = 5
                   }
 
--- Equivalencia
+-- | Equivalencia ≡
 folEquiv :: Operator
 folEquiv = Operator { opRepr = "≡"
                     , opName = Equival
@@ -66,7 +121,7 @@ folEquiv = Operator { opRepr = "≡"
                     , opPrec = 1
                     }
                     
--- Discrepancia
+-- | Discrepancia /≡
 folDiscrep :: Operator
 folDiscrep = Operator { opRepr = "/≡"
                       , opName = Discrep
@@ -76,7 +131,7 @@ folDiscrep = Operator { opRepr = "/≡"
                       , opPrec = 1
                       }
 
--- And
+-- | Conjuncion ∧
 folAnd :: Operator
 folAnd = Operator { opRepr = "∧"
                   , opName = And
@@ -86,7 +141,7 @@ folAnd = Operator { opRepr = "∧"
                   , opPrec = 3
                   }
 
--- Or
+-- | Disyuncion ∨
 folOr :: Operator
 folOr = Operator { opRepr = "∨"
                  , opName = Or
@@ -96,7 +151,7 @@ folOr = Operator { opRepr = "∨"
                  , opPrec = 3
                  }
      
--- Negacion     
+-- | Negacion ¬
 folNeg :: Operator
 folNeg = Operator { opRepr = "¬"
                   , opName = Neg
@@ -106,7 +161,7 @@ folNeg = Operator { opRepr = "¬"
                   , opPrec = 4
                   }
 
--- Implicación
+-- | Implicación ⇒
 folImpl :: Operator
 folImpl = Operator { opRepr = "⇒"
                    , opName = Implic
@@ -116,7 +171,7 @@ folImpl = Operator { opRepr = "⇒"
                    , opPrec = 2
                    }
 
--- Consecuencia
+-- | Consecuencia ⇐
 folConseq :: Operator
 folConseq = Operator { opRepr = "⇐"
                      , opName = Conseq
@@ -126,12 +181,15 @@ folConseq = Operator { opRepr = "⇐"
                      , opPrec = 2
                      }
 
-theoryOperatorsList :: [Operator]
-theoryOperatorsList = [folEqual,folEquiv,folDiscrep,folAnd,folOr,folImpl,folConseq,folNeg]
-
+-- | Constantes de FOL.
 theoryConstantsList :: [Constant]
 theoryConstantsList = [folTrue,folFalse]
 
+-- | Operadores de FOL.
+theoryOperatorsList :: [Operator]
+theoryOperatorsList = [folEqual,folEquiv,folDiscrep,folAnd,folOr,folImpl,folConseq,folNeg]
+
+-- | Cuantificadores de FOL.
 theoryQuantifiersList :: [Quantifier]
 theoryQuantifiersList = [folForall,folExist]
 
@@ -146,35 +204,35 @@ false = Expr $ Con $ folFalse
 
 -- | Constructores de Operaciones lógicas
 
--- Igualdad
+-- | Igualdad
 equal :: Expr -> Expr -> Expr
 equal (Expr a) (Expr b) = Expr $ BinOp folEqual a b
 
--- Equivalencia
+-- | Equivalencia
 equiv :: Expr -> Expr -> Expr
 equiv (Expr p) (Expr q) = Expr $ BinOp folEquiv p q
 
--- Discrepancia
+-- | Discrepancia
 discrep :: Expr -> Expr -> Expr
 discrep (Expr p) (Expr q) = Expr $ BinOp folDiscrep p q
 
--- Negacion
+-- | Negacion
 neg :: Expr -> Expr
 neg (Expr p) = Expr $ UnOp folNeg p
 
--- And
+-- | And
 and :: Expr -> Expr -> Expr
 and (Expr p) (Expr q) = Expr $ BinOp folAnd p q
 
--- Or
+-- | Or
 or :: Expr -> Expr -> Expr
 or (Expr p) (Expr q) = Expr $ BinOp folOr p q
 
--- Implicacion
+-- | Implicacion
 impl :: Expr -> Expr -> Expr
 impl (Expr p) (Expr q) = Expr $ BinOp folImpl p q
 
--- Consecuencia
+-- | Consecuencia
 conseq :: Expr -> Expr -> Expr
 conseq (Expr p) (Expr q) = Expr $ BinOp folConseq p q
 
@@ -216,7 +274,11 @@ exprAsocEquiv = equiv (equiv (equiv varP varQ) varR) (equiv varP (equiv varQ var
 -- ---------------------------------
 -- Conmutatividad: p ≡ q ≡ q ≡ p
 -- ---------------------------------
--- Regla1: p ≡ (q ≡ (q ≡ p))
+{- | Regla 1:
+@
+    p ≡ (q ≡ (q ≡ p))
+@
+-}
 conmEquiv_Rule1 :: Rule
 conmEquiv_Rule1 = Rule { lhs = varP
                   , rhs = equiv varQ (equiv varQ varP)
@@ -225,7 +287,11 @@ conmEquiv_Rule1 = Rule { lhs = varP
                   , desc = ""
                   }
  
- -- Regla2; (p ≡ q) ≡ (q ≡ p)
+{- | Regla 2:
+@
+    (p ≡ q) ≡ (q ≡ p)
+@
+-}
 conmEquiv_Rule2 :: Rule
 conmEquiv_Rule2 = Rule { lhs = equiv varP varQ
                        , rhs = equiv varQ varP
@@ -233,8 +299,12 @@ conmEquiv_Rule2 = Rule { lhs = equiv varP varQ
                        , name = ""
                        , desc = ""
                        }
-                       
--- Regla3: ((p ≡ q) ≡ q) ≡ p
+
+{- | Regla 3:
+@
+    ((p ≡ q) ≡ q) ≡ p
+@
+-}
 conmEquiv_Rule3 :: Rule
 conmEquiv_Rule3 = Rule { lhs = equiv (equiv varP varQ) varQ
                        , rhs = varP
@@ -251,7 +321,11 @@ conmEquiv_Rule3 = Rule { lhs = equiv (equiv varP varQ) varQ
 -- ------------------------------
 -- Neutro: p ≡ True ≡ p
 -- ------------------------------
--- Regla1; (p ≡ True) ≡ p
+{- | Regla 1:
+@
+    (p ≡ True) ≡ p
+@
+-}
 neuterEquiv_Rule1 :: Rule
 neuterEquiv_Rule1 = Rule { lhs = equiv varP true
                          , rhs = varP
@@ -260,7 +334,11 @@ neuterEquiv_Rule1 = Rule { lhs = equiv varP true
                          , desc = ""
                          }
                          
--- Regla2: p ≡ (True ≡ p)
+{- | Regla 2:
+@
+    p ≡ (True ≡ p)
+@
+-}
 neuterEquiv_Rule2 :: Rule
 neuterEquiv_Rule2 = Rule { lhs = varP
                          , rhs = equiv true varP
@@ -277,7 +355,11 @@ neuterEquiv_Rule2 = Rule { lhs = varP
 -- ------------------------------
 -- Negacion y Equivalencia: ¬(p ≡ q) ≡ ¬p ≡ q
 -- ------------------------------
--- Regla1: ¬(p ≡ q) ≡ (¬p ≡ q)
+{- | Regla 1:
+@
+    ¬(p ≡ q) ≡ (¬p ≡ q)
+@
+-}
 equivNeg_Rule1 :: Rule
 equivNeg_Rule1 = Rule { lhs = neg $ equiv varP varQ
                       , rhs = equiv (neg varP) varQ
@@ -286,7 +368,11 @@ equivNeg_Rule1 = Rule { lhs = neg $ equiv varP varQ
                       , desc = ""
                       }
                       
--- Regla2; (¬(p ≡ q) ≡ ¬p) ≡ q
+{- | Regla 2:
+@
+    (¬(p ≡ q) ≡ ¬p) ≡ q
+@
+-}
 equivNeg_Rule2 :: Rule
 equivNeg_Rule2 = Rule { lhs = equiv (neg $ equiv varP varQ) (neg varP)
                       , rhs = varQ
@@ -294,11 +380,13 @@ equivNeg_Rule2 = Rule { lhs = equiv (neg $ equiv varP varQ) (neg varP)
                       , name = ""
                       , desc = ""
                       }
-                      
--- ------------------------------
--- Definicion de False: False ≡ ¬True
--- ------------------------------
--- Unica regla
+
+
+{- | Definicion de false:
+@
+    False ≡ ¬True
+@
+-}
 false_Rule :: Rule
 false_Rule = Rule { lhs = false
                   , rhs = neg true
@@ -311,10 +399,11 @@ false_Rule = Rule { lhs = false
 -- DISCREPANCIA
 -- ============
 
--- ------------------------------
--- Definicion de /≡: (p /≡ q) ≡ ¬(p ≡ q)
--- ------------------------------
--- Unica regla
+{- | Definicion de discrepancia:
+@
+    (p /≡ q) ≡ ¬(p ≡ q)
+@
+-}
 discrep_Rule :: Rule
 discrep_Rule = Rule { lhs = discrep varP varQ
                     , rhs = neg $ equiv varP varQ
@@ -327,9 +416,11 @@ discrep_Rule = Rule { lhs = discrep varP varQ
 -- DISYUNCION
 -- ===========
 
--- ------------------------------
--- Asociatividad: (p ∨ q) ∨ r ≡ p ∨ (q ∨ r)
--- ------------------------------
+{- | Regla asociatividad:
+@
+    (p ∨ q) ∨ r ≡ p ∨ (q ∨ r)
+@
+-}
 asocOr_Rule :: Rule
 asocOr_Rule = Rule { lhs = or (or varP varQ) varR
                   , rhs = or varP (or varQ varR)
@@ -337,10 +428,12 @@ asocOr_Rule = Rule { lhs = or (or varP varQ) varR
                   , name = ""
                   , desc = ""
                   }
-                  
--- ------------------------------
--- Conmutatividad: p ∨ q ≡ q ∨ p
--- ------------------------------
+
+{- | Regla conmutatividad:
+@
+    p ∨ q ≡ q ∨ p
+@
+-}
 conmOr_Rule :: Rule
 conmOr_Rule = Rule { lhs = or varP varQ
                   , rhs = or varQ varP
@@ -348,10 +441,12 @@ conmOr_Rule = Rule { lhs = or varP varQ
                   , name = ""
                   , desc = ""
                   }
-                  
--- ------------------------------
--- Idempotencia: p ∨ p ≡ p
--- ------------------------------
+
+{- | Regla idempotencia:
+@
+    p ∨ p ≡ p
+@
+-}
 idempotOr_Rule :: Rule
 idempotOr_Rule = Rule { lhs = or varP varP
                       , rhs = varP
@@ -359,11 +454,12 @@ idempotOr_Rule = Rule { lhs = or varP varP
                       , name = ""
                       , desc = ""
                       }
-                     
--- ------------------------------
--- Distributividad con Equivalencia: p ∨ (q ≡ r) ≡ (p ∨ q) ≡ (p ∨ r)
--- ------------------------------
--- Regla1: p ∨ (q ≡ r) ≡ ((p ∨ q) ≡ (p ∨ r))
+
+{- | Regla 1 distributividad con equivalencia: 
+@
+    p ∨ (q ≡ r) ≡ ((p ∨ q) ≡ (p ∨ r))
+@
+-}
 distEqOr_Rule1 :: Rule
 distEqOr_Rule1 = Rule { lhs = or varP $ equiv varQ varR
                       , rhs = equiv (or varP varQ) (or varP varR)
@@ -371,8 +467,12 @@ distEqOr_Rule1 = Rule { lhs = or varP $ equiv varQ varR
                       , name = ""
                       , desc = ""
                       }
-                      
--- Regla2: (p ∨ (q ≡ r) ≡ (p ∨ q)) ≡ (p ∨ r)
+
+{- | Regla 2 distributividad con equivalencia:
+@
+    (p ∨ (q ≡ r) ≡ (p ∨ q)) ≡ (p ∨ r)
+@
+-}
 distEqOr_Rule2 :: Rule
 distEqOr_Rule2 = Rule { lhs = equiv (or varP $ equiv varQ varR) (or varP varQ)
                       , rhs = or varP varR
@@ -381,9 +481,11 @@ distEqOr_Rule2 = Rule { lhs = equiv (or varP $ equiv varQ varR) (or varP varQ)
                       , desc = ""
                       }
 
--- ------------------------------
--- Tercero Excluido: p ∨ ¬p
--- ------------------------------
+{- | Tercero Excluido:
+@
+    p ∨ ¬p
+@
+-}
 excludOr_Rule :: Rule
 excludOr_Rule = Rule { lhs = or varP $ neg varP
                      , rhs = true
@@ -391,16 +493,16 @@ excludOr_Rule = Rule { lhs = or varP $ neg varP
                      , name = ""
                      , desc = ""
                      }
-                     
 
 -- ===========
 -- CONJUNCION
 -- ===========
 
--- ------------------------------
--- Regla Dorada: p ∧ q ≡ p ≡ q ≡ p ∨ q
--- ------------------------------
--- Regla1: p ∧ q ≡ (p ≡ (q ≡ p ∨ q))
+{- | Regla 1 regla dorada:
+@
+    p ∧ q ≡ (p ≡ (q ≡ p ∨ q))
+@
+-}
 goldenRule1 :: Rule
 goldenRule1 = Rule { lhs = and varP varQ
                    , rhs = equiv varP $ equiv varQ $ or varP varQ
@@ -408,8 +510,12 @@ goldenRule1 = Rule { lhs = and varP varQ
                    , name = ""
                    , desc = ""
                    }
-                   
--- Regla2: p ∧ q ≡ ((p ≡ q) ≡ p ∨ q)
+
+{- | Regla 2 regla dorada:
+@
+    p ∧ q ≡ ((p ≡ q) ≡ p ∨ q)
+@
+-}
 goldenRule2 :: Rule
 goldenRule2 = Rule { lhs = and varP varQ
                    , rhs = equiv (equiv varP varQ) (or varP varQ)
@@ -424,7 +530,12 @@ goldenRule2 = Rule { lhs = and varP varQ
 -- la otra forma podria ser derivada por la regla de asociatividad:
 -- p ≡ (q ≡ p ∨ q) es equivalente a ((p ≡ q) ≡ p ∨ q)
 
--- Regla3: ((p ∧ q) ≡ p) ≡ (q ≡ p ∨ q)
+
+{- | Regla 3 regla dorada:
+@
+    ((p ∧ q) ≡ p) ≡ (q ≡ p ∨ q)
+@
+-}
 goldenRule3 :: Rule
 goldenRule3 = Rule { lhs = equiv (and varP varQ) varP
                    , rhs = equiv varQ $ or varP varQ
@@ -435,7 +546,11 @@ goldenRule3 = Rule { lhs = equiv (and varP varQ) varP
 
 
 -- Tenemos la misma cuestión sobre la asociatividad en las siguientes reglas
--- Regla4:  (p ∧ q ≡ p) ≡ q) ≡ p ∨ q
+{- | Regla 4 regla dorada:
+@
+    (p ∧ q ≡ p) ≡ q) ≡ p ∨ q
+@
+-}
 goldenRule4 :: Rule
 goldenRule4 = Rule { lhs = equiv (equiv (and varP varQ) varQ) (or varP varQ)
                    , rhs = or varP varQ
@@ -444,7 +559,12 @@ goldenRule4 = Rule { lhs = equiv (equiv (and varP varQ) varQ) (or varP varQ)
                    , desc = ""
                    }
                    
--- Regla5: (p ∧ q ≡ (p ≡ q)) ≡ p ∨ q
+
+{- | Regla 5 regla dorada:
+@
+    (p ∧ q ≡ (p ≡ q)) ≡ p ∨ q
+@
+-}
 goldenRule5 :: Rule
 goldenRule5 = Rule { lhs = equiv (and varP varQ) (equiv varP varQ)
                    , rhs = or varP varQ
@@ -452,7 +572,7 @@ goldenRule5 = Rule { lhs = equiv (and varP varQ) (equiv varP varQ)
                    , name = ""
                    , desc = ""
                    }
-                   
+
 -- ===========
 -- IMPLICACION
 -- ===========
@@ -460,7 +580,12 @@ goldenRule5 = Rule { lhs = equiv (and varP varQ) (equiv varP varQ)
 -- ------------------------------
 -- Definicion de ⇒: p ⇒ q ≡ p ∨ q ≡ q
 -- ------------------------------
--- Regla1: (p ⇒ q ≡ p ∨ q) ≡ q
+
+{- | Regla 1 implicacion:
+@
+    (p ⇒ q ≡ p ∨ q) ≡ q
+@
+-}
 implRule1 :: Rule
 implRule1 = Rule { lhs = equiv (impl varP varQ) (or varP varQ)
                  , rhs = varQ
@@ -468,8 +593,12 @@ implRule1 = Rule { lhs = equiv (impl varP varQ) (or varP varQ)
                  , name = ""
                  , desc = ""
                  }
-                 
--- Regla2: p ⇒ q ≡ (p ∨ q ≡ q)
+
+{- | Regla 2 implicacion:
+@
+    p ⇒ q ≡ (p ∨ q ≡ q)
+@
+-}
 implRule2 :: Rule
 implRule2 = Rule { lhs = impl varP varQ
                  , rhs = equiv (or varP varQ) varQ
@@ -477,7 +606,7 @@ implRule2 = Rule { lhs = impl varP varQ
                  , name = ""
                  , desc = ""
                  }
-                 
+
 -- ===========
 -- CONSECUENCIA
 -- ===========
@@ -485,7 +614,11 @@ implRule2 = Rule { lhs = impl varP varQ
 -- ------------------------------
 -- Definicion de ⇐: p ⇐ q ≡ p ∨ q ≡ p
 -- ------------------------------
--- Regla1; (p ⇐ q ≡ p ∨ q) ≡ p
+{- | Regla 1 consecuencia:
+@
+    (p ⇐ q ≡ p ∨ q) ≡ p
+@
+-}
 conseqRule1 :: Rule
 conseqRule1 = Rule { lhs = equiv (conseq varP varQ) (or varP varQ)
                    , rhs = varP
@@ -493,8 +626,12 @@ conseqRule1 = Rule { lhs = equiv (conseq varP varQ) (or varP varQ)
                    , name = ""
                    , desc = ""
                    }
-                   
--- Regla2: p ⇐ q ≡ (p ∨ q ≡ p)
+
+{- | Regla 2 consecuencia:
+@
+    p ⇐ q ≡ (p ∨ q ≡ p)
+@
+-}
 conseqRule2 :: Rule
 conseqRule2 = Rule { lhs = conseq varP varQ
                    , rhs = equiv (or varP varQ) varP
@@ -509,10 +646,11 @@ conseqRule2 = Rule { lhs = conseq varP varQ
 -- PARA TODO
 -- ===========
 
--- ------------------------------
--- Intercambio entre rango y término: <∀x : r.x : f.x> ≡ <∀x : : r.x ⇒ f.x>
--- ------------------------------
-
+{- | Intercambio entre rango y término: 
+@
+    <∀x : r.x : f.x> ≡ <∀x : : r.x ⇒ f.x>
+@
+-}
 interRangeTermForall_Rule :: Rule
 interRangeTermForall_Rule = Rule { lhs = forAll varX range term
                                  , rhs = forAll varX true $ impl range term
@@ -527,9 +665,11 @@ interRangeTermForall_Rule = Rule { lhs = forAll varX range term
 -- Axioma 5.3 (distributividad con or): X ∨ ∀x : : f.x ≡ ∀x : : X ∨ f.x , siempre que x no ocurra en X. 
 -- DUDA: Cómo se implementa eso?
 
--- ------------------------------
--- Distributividad con ∧: <∀x : : f.x> ∧ <∀x : : g.x> ≡ <∀x : : f.x ∧ g.x>
--- ------------------------------
+{- | Distributividad con ∧:
+@
+    <∀x : : f.x> ∧ <∀x : : g.x> ≡ <∀x : : f.x ∧ g.x>
+@
+-}
 distribAndForall_Rule :: Rule
 distribAndForall_Rule = Rule { lhs = and (forAll varX true term1) (forAll varX true term2)
                              , rhs = forAll varX true (and term1 term2)
@@ -540,7 +680,7 @@ distribAndForall_Rule = Rule { lhs = and (forAll varX true term1) (forAll varX t
     where varX = var "x" $ tyVar "A"
           term1 = Expr $ Var $ var "t1" $ tyBool
           term2 = Expr $ Var $ var "t2" $ tyBool
-                             
+
 -- ------------------------------
 -- Rango Unitario: <∀x : x = Y : f.x> ≡ f.Y
 -- DUDA: Para definir esto tendriamos que saber si el tipo de la variable x tiene definida la igualdad. 
@@ -564,6 +704,11 @@ unitRangeForall_Rule = Rule { lhs = forAll varX (equal expr_varX expr_varY) term
 -- Intercambio de ∀: <∀x : : <∀y : : f.x.y> ≡ <∀y : : <∀x : : f.x.y>
 -- DUDA: Es necesario que el termino sea una funcion que toma x e y? No podria ser cualquier termino?
 -- ------------------------------
+{- | Intercambio de ∀:
+@
+    <∀x : : <∀y : : f.x.y> ≡ <∀y : : <∀x : : f.x.y>
+@
+-}
 intercForall_Rule :: Rule
 intercForall_Rule = Rule { lhs = forAll varX true $ forAll varY true term
                          , rhs = forAll varY true $ forAll varX true term
@@ -575,14 +720,15 @@ intercForall_Rule = Rule { lhs = forAll varX true $ forAll varY true term
           varY = var "y" $ tyVar "A"
           term = Expr $ Var $ var "t" $ tyBool   
 
-
 -- =======
 -- EXISTE
 -- =======
 
--- ------------------------------
--- Definicion de Existe: <∃x : r.x : f.x> ≡ ¬ <∀x : r.x : ¬f.x>
--- ------------------------------
+{- | Definicion de Existe:
+@
+    <∃x : r.x : f.x> ≡ ¬ <∀x : r.x : ¬f.x>
+@
+-}
 existRule :: Rule
 existRule = Rule { lhs = exist varX range term
                  , rhs = neg $ forAll varX range (neg term)
@@ -593,3 +739,24 @@ existRule = Rule { lhs = exist varX range term
     where varX = var "x" $ tyVar "A"
           range = Expr $ Var $ var "r" $ tyBool
           term = Expr $ Var $ var "t" $ tyBool
+
+
+folRules = [ conmEquiv_Rule1, conmEquiv_Rule2, conmEquiv_Rule3 -- Conmutatividad.
+           , neuterEquiv_Rule1, neuterEquiv_Rule2 -- Neutro.
+           , equivNeg_Rule1, equivNeg_Rule2 -- Negacion.
+           , false_Rule
+           , discrep_Rule
+           , asocOr_Rule
+           , conmOr_Rule
+           , idempotOr_Rule
+           , distEqOr_Rule1, distEqOr_Rule2 -- Discrepancia.
+           , excludOr_Rule
+            --Regla dorada.
+           , goldenRule1, goldenRule2, goldenRule3, goldenRule4, goldenRule5
+           , implRule1, implRule2 -- Implicacion.
+           , conseqRule1, conseqRule2 -- Consecuencia.
+           , interRangeTermForall_Rule
+           , distribAndForall_Rule
+           , intercForall_Rule
+           , existRule
+           ]

@@ -30,22 +30,22 @@ ys = var "ys" TyUnknown
 
 -- | True v False -m-> p v p : No existe match.
 testCase0 :: Assertion
-testCase0 = testMatch (parser "p ∨ p") (parser "True ∨ False") Nothing
+testCase0 = testMatch (parser "p ∨ p") (parser "True ∨ False") (Left DoubleMatch)
 
 -- | True v False -m-> p v q : [p->True, q->False]
 testCase1 :: Assertion
-testCase1 = testMatch (parser "p ∨ q") (parser "True ∨ False") (Just s)
+testCase1 = testMatch (parser "p ∨ q") (parser "True ∨ False") (Right s)
     where s = M.insert p (parser "True") (M.insert q (parser "False") M.empty)
 
--- | Sy + S(x+S0) + z -m-> x + Sy + z : [x->y, y->x+S0]
+-- | Sy + S(x+S0) + z -m-> x + Sy + z : [x->Sy, y->x+S0]
 testCase2 :: Assertion
-testCase2 = testMatch (parser "x + S@y+z") (parser "S@y + S@(x+S@0)+z") (Just s)
+testCase2 = testMatch (parser "x + S@y + z") (parser "S@y + S@(x+S@0) + z") (Right s)
     where s = M.insert x (parser "S@y") (M.insert y (parser "(x+S@0)") M.empty)
 
 -- | #([0] ++ [1]) + 1 -m-> #([x,y]) + z : [x->0, y->1, z->1]
 testCase3 :: Assertion
 testCase3 = testMatch (parser "#([x] ++ [y,w]) + z")
-                      (parser "#([0] ++ [1,2]) + 1") (Just s)
+                      (parser "#([0] ++ [1,2]) + 1") (Right s)
     where s = M.fromList [ (x, parser "0")
                          , (y, parser "1")
                          , (w, parser "2")
@@ -55,15 +55,16 @@ testCase3 = testMatch (parser "#([x] ++ [y,w]) + z")
 -- | 〈∀ z : 〈∀ z : z = z : F@z@z〉 : G@z〉 -m->
 --   〈∀ x : 〈∀ y : y = x : F@y@x〉 : G@x〉 : No existe match.
 testCase4 :: Assertion
-testCase4 = testMatch (parser "〈∀ x : 〈∀ y : y = x : F@y@x〉 : G@x〉")
-                      (parser "〈∀ z : 〈∀ z : z = z : F@z@z〉 : G@z〉") Nothing
+testCase4 = testMatch (parser "〈∀ x :〈∀ y : y = x : F@y@x〉: G@x〉")
+                      (parser "〈∀ z :〈∀ z : z = z : F@z@z〉: G@z〉") 
+                      (Left BindingVar)
 
 -- | 〈∃ xx : (G@(# []) + xx) ▹ [] ⇒ True : w ⇒ q〉 -m->
 --   〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉 : [y->(# []), p->True , w->q, q->w]
 testCase5 :: Assertion
 testCase5 = testMatch (parser "〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉")
                       (parser "〈∃ xx : (G@(# []) + xx) ▹ [] ⇒ True : w ⇒ q〉") 
-                      (Just s)
+                      (Right s)
     where s = M.fromList [ (y, parser "(# [])")
                          , (p, parser "True")
                          , (w, parser "q")
@@ -75,22 +76,36 @@ testCase5 = testMatch (parser "〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉")
 testCase6 :: Assertion
 testCase6 = testMatch (parser "〈∃ xs : 〈∀ y : y = xs.0 : F@y ∧ p〉 : xs↓1 = ys↓1〉")
                       (parser "〈∃ ys : 〈∀ z : z = ys.0 : F@z ∧ (True ⇒ p ∨ q)〉 : ys↓1 = (xs++zs)↓1〉")
-                      (Just s)
+                      (Right s)
     where s = M.fromList [ (p,parser "(True ⇒ p ∨ q)")
                          , (ys,parser "(xs++zs)")
                          ]
 
 testCaseParens :: Assertion
 testCaseParens = testMatch (parser "(p ⇒ q)") (parser "((True ∨ False) ∧ r) ⇒ (p ≡ q)")
-                 (Just s)
+                 (Right s)
     where s = M.fromList [ (p,parser "((True ∨ False) ∧ r)")
                          , (q,parser "(p ≡ q)")
                          ]
-                 
+
+-- No deberiamos poder hacer matching de funciones con nombres distintos.
+testCase7 :: Assertion
+testCase7 = testMatch (parser "R@y + x") (parser "S@y + z") (Left InequNameFunc)
+
+-- No deberiamos poder hacer matching de distintos cuantificadores.
+testCase8 :: Assertion
+testCase8 = testMatch (parser "〈∃ x : x = F@x: xs↓1 = ys↓1〉")
+                      (parser "〈∀ x : x = F@x: xs↓1 = ys↓1〉")
+                      (Left InequQuant)
+
+-- No deberiamos poder hacer matching de distintas constantes.
+testCase9 :: Assertion
+testCase9 = testMatch (parser "[]") (parser "0") (Left InequNameConst)
+
 
 -- | Controla que el matching entre las expresiones sea el correcto.
 -- Toma dos expresiones y una substitución esperada.
-testMatch :: PreExpr -> PreExpr -> Maybe ExprSubst -> Assertion
+testMatch :: PreExpr -> PreExpr -> Either MatchError ExprSubst -> Assertion
 testMatch pe pe' mpe = let m = match pe pe'
                        in if m == mpe 
                              then return ()
@@ -106,7 +121,7 @@ testGroupMatch =
         testCase0
     , testCase "True v False -m-> p v q : [p->True, q->False]"
         testCase1
-    , testCase "Sy + S(x+S0) + z -m-> x + Sy + z : [x->y, y->x+S0]"
+    , testCase "Sy + S(x+S0) + z -m-> x + Sy + z : [x->Sy, y->x+S0]"
         testCase2
     , testCase "#([0] ++ [1]) + 1 -m-> #([x,y]) + z : [x->0, y->1, z->1]"
         testCase3

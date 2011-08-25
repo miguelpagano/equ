@@ -56,11 +56,11 @@ type ParserOper = PE.Operator String PState Identity PreExpr
 
 -- | Inicio de una cuantificaci&#243;n.
 quantInit :: String
-quantInit = "&#12296;"
+quantInit = "〈"
 
 -- | Final de una cuantificaci&#243;n.
 quantEnd :: String
-quantEnd = "&#12297;"
+quantEnd = "〉"
 
 -- | Separador de la cuantificaci&#243;n.
 quantSep :: String

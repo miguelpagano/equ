@@ -1,6 +1,17 @@
 -- | La teoría de aritmética.
 {-# Language OverloadedStrings #-}
-module Equ.Theories.Arith where
+module Equ.Theories.Arith
+    ( -- * Constructores y operadores.
+      natZero, natSucc, natProd, natSum
+    -- ** Listas de constructores y operadores
+    , theoryConstantsList
+    , theoryOperatorsList
+    , theoryQuantifiersList
+    -- * Versión tipada de operadores.
+    , varNat, zero, successor, prod
+    , intToCon
+    )
+    where
 
 import Prelude hiding (sum)
 import Data.Text (Text)
@@ -15,13 +26,15 @@ import Equ.Theories.AbsName
 
 -- Estos módulos definen los símbolos de función
 -- que devuelven expresiones de tipo Num.
-
+ 
+-- | Constante cero.
 natZero :: Constant
 natZero = Constant { conRepr = "0"
                    , conName = Zero
                    , conTy = TyAtom ATyNat
                    }
 
+-- | Operador sucesor.
 natSucc :: Operator
 natSucc = Operator { opRepr = "succ"
                    , opName = Succ
@@ -30,8 +43,8 @@ natSucc = Operator { opRepr = "succ"
                    , opNotationTy = NPrefix
                    , opPrec = 23 -- Analizar.
                    }
-                    
-                    
+
+-- | Operador suma.
 natSum :: Operator
 natSum = Operator { opRepr = "+"
                   , opName = Sum
@@ -40,7 +53,8 @@ natSum = Operator { opRepr = "+"
                   , opNotationTy = NInfix
                   , opPrec = 21
                   }
-                  
+
+-- | Operador producto.
 natProd :: Operator
 natProd = Operator { opRepr = "*"
                    , opName = Prod
@@ -49,29 +63,31 @@ natProd = Operator { opRepr = "*"
                    , opNotationTy = NInfix
                    , opPrec = 22
                    }
-theoryOperatorsList :: [Operator]
-theoryOperatorsList = [natSucc,natSum,natProd]
 
+-- | Constantes de arith
 theoryConstantsList :: [Constant]
 theoryConstantsList = [natZero]
-
+-- | Operadores de  arith
+theoryOperatorsList :: [Operator]
+theoryOperatorsList = [natSucc,natSum,natProd]
+-- | Cuantificadores de arith
 theoryQuantifiersList :: [Quantifier]
 theoryQuantifiersList = []
 
--- Constructor de Variable de tipo Nat.
+-- | Constructor de Variable de tipo Nat.
 varNat :: Text -> Expr
 varNat s = Expr $ Var $ var s (TyAtom ATyNat)
 
--- Constructor de Constante zero
+-- | Constructor de Constante zero
 zero :: Expr
 zero = Expr $ Con $ natZero
 
--- Constructor de sucesor.
+-- | Constructor de sucesor.
 -- PRE: La expresión n es del tipo adecuado
 successor :: Expr -> Expr
 successor (Expr n) = Expr $ UnOp natSucc n
 
--- Constructor de suma
+-- | Constructor de suma
 -- PRE: Las expresiones deben ser del tipo correcto
 sum :: Expr -> Expr-> Expr
 sum (Expr n) (Expr m) = Expr $ BinOp natSum n m
