@@ -4,6 +4,7 @@ module Equ.TypeChecker
       -- * Algoritmo de unificación con relación de orden.
     , unify
     , emptySubst
+    , unifyTest
     , rewrite
       -- * Algoritmo de TypeChecking.
     , checkPreExpr
@@ -123,6 +124,11 @@ unify t@(TyVar v) t' s | t == t' = return s
                        | otherwise = return . M.insert v t' . M.map ((tyreplace v) t') $ s
 unify t (TyVar v) s = unify (TyVar v) t s
 unify t t' s = Left $ ErrUnification t t' (M.toList s)
+
+-- | Usamos unify para comprobar si existe o no unificación. 
+--   Suponemos que no hay 'TyUnknown'.
+unifyTest :: Type -> Type -> Bool
+unifyTest t t' = either (const False) (const True) $ unify t t' emptySubst
 
 -- | Sustitución vacía.
 emptySubst :: TySubst

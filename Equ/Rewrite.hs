@@ -1,6 +1,7 @@
 module Equ.Rewrite
     ( exprRewrite
     , focusedRewrite
+    , typedRewrite
     )
     where
 
@@ -8,14 +9,15 @@ import Equ.Matching
 import Equ.Rule
 import Equ.Expr
 import Equ.PreExpr
-import Equ.Syntax
 import Equ.TypeChecker
 
 import Data.Map
 
+-- | Informe de errores acerca del matching.
 type RewriteError = MatchError
 
-data TypedRewriteError = UnifyError
+-- | Informe de errores acerca de la unificación.
+type TypedRewriteError = TyErr -- Aprovechamos los errores de unify.
 
 {- | Dada una expresi贸n y una regla, si la expresi贸n matchea con el lado
 izquierdo de la regla, entonces se reescribe de acuerdo al lado derecho
@@ -55,14 +57,19 @@ focusedRewrite f@(pe, p) r = exprRewrite (Expr pe) r >>=
     
     Dejo escrita la función (con casos incompletos) para ejemplificar lo que
     entiendo. No la termino porque muy probablemente este mal :P
+    
+    Resolción:
+    La idea es re-escribir expresiones tipadas, primero testeando que los tipos
+    de estas se puedan unificar, si es así entonces procedemos a re-escribir
+    de otra forma devolvemos error de unificación. Aprovechamos que unify 
+    tiene un bonito log sobre errores para devolver eso en caso de que no
+    existe unificación.
 -}
-typedRewrite :: Expr -> Rule -> Either TypedRewriteError Expr
-typedRewrite (Expr pe) (Rule{lhs=Expr l,rhs=Expr r}) = 
+typedRewrite :: Expr -> Rule -> 
+                        Either TypedRewriteError (Either RewriteError Expr)
+typedRewrite e@(Expr pe) ru@(Rule{lhs=Expr l,rhs=Expr r}) = 
     let (Right te) = checkPreExpr pe
         (Right tr) = checkPreExpr l
     in case unify te tr emptySubst of
-        Left _ -> Left UnifyError
-        Right ts -> Right $ Expr $ tyRewrite ts pe
-    where
-        tyRewrite ts (BinOp op pe pe') = 
-            BinOp op{opTy = rewrite ts (tType op)} pe pe'
+            Left er -> Left er
+            Right _ -> Right $ exprRewrite e ru

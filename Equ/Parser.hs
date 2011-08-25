@@ -101,11 +101,10 @@ rOpNames = opApp : opHole : map (unpack . opRepr) operatorsList
 -- | Representantes de las constantes y cuantificadores.
 -- Además de los caracteres para representar expresiones cuantificadas.
 rNames :: [String]
-rNames = [quantInit,quantEnd,quantSep,"-"] 
+rNames = [quantInit,quantEnd,quantSep] 
          ++ map (unpack . conRepr) constantsList
          ++ map (unpack . quantRepr) quantifiersList
          ++ listAtomTy
-         
 
 lexer :: TokenParser PState
 lexer = makeTokenParser $

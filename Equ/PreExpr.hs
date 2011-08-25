@@ -10,7 +10,7 @@ module Equ.PreExpr ( freeVars, freshVar
     where
 
 
-import Equ.Syntax(Variable,var)
+import Equ.Syntax(Variable, Operator, Quantifier, var)
 import Data.Set (Set,union,delete,empty,insert,member)
 import Equ.Types
 import Equ.PreExpr.Internal

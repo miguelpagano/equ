@@ -54,7 +54,9 @@ data Func = Func {
       funcName :: FuncName
     , funcTy   :: Type
     }
-    deriving Eq
+
+instance Eq Func where 
+    f == f' = tRepr f == tRepr f'
 
 data Assoc = None | ALeft | ARight
     deriving Eq
