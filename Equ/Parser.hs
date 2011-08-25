@@ -22,7 +22,21 @@ Se permiten comentarios?
 -- Libreria; criterion para testear rendimiento.
 --}
 
-module Equ.Parser where
+module Equ.Parser 
+    (-- * Caracteres especiales comunes a todas las teorías
+      quantInit
+    , quantEnd
+    , quantSep
+    , opApp
+    , holeInfoInit
+    , holeInfoEnd
+    , opHole
+    -- * Funciones principales de parseo
+    , parseFromString
+    , parser
+    )
+        
+    where
 
 import Text.Parsec
 import Text.Parsec.Token
@@ -66,7 +80,7 @@ quantEnd = "〉"
 quantSep :: String
 quantSep = ":"
 
--- | Operador para la aplicacion.
+-- | Operador para la aplicación.
 opApp :: String
 opApp = "@"
 
@@ -85,7 +99,7 @@ rOpNames :: [String]
 rOpNames = opApp : opHole : map (unpack . opRepr) operatorsList
 
 -- | Representantes de las constantes y cuantificadores.
--- Ademas de los caracteres para representar expresiones cuantificadas.
+-- Además de los caracteres para representar expresiones cuantificadas.
 rNames :: [String]
 rNames = [quantInit,quantEnd,quantSep,"-"] 
          ++ map (unpack . conRepr) constantsList

@@ -24,15 +24,23 @@ type ExprSubst = M.Map Variable PreExpr
 -}
 
 -- | Posibles errores al hacer matching.
-data MatchError = InequNameFunc     -- Nombres de funcion distintos.
-                | InequNameConst    -- Nombres de constante distintos.
+data MatchError = DoubleMatch Variable PreExpr PreExpr
+                | BindingVar Variable
+                | InequPreExpr PreExpr PreExpr
+                | InequOperator Operator Operator
+                | InequQuantifier Quantifier Quantifier
+                
+                {-
                 | InequQuant        -- Cuantificadores distintos.
-                | InequPreExpr      -- PreExpresiones distintas.
                 | FuncWithVar       -- F(..) |-> x
                 | ConstWithVar      -- C |-> x
                 | DoubleMatch       -- x |-> t con x |-> t' y t != t'
                 | BindingVar        -- v se encuentra en bvs.
+                | InequPreExpr PreExpr PreExpr-}
                 deriving (Show, Eq)
+                
+inequExprError :: PreExpr -> PreExpr -> MatchError
+inequExprError e1 e2 = InequPreExpr e1 e2
 
 {- WhenM y whenML.
     Para un valor de verdad y un error particular; 
@@ -85,17 +93,17 @@ v por e'. Si v está en el mapa, entonces para que haya matching tiene que estar
 asociada con la expresión e'.
 -}
 match' bvs e@(Var v) e' s | e == e' = return s -- Sería mas prolijo tener Right ?
-                          | v `elem` bvs = Left BindingVar
+                          | v `elem` bvs = Left $ BindingVar v
                           | otherwise = 
                               maybe (return $ M.insert v e' s) -- Sería mas prolijo tener Right ?
-                                    (\f -> whenML (e' == f) DoubleMatch s)
+                                    (\f -> whenML (e' == f) (DoubleMatch v f e') s)
                                     $ M.lookup v s
 -- En caso de error devuelvo InequNameFunc
-match' bvs (UnOp op1 e1) (UnOp op2 e2) s = whenM (op1==op2) InequNameFunc $
+match' bvs (UnOp op1 e1) (UnOp op2 e2) s = whenM (op1==op2) (InequOperator op1 op2) $
                                                             match' bvs e1 e2 s
 -- En caso de error devuelvo InequNameFunc
 match' bvs (BinOp op1 e1 e2) 
-           (BinOp op2 f1 f2) s = whenM (op1==op2) InequNameFunc $
+           (BinOp op2 f1 f2) s = whenM (op1==op2) (InequOperator op1 op2) $
                                                   match' bvs e1 f1 s >>= 
                                                   match' bvs e2 f2
     
@@ -114,7 +122,7 @@ a bvs.
 -}    
 
 match' bvs (Quant q v e1 e2) (Quant p w f1 f2) s =
-    whenM (q==p) InequQuant $ -- En caso de error devuelvo InequQuant
+    whenM (q==p) (InequQuantifier q p) $ -- En caso de error devuelvo InequQuant
         if v==w then match' (v:bvs) e1 f1 s >>= match' (v:bvs) e2 f2
                 else match' (fv:bvs) (subst v fv e1) (subst w fv f1) s >>=
                      match' (fv:bvs) (subst v fv e2) (subst w fv f2)
@@ -123,7 +131,7 @@ match' bvs (Quant q v e1 e2) (Quant p w f1 f2) s =
                                    freeVars f2]
           subst = substitution
 -- Caso particular de intentar matchear una variable con una función.
-match' _ (Fun _) (Var _) s = Left FuncWithVar
+{-match' _ (Fun _) (Var _) s = Left FuncWithVar
 -- Caso particular de intentar matchear una variable con una constante.
 match' _ (Con _) (Var _) s = Left ConstWithVar
 -- El nombre de las funciones debe ser el mismo.
@@ -132,8 +140,8 @@ match' _ (Fun f1) (Fun f2) s = whenML (f1==f2) InequNameFunc s
 match' _ (Con c1) (Con c2) s = whenML (c1==c2) InequNameConst s
 -- Si no estamos en ningun caso anterior, entonces solo hay matching
 -- si las expresiones son iguales.
--- En caso de error devuelvo InequPreExpr
-match' _ e1 e2 s = whenML (e1==e2) InequPreExpr s
+-- En caso de error devuelvo InequPreExpr -}
+match' _ e1 e2 s = whenML (e1==e2) (InequPreExpr e1 e2) s
 
 {-| match toma una expresión patrón y otra que quiere matchearse con el patrón.
 Si hay matching, retorna el mapa de sustituciones que deben realizarse
