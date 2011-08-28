@@ -1,14 +1,18 @@
 {-# Language GADTs #-}
+
 {-| Este m&#243;dulo define la noci&#243;n de una prueba. -}
 module Equ.Proof (
-                  -- * Axiomas
-                  Axiom(..) 
+                  -- * Axiomas y teoremas
+                   Axiom
+                 , Theorem
                  -- * Pruebas
-                 , Proof                   
+                 -- $proofs
+                 , Proof
+                 -- * Ejemplos
+                 -- $samples
                  ) where
 
 
-{-  -}
 import Equ.Expr
 import Equ.PreExpr
 import Equ.Theories
@@ -19,30 +23,20 @@ import Data.Map (Map)
 
 
 -- | Las hip&#243;tesis son nombradas por n&#250;meros.
-data Name where
-    Index :: Int -> Name
+data Name = Index Int 
 
-{-|
-  Ejemplos de axiomas:
-
-  @ 
-  neutralEquiv :: Axiom
-  neutralEquiv = Axiom { axName = "Neutro de la equivalencia"
-  , axExpr = equiv (equiv True varP) varP
-  , axRules = undefined
-  }
-  @
-
--}
-
+-- | Un axioma es una expresi&#243;n que puede ser interpretada como varias
+-- reglas de re-escritura.
 data Axiom = Axiom {
-      axName  :: Text
+      axName  :: Text 
     , axExpr  :: Expr
     , axRel   :: Relation
-    , axRules :: [Rule]
+    , axRules :: [Rule] 
     }
     
--- Un teorema
+-- |  Un   teorema  tambi&#233;n  permite,  como   un  axioma,  re-escribir
+-- expresiones; a  diferencia de un  axioma debe tener una  prueba que
+-- demuestre su validez.
 data Theorem = Theorem {
       thName  :: Text
     , thExpr  :: Expr
@@ -65,31 +59,166 @@ data Basic where
     Teo :: Theorem -> Basic  -- Un teorema ya probado.
     Hyp :: Name -> Basic   --  Una hip&#243;tesis que aparece en el contexto.               
 
-{- Los tipos de pruebas que contemplamos son:
 
-0. Hueco: representa una prueba incompleta.
+{- $proofs
 
-1. Paso elemental:
-  a.  Axiomas provenientes de las teor&#237;as.
-  b.  Teorema.
-  c.  Hip&#243;tesis.
+[@Simple@] 
+  La propiedad importante es que en los pasos simples
+  tenemos alguna regla asociada al axioma o al teorema usado que hace
+  coincidir (salvo variables ligadas?) a la primera con la segunda
+  expresi&#243;n:
 
-2. Transitividad de los operadores de relaci&#243;n sobre los que se
-prueban cosas.
+Si 
 
-3. Combinaci&#243;n de sub-pruebas.
+@
+proofAx :: Proof
+proofAx = Simple ctx foc foc' $ Ax ax
 
-4. Combinaci&#243;n inductiva de sub-pruebas.
+proofThm :: Proof
+proofThm = Simple ctx foc foc' $ Theo thm
+@
 
-Tanto para 3 y 4 es necesario tener informaci&#243;n sobre la 
-expresi&#243;n en cuesti&#243;n.
+entonces @ rewriteInFocus foc ax == foc' @ y @ rewriteInFocus foc thm == foc' @.
 
-Queremos una relaci&#243;n de orden entre las relaciones para poder
-debilitar una prueba de equivalente en una prueba de implicaci&#243;n.
+Si la prueba es simple y fue usando una hip&#243;tesis, digamos
+
+@
+proofHyp :: Proof
+proofHyp = Simple ctx foc foc' $ Hyp n
+@ 
+
+entonces @length ctx > n@ y @rewriteInFocus foc (ctx!n) == foc'@.
+
+[@Transitividad@] 
+
+Una prueba por transitividad 
+
+@
+theoTrans :: Proof
+theoTrans = Trans ctx rel fe fe1 fe2 prf prf' 
+@
+
+es una prueba de @fe rel fe2@ usando pruebas intermedias @prf@ de @fe
+rel fe1@ y @prf'@ de @fe1 rel fe2@. 
+
+[Casos]
+
+En una prueba por casos
+
+@
+theoCases :: Proof
+theoCases = Cases ctx rel fe1 fe2 c [(f1,p1),..,(fn,pn)]
+@
+
+hacemos an&#225;lisis por casos en @c@, esto es posible dependiendo
+del tipo de @c@; por ejemplo si @type c == TyConst ATyNat@, entonces
+podemos introducir los casos @c == 0@, @c==1@, @c > 1@. La lista de
+focos y pruebas consiste en tantas pruebas como casos se hayan
+considerando; cada par @(fi,pi)@ representa una prueba de @fe1 rel
+fe2@ a&#241;adiendo la hip&#243;tesis extra @fi@ en @ctx@.
+
+[Inducci&#243;n]
+
+La prueba por inducci&#243;n es similar a la prueba por casos, excepto
+que en los casos inductivos podemos usar la hip&#243;tesis
+inductiva. Para entender este tipo de pruebas utilicemos el siguiente
+ejemplo de inducci&#243;n en los naturales:
+
+@&#9001; &#8704; n : : &#9001; &#8721; i : 0 &#8804; i &#8804; n : i &#9002; = n * (n + 1) / 2 &#9002;@
+
+para probarlo utilizamos inducci&#243;n en @n@ (notemos que impl&#237;citamente
+estamos utilizando el meta-teorema que dice que para probar una
+cuantificaci&#243;n universal podemos elegir un elemento arbitrario del
+dominio cuantificado y probar la matriz de la f&#243;rmula); ahora queremos
+probar 
+
+@&#9001; &#8721; i : 0 &#8804; i &#8804; n : i &#9002; = n * (n + 1) / 2@ 
+
+donde @n@ es ahora una variable libre. Usar inducci&#243;n en @n@ entonces implica
+construir una prueba de 
+
+@&#9001; &#8721; i : 0 &#8804; i &#8804; 0 : i &#9002; = 0 * (0 + 1) / 2@
+
+y otra prueba de 
+
+@&#9001; &#8721; i : 0 &#8804; i &#8804; (k+1) : i &#9002; = (k+1) * ((k+1) + 1) / 2@
+
+con la hip&#243;tesis inductiva como una hip&#243;tesis adicional en el contexto:
+
+@
+&#9001; &#8721; i : 0 &#8804; i &#8804; k : i &#9002; = k * (k+1) / 2 .
+@
+
+El constructor @Ind@ permite pruebas por inducci&#243;n en varias
+sub-expresiones @e1,...,en@; la segunda lista es la lista de pruebas
+correspondiente a todos los casos de acuerdo a los tipos de las
+expresiones sobre las que hacemos inducci&#243;n. Inicialmente podemos
+pensar que s&#243;lo haremos inducci&#243;n en los naturales y que @[e1,...,en]@
+tiene un s&#243;lo elemento: la variable sobre la que hacemos inducci&#243;n;
+por lo tanto @[(fs1,p1),...,(fsm,pm)]@ ser&#237;a una lista con dos elementos
+@[(n=0,proofBaseCase),(n=k+1,proofInd)]@.
+
+@
+theoInd :: Proof
+theoInd = Ind ctx rel fe1 fe2 [e1,...,en] [(fs1,p1),...,(fsm,pm)]
+@
+
+[Meta-teorema de la deducci&#243;n]
+
+El meta-teorema de la deducci&#243;n est&#225; representado por el constructor
+@Deduc@ y permite construir una prueba de @p &#8658; q@ a partir de una
+prueba de @q@ agregando @p@ a las hip&#243;tesis; por ejemplo, si
+@proofQ :: Proof@ con @lhs proofQ == q@, @rhs proofQ == True@,
+@p `in` ctx proofQ@ entonces el siguiente t&#233;rmino es una prueba
+de @p &#8658; q@:
+
+@
+theoDeduc :: Proof
+theoDeduc = Deduc ctx relImpl p q prf
+@
+
+[Sub-pruebas in-situ]
+
+En general las pruebas (sean estos pasos elementales o m&#225;s
+complicados) implican la prueba de una relaci&#243;n entre dos expresiones
+pero donde se reescribe una sub-expresi&#243;n; esa reescritura es una
+prueba sencilla necesariamente. @Focus@ permite que reescribamos una
+sub-expresi&#243;n sin usar un teorema previamente demostrado sino con una
+prueba in-situ. Por ejemplo, en la siguiente expresi&#243;n, @prf@ es una
+prueba de @e == e'@.
+
+@
+theoFocus :: Proof
+theoFocus = Focus ctx rel (e,p) (e',p') prf 
+@
 
 -}
 
-{-| Ejemplos de pruebas:
+data Proof where
+    Hole   :: Ctx -> Relation -> Focus -> Focus -> Proof 
+    Simple :: Ctx -> Relation -> Focus -> Focus -> Basic -> Proof
+    Trans  :: Ctx -> Relation -> Focus -> Focus -> Focus -> Proof -> Proof -> Proof
+    Cases  :: Ctx -> Relation -> Focus -> Focus -> Focus -> [(Focus,Proof)] -> Proof
+    Ind    :: Ctx -> Relation -> Focus -> Focus -> [Focus] -> [([Focus],Proof)] -> Proof
+    Deduc  :: Ctx -> Focus -> Focus -> Proof -> Proof
+    Focus  :: Ctx -> Relation -> Focus -> Focus -> Proof -> Proof
+
+
+{- $samples
+
+[Axiomas]
+
+  @ 
+  neutralEquiv :: Axiom
+  neutralEquiv = Axiom { 
+    axName = \"Neutro de la equivalencia\"
+  , axExpr = equiv (equiv True varP) varP
+  , axRules = undefined
+  }
+  @
+
+[Pruebas]
+
 @
 incomplete :: Proof
 incomplete = Hole M.empty Equivalence (Top,equiv True True) (Top,True)
@@ -101,44 +230,5 @@ trivial = Simple M.empty Equivalence (Top,equiv True True) (Top,True) $
           Ax neutralEquiv
 @
 
-La propiedad importante es que en los pasos simples tenemos alguna
-regla asociada al axioma o al teorema usado que hace coincidir (salvo
-variables ligadas?) a la primera con la segunda expresi&#243;n:
 
-Si 
-
-@
-theo :: Proof
-theo = Simple ctx foc foc' $ Ax ax
-
-theo' :: Proof
-theo' = Simple ctx foc foc' $ Theo thm
-@
-
-entonces @ rewriteInFocus foc ax == foc' @.
-
-Si la prueba es simple y fue usando una hip&#243;tesis, digamos
-@
-theo2 :: Proof
-theo2 = Simple ctx foc foc' $ Hyp n
-@ 
-
-entonces ...
 -}
-data Proof where
-    Hole   :: Ctx -> Relation -> Focus -> Focus -> Proof     -- No hay todav&#237;a una prueba.
-    Simple :: Ctx -> Relation -> Focus -> Focus -> Basic -> Proof  -- Una prueba con un solo paso.
-    Trans  :: Ctx -> Relation -> Focus -> Focus -> Focus -> Proof -> Proof -> Proof -- 
-    --  Cases e r e' [(e0,p0),...,(en,pn)] p es una prueba de e r e'
-    -- con sub-pruebas p0...pn de e r e' con hip&#243;tesis e_i para cada i
-    -- y la exhaustividad de e0 ... en est&#225; dada por p.
-    Cases  :: Ctx -> Relation -> Focus -> Focus -> Focus -> [(Focus,Proof)] -> Proof
-    -- Demostraci&#243;n por inducci&#243;n en varias expresiones. Es distinta
-    -- de la anterior en el sentido que no hay una prueba de
-    -- exhaustividad.
-    Ind    :: Ctx -> Relation -> Focus -> Focus -> [Focus] -> [([Focus],Proof)] -> Proof
-    --  Meta-teorema de la deducci&#243;n.
-    Deduc  :: Ctx -> Focus -> Focus -> Proof -> Proof
-    --  Enfocarse en una ocurrencia de una subexpresi&#243;n para
-    -- "reescribir" la expresi&#243;n original en otra.
-    Focus  :: Ctx -> Relation -> Focus -> Focus -> Proof -> Proof
