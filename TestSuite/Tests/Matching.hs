@@ -8,6 +8,7 @@ import Equ.Matching
 import Equ.Parser
 import Equ.PreExpr
 import Equ.Types
+import Equ.Theories.FOL(folForall,folExist)
 import Test.HUnit (Assertion, assertFailure)
 import Test.Framework (testGroup, Test)
 import Test.Framework.Providers.HUnit (testCase)
@@ -30,7 +31,9 @@ ys = var "ys" TyUnknown
 
 -- | True v False -m-> p v p : No existe match.
 testCase0 :: Assertion
-testCase0 = testMatch (parser "p ∨ p") (parser "True ∨ False") (Left DoubleMatch)
+testCase0 = testMatch lhs rhs (Left $ DoubleMatch p (parser "True") (parser "False"))
+    where lhs = parser "p ∨ p"
+          rhs = parser "True ∨ False"
 
 -- | True v False -m-> p v q : [p->True, q->False]
 testCase1 :: Assertion
@@ -57,7 +60,7 @@ testCase3 = testMatch (parser "#([x] ++ [y,w]) + z")
 testCase4 :: Assertion
 testCase4 = testMatch (parser "〈∀ x :〈∀ y : y = x : F@y@x〉: G@x〉")
                       (parser "〈∀ z :〈∀ z : z = z : F@z@z〉: G@z〉") 
-                      (Left BindingVar)
+                      (Left $ BindingVar x)
 
 -- | 〈∃ xx : (G@(# []) + xx) ▹ [] ⇒ True : w ⇒ q〉 -m->
 --   〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉 : [y->(# []), p->True , w->q, q->w]
@@ -90,17 +93,22 @@ testCaseParens = testMatch (parser "(p ⇒ q)") (parser "((True ∨ False) ∧ r
 
 -- No deberiamos poder hacer matching de funciones con nombres distintos.
 testCase7 :: Assertion
-testCase7 = testMatch (parser "R@y + x") (parser "S@y + z") (Left InequNameFunc)
+testCase7 = testMatch lhs rhs (Left $ InequPreExpr (parser "R@y") (parser "S@y"))
+    where lhs = parser "R@y + x"
+          rhs = parser "S@y + z"
 
 -- No deberiamos poder hacer matching de distintos cuantificadores.
 testCase8 :: Assertion
 testCase8 = testMatch (parser "〈∃ x : x = F@x: xs↓1 = ys↓1〉")
                       (parser "〈∀ x : x = F@x: xs↓1 = ys↓1〉")
-                      (Left InequQuant)
+                      (Left $ InequQuantifier folExist folForall)
+                                            
 
 -- No deberiamos poder hacer matching de distintas constantes.
 testCase9 :: Assertion
-testCase9 = testMatch (parser "[]") (parser "0") (Left InequNameConst)
+testCase9 = testMatch conL conR $ Left (InequPreExpr conL conR)
+    where conL = parser "[]"
+          conR = parser "0"
 
 
 -- | Controla que el matching entre las expresiones sea el correcto.
