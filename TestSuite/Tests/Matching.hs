@@ -20,6 +20,8 @@ q :: Variable
 q = var "q" TyUnknown
 x :: Variable
 x = var "x" TyUnknown
+v0 :: Variable
+v0 = var "v0" TyUnknown
 y :: Variable
 y = var "y" TyUnknown
 z :: Variable
@@ -60,7 +62,7 @@ testCase3 = testMatch (parser "#([x] ++ [y,w]) + z")
 testCase4 :: Assertion
 testCase4 = testMatch (parser "〈∀ x :〈∀ y : y = x : F@y@x〉: G@x〉")
                       (parser "〈∀ z :〈∀ z : z = z : F@z@z〉: G@z〉") 
-                      (Left $ BindingVar x)
+                      (Left $ BindingVar v0)
 
 -- | 〈∃ xx : (G@(# []) + xx) ▹ [] ⇒ True : w ⇒ q〉 -m->
 --   〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉 : [y->(# []), p->True , w->q, q->w]
@@ -141,7 +143,7 @@ testGroupMatch =
                 "〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉 :" ++
                 "[y->(# []), p->True , w->q, q->w]")
         testCase5
-    , testCase ("〈∃ ys : 〈∀ z : z = ys.0 : F@y ∧ (True ⇒ p ∨ q)〉 : ys↓1 = (xs++zs)↓1〉 -m->" ++
+    , testCase ("〈∃ ys : 〈∀ z : z = ys.0 : F@y ∧ (True ⇒ p ∨ q)〉 : ys↓1 = (xs++zs)↓1〉 -m-> \n" ++
                 "〈∃ xs : 〈∀ y : y = xs.0 : F@y ∧ p〉 : xs↓1 = ys↓1〉 :"++
                 "[p -> True ⇒ p ∨ q, ys -> (xs++zs)]")
         testCase6

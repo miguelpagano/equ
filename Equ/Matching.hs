@@ -1,18 +1,24 @@
 module Equ.Matching
-    ( match
+    ( module Equ.Matching.Error
+    , match
     , applySubst
     , ExprSubst
-    , MatchError (..)
     )
     where
 
-import qualified Data.Map as M
-import qualified Data.Set as S
-import Control.Monad
-
+import Equ.Matching.Error
+import Equ.Matching.Monad
 import Equ.PreExpr
 
-type ExprSubst = M.Map Variable PreExpr
+import Equ.Parser
+
+import qualified Data.Map as M
+import qualified Data.Set as S
+
+import Data.Maybe (fromJust)
+import Control.Monad.RWS (runRWS)
+import Control.Monad.Trans.Either (runEitherT)
+import Control.Monad.RWS.Class(local)
 
 {- COSAS QUE ME QUEDARON EN EL AIRE:
     Me cruce con un problema parecido al que paso con las variables al
@@ -22,22 +28,6 @@ type ExprSubst = M.Map Variable PreExpr
     Usamos la comparacion para ver que si dos nombre de función o de constante
     son distintos entonces no existe maching.
 -}
-
--- | Posibles errores al hacer matching.
-data MatchError = DoubleMatch Variable PreExpr PreExpr
-                | BindingVar Variable
-                | InequPreExpr PreExpr PreExpr
-                | InequOperator Operator Operator
-                | InequQuantifier Quantifier Quantifier
-                
-                {-
-                | InequQuant        -- Cuantificadores distintos.
-                | FuncWithVar       -- F(..) |-> x
-                | ConstWithVar      -- C |-> x
-                | DoubleMatch       -- x |-> t con x |-> t' y t != t'
-                | BindingVar        -- v se encuentra en bvs.
-                | InequPreExpr PreExpr PreExpr-}
-                deriving (Show, Eq)
                 
 inequExprError :: PreExpr -> PreExpr -> MatchError
 inequExprError e1 e2 = InequPreExpr e1 e2
@@ -149,3 +139,121 @@ simultáneamente para llegar desde la expresión patrón a la expresión dada.
 -}
 match :: PreExpr -> PreExpr -> Either MatchError ExprSubst
 match e e' = match' [] e e' M.empty
+
+
+-- ###########################################################################
+-- Comienzo de la versión de matching con log y rastreo de errores usando focus.
+
+{-
+    VERSIÓN 2; Tanto para whenM2 como para whenML2 cambio los tipos y
+    tenemos el caso especial de usar el generador de errores en caso de
+    error.
+-}
+whenM2 :: Bool -> MatchError -> MatchState ExprSubst -> MatchState ExprSubst
+whenM2 True _ = id
+whenM2 False er = const $ matcherr er
+
+whenML2 :: Bool -> MatchError -> ExprSubst -> MatchState ExprSubst
+whenML2 True _ = return
+whenML2 False er = const $ matcherr er
+
+match2' :: [Variable] -> PreExpr -> PreExpr -> ExprSubst -> MatchState ExprSubst
+match2' bvs e@(Var v) e' s | e == e' = return s
+                           | v `elem` bvs = matcherr $ BindingVar v
+                           | otherwise = 
+                              maybe (return $ M.insert v e' s)
+                                    (\f -> whenML2 (e' == f) (DoubleMatch v f e') s)
+                                    $ M.lookup v s
+
+match2' bvs (UnOp op1 e1) (UnOp op2 e2) s = whenM2 (op1==op2) 
+                                                   (InequOperator op1 op2) $ 
+                                                   local (fromJust . goDown) (match2' bvs e1 e2 s)
+
+
+{-
+    VERSIÓN 2; Para operadores iguales, cada vez que pretendo intentar matchear
+    las expresiones internas, cambio el enviroment segun corresponda.
+-}
+match2' bvs (BinOp op1 e1 e2) (BinOp op2 f1 f2) s = 
+    whenM2 (op1==op2) (InequOperator op1 op2) $
+                      (local (fromJust . goDownL) $ match2' bvs e1 f1 s) >>= 
+                      (local (fromJust . goDownR)) . match2' bvs e2 f2
+
+match2' bvs (App e1 e2) (App f1 f2) s = 
+    (local (fromJust . goDownL) $ match2' bvs e1 f1 s) >>= 
+    (local (fromJust . goDownR)) . match2' bvs e2 f2 
+
+{-
+    VERSIÓN 2; Un detalle no menor acá es que como navegamos solamente
+    por el focus de la expresión a matchear, es decir no la expresión patron,
+    en el primer caso de los parentesis no cambiamos el enviroment.
+-}
+match2' bvs (Paren e1) e2 s = match2' bvs e1 e2 s
+match2' bvs e1 (Paren e2) s = local (fromJust . goDown) $ match2' bvs e1 e2 s
+
+{-
+Para matchear dos expresiones cuantificadas, deben ser el mismo cuantificador.
+Si las variables cuantificadas v y w son la misma, entonces hacemos matching en 
+las subexpresiones, agregando v a la lista de variables ligadas bvs.
+Si v/=w, entonces reemplazamos v y w por una variable fresca en ambas expresiones
+y luego realizamos matching en las subexpresiones, agregando la variable fresca
+a bvs.
+
+VERSIÓN 2; Cada vez que voy a intentar matchear las expresiones internas del
+    cuantificador, cambio el enviroment, es decir, navego el focus con la
+    dirección que corresponda. Para esto uso dos funciones localGoL y localGoR
+    que representan navegar por izquierda o por derecha respectivamente.
+-}    
+
+match2' bvs (Quant q v e1 e2) (Quant p w f1 f2) s =
+    whenM2 (q==p) (InequQuantifier q p) $ -- En caso de error devuelvo InequQuant
+        if v==w then (localGoL $ match2' (v:bvs) e1 f1 s) >>= localGoR . match2' (v:bvs) e2 f2
+                else (localGoL $ match2' (fv:bvs) (subst v fv e1) (subst w fv f1) s) >>=
+                     localGoR . match2' (fv:bvs) (subst v fv e2) (subst w fv f2)
+    where fv= freshVar $ S.unions [freeVars $ Var v,freeVars $ Var w,
+                                   freeVars e1, freeVars e2,freeVars f1, 
+                                   freeVars f2]
+          subst = substitution
+          localGoL = local (fromJust . goDownL)
+          localGoR = local (fromJust . goDownR)
+
+-- Caso particular de intentar matchear una variable con una función.
+{-match' _ (Fun _) (Var _) s = Left FuncWithVar
+-- Caso particular de intentar matchear una variable con una constante.
+match' _ (Con _) (Var _) s = Left ConstWithVar
+-- El nombre de las funciones debe ser el mismo.
+match' _ (Fun f1) (Fun f2) s = whenML (f1==f2) InequNameFunc s
+-- Para matchear constantes deben ser exactamente la misma.
+match' _ (Con c1) (Con c2) s = whenML (c1==c2) InequNameConst s
+-- Si no estamos en ningun caso anterior, entonces solo hay matching
+-- si las expresiones son iguales.
+-- En caso de error devuelvo InequPreExpr 
+
+    VERSIÓN 2; Ninguna diferencia con el original.
+   -}
+match2' _ e1 e2 s = whenML2 (e1==e2) (InequPreExpr e1 e2) s
+
+{- | VERSIÓN 2; Función principal de matching.
+    
+    Primer intento de agregar información al intentar realizar matching.
+    Hasta el momento se podría decir que tenemos dos grandes novedades con
+    respecto a la función vieja. Disponemos de un log y hacemos uso de focus
+    para rastrear donde estamos en la expresión que intentamos matchear.
+    Sobre el log todavía no hago ninguna utilización, estaría bueno usarlo
+    para llevar la cuenta de que matching he podido realizar?.
+    Sobre el focus, la idea es recorrer la expresión que estamos intentando
+    matchear, esta aclaración es importante ya que está la otra opción de 
+    recorrer la expresión patrón.
+    
+    Cosas interesantes; me base fuertemente en el modulo TypeChecker. Tan así
+    que la función principal basicamente la copie y pegue de la función que 
+    hizo miguel, creditos a él :). 
+    Yo no termino de entender bien como es que operta.
+    
+    Algunas aclaraciones a parte; no quise borrar lo hecho por las dudas y de 
+    ahí que tenemos esta versión 2.
+
+-}
+match2 :: PreExpr -> PreExpr -> Either (MatchMErr,Log) ExprSubst
+match2 e e' = case runRWS (runEitherT (match2' [] e e' M.empty)) (toFocus e') M.empty of
+                   (res, _, l) -> either (\err -> Left (err,l)) (Right) res

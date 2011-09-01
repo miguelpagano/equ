@@ -6,7 +6,7 @@ module Equ.PreExpr.Zipper
     , Path
     , toExpr, toFocus, toFocuses
     , replace
-    , goDown, goUp, goLeft, goRight, goDownR
+    , goDown, goUp, goLeft, goRight, goDownR, goDownL
     ) where
 
 import Equ.PreExpr.Internal

@@ -42,7 +42,7 @@ http://stackoverflow.com/questions/3120796/haskell-testing-workflow .
 Para generar el ejecutable para correr los logs debemos setear un
 flag en la configuración:
 
- $ cabal configure -ftest
+ $ cabal configure -ftests
  $ cabal build
 
 Eso genera el archivo test-equ y lo podemos ejecutar con:

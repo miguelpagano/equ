@@ -28,7 +28,8 @@ exprRewrite (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) = match l e >>=
                                                     return . Expr . applySubst r
 
 -- | Igual a exprRewrite pero ademas retorna la lista de sustituciones.
-rewriteInformative :: Expr -> Rule -> Either RewriteError (Expr, ExprSubst)
+rewriteInformative :: Expr -> Rule -> 
+                              Either RewriteError (Expr, ExprSubst)
 rewriteInformative (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) = 
                                     match l e >>= 
                                     \s -> return (Expr $ applySubst r s, s)
@@ -66,7 +67,7 @@ focusedRewrite f@(pe, p) r = exprRewrite (Expr pe) r >>=
     existe unificación.
 -}
 typedRewrite :: Expr -> Rule -> 
-                        Either TypedRewriteError (Either RewriteError Expr)
+                            Either TypedRewriteError (Either RewriteError Expr)
 typedRewrite e@(Expr pe) ru@(Rule{lhs=Expr l,rhs=Expr r}) = 
     let (Right te) = checkPreExpr pe
         (Right tr) = checkPreExpr l
