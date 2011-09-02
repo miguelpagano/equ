@@ -17,40 +17,63 @@ import Equ.Expr
 import Equ.PreExpr
 import Equ.Theories
 import Equ.Rule
+import Equ.Rewrite
 
-import Data.Text
-import Data.Map (Map)
+import qualified Data.Text as T
+import qualified Data.Map as M
+import Control.Monad
 
 
 -- | Las hip&#243;tesis son nombradas por n&#250;meros.
 data Name = Index Int 
 
+-- | La clase Truth representa una verdad en una teoría. En principio
+-- pensamos en Axiomas y Teoremas.
+class Truth t where
+    truthName  :: t -> T.Text
+    truthExpr  :: t -> Expr
+    truthRel   :: t -> Relation
+    truthRules :: t -> [Rule]
+
 -- | Un axioma es una expresi&#243;n que puede ser interpretada como varias
 -- reglas de re-escritura.
 data Axiom = Axiom {
-      axName  :: Text 
+      axName  :: T.Text 
     , axExpr  :: Expr
     , axRel   :: Relation
     , axRules :: [Rule] 
     }
+
+-- | Instancia de Truth para el tipo Axiom
+instance Truth Axiom where
+    truthName  = axName
+    truthExpr  = axExpr
+    truthRel   = axRel
+    truthRules = axRules
     
 -- |  Un   teorema  tambi&#233;n  permite,  como   un  axioma,  re-escribir
 -- expresiones; a  diferencia de un  axioma debe tener una  prueba que
 -- demuestre su validez.
 data Theorem = Theorem {
-      thName  :: Text
+      thName  :: T.Text
     , thExpr  :: Expr
     , thRel   :: Relation
     , thProof :: Proof
     , thRules :: [Rule]
     }
+    
+instance Truth Theorem where
+    truthName  = thName
+    truthExpr  = thExpr
+    truthRel   = thRel
+    truthRules = thRules
 
 -- | El contexto lleva las hip&#243;tesis actuales; en nuestro caso hay
 -- tres formas de agregar hip&#243;tesis al contexto: en una prueba por
 -- casos hay nuevas igualdades; en una prueba por inducci&#243;n hay
 -- hip&#243;tesis inductivas y en una prueba que usa el metateorema de la
 -- deducci&#243;n asumimos el antecedente de una implicaci&#243;n.
-type Ctx = Map Name Expr
+type Ctx = M.Map Name Expr
 
 -- | Las pruebas elementales son aplicar un axioma (en un foco), 
 -- usar un teorema ya probado, o usar una hip&#243;tesis.
@@ -232,3 +255,34 @@ trivial = Simple M.empty Equivalence (Top,equiv True True) (Top,True) $
 
 
 -}
+
+data ProofError = ProofError
+
+{- 
+Funciones para construir y manipular pruebas.
+Este kit de funciones debería proveer todas las herramientas
+necesarias para desarrollar pruebas en equ 
+-}
+proofFromRule :: Truth t => Focus -> Focus -> Relation -> t -> Rule -> 
+                            Either ProofError Proof
+proofFromRule f1 f2 rel t r = 
+    case (focusedRewrite f1 r) of
+        Left _  ->  Left ProofError
+        Right f ->  if rel/=truthRel t then
+                        Left ProofError
+                    else
+                        if f==f2 then
+                            -- hay prueba
+                            Right $ Simple M.empty rel f1 f2 t
+                        else
+                            Left ProofError
+    
+
+proofFromTruth :: Truth t => Focus -> Focus -> Relation -> t -> 
+                  Either ProofError Proof
+proofFromTruth f1 f2 rel t = firstProof $ map (proofFromRule f1 f2 rel t)
+                                         (truthRules t)
+    where firstProof = head . (filter predicate)
+          predicate (Left _) = False
+          predicate (Right p) = True
+

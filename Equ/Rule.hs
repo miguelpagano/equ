@@ -12,6 +12,7 @@ data RelName = Eq       -- ^ Igualdad polimorfica excepto para formulas
                | Equiv  -- ^ FOL: equivalencia
                | Impl   -- ^ FOL: implicacion
                | Cons   -- ^ FOL: consecuencia
+    deriving (Eq)
 
 -- | Relaciones entre pasos de una demostracion
 data Relation = Relation {
@@ -19,6 +20,7 @@ data Relation = Relation {
     , relName :: RelName
     , relTy   :: Type -- ^ Este es el tipo de las cosas relacionadas.  
     }
+    deriving (Eq)
 
 -- | Constructores de las diferentes relaciones
 relEq :: Relation

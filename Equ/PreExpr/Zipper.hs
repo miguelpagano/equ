@@ -23,7 +23,7 @@ data Path = Top
           | QuantL Quantifier Variable Path PreExpr
           | QuantR Quantifier Variable PreExpr Path 
           | ParenD Path
-            deriving Show
+            deriving (Eq,Show)
 
 -- | Un Focus representa la expresión que consiste de completar el
 -- hueco denotado por Path con la expresión PreExpr (eso es lo que
