@@ -6,6 +6,7 @@ module Equ.PreExpr ( freeVars, freshVar
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
+                   , module Equ.PreExpr.Monad
                    ) 
     where
 
@@ -15,6 +16,7 @@ import Data.Set (Set,union,delete,empty,insert,member)
 import Equ.Types
 import Equ.PreExpr.Internal
 import Equ.PreExpr.Zipper
+import Equ.PreExpr.Monad
 
 import Data.Text(pack)
 

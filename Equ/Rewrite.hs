@@ -12,9 +12,9 @@ import Equ.PreExpr
 import Equ.TypeChecker
 
 import Data.Map
-
+    
 -- | Informe de errores acerca del matching.
-type RewriteError = MatchError
+type RewriteError = (MatchMErr, Log)
 
 -- | Informe de errores acerca de la unificación.
 type TypedRewriteError = TyErr -- Aprovechamos los errores de unify.

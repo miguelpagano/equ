@@ -17,16 +17,34 @@ import Equ.PreExpr
 import Equ.Types
 import Equ.Theories.AbsName
 import Equ.TypeChecker.Error
-import Equ.TypeChecker.Monad
 
 import qualified Data.Map as M
 import qualified Data.Text as T
-import Data.Maybe (fromJust)
+import qualified Data.Sequence as S
 import Data.Poset (leq)
-import Control.Monad.Trans.Either (runEitherT)
-import Control.Monad.Trans.Class
-import Control.Monad.RWS.Class
+import Control.Monad.Trans.Either (runEitherT, hoistEither)
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.RWS.Class (local, ask, tell, get, put)
 import Control.Monad.RWS (runRWS)
+
+-- | Tipo de la sustitución para unificar expresiones de tipo.
+type TySubst = M.Map TyVarName Type
+
+-- | El error está acompañado de la expresión enfocada donde ocurrió.
+type TMErr = (Focus,TyErr)
+
+-- TODO: cambiar: el estado tendría el contexto además de la
+-- sustitución.
+-- | La mónada de estado del type-checker.
+type TyState = MonadTraversal TMErr TySubst
+
+-- | Agrega una línea de log.
+addLog :: String -> TyState ()
+addLog s = tell . S.fromList $ [T.pack s]
+
+-- | Generación de mensaje de Error.
+tyerr :: TyErr -> TyState a
+tyerr err = ask >>= \foc -> hoistEither $ Left (foc, err)
 
 {- 
 
@@ -146,7 +164,7 @@ updateCtx ctx subst = ctx { vars = M.map (map (rewrite subst)) (vars ctx)
 
 -- | Checkea una sub-expresión y actualiza el contexto.
 checkAndUpdate :: Ctx -> PreExpr -> (Focus -> Maybe Focus) -> TyState (Ctx,Type)
-checkAndUpdate ctx e go = local (fromJust . go) (check ctx e) >>= \(ctx',t) ->
+checkAndUpdate ctx e go = localGo go (check ctx e) >>= \(ctx',t) ->
                           get >>= \s -> 
                           return (updateCtx ctx' s,t)
 
@@ -161,7 +179,7 @@ check ctx (Var v) = checkVar v ctx
 check ctx (Con c) = checkCon c ctx
 check ctx (Fun f) = checkFun f ctx                           
 check ctx (PrExHole h) = return (ctx,tType h)
-check ctx (Paren e) = local (fromJust . goDown) (check ctx e)
+check ctx (Paren e) = localGo goDown (check ctx e)
 check ctx (UnOp op e) = do (ctx', t) <- checkAndUpdate ctx e goDown
                            addLog $ "Operando OK: " ++ show t
                            (ctx'', t') <- checkOp op ctx'

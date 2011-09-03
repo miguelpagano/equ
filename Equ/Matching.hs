@@ -3,53 +3,33 @@ module Equ.Matching
     , match
     , applySubst
     , ExprSubst
+    , MatchMErr
+    , matcherr
     )
     where
 
 import Equ.Matching.Error
-import Equ.Matching.Monad
 import Equ.PreExpr
-
-import Equ.Parser
 
 import qualified Data.Map as M
 import qualified Data.Set as S
 
-import Data.Maybe (fromJust)
 import Control.Monad.RWS (runRWS)
-import Control.Monad.Trans.Either (runEitherT)
-import Control.Monad.RWS.Class(local)
+import Control.Monad.Trans.Either (runEitherT, hoistEither)
+import Control.Monad.RWS.Class(ask)
 
-{- COSAS QUE ME QUEDARON EN EL AIRE:
-    Me cruce con un problema parecido al que paso con las variables al
-    compararlas, es decir, para las variables cambiamos la instancia de Eq
-    para que la comparación solamente tenga en cuenta el representante. Ahora
-    habría que hacer esto misma para las funciones y las constantes?
-    Usamos la comparacion para ver que si dos nombre de función o de constante
-    son distintos entonces no existe maching.
--}
-                
-inequExprError :: PreExpr -> PreExpr -> MatchError
-inequExprError e1 e2 = InequPreExpr e1 e2
+-- | Mapa de substituciones de variable - preExpresiones.
+type ExprSubst = M.Map Variable PreExpr
 
-{- WhenM y whenML.
-    Para un valor de verdad y un error particular; 
-        True => seguir la computación.
-        False => devolver el error particular.
--}
-{-
-    Para intentar usar when* sin cambiar demasiado hice que MatchError
-    fuera instancia de Error para usar la MonadPlus Either Error, pero 
-    despues me parecio que era demasiado para algo mas bien simple.
-    De ultima estoy seguro que puedo volver a hacerlo si es que queda mejor.
--}
-whenM :: Bool -> MatchError -> Either MatchError a -> Either MatchError a
-whenM True _ = id
-whenM False er = const $ Left er
+-- | Estructura general para los errores informativos con contexto.
+type MatchMErr = (Focus,MatchError)
 
-whenML :: Bool -> MatchError -> a -> Either MatchError a
-whenML True _ = return
-whenML False er = const $ Left er
+-- | Mónada de estado para matching.
+type MatchState = MonadTraversal MatchMErr ExprSubst
+
+-- | Generación de mensaje de Error.
+matcherr :: MatchError -> MatchState a
+matcherr err = ask >>= \foc -> hoistEither $ Left (foc, err)
 
 -- | Aplica una substitución a una expresión dada.
 applySubst :: PreExpr -> ExprSubst -> PreExpr
@@ -63,12 +43,35 @@ applySubst (PrExHole h) _ = PrExHole h
 applySubst (Con c) _ = Con c
 applySubst (Fun f) _ = Fun f
 
+
+{- WhenM y whenML.
+    Para un valor de verdad y un error particular; 
+        True => seguir la computación.
+        False => devolver el error particular.
+-}
+{-
+    Para intentar usar when* sin cambiar demasiado hice que MatchError
+    fuera instancia de Error para usar la MonadPlus Either Error, pero 
+    despues me parecio que era demasiado para algo mas bien simple.
+    
+    De ultima estoy seguro que puedo volver a hacerlo si es que queda mejor.
+    VERSIÓN 2; Tanto para whenM2 como para whenML2 cambio los tipos y
+    tenemos el caso especial de usar el generador de errores en caso de
+    error.
+-}
+whenM :: Bool -> MatchError -> MatchState ExprSubst -> MatchState ExprSubst
+whenM True _ = id
+whenM False er = const $ matcherr er
+
+whenML :: Bool -> MatchError -> ExprSubst -> MatchState ExprSubst
+whenML True _ = return
+whenML False er = const $ matcherr er
+
 {- Función que implementa el algoritmo de matching. Toma una lista de variables
 que están ligadas a algún cuantificador, una expresión patrón, otra expresión y
 un mapa de sustituciones. 
 -}
-match' :: [Variable] -> PreExpr -> PreExpr -> ExprSubst 
-                                           -> Either MatchError ExprSubst
+match' :: [Variable] -> PreExpr -> PreExpr -> ExprSubst -> MatchState ExprSubst
 {- El caso principal del algoritmo, donde el patrón es una variable. 
 * Si la expresión e' es igual al patrón Var v, se devuelve el mismo mapa de 
 sustituciones (es decir, no hay que reemplazar nada para llegar desde una 
@@ -82,114 +85,37 @@ mapa de sustituciones se encuentra la variable. Si no, entonces podemos matchear
 v por e'. Si v está en el mapa, entonces para que haya matching tiene que estar 
 asociada con la expresión e'.
 -}
-match' bvs e@(Var v) e' s | e == e' = return s -- Sería mas prolijo tener Right ?
-                          | v `elem` bvs = Left $ BindingVar v
-                          | otherwise = 
-                              maybe (return $ M.insert v e' s) -- Sería mas prolijo tener Right ?
-                                    (\f -> whenML (e' == f) (DoubleMatch v f e') s)
-                                    $ M.lookup v s
--- En caso de error devuelvo InequNameFunc
-match' bvs (UnOp op1 e1) (UnOp op2 e2) s = whenM (op1==op2) (InequOperator op1 op2) $
-                                                            match' bvs e1 e2 s
--- En caso de error devuelvo InequNameFunc
-match' bvs (BinOp op1 e1 e2) 
-           (BinOp op2 f1 f2) s = whenM (op1==op2) (InequOperator op1 op2) $
-                                                  match' bvs e1 f1 s >>= 
-                                                  match' bvs e2 f2
-    
-match' bvs (App e1 e2) (App f1 f2) s = match' bvs e1 f1 s >>= match' bvs e2 f2 
-
-match' bvs (Paren e1) e2 s = match' bvs e1 e2 s
-match' bvs e1 (Paren e2) s = match' bvs e1 e2 s
-
-{-
-Para matchear dos expresiones cuantificadas, deben ser el mismo cuantificador.
-Si las variables cuantificadas v y w son la misma, entonces hacemos matching en 
-las subexpresiones, agregando v a la lista de variables ligadas bvs.
-Si v/=w, entonces reemplazamos v y w por una variable fresca en ambas expresiones
-y luego realizamos matching en las subexpresiones, agregando la variable fresca
-a bvs.
--}    
-
-match' bvs (Quant q v e1 e2) (Quant p w f1 f2) s =
-    whenM (q==p) (InequQuantifier q p) $ -- En caso de error devuelvo InequQuant
-        if v==w then match' (v:bvs) e1 f1 s >>= match' (v:bvs) e2 f2
-                else match' (fv:bvs) (subst v fv e1) (subst w fv f1) s >>=
-                     match' (fv:bvs) (subst v fv e2) (subst w fv f2)
-    where fv= freshVar $ S.unions [freeVars $ Var v,freeVars $ Var w,
-                                   freeVars e1, freeVars e2,freeVars f1, 
-                                   freeVars f2]
-          subst = substitution
--- Caso particular de intentar matchear una variable con una función.
-{-match' _ (Fun _) (Var _) s = Left FuncWithVar
--- Caso particular de intentar matchear una variable con una constante.
-match' _ (Con _) (Var _) s = Left ConstWithVar
--- El nombre de las funciones debe ser el mismo.
-match' _ (Fun f1) (Fun f2) s = whenML (f1==f2) InequNameFunc s
--- Para matchear constantes deben ser exactamente la misma.
-match' _ (Con c1) (Con c2) s = whenML (c1==c2) InequNameConst s
--- Si no estamos en ningun caso anterior, entonces solo hay matching
--- si las expresiones son iguales.
--- En caso de error devuelvo InequPreExpr -}
-match' _ e1 e2 s = whenML (e1==e2) (InequPreExpr e1 e2) s
-
-{-| match toma una expresión patrón y otra que quiere matchearse con el patrón.
-Si hay matching, retorna el mapa de sustituciones que deben realizarse
-simultáneamente para llegar desde la expresión patrón a la expresión dada.
--}
-match :: PreExpr -> PreExpr -> Either MatchError ExprSubst
-match e e' = match' [] e e' M.empty
-
-
--- ###########################################################################
--- Comienzo de la versión de matching con log y rastreo de errores usando focus.
-
-{-
-    VERSIÓN 2; Tanto para whenM2 como para whenML2 cambio los tipos y
-    tenemos el caso especial de usar el generador de errores en caso de
-    error.
--}
-whenM2 :: Bool -> MatchError -> MatchState ExprSubst -> MatchState ExprSubst
-whenM2 True _ = id
-whenM2 False er = const $ matcherr er
-
-whenML2 :: Bool -> MatchError -> ExprSubst -> MatchState ExprSubst
-whenML2 True _ = return
-whenML2 False er = const $ matcherr er
-
-match2' :: [Variable] -> PreExpr -> PreExpr -> ExprSubst -> MatchState ExprSubst
-match2' bvs e@(Var v) e' s | e == e' = return s
+match' bvs e@(Var v) e' s | e == e' = return s
                            | v `elem` bvs = matcherr $ BindingVar v
                            | otherwise = 
                               maybe (return $ M.insert v e' s)
-                                    (\f -> whenML2 (e' == f) (DoubleMatch v f e') s)
+                                    (\f -> whenML (e' == f) (DoubleMatch v f e') s)
                                     $ M.lookup v s
 
-match2' bvs (UnOp op1 e1) (UnOp op2 e2) s = whenM2 (op1==op2) 
-                                                   (InequOperator op1 op2) $ 
-                                                   local (fromJust . goDown) (match2' bvs e1 e2 s)
+match' bvs (UnOp op1 e1) (UnOp op2 e2) s = whenM (op1==op2) 
+                                            (InequOperator op1 op2) $ 
+                                            localGo goDown (match' bvs e1 e2 s)
 
 
 {-
     VERSIÓN 2; Para operadores iguales, cada vez que pretendo intentar matchear
     las expresiones internas, cambio el enviroment segun corresponda.
 -}
-match2' bvs (BinOp op1 e1 e2) (BinOp op2 f1 f2) s = 
-    whenM2 (op1==op2) (InequOperator op1 op2) $
-                      (local (fromJust . goDownL) $ match2' bvs e1 f1 s) >>= 
-                      (local (fromJust . goDownR)) . match2' bvs e2 f2
+match' bvs (BinOp op1 e1 e2) (BinOp op2 f1 f2) s = 
+                    whenM (op1==op2) (InequOperator op1 op2) $
+                                    (localGo goDown $ match' bvs e1 f1 s) >>= 
+                                    ((localGo goDownR) . match' bvs e2 f2)
 
-match2' bvs (App e1 e2) (App f1 f2) s = 
-    (local (fromJust . goDownL) $ match2' bvs e1 f1 s) >>= 
-    (local (fromJust . goDownR)) . match2' bvs e2 f2 
+match' bvs (App e1 e2) (App f1 f2) s = (localGo goDown $ match' bvs e1 f1 s) >>= 
+                                       ((localGo goDownR) . match' bvs e2 f2)
 
 {-
     VERSIÓN 2; Un detalle no menor acá es que como navegamos solamente
     por el focus de la expresión a matchear, es decir no la expresión patron,
     en el primer caso de los parentesis no cambiamos el enviroment.
 -}
-match2' bvs (Paren e1) e2 s = match2' bvs e1 e2 s
-match2' bvs e1 (Paren e2) s = local (fromJust . goDown) $ match2' bvs e1 e2 s
+match' bvs (Paren e1) e2 s = match' bvs e1 e2 s
+match' bvs e1 (Paren e2) s = localGo goDown $ match' bvs e1 e2 s
 
 {-
 Para matchear dos expresiones cuantificadas, deben ser el mismo cuantificador.
@@ -205,17 +131,15 @@ VERSIÓN 2; Cada vez que voy a intentar matchear las expresiones internas del
     que representan navegar por izquierda o por derecha respectivamente.
 -}    
 
-match2' bvs (Quant q v e1 e2) (Quant p w f1 f2) s =
-    whenM2 (q==p) (InequQuantifier q p) $ -- En caso de error devuelvo InequQuant
-        if v==w then (localGoL $ match2' (v:bvs) e1 f1 s) >>= localGoR . match2' (v:bvs) e2 f2
-                else (localGoL $ match2' (fv:bvs) (subst v fv e1) (subst w fv f1) s) >>=
-                     localGoR . match2' (fv:bvs) (subst v fv e2) (subst w fv f2)
+match' bvs (Quant q v e1 e2) (Quant p w f1 f2) s =
+    whenM (q==p) (InequQuantifier q p) $ -- En caso de error devuelvo InequQuant
+        if v==w then (localGo goDown $ match' (v:bvs) e1 f1 s) >>= (localGo goDownR) . match' (v:bvs) e2 f2
+                else (localGo goDown $ match' (fv:bvs) (subst v fv e1) (subst w fv f1) s) >>=
+                     (localGo goDownR) . match' (fv:bvs) (subst v fv e2) (subst w fv f2)
     where fv= freshVar $ S.unions [freeVars $ Var v,freeVars $ Var w,
                                    freeVars e1, freeVars e2,freeVars f1, 
                                    freeVars f2]
           subst = substitution
-          localGoL = local (fromJust . goDownL)
-          localGoR = local (fromJust . goDownR)
 
 -- Caso particular de intentar matchear una variable con una función.
 {-match' _ (Fun _) (Var _) s = Left FuncWithVar
@@ -231,7 +155,7 @@ match' _ (Con c1) (Con c2) s = whenML (c1==c2) InequNameConst s
 
     VERSIÓN 2; Ninguna diferencia con el original.
    -}
-match2' _ e1 e2 s = whenML2 (e1==e2) (InequPreExpr e1 e2) s
+match' _ e1 e2 s = whenML (e1==e2) (InequPreExpr e1 e2) s
 
 {- | VERSIÓN 2; Función principal de matching.
     
@@ -254,6 +178,10 @@ match2' _ e1 e2 s = whenML2 (e1==e2) (InequPreExpr e1 e2) s
     ahí que tenemos esta versión 2.
 
 -}
-match2 :: PreExpr -> PreExpr -> Either (MatchMErr,Log) ExprSubst
-match2 e e' = case runRWS (runEitherT (match2' [] e e' M.empty)) (toFocus e') M.empty of
+{-| match toma una expresión patrón y otra que quiere matchearse con el patrón.
+Si hay matching, retorna el mapa de sustituciones que deben realizarse
+simultáneamente para llegar desde la expresión patrón a la expresión dada.
+-}
+match :: PreExpr -> PreExpr -> Either (MatchMErr,Log) ExprSubst
+match e e' = case runRWS (runEitherT (match' [] e e' M.empty)) (toFocus e') M.empty of
                    (res, _, l) -> either (\err -> Left (err,l)) (Right) res
