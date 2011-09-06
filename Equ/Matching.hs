@@ -4,7 +4,6 @@ module Equ.Matching
     , applySubst
     , ExprSubst
     , MatchMErr
-    , matcherr
     )
     where
 
@@ -103,11 +102,11 @@ match' bvs (UnOp op1 e1) (UnOp op2 e2) s = whenM (op1==op2)
 -}
 match' bvs (BinOp op1 e1 e2) (BinOp op2 f1 f2) s = 
                     whenM (op1==op2) (InequOperator op1 op2) $
-                                    (localGo goDown $ match' bvs e1 f1 s) >>= 
-                                    ((localGo goDownR) . match' bvs e2 f2)
+                                    localGo goDown (match' bvs e1 f1 s) >>= 
+                                    (localGo goDownR . match' bvs e2 f2)
 
-match' bvs (App e1 e2) (App f1 f2) s = (localGo goDown $ match' bvs e1 f1 s) >>= 
-                                       ((localGo goDownR) . match' bvs e2 f2)
+match' bvs (App e1 e2) (App f1 f2) s = localGo goDown (match' bvs e1 f1 s) >>= 
+                                       (localGo goDownR . match' bvs e2 f2)
 
 {-
     VERSIÓN 2; Un detalle no menor acá es que como navegamos solamente
@@ -133,9 +132,9 @@ VERSIÓN 2; Cada vez que voy a intentar matchear las expresiones internas del
 
 match' bvs (Quant q v e1 e2) (Quant p w f1 f2) s =
     whenM (q==p) (InequQuantifier q p) $ -- En caso de error devuelvo InequQuant
-        if v==w then (localGo goDown $ match' (v:bvs) e1 f1 s) >>= (localGo goDownR) . match' (v:bvs) e2 f2
-                else (localGo goDown $ match' (fv:bvs) (subst v fv e1) (subst w fv f1) s) >>=
-                     (localGo goDownR) . match' (fv:bvs) (subst v fv e2) (subst w fv f2)
+        if v==w then localGo goDown (match' (v:bvs) e1 f1 s) >>= localGo goDownR . match' (v:bvs) e2 f2
+                else localGo goDown (match' (fv:bvs) (subst v fv e1) (subst w fv f1) s) >>=
+                     localGo goDownR . match' (fv:bvs) (subst v fv e2) (subst w fv f2)
     where fv= freshVar $ S.unions [freeVars $ Var v,freeVars $ Var w,
                                    freeVars e1, freeVars e2,freeVars f1, 
                                    freeVars f2]
@@ -184,4 +183,4 @@ simultáneamente para llegar desde la expresión patrón a la expresión dada.
 -}
 match :: PreExpr -> PreExpr -> Either (MatchMErr,Log) ExprSubst
 match e e' = case runRWS (runEitherT (match' [] e e' M.empty)) (toFocus e') M.empty of
-                   (res, _, l) -> either (\err -> Left (err,l)) (Right) res
+                   (res, _, l) -> either (\err -> Left (err,l)) Right res

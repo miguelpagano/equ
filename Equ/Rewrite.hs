@@ -2,6 +2,7 @@ module Equ.Rewrite
     ( exprRewrite
     , focusedRewrite
     , typedRewrite
+    , RewriteError
     )
     where
 
@@ -11,28 +12,31 @@ import Equ.Expr
 import Equ.PreExpr
 import Equ.TypeChecker
 
-import Data.Map
-    
--- | Informe de errores acerca del matching.
-type RewriteError = (MatchMErr, Log)
+-- Constructor del tipo mas general para manejar errores de matching o 
+-- unificación de manera indistinta. Como referencia al error usamos el
+-- prefijo acerca sobre de que tipo fue el error.
+data RewriteError' a b = Matching a | Type b
 
--- | Informe de errores acerca de la unificación.
-type TypedRewriteError = TyErr -- Aprovechamos los errores de unify.
+-- | Tipo general de errores de re-escritura. Contiene errores de matching
+-- y unificación.
+type RewriteError = RewriteError' (MatchMErr, Log) TyErr
 
 {- | Dada una expresi贸n y una regla, si la expresi贸n matchea con el lado
 izquierdo de la regla, entonces se reescribe de acuerdo al lado derecho
 de la regla.
 -}
 exprRewrite :: Expr -> Rule -> Either RewriteError Expr
-exprRewrite (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) = match l e >>= 
-                                                    return . Expr . applySubst r
+exprRewrite (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) = 
+                            case match l e of
+                                Left er -> Left $ Matching er
+                                Right subs -> Right $ Expr $ applySubst r subs
 
 -- | Igual a exprRewrite pero ademas retorna la lista de sustituciones.
-rewriteInformative :: Expr -> Rule -> 
-                              Either RewriteError (Expr, ExprSubst)
+rewriteInformative :: Expr -> Rule -> Either RewriteError (Expr, ExprSubst)
 rewriteInformative (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) = 
-                                    match l e >>= 
-                                    \s -> return (Expr $ applySubst r s, s)
+                        case match l e of
+                            Left er -> Left $ Matching er
+                            Right subs -> Right (Expr $ applySubst r subs, subs)
 
 -- | Dado un focus y una regla, aplicamos re-escrituda con la regla a la 
 --  expresión focalizada, en caso de exito reemplazamos la expresión inicial
@@ -66,11 +70,10 @@ focusedRewrite f@(pe, p) r = exprRewrite (Expr pe) r >>=
     tiene un bonito log sobre errores para devolver eso en caso de que no
     existe unificación.
 -}
-typedRewrite :: Expr -> Rule -> 
-                            Either TypedRewriteError (Either RewriteError Expr)
+typedRewrite :: Expr -> Rule -> Either RewriteError Expr
 typedRewrite e@(Expr pe) ru@(Rule{lhs=Expr l,rhs=Expr r}) = 
     let (Right te) = checkPreExpr pe
         (Right tr) = checkPreExpr l
     in case unify te tr emptySubst of
-            Left er -> Left er
-            Right _ -> Right $ exprRewrite e ru
+            Left er -> Left $ Type er
+            Right _ -> exprRewrite e ru
