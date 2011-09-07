@@ -18,6 +18,9 @@ import Equ.PreExpr
 import Equ.Theories
 import Equ.Rule
 import Equ.Rewrite
+import Equ.Theories.FOL
+
+import Equ.Parser
 
 import qualified Data.Text as T
 import qualified Data.Map as M
@@ -25,7 +28,8 @@ import Control.Monad
 
 
 -- | Las hip&#243;tesis son nombradas por n&#250;meros.
-data Name = Index Int 
+data Name = Index Int
+    deriving Show
 
 -- | La clase Truth representa una verdad en una teoría. En principio
 -- pensamos en Axiomas y Teoremas.
@@ -43,8 +47,9 @@ data Axiom = Axiom {
     , axRel   :: Relation
     , axRules :: [Rule] 
     }
+    deriving Show
 
--- | Instancia de Truth para el tipo Axiom
+-- | Instancia de Truth para el tipo Axiom.
 instance Truth Axiom where
     truthName  = axName
     truthExpr  = axExpr
@@ -61,7 +66,9 @@ data Theorem = Theorem {
     , thProof :: Proof
     , thRules :: [Rule]
     }
-    
+    deriving Show
+
+-- | Instancia de Truth para el tipo theorem.
 instance Truth Theorem where
     truthName  = thName
     truthExpr  = thExpr
@@ -79,9 +86,9 @@ type Ctx = M.Map Name Expr
 -- usar un teorema ya probado, o usar una hip&#243;tesis.
 data Basic where
     Ax  :: Axiom -> Basic    -- Un axioma de cierta teor&#237;a.
-    Teo :: Theorem -> Basic  -- Un teorema ya probado.
+    Theo :: Theorem -> Basic  -- Un teorema ya probado.
     Hyp :: Name -> Basic   --  Una hip&#243;tesis que aparece en el contexto.               
-
+    deriving Show
 
 {- $proofs
 
@@ -225,20 +232,20 @@ data Proof where
     Ind    :: Ctx -> Relation -> Focus -> Focus -> [Focus] -> [([Focus],Proof)] -> Proof
     Deduc  :: Ctx -> Focus -> Focus -> Proof -> Proof
     Focus  :: Ctx -> Relation -> Focus -> Focus -> Proof -> Proof
-
+    deriving Show
 
 {- $samples
 
 [Axiomas]
 
-  @ 
-  neutralEquiv :: Axiom
-  neutralEquiv = Axiom { 
-    axName = \"Neutro de la equivalencia\"
-  , axExpr = equiv (equiv True varP) varP
-  , axRules = undefined
-  }
-  @
+-}
+neutralEquiv :: Axiom
+neutralEquiv = Axiom { axName = T.pack "Neutro de la equivalencia"
+                     , axExpr = Expr $ parser "(p ≡ True) ≡ p"
+                     , axRel = relEquiv
+                     , axRules = [neuterEquiv_Rule1]
+                     }
+{-
 
 [Pruebas]
 
@@ -256,33 +263,57 @@ trivial = Simple M.empty Equivalence (Top,equiv True True) (Top,True) $
 
 -}
 
-data ProofError = ProofError
+-- Faltaría definir un buen conjunto de errores para las pruebas.
+data ProofError' a = Rewrite a | ProofError
+    deriving Show
+
+-- | Tipo informativo sobre los errores en una prueba.
+type ProofError = ProofError' RewriteError
 
 {- 
 Funciones para construir y manipular pruebas.
 Este kit de funciones debería proveer todas las herramientas
 necesarias para desarrollar pruebas en equ 
 -}
-proofFromRule :: Truth t => Focus -> Focus -> Relation -> t -> Rule -> 
-                            Either ProofError Proof
-proofFromRule f1 f2 rel t r = 
-    case (focusedRewrite f1 r) of
-        Left _  ->  Left ProofError
-        Right f ->  if rel/=truthRel t then
-                        Left ProofError
-                    else
-                        if f==f2 then
-                            -- hay prueba
-                            Right $ Simple M.empty rel f1 f2 t
-                        else
-                            Left ProofError
-    
 
-proofFromTruth :: Truth t => Focus -> Focus -> Relation -> t -> 
-                  Either ProofError Proof
-proofFromTruth f1 f2 rel t = firstProof $ map (proofFromRule f1 f2 rel t)
-                                         (truthRules t)
-    where firstProof = head . (filter predicate)
-          predicate (Left _) = False
-          predicate (Right p) = True
+firstProof :: [Either ProofError Proof] -> Either ProofError Proof
+firstProof = headWithDefault ProofError . filter predicate
+    where
+        headWithDefault :: ProofError -> [Either ProofError Proof] -> Either ProofError Proof
+        headWithDefault def [] = Left def
+        headWithDefault def l = head l
+        predicate :: Either ProofError Proof -> Bool
+        predicate (Left _) = False
+        predicate (Right p) = True
 
+-- Funcion para checkear igualdad, con la variante importante que en caso de
+-- no cumplirse devolvemos un resultado por default.
+checkWD :: Eq a => d -> a -> a -> Either d Bool
+checkWD def a b | a /= b = Left def
+                | otherwise = Right True
+
+proofFromRule' :: Truth t => Focus -> Focus -> Relation -> t -> Rule -> 
+                                            Either ProofError (Basic -> Proof)
+proofFromRule' f f' rel t r =
+    case (focusedRewrite f r) of
+        Left er  ->  Left $ Rewrite er
+        Right rf -> checkWD ProofError rel (truthRel t) >>
+                    checkWD ProofError rf f' >>=
+                    \_ -> Right $ Simple M.empty rel f f'
+
+-- | Función principal para obetener una prueba simple con una regla.
+proofFromRule :: Focus -> Focus -> Relation -> Basic -> Rule -> 
+                                               Either ProofError Proof
+proofFromRule f f' rel t@(Ax t') r =  proofFromRule' f f' rel t' r >>= 
+                                        \pseudoProof -> Right $ pseudoProof t
+proofFromRule f f' rel t@(Theo t') r = proofFromRule' f f' rel t' r >>= 
+                                        \pseudoProof -> Right $ pseudoProof t
+proofFromRule _ _ _ (Hyp _) _ = error "No se en que habíamos quedado con este caso."
+
+-- | Función principal para obetener una prueba simple con una verdad.
+proofFromTruth :: Focus -> Focus -> Relation -> Basic -> Either ProofError Proof
+proofFromTruth f f' rel t@(Ax t') = firstProof $ map (proofFromRule f f' rel t) 
+                                                     (truthRules t')
+proofFromTruth f f' rel t@(Theo t') = firstProof $ map (proofFromRule f f' rel t) 
+                                                       (truthRules t')
+proofFromTruth _ _ _ (Hyp _) = error "No se en que habíamos quedado con este caso."
