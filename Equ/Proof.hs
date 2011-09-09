@@ -29,7 +29,7 @@ import Control.Monad
 
 -- | Las hip&#243;tesis son nombradas por n&#250;meros.
 data Name = Index Int
-    deriving Show
+    deriving (Show,Ord,Eq)
 
 -- | La clase Truth representa una verdad en una teoría. En principio
 -- pensamos en Axiomas y Teoremas.
@@ -234,6 +234,16 @@ data Proof where
     Focus  :: Ctx -> Relation -> Focus -> Focus -> Proof -> Proof
     deriving Show
 
+getCtx :: Proof -> Ctx
+getCtx (Hole c _ _ _) = c
+getCtx (Simple c _ _ _ _) = c
+getCtx (Trans c _ _ _ _ _ _) = c
+getCtx (Cases c _ _ _ _ _) = c
+getCtx (Ind c _ _ _ _ _) = c
+getCtx (Deduc c _ _ _) = c
+getCtx (Focus c _ _ _ _) = c
+
+
 {- $samples
 
 [Axiomas]
@@ -264,11 +274,10 @@ trivial = Simple M.empty Equivalence (Top,equiv True True) (Top,True) $
 -}
 
 -- Faltaría definir un buen conjunto de errores para las pruebas.
-data ProofError' a = Rewrite a | ProofError
+data ProofError = Rewrite RewriteError 
+                | BasicNotApplicable Basic
+                | ProofError
     deriving Show
-
--- | Tipo informativo sobre los errores en una prueba.
-type ProofError = ProofError' RewriteError
 
 {- 
 Funciones para construir y manipular pruebas.
@@ -288,32 +297,137 @@ firstProof = headWithDefault ProofError . filter predicate
 
 -- Funcion para checkear igualdad, con la variante importante que en caso de
 -- no cumplirse devolvemos un resultado por default.
-checkWD :: Eq a => d -> a -> a -> Either d Bool
-checkWD def a b | a /= b = Left def
-                | otherwise = Right True
+checkEqWithDefault :: Eq a => d -> a -> a -> Either d Bool
+checkEqWithDefault def a b | a /= b = Left def
+                           | otherwise = Right True
 
-proofFromRule' :: Truth t => Focus -> Focus -> Relation -> t -> Rule -> 
-                                            Either ProofError (Basic -> Proof)
-proofFromRule' f f' rel t r =
-    case (focusedRewrite f r) of
+
+{- 
+Funciones para construir y manipular pruebas.
+Este kit de funciones debería proveer todas las herramientas
+necesarias para desarrollar pruebas en equ 
+-}
+
+proofFromRule :: Truth t => Focus -> Focus -> Relation -> t -> (t -> Basic) ->
+                            Rule -> Either ProofError Proof
+proofFromRule f1 f2 rel t basicCons r = 
+    case (focusedRewrite f1 r) of
         Left er  ->  Left $ Rewrite er
-        Right rf -> checkWD ProofError rel (truthRel t) >>
-                    checkWD ProofError rf f' >>=
-                    \_ -> Right $ Simple M.empty rel f f'
+        Right f ->  checkEqWithDefault (BasicNotApplicable (basicCons t))
+                                        rel (truthRel t) >>
+                    checkEqWithDefault (BasicNotApplicable (basicCons t))
+                                        f f2 >>=
+                    \_ -> Right $ Simple M.empty rel f1 f2 (basicCons t)
 
--- | Función principal para obetener una prueba simple con una regla.
-proofFromRule :: Focus -> Focus -> Relation -> Basic -> Rule -> 
-                                               Either ProofError Proof
-proofFromRule f f' rel t@(Ax t') r =  proofFromRule' f f' rel t' r >>= 
-                                        \pseudoProof -> Right $ pseudoProof t
-proofFromRule f f' rel t@(Theo t') r = proofFromRule' f f' rel t' r >>= 
-                                        \pseudoProof -> Right $ pseudoProof t
-proofFromRule _ _ _ (Hyp _) _ = error "No se en que habíamos quedado con este caso."
 
--- | Función principal para obetener una prueba simple con una verdad.
-proofFromTruth :: Focus -> Focus -> Relation -> Basic -> Either ProofError Proof
-proofFromTruth f f' rel t@(Ax t') = firstProof $ map (proofFromRule f f' rel t) 
-                                                     (truthRules t')
-proofFromTruth f f' rel t@(Theo t') = firstProof $ map (proofFromRule f f' rel t) 
-                                                       (truthRules t')
-proofFromTruth _ _ _ (Hyp _) = error "No se en que habíamos quedado con este caso."
+firstRight :: Either a b -> [Either a b] -> Either a b
+firstRight (Left a) [] = Left a
+firstRight (Left _) (e:es) = firstRight e es
+firstRight (Right b) _ = Right b
+
+-- | Dados dos focuses f1 y f2, una relacion rel y un axioma a, intenta crear una prueba
+-- para f1 rel f2, utilizando el paso simple de aplicar el axioma a.
+proofFromAxiom :: Focus -> Focus -> Relation -> Axiom -> Either ProofError Proof
+proofFromAxiom f1 f2 rel a = firstRight (Left $ BasicNotApplicable $ Ax a) $ 
+                           map (proofFromRule f1 f2 rel a Ax) (truthRules a) 
+
+-- | Dados dos focuses f1 y f2, una relacion rel y un teorema t, intenta crear una prueba
+-- para f1 rel f2, utilizando el paso simple de aplicar el teorema t.
+proofFromTheorem :: Focus -> Focus -> Relation -> Theorem -> Either ProofError Proof
+proofFromTheorem f1 f2 rel t = firstRight (Left $ BasicNotApplicable $ Theo t) $ 
+                           map (proofFromRule f1 f2 rel t Theo) (truthRules t) 
+
+
+
+{- 
+Estrategia de prueba secuencial, agregando pasos transitivos.
+Tenemos un tipo EstTrans, que lo utilizamos para llevar la estrategia.
+Tenemos los invariantes de que hay un SOLO hueco. Y la prueba está terminada
+cuando eliminamos ese hueco.
+EstTrans f f1 fn g P01 Png representa una secuencia de pruebas, donde se quiere
+demostrar f rel g. P01 es una prueba para f rel f1, Png es una prueba para fn rel g.
+No tenemos prueba para f1 rel fn, por lo que ahí está el hueco.
+Si queremos agregar un paso a la prueba, podemos hacerlo de dos formas, desde "arriba"
+o desde "abajo". 
+Un paso desde "abajo" será agregar proveer un nuevo foco f2, y una prueba para f1 rel f2 = P12
+El resultante será:
+EstTrans f f2 fn g P02 Png, donde P02 = Trans f f1 f2 P01 P12, y entre f2 y fn tenemos un hueco.
+Un paso desde "arriba" será similar, solo que agregamos un nuevo foco fn-1, y una prueba para
+fn-1 rel fn = Pn-1,n.
+La estrategia termina cuando logramos eliminar el hueco. Esto se obtiene cuando logramos tener
+EstTrans f f' f' g, por lo que la prueba de f' rel f' es una prueba trivial, representada por
+la reflexividad (deberia ser un meta-axioma independiente de las teorias, tal que f rel f).
+
+-}
+
+data EstTrans where
+    EstTrans :: Ctx -> Relation -> Focus -> Focus -> 
+                Focus -> Focus -> Proof -> Proof -> EstTrans
+
+-- NOTA: no me queda claro como se maneja el contexto en una prueba transitiva
+-- nosotros tenemos las 2 pruebas parciales que tienen sus hipotesis. 
+-- La prueba resultante, deberia tener las hipotesis de ambas? es decir,
+-- si tenemos la prueba Trans cr rel f1 f2 f3 p12 p23, entonces
+-- cr = M.union (getCtx p12) (getCtx p23).?
+createTransProof :: Ctx -> Relation -> Focus -> Focus -> Focus -> 
+                    Proof -> Proof -> Proof
+createTransProof ctx rel f1 f2 f3 p12 p23 =
+    let new_ctx = M.unions [ctx,(getCtx p12),(getCtx p23)] in
+        Trans new_ctx rel f1 f2 f3 p12 p23
+
+
+{- 
+Paso hacia abajo, el valor de retorno es un either, en el cual,
+si es left, significa que todavia tenemos un hueco, por lo tanto no terminamos la
+prueba.
+Si tenemos Right, entonces obtuvimos una prueba completa, sin huecos.
+Necesitamos una prueba trivial para probar p=p (reflexividad).
+-}
+stepDown :: EstTrans -> Focus -> Proof -> Either EstTrans Proof
+{-
+La prueba que teniamos hasta este momento es:
+    fi
+rel     {prueba pi1}
+    fm1
+rel     {hueco}
+    fm2
+rel     {prueba p2f}
+    ff
+
+Queremos agregar un paso a la prueba, desde arriba. El paso es
+    fm1
+rel    {prueba p}
+    f
+
+La prueba resultante es:
+     fi
+rel     { prueba: Trans fi fm1 f pi1 p }
+     f
+rel     { hueco }
+     fm2
+rel     {prueba p2f}
+     ff
+-}
+
+stepDown (EstTrans ctx rel fi fm1 fm2 ff pi1 p2f) f p = 
+{-
+Si la expresion nueva es igual a fm2, entonces llenamos el hueco, 
+por lo tanto, terminamos la prueba
+-}
+    let new_proof = createTransProof ctx rel fi fm1 f pi1 p in
+        if f==fm2 then
+            -- El contexto nuevo se obtiene como union entre new_proof y p2f, por
+            -- eso le pasamos M.empty
+            Right $ createTransProof M.empty rel fi f ff new_proof p2f
+        else
+            Left $ EstTrans M.empty rel fi f fm2 ff new_proof p2f
+
+
+stepUp :: EstTrans -> Focus -> Proof -> Either EstTrans Proof
+stepUp (EstTrans ctx rel fi fm1 fm2 ff pi1 p2f) f p = 
+    let new_proof = createTransProof ctx rel f fm2 ff p p2f in
+        if f==fm1 then
+            Right $ createTransProof M.empty rel fi f ff pi1 new_proof
+        else
+            Left $ EstTrans M.empty rel fi fm1 f ff pi1 new_proof
+
