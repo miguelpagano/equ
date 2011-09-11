@@ -3,6 +3,7 @@ module Equ.Rewrite
     , focusedRewrite
     , typedRewrite
     , RewriteError
+    , RM
     )
     where
 
@@ -22,18 +23,20 @@ data RewriteError' a b = Matching a | Type b
 -- y unificación.
 type RewriteError = RewriteError' (MatchMErr, Log) TyErr
 
+type RM a = Either RewriteError a
+
 {- | Dada una expresi贸n y una regla, si la expresi贸n matchea con el lado
 izquierdo de la regla, entonces se reescribe de acuerdo al lado derecho
 de la regla.
 -}
-exprRewrite :: Expr -> Rule -> Either RewriteError Expr
+exprRewrite :: Expr -> Rule -> RM Expr
 exprRewrite (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) = 
                             case match l e of
                                 Left er -> Left $ Matching er
                                 Right subs -> Right $ Expr $ applySubst r subs
 
 -- | Igual a exprRewrite pero ademas retorna la lista de sustituciones.
-rewriteInformative :: Expr -> Rule -> Either RewriteError (Expr, ExprSubst)
+rewriteInformative :: Expr -> Rule -> RM (Expr, ExprSubst)
 rewriteInformative (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) = 
                         case match l e of
                             Left er -> Left $ Matching er
@@ -42,7 +45,7 @@ rewriteInformative (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) =
 -- | Dado un focus y una regla, aplicamos re-escrituda con la regla a la 
 --  expresión focalizada, en caso de exito reemplazamos la expresión inicial
 --  por la expresión resultante dentro del focus.
-focusedRewrite :: Focus -> Rule -> Either RewriteError Focus
+focusedRewrite :: Focus -> Rule -> RM Focus
 focusedRewrite f@(pe, p) r = exprRewrite (Expr pe) r >>= 
                              \(Expr pe')-> return $ replace f pe'
 
@@ -71,7 +74,7 @@ focusedRewrite f@(pe, p) r = exprRewrite (Expr pe) r >>=
     tiene un bonito log sobre errores para devolver eso en caso de que no
     existe unificación.
 -}
-typedRewrite :: Expr -> Rule -> Either RewriteError Expr
+typedRewrite :: Expr -> Rule -> RM Expr
 typedRewrite e@(Expr pe) ru@(Rule{lhs=Expr l,rhs=Expr r}) = 
     let (Right te) = checkPreExpr pe
         (Right tr) = checkPreExpr l
