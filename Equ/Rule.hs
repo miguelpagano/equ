@@ -55,4 +55,4 @@ data Rule = Rule {
     , name :: Text
     , desc :: Text
     }
-    deriving Show
+    deriving (Eq,Show)
