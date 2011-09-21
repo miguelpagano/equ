@@ -337,13 +337,15 @@ instance Arbitrary Proof where
         where
             proof :: Int -> Gen Proof
             proof 0 = 
-                oneof [ Hole <$> arbitrary <*> arbitrary <*> 
+                oneof [ return Reflex
+                      , Hole <$> arbitrary <*> arbitrary <*> 
                                  arbitrary <*> arbitrary
                       , Simple <$> arbitrary <*> arbitrary <*> 
                                    arbitrary <*> arbitrary <*> arbitrary
                       ]
             proof n | n > 0 = 
-                oneof [ Hole <$> arbitrary <*> arbitrary <*> 
+                oneof [ return Reflex
+                      , Hole <$> arbitrary <*> arbitrary <*> 
                                  arbitrary <*> arbitrary
                       , Simple <$> arbitrary <*> arbitrary <*> 
                                    arbitrary <*> arbitrary <*> arbitrary
@@ -363,7 +365,7 @@ instance Arbitrary Proof where
                 where   
                     -- Disminuimos el largo (visto como un arbol) de la prueba.
                     subProof :: Gen Proof
-                    subProof = proof (n `div` 10)
+                    subProof = proof (n `div` 8)
                     pairFocusProof :: Gen (Focus, Proof)
                     pairFocusProof = (,) <$> arbitrary <*> subProof
                     listPairFocusProof :: Gen [(Focus, Proof)]
@@ -374,41 +376,43 @@ instance Arbitrary Proof where
                     listPPFocusProof = vectorOf 2 pPFocusProof
 
 instance Binary Proof where
-    put (Hole ctx r f f') = putWord8 0 >> put ctx >> put r >>  put f >> put f'
+    put Reflex = putWord8 0
+    put (Hole ctx r f f') = putWord8 1 >> put ctx >> put r >>  put f >> put f'
     put (Simple ctx r f f' b) = 
-        putWord8 1 >> put ctx >> put r >> put f >> put f' >> put b
+        putWord8 2 >> put ctx >> put r >> put f >> put f' >> put b
     put (Trans ctx r f f' f'' p p') = 
-        putWord8 2 >> put ctx >> put r >> put f >> put f' >> put f'' >>
+        putWord8 3 >> put ctx >> put r >> put f >> put f' >> put f'' >>
                       put p >> put p'
     put (Cases ctx r f f' f'' lfp) = 
-        putWord8 3 >> put ctx >> put r >> put f >> put f' >> put f'' >> put lfp
+        putWord8 4 >> put ctx >> put r >> put f >> put f' >> put f'' >> put lfp
     put (Ind ctx r f f' lf llfp) = 
-        putWord8 4 >> put ctx >> put r >> put f >> put f' >> put lf >> put llfp
-    put (Deduc ctx f f' p) = putWord8 5 >> put ctx >> put f >> put f' >> put p
+        putWord8 5 >> put ctx >> put r >> put f >> put f' >> put lf >> put llfp
+    put (Deduc ctx f f' p) = putWord8 6 >> put ctx >> put f >> put f' >> put p
     put (Focus ctx r f f' p) = 
-        putWord8 6 >> put ctx >> put r >> put f >> put f' >> put p
+        putWord8 7 >> put ctx >> put r >> put f >> put f' >> put p
     
     get = do
     tag_ <- getWord8
     case tag_ of
-        0 -> get >>= \ctx -> get >>= \r -> get >>= 
+        0 -> return Reflex 
+        1 -> get >>= \ctx -> get >>= \r -> get >>= 
                      \f -> get >>= \f' -> return (Hole ctx r f f')
-        1 -> get >>= \ctx -> get >>= \r -> get >>=
+        2 -> get >>= \ctx -> get >>= \r -> get >>=
                      \f -> get >>= \f' -> get >>= 
                      \b -> return (Simple ctx r f f' b)
-        2 -> get >>= \ctx -> get >>= \r -> get >>=
+        3 -> get >>= \ctx -> get >>= \r -> get >>=
                      \f -> get >>= \f' -> get >>= 
                      \f'' -> get >>= \p -> get >>= 
                      \p' -> return (Trans ctx r f f' f'' p p')
-        3 -> get >>= \ctx -> get >>= \r -> get >>=
-                     \f -> get >>= \f' -> get >>= 
-                     \f'' -> get >>= \lfp -> return (Cases ctx r f f' f'' lfp)
         4 -> get >>= \ctx -> get >>= \r -> get >>=
                      \f -> get >>= \f' -> get >>= 
+                     \f'' -> get >>= \lfp -> return (Cases ctx r f f' f'' lfp)
+        5 -> get >>= \ctx -> get >>= \r -> get >>=
+                     \f -> get >>= \f' -> get >>= 
                      \lfp -> get >>= \llfp -> return (Ind ctx r f f' lfp llfp)
-        5 -> get >>= \ctx -> get >>= \f -> get >>=
+        6 -> get >>= \ctx -> get >>= \f -> get >>=
                      \f' -> get >>= \p -> return (Deduc ctx f f' p)
-        6 -> get >>= \ctx -> get >>= \r -> get >>=
+        7 -> get >>= \ctx -> get >>= \r -> get >>=
                      \f -> get >>= \f' -> get >>=
                      \p -> return (Focus ctx r f f' p)
         _ -> fail "Problem: Instance Binary Proof."

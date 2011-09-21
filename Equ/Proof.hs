@@ -29,6 +29,7 @@ import Equ.Parser
 
 import qualified Data.Text as T
 import Data.Map (unions)
+import Data.Maybe (fromJust)
 import qualified Data.Map as M
 import Control.Monad
 
@@ -138,7 +139,8 @@ data EstTrans where
 mkTransProof :: Ctx -> Relation -> Focus -> Focus -> Focus -> 
                     Proof -> Proof -> Proof
 mkTransProof ctx rel f1 f2 f3 p12 p23 = Trans new_ctx rel f1 f2 f3 p12 p23
-    where new_ctx = unions [ctx,(getCtx p12),(getCtx p23)]
+    where 
+        new_ctx = unions [ctx, (fromJust . getCtx) p12, (fromJust . getCtx) p23]
         
 
 
