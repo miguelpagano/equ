@@ -17,9 +17,9 @@ newtype Expr = Expr PreExpr
 
 instance Show Expr where 
     show (Expr e) = show e
-    
+
 instance Eq Expr where
-    (Expr e) == (Expr e') = e == e'
+    (Expr e1) == (Expr e2) = e1 == e2
 
 instance Arbitrary Expr where
     arbitrary = Expr <$> arbitrary

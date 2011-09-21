@@ -22,15 +22,20 @@ module Equ.Proof.Proof (
 import Equ.Expr
 import Equ.PreExpr
 import Equ.Rule
+import Equ.Theories.FOL(neuterEquiv_Rule1,equiv,true)
 
-import Data.Text (Text)
-import Data.Map (Map, fromList)
+
+import Data.Text (Text, pack)
+import Data.Map (Map, fromList, empty)
+import Data.Monoid
+import Data.Maybe
 import Data.Binary
 
 import Control.Applicative ((<$>), (<*>),Applicative(..))
 import Test.QuickCheck
 import Test.QuickCheck.Gen
 import System.Random
+
 
 -- | Las hip&#243;tesis son nombradas por n&#250;meros.
 data Name = Index Int
@@ -46,6 +51,7 @@ class Truth t where
     truthExpr  :: t -> Expr
     truthRel   :: t -> Relation
     truthRules :: t -> [Rule]    
+    truthBasic :: t -> Basic
 
 -- | Un axioma es una expresi&#243;n que puede ser interpretada como varias
 -- reglas de re-escritura.
@@ -72,7 +78,8 @@ instance Truth Axiom where
     truthExpr  = axExpr
     truthRel   = axRel
     truthRules = axRules
-    
+    truthBasic = Ax
+
 -- |  Un   teorema  tambi&#233;n  permite,  como   un  axioma,  re-escribir
 -- expresiones; a  diferencia de un  axioma debe tener una  prueba que
 -- demuestre su validez.
@@ -101,6 +108,7 @@ instance Truth Theorem where
     truthExpr  = thExpr
     truthRel   = thRel
     truthRules = thRules
+    truthBasic = Theo
 
 -- | El contexto lleva las hip&#243;tesis actuales; en nuestro caso hay
 -- tres formas de agregar hip&#243;tesis al contexto: en una prueba por
@@ -274,6 +282,7 @@ theoFocus = Focus ctx rel (e,p) (e',p') prf
 -}
 
 data Proof where
+    Reflex :: Proof
     Hole   :: Ctx -> Relation -> Focus -> Focus -> Proof 
     Simple :: Ctx -> Relation -> Focus -> Focus -> Basic -> Proof
     Trans  :: Ctx -> Relation -> Focus -> Focus -> Focus -> Proof -> Proof -> Proof
@@ -412,63 +421,114 @@ instance Binary Name where
     case tag_ of
         0 -> get >>= return . Index
 
+instance Monoid Proof where
+    mempty = Reflex
+    mappend Reflex p = p
+    mappend p Reflex = p
+    mappend p1 p2 = Trans (fromJust $ getCtx p1) (fromJust $ getRel p1) (fromJust $ getStart p1) 
+                          (fromJust $ getStart p2) (fromJust $ getEnd p2) p1 p2
+
 isHole :: Proof -> Bool
 isHole (Hole c _ _ _) = True
 isHole _ = False
 
-getCtx :: Proof -> Ctx
-getCtx (Hole c _ _ _) = c
-getCtx (Simple c _ _ _ _) = c
-getCtx (Trans c _ _ _ _ _ _) = c
-getCtx (Cases c _ _ _ _ _) = c
-getCtx (Ind c _ _ _ _ _) = c
-getCtx (Deduc c _ _ _) = c
-getCtx (Focus c _ _ _ _) = c
+getCtx :: Proof -> Maybe Ctx
+getCtx Reflex = Nothing
+getCtx (Hole c _ _ _) = Just c
+getCtx (Simple c _ _ _ _) = Just c
+getCtx (Trans c _ _ _ _ _ _) = Just c
+getCtx (Cases c _ _ _ _ _) = Just c
+getCtx (Ind c _ _ _ _ _) = Just c
+getCtx (Deduc c _ _ _) = Just c
+getCtx (Focus c _ _ _ _) = Just c
 
 
-getStart :: Proof -> Focus
-getStart (Hole _ _ f _) = f
-getStart (Simple _ _ f _ _) = f
-getStart (Trans _ _ f _ _ _ _) = f
-getStart (Cases _ _ f _ _ _) = f
-getStart (Ind _ _ f _ _ _) = f
-getStart (Deduc _ f _ _) = f
-getStart (Focus _ _ f _ _) = f
+-- DUDA: Que hacemos con Reflex aca??
+getStart :: Proof -> Maybe Focus
+getStart Reflex = Nothing
+getStart (Hole _ _ f _) = Just f
+getStart (Simple _ _ f _ _) = Just f
+getStart (Trans _ _ f _ _ _ _) = Just f
+getStart (Cases _ _ f _ _ _) = Just f
+getStart (Ind _ _ f _ _ _) = Just f
+getStart (Deduc _ f _ _) = Just f
+getStart (Focus _ _ f _ _) = Just f
 
-getEnd :: Proof -> Focus
-getEnd (Hole _ _ _ f) = f
-getEnd (Simple _ _ _ f _) = f
-getEnd (Trans _ _ _ f _ _ _) = f
-getEnd (Cases _ _ _ f _ _) = f
-getEnd (Ind _ _ _ f _ _) = f
-getEnd (Deduc _ _ f _) = f
-getEnd (Focus _ _ _ f _) = f
+getEnd :: Proof -> Maybe Focus
+getEnd Reflex = Nothing
+getEnd (Hole _ _ _ f) = Just f
+getEnd (Simple _ _ _ f _) = Just f
+getEnd (Trans _ _ _ f _ _ _) = Just f
+getEnd (Cases _ _ _ f _ _) = Just f
+getEnd (Ind _ _ _ f _ _) = Just f
+getEnd (Deduc _ _ f _) = Just f
+getEnd (Focus _ _ _ f _) = Just f
+
+-- | Devuelve la relación para la cual es una prueba.
+getRel :: Proof -> Maybe Relation
+getRel Reflex = Nothing
+getRel (Hole _ r _ _) = Just r
+getRel (Simple _ r _ _ _) = Just r
+getRel (Trans _ r _ _ _ _ _) = Just r
+getRel (Cases _ r _ _ _ _) = Just r
+getRel (Ind _ r _ _ _ _) = Just r
+getRel (Deduc _ _ _ _) = Just relImpl
+getRel (Focus _ r _ _ _) = Just r
 
 {- $samples
 
 [Axiomas]
 
-
-neutralEquiv :: Axiom
-neutralEquiv = Axiom { axName = T.pack "Neutro de la equivalencia"
-                     , axExpr = Expr $ parser "(p ≡ True) ≡ p"
-                     , axRel = relEquiv
-                     , axRules = [neuterEquiv_Rule1]
-                     }
-
-
-[Pruebas]
-
-@
-incomplete :: Proof
-incomplete = Hole M.empty Equivalence (Top,equiv True True) (Top,True)
-@
-
-@
-trivial :: Proof
-trivial = Simple M.empty Equivalence (Top,equiv True True) (Top,True) $
-          Ax neutralEquiv
-@
-
-
 -}
+-- neutralEquiv :: Axiom
+-- neutralEquiv = Axiom { axName = pack "Neutro de la equivalencia"
+--                      , axExpr = Expr $ parser "(p ≡ True) ≡ p"
+--                      , axRel = relEquiv
+--                      , axRules = [neuterEquiv_Rule1]
+--                      }
+-- {-
+-- 
+-- [Pruebas]
+-- 
+-- @
+-- incomplete :: Proof
+-- incomplete = Hole M.empty Equivalence (Top,equiv True True) (Top,True)
+-- @
+-- 
+-- -}
+-- 
+-- trivial :: Proof
+-- trivial = Simple empty relEquiv (toFocus reflTrue) (toFocus true') $
+--           Ax neutralEquiv
+--     where (Expr true') = true
+--           (Expr reflTrue) = true `equiv` true
+-- 
+-- trivialBack :: Proof
+-- trivialBack = Simple empty relEquiv (toFocus true') (toFocus reflTrue) $
+--               Ax neutralEquiv
+--     where (Expr true') = true
+--           (Expr reflTrue) = true `equiv` true
+-- 
+-- trivial' :: Proof
+-- trivial' = Simple empty relEquiv foc foc $ Ax neutralEquiv
+--     where (Expr true') = true
+--           foc = toFocus true'
+-- 
+-- 
+-- -- | Ejemplo, muy pavo, de prueba usando transitividad.
+-- transEx :: Proof
+-- transEx = Trans empty relEquiv foc (toFocus true') foc trivial trivialBack
+--     where (Expr reflTrue) = true `equiv` true
+--           (Expr true') = true
+--           foc = toFocus reflTrue
+-- 
+-- 
+-- -- | Ejemplo, muy pavo, de prueba usando transitividad con un hueco.
+-- transExHole :: Proof
+-- transExHole = Trans empty relEquiv foc foc' foc trivial step
+--     where (Expr reflTrue) = true `equiv` true
+--           (Expr true') = true
+--           foc = toFocus reflTrue
+--           foc' = toFocus true'
+--           hole = Hole empty relEquiv foc' foc'
+--           step = Trans empty relEquiv foc' foc' foc hole trivialBack
