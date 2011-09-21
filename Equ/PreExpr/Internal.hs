@@ -5,6 +5,8 @@ import Equ.Syntax
 import Control.Applicative ((<$>), (<*>),Applicative(..))
 import Test.QuickCheck(Arbitrary, arbitrary, oneof)
 
+import Data.Binary
+
 data PreExpr' a = Var a
                 | Con Constant
                 | Fun Func
@@ -16,6 +18,33 @@ data PreExpr' a = Var a
                 | Paren (PreExpr' a)
                   deriving Eq
 
+--  Instancia binary para PreExpr' a.
+instance Binary a => Binary (PreExpr' a) where
+    put (Var a) = putWord8 0 >> put a
+    put (Con c) = putWord8 1 >> put c
+    put (Fun f) = putWord8 2 >> put f
+    put (PrExHole h) = putWord8 3 >> put h
+    put (UnOp op pe) = putWord8 4 >> put op >> put pe
+    put (BinOp op pe pe') = putWord8 5 >> put op >> put pe >> put pe'
+    put (App pe pe') = putWord8 6 >> put pe >> put pe'
+    put (Quant q a pe pe') = putWord8 7 >> put q >> put a >> put pe >> put pe'
+    put (Paren pe) = putWord8 8 >> put pe
+    
+    get = do
+    tag_ <- getWord8
+    case tag_ of
+        0 -> get >>= return . Var
+        1 -> get >>= return . Con
+        2 -> get >>= return . Fun
+        3 -> get >>= return . PrExHole
+        4 -> get >>= \op -> get >>= \pe -> return (UnOp op pe)
+        5 -> get >>= \op -> get >>= \pe -> get >>= 
+                     \pe' -> return (BinOp op pe pe')
+        6 -> get >>= \pe -> get >>= \pe' -> return (App pe pe')
+        7 -> get >>= \q -> get >>= \a -> get >>= 
+                     \pe -> get >>= \pe' -> return (Quant q a pe pe')
+        8 -> get >>= return . Paren
+        _ -> fail "Problem: Instance Binary PreExpr' a."
 
 type PreExpr = PreExpr' Variable
 
@@ -44,7 +73,7 @@ instance Show PreExpr where
                                         ++ show preExp0 ++ " | " 
                                         ++ show preExp1
     show (Paren e) = "〔" ++ show e ++ " 〕"
-                
+
 -- | Instancia arbitrary para las preExpresiones, lo único que dejamos fijo es el 
 -- operador unario, esto para simplificar la forma de las preExpresiones.
 instance Arbitrary PreExpr where

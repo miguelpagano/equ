@@ -5,7 +5,7 @@
 {-# Language TypeSynonymInstances #-}
 module Equ.Types where
 
-import Data.Text (Text, pack)
+import Data.Text (Text, pack, unpack)
 import Data.Poset
 
 import Control.Applicative
@@ -13,6 +13,7 @@ import Test.QuickCheck(Arbitrary, arbitrary, elements, oneof)
 import Data.Monoid
 import qualified Data.Foldable as F
 import Data.Traversable
+import Data.Binary
 
 -- | Tipos de datos atómicos.
 data AtomTy = ATyNum  -- ^ Los reales.
@@ -77,6 +78,42 @@ instance Monad Type' where
     TyVar v >>= f = f v
     TyList t >>= f = TyList $ t >>= f
     t :-> t' >>= f = (:->) (t >>= f) (t' >>= f)
+
+instance Binary TyVarName where
+    put = put . unpack
+    get = get >>= return . pack
+
+instance Binary AtomTy where
+    put ATyNum = putWord8 0
+    put ATyInt = putWord8 1
+    put ATyNat = putWord8 2
+    put ATyBool = putWord8 3
+    
+    get = do
+    tag_ <- getWord8
+    case tag_ of
+        0 -> return ATyNum
+        1 -> return ATyInt
+        2 -> return ATyNat
+        3 -> return ATyBool
+        _ -> fail "Problem: Instance Binary AtomTy."
+
+instance (Binary a) => Binary (Type' a) where
+    put TyUnknown = putWord8 0
+    put (TyVar v) = putWord8 1 >> put v
+    put (TyList t) = putWord8 2 >> put t
+    put (TyAtom a) = putWord8 3 >> put a
+    put (t :-> t') = putWord8 4 >> put t >> put t'
+
+    get = do
+    tag_ <- getWord8
+    case tag_ of
+        0 -> return TyUnknown
+        1 -> get >>= return . TyVar
+        2 -> get >>= return . TyList
+        3 -> get >>= return . TyAtom
+        4 -> get >>= \t -> get >>= \t' -> return (t :-> t')
+        _ -> fail "Problem: Instance Binary Type' a."
 
 -- | El tipo concreto de nuestras expresiones.
 type Type = Type' TyVarName

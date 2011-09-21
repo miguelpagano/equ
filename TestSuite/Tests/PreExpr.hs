@@ -1,6 +1,6 @@
 module TestSuite.Tests.PreExpr (
-                prop_toFocuses
-                )
+              prop_toFocuses
+            )
     where
 
 import Equ.PreExpr

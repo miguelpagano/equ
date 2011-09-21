@@ -1,4 +1,4 @@
-{-# Language GADTs #-}
+{-# Language GADTs, TypeSynonymInstances #-}
 
 {-| Este m&#243;dulo define la noci&#243;n de una prueba. -}
 module Equ.Proof.Proof (
@@ -19,17 +19,25 @@ module Equ.Proof.Proof (
                  , isHole
                  ) where
 
-
 import Equ.Expr
 import Equ.PreExpr
 import Equ.Rule
 
 import Data.Text (Text)
-import Data.Map (Map)
+import Data.Map (Map, fromList)
+import Data.Binary
+
+import Control.Applicative ((<$>), (<*>),Applicative(..))
+import Test.QuickCheck
+import Test.QuickCheck.Gen
+import System.Random
 
 -- | Las hip&#243;tesis son nombradas por n&#250;meros.
 data Name = Index Int
     deriving (Show,Ord,Eq)
+
+instance Arbitrary Name where
+    arbitrary = Index <$> arbitrary
 
 -- | La clase Truth representa una verdad en una teoría. En principio
 -- pensamos en Axiomas y Teoremas.
@@ -47,7 +55,16 @@ data Axiom = Axiom {
     , axRel   :: Relation
     , axRules :: [Rule] 
     }
-    deriving Show
+    deriving (Show, Eq)
+
+instance Arbitrary Axiom where
+    arbitrary = Axiom <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+
+instance Binary Axiom where
+    put (Axiom n e r lru) = put n >> put e >> put r >> put lru
+    
+    get = get >>= \n -> get >>= \e -> get >>= 
+                  \r -> get >>= \lru -> return (Axiom n e r lru)
 
 -- | Instancia de Truth para el tipo Axiom.
 instance Truth Axiom where
@@ -66,7 +83,17 @@ data Theorem = Theorem {
     , thProof :: Proof
     , thRules :: [Rule]
     }
-    deriving Show
+    deriving (Show, Eq)
+
+instance Arbitrary Theorem where
+    arbitrary = Theorem <$> arbitrary <*> arbitrary <*> 
+                            arbitrary <*> arbitrary <*> arbitrary
+
+instance Binary Theorem where
+    put (Theorem n e r p lru) = put n >> put e >> put r >> put p >> put lru
+    
+    get = get >>= \n -> get >>= \e -> get >>= \r -> get >>= 
+                  \p ->get >>= \lru -> return (Theorem n e r p lru)
 
 -- | Instancia de Truth para el tipo theorem.
 instance Truth Theorem where
@@ -82,13 +109,35 @@ instance Truth Theorem where
 -- deducci&#243;n asumimos el antecedente de una implicaci&#243;n.
 type Ctx = Map Name Expr
 
+instance Arbitrary Ctx where
+    arbitrary = fromList <$> arbitrary
+
 -- | Las pruebas elementales son aplicar un axioma (en un foco), 
 -- usar un teorema ya probado, o usar una hip&#243;tesis.
 data Basic where
     Ax  :: Axiom -> Basic    -- Un axioma de cierta teor&#237;a.
     Theo :: Theorem -> Basic  -- Un teorema ya probado.
     Hyp :: Name -> Basic   --  Una hip&#243;tesis que aparece en el contexto.               
-    deriving Show
+    deriving (Show, Eq)
+
+instance Arbitrary Basic where
+    arbitrary = 
+        oneof [ Ax <$> arbitrary
+              , Theo <$> arbitrary
+              , Hyp <$> arbitrary
+              ]
+
+instance Binary Basic where
+    put (Ax a) = putWord8 0 >> put a
+    put (Theo t) = putWord8 1 >> put t
+    put (Hyp h) = putWord8 2 >> put h
+    
+    get = do
+    tag_ <- getWord8
+    case tag_ of
+        0 -> get >>= \a -> return (Ax a)
+        1 -> get >>= \t -> return (Theo t)
+        2 -> get >>= \h -> return (Hyp h)
 
 {- $proofs
 
@@ -232,7 +281,136 @@ data Proof where
     Ind    :: Ctx -> Relation -> Focus -> Focus -> [Focus] -> [([Focus],Proof)] -> Proof
     Deduc  :: Ctx -> Focus -> Focus -> Proof -> Proof
     Focus  :: Ctx -> Relation -> Focus -> Focus -> Proof -> Proof
-    deriving Show
+    deriving (Show, Eq)
+
+{- Instancia Arbitrary para Proof, la definición de arbitrary la realizamos
+    con sized ya que si no las pruebas crecen descontroladamente y como
+    consecuencia al correr los test se produce un colapso de memoria.
+    
+    Para solucionar este problema encontré dos opciones rápidas usando 
+    herramientas que nos provee quickcheck. Una es usar la función sized
+    y la otra alternativa es usar frequency. Esta ultima fue la primera opción
+    que use pero despues estudiando un poco mas parece que siempre que queremos
+    generar estructuras recursivas lo ideal es usar sized para asegurar la
+    finalizacion y ademas prevenir resultados demasiado grandes.
+    
+    Algo importante a comentar sobre la función sized, es que utiliza un size
+    implícito en quickcheck, el cual no tiene una utilización fija, tan así 
+    que a veces ni siquiera es usado.
+    
+    Dejo la instancia primera que había hecho por si hay algo que discutir.
+    arbitrary nos queda definido, gracias a frequency, de la siguiente manera;
+    de cada 100 pruebas generadas, 50 son Simples, 45 son Hole, 1 Trans, 
+    1 Cases, 1 Ind, 1 Deduc, 1 Focus.
+    Nota: La desición acerca de esta frecuentcia la tome basándome en algunos
+        test que hice, así como esta nos podemos asegurar que la corrida de 
+        testeo termina.
+        
+    arbitrary =
+        frequency [ (45, Hole <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
+                  , (50, Simple <$> arbitrary <*> arbitrary <*> 
+                               arbitrary <*> arbitrary <*> arbitrary)
+                  , (1, Trans <$> arbitrary <*> arbitrary <*> arbitrary <*> 
+                              arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
+                  , (1, Cases <$> arbitrary <*> arbitrary <*> arbitrary <*> 
+                              arbitrary <*> arbitrary <*> arbitrary)
+                  , (1, Ind <$> arbitrary <*> arbitrary <*> arbitrary <*> 
+                              arbitrary <*> arbitrary <*> arbitrary)
+                  , (1, Deduc <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
+                  , (1, Focus <$> arbitrary <*> arbitrary <*> 
+                              arbitrary <*> arbitrary <*> arbitrary)
+                  ]
+
+-}
+
+instance Arbitrary Proof where
+    arbitrary = sized proof
+        where
+            proof :: Int -> Gen Proof
+            proof 0 = 
+                oneof [ Hole <$> arbitrary <*> arbitrary <*> 
+                                 arbitrary <*> arbitrary
+                      , Simple <$> arbitrary <*> arbitrary <*> 
+                                   arbitrary <*> arbitrary <*> arbitrary
+                      ]
+            proof n | n > 0 = 
+                oneof [ Hole <$> arbitrary <*> arbitrary <*> 
+                                 arbitrary <*> arbitrary
+                      , Simple <$> arbitrary <*> arbitrary <*> 
+                                   arbitrary <*> arbitrary <*> arbitrary
+                      , Trans <$> arbitrary <*> arbitrary <*> arbitrary <*> 
+                                  arbitrary <*> arbitrary <*> 
+                                  subProof <*> subProof
+                      , Cases <$> arbitrary <*> arbitrary <*> arbitrary <*> 
+                                  arbitrary <*> arbitrary <*> listPairFocusProof
+                      , Ind <$> arbitrary <*> arbitrary <*> arbitrary <*> 
+                                arbitrary <*> arbitrary <*> 
+                                listPPFocusProof
+                      , Deduc <$> arbitrary <*> arbitrary <*> 
+                                  arbitrary <*> subProof
+                      , Focus <$> arbitrary <*> arbitrary <*> 
+                                  arbitrary <*> arbitrary <*> subProof
+                    ]
+                where   
+                    -- Disminuimos el largo (visto como un arbol) de la prueba.
+                    subProof :: Gen Proof
+                    subProof = proof (n `div` 10)
+                    pairFocusProof :: Gen (Focus, Proof)
+                    pairFocusProof = (,) <$> arbitrary <*> subProof
+                    listPairFocusProof :: Gen [(Focus, Proof)]
+                    listPairFocusProof = vectorOf 2 pairFocusProof
+                    pPFocusProof :: Gen ([Focus], Proof)                    
+                    pPFocusProof = (,) <$> arbitrary <*> subProof
+                    listPPFocusProof :: Gen [([Focus], Proof)]
+                    listPPFocusProof = vectorOf 2 pPFocusProof
+
+instance Binary Proof where
+    put (Hole ctx r f f') = putWord8 0 >> put ctx >> put r >>  put f >> put f'
+    put (Simple ctx r f f' b) = 
+        putWord8 1 >> put ctx >> put r >> put f >> put f' >> put b
+    put (Trans ctx r f f' f'' p p') = 
+        putWord8 2 >> put ctx >> put r >> put f >> put f' >> put f'' >>
+                      put p >> put p'
+    put (Cases ctx r f f' f'' lfp) = 
+        putWord8 3 >> put ctx >> put r >> put f >> put f' >> put f'' >> put lfp
+    put (Ind ctx r f f' lf llfp) = 
+        putWord8 4 >> put ctx >> put r >> put f >> put f' >> put lf >> put llfp
+    put (Deduc ctx f f' p) = putWord8 5 >> put ctx >> put f >> put f' >> put p
+    put (Focus ctx r f f' p) = 
+        putWord8 6 >> put ctx >> put r >> put f >> put f' >> put p
+    
+    get = do
+    tag_ <- getWord8
+    case tag_ of
+        0 -> get >>= \ctx -> get >>= \r -> get >>= 
+                     \f -> get >>= \f' -> return (Hole ctx r f f')
+        1 -> get >>= \ctx -> get >>= \r -> get >>=
+                     \f -> get >>= \f' -> get >>= 
+                     \b -> return (Simple ctx r f f' b)
+        2 -> get >>= \ctx -> get >>= \r -> get >>=
+                     \f -> get >>= \f' -> get >>= 
+                     \f'' -> get >>= \p -> get >>= 
+                     \p' -> return (Trans ctx r f f' f'' p p')
+        3 -> get >>= \ctx -> get >>= \r -> get >>=
+                     \f -> get >>= \f' -> get >>= 
+                     \f'' -> get >>= \lfp -> return (Cases ctx r f f' f'' lfp)
+        4 -> get >>= \ctx -> get >>= \r -> get >>=
+                     \f -> get >>= \f' -> get >>= 
+                     \lfp -> get >>= \llfp -> return (Ind ctx r f f' lfp llfp)
+        5 -> get >>= \ctx -> get >>= \f -> get >>=
+                     \f' -> get >>= \p -> return (Deduc ctx f f' p)
+        6 -> get >>= \ctx -> get >>= \r -> get >>=
+                     \f -> get >>= \f' -> get >>=
+                     \p -> return (Focus ctx r f f' p)
+        _ -> fail "Problem: Instance Binary Proof."
+
+instance Binary Name where
+    put (Index i) = putWord8 0 >> put i
+
+    get = do
+    tag_ <- getWord8
+    case tag_ of
+        0 -> get >>= return . Index
 
 isHole :: Proof -> Bool
 isHole (Hole c _ _ _) = True

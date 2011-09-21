@@ -2,8 +2,9 @@
 
 {-| Este m&#243;dulo define la noci&#243;n de una prueba. -}
 module Equ.Proof (
+                   encode, decode, encodeFile, decodeFile
                   -- * Axiomas y teoremas
-                   Axiom
+                 , Axiom
                  , Theorem
                  -- * Pruebas
                  -- $proofs

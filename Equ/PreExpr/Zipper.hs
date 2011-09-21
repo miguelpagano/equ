@@ -12,6 +12,11 @@ module Equ.PreExpr.Zipper
 import Equ.PreExpr.Internal
 import Equ.Syntax
 
+import Data.Binary
+
+import Control.Applicative ((<$>), (<*>),Applicative(..))
+import Test.QuickCheck(Arbitrary, arbitrary, oneof)
+
 -- | Definición de los posibles lugares en los que podemos estar
 -- enfocándonos.
 data Path = Top
@@ -24,6 +29,46 @@ data Path = Top
           | QuantR Quantifier Variable PreExpr Path 
           | ParenD Path
             deriving (Eq,Show)
+
+instance Arbitrary Path where
+    arbitrary =
+        oneof [ return Top
+              , UnOpD <$> arbitrary <*> arbitrary
+              , BinOpL <$> arbitrary <*> arbitrary <*> arbitrary
+              , BinOpR <$> arbitrary <*> arbitrary <*> arbitrary
+              , AppL <$> arbitrary <*> arbitrary
+              , AppR <$> arbitrary <*> arbitrary
+              , QuantL <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+              , QuantR <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+              , ParenD <$> arbitrary
+              ]
+
+instance Binary Path where
+    put Top = putWord8 0
+    put (UnOpD op p) = putWord8 1 >> put op >> put p
+    put (BinOpL op p pe) = putWord8 2 >> put op >> put p >> put pe
+    put (BinOpR op pe p) = putWord8 3 >> put op >> put pe >> put p
+    put (AppL p pe) = putWord8 4 >> put p >> put pe
+    put (AppR pe p) = putWord8 5 >> put pe >> put p
+    put (QuantL q v p pe) = putWord8 6 >> put q >> put v >> put p >> put pe
+    put (QuantR q v pe p) = putWord8 7 >> put q >> put v >> put pe >> put p
+    put (ParenD p) = putWord8 8 >> put p
+
+    get = do
+    tag_ <- getWord8
+    case tag_ of
+        0 -> return Top
+        1 -> get >>= \op -> get >>= \p -> return (UnOpD op p)
+        2 -> get >>= \op -> get >>= \p -> get >>= \pe -> return (BinOpL op p pe) 
+        3 -> get >>= \op -> get >>= \pe -> get >>= \p -> return (BinOpR op pe p)
+        4 -> get >>= \p -> get >>= \pe -> return (AppL p pe)
+        5 -> get >>= \pe -> get >>= \p -> return (AppR pe p)
+        6 -> get >>= \q -> get >>= \v -> get >>= 
+                     \p -> get >>= \pe -> return (QuantL q v p pe)
+        7 -> get >>= \q -> get >>= \v -> get >>= 
+                     \pe -> get >>= \p -> return (QuantR q v pe p)
+        8 -> get >>= return . ParenD
+        _ -> fail "Problem: Instance Binary Path."
 
 -- | Un Focus representa la expresión que consiste de completar el
 -- hueco denotado por Path con la expresión PreExpr (eso es lo que

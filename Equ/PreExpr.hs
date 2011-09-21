@@ -3,6 +3,7 @@
 -- tipo que posiblemente puso el usuario está en las hojas del árbol.
 {-# Language OverloadedStrings #-}
 module Equ.PreExpr ( freeVars, freshVar
+                   , encode, decode, encodeFile, decodeFile
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
@@ -19,6 +20,10 @@ import Equ.PreExpr.Zipper
 import Equ.PreExpr.Monad
 
 import Data.Text(pack)
+import Data.Binary(encode, decode, encodeFile, decodeFile)
+
+import Equ.Parser
+import Equ.Theories.AbsName
 
 -- | Esta funcion devuelve todas las variables libres de una expresion
 freeVars :: PreExpr -> Set Variable
