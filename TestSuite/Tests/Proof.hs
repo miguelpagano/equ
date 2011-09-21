@@ -6,7 +6,4 @@ module TestSuite.Tests.Proof (
 import Equ.Proof
 
 prop_serialization :: Proof -> Bool
-prop_serialization p = let pE = encode p
-                           pD = decode pE
-                        in
-                           p == pD
+prop_serialization p = p == (decode . encode) p
