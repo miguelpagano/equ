@@ -16,6 +16,7 @@ module Equ.Proof.Proof (
                  , getCtx
                  , getStart
                  , getEnd
+                 , getRel
                  , isHole
                  ) where
 
@@ -290,7 +291,25 @@ data Proof where
     Ind    :: Ctx -> Relation -> Focus -> Focus -> [Focus] -> [([Focus],Proof)] -> Proof
     Deduc  :: Ctx -> Focus -> Focus -> Proof -> Proof
     Focus  :: Ctx -> Relation -> Focus -> Focus -> Proof -> Proof
-    deriving (Show, Eq)
+    deriving Eq
+
+-- Hace falta mejorar esta instancia.
+instance Show Proof where
+    show (Hole ctx r f f') = "\t" ++ show f ++ "\n" ++ show r ++ "{ ? }" ++  "\n\t" ++ show f'
+    show (Simple ctx r f f' b) = "\t" ++ show f ++ 
+                                 "\n" ++ show r ++ "{" ++ show b ++ "}" ++ 
+                                 "\n\t" ++ show f'
+    show (Trans ctx r f f' f'' p p') =  "\t" ++ show f ++ 
+                                        "\n" ++ show r ++ "\n{" ++ show p ++
+                                        "\n\t\n}\n\t" ++ show f' ++ 
+                                        "\n" ++ show r ++ "\n{" ++ show p' ++ 
+                                        "\n\t\n}\n\t" ++ show f''
+    show (Cases ctx r f f' f'' lfp) = show r ++ show f ++ show f' ++ 
+                                      show f'' ++ show lfp
+    show (Ind ctx r f f' lf lfp) = show r ++ show f ++ show f' ++ 
+                                      show lf ++ show lfp
+    show (Deduc ctx f f' p) = show f ++ show f' ++ show p
+    show (Focus ctx r f f' p) = show r ++ show f ++ show f' ++ show p
 
 {- Instancia Arbitrary para Proof, la definición de arbitrary la realizamos
     con sized ya que si no las pruebas crecen descontroladamente y como
@@ -429,8 +448,9 @@ instance Monoid Proof where
     mempty = Reflex
     mappend Reflex p = p
     mappend p Reflex = p
-    mappend p1 p2 = Trans (fromJust $ getCtx p1) (fromJust $ getRel p1) (fromJust $ getStart p1) 
-                          (fromJust $ getStart p2) (fromJust $ getEnd p2) p1 p2
+    mappend p1 p2 = Trans (fromJust $ getCtx p1) (fromJust $ getRel p1) 
+                          (fromJust $ getStart p1) (fromJust $ getStart p2) 
+                          (fromJust $ getEnd p2) p1 p2
 
 isHole :: Proof -> Bool
 isHole (Hole c _ _ _) = True

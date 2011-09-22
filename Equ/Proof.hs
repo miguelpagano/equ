@@ -3,12 +3,14 @@
 {-| Este m&#243;dulo define la noci&#243;n de una prueba. -}
 module Equ.Proof (
                    encode, decode, encodeFile, decodeFile
+                 , newProof, newProofWithoutEnd, addStep
                   -- * Axiomas y teoremas
                  , Axiom
                  , Theorem
                  -- * Pruebas
                  -- $proofs
-                 , Proof
+                 , Proof(..)
+                 , Basic(..)
                  -- * Ejemplos
                  -- $samples
                  ) where
@@ -25,10 +27,12 @@ import Equ.Rule
 import Equ.Rewrite
 import Equ.Theories.FOL
 
+import Data.Monoid
 import Equ.Parser
 
 import qualified Data.Text as T
 import Data.Map (unions)
+import Data.Text (pack)
 import Data.Maybe (fromJust)
 import qualified Data.Map as M
 import Control.Monad
@@ -202,3 +206,62 @@ stepUp (EstTrans ctx rel fi fm1 fm2 ff pi1 p2f) f p =
         else
             Left $ EstTrans M.empty rel fi fm1 f ff pi1 new_proof
 
+
+{- | Comenzamos una prueba dados dos focus y una relación entre ellas, de 
+        la cual no tenemos una prueba.
+    {POS: El contexto de la prueba es vacio.}
+    Dadas rel, f y f' tenemos una prueba del estilo;
+    
+        f
+    rel {?}
+        f'
+-}
+
+newProof :: Relation -> Focus -> Focus -> Proof
+newProof r f f' = Hole M.empty r f f'
+
+{- | Comenzamos una prueba dado unfocus y una relacion.
+    {POS: El contexto de la prueba es vacio.}
+    Dadas rel y f tenemos una prueba del estilo;
+    
+        f
+    rel {?}
+        ?{}
+-}
+
+newProofWithoutEnd :: Relation -> Focus -> HoleInfo -> Proof
+newProofWithoutEnd r f hi = Hole M.empty r f h
+    where h = toFocus $ preExprHole hi
+
+{- | Dadas dos pruebas (una sin final), agregamos un paso.
+    Dadas p y p'
+    {PRE: p no tiene final, es decir getEnd p == (_, path)}
+    
+p:      startP
+    rel {?}
+        ?{}
+p':     startP'
+    rel { b }
+        endP'
+luego de addStep p p' (sii startP == startP')
+
+p'':    startP
+    rel { b }
+        endP'
+    rel {?}
+        ?{}
+-}
+
+addStep :: Proof -> Proof -> Maybe Proof
+addStep p p' | (getCtx p == getCtx p') -- Acá no esta muy bien pedir la igualdad.
+             , (getRel p == getRel p')
+             , (getStart p == getStart p')
+             , (isPreExprHole $ (fromJust . getEnd) p)
+             , not (isPreExprHole $ (fromJust . getEnd) p')
+             = Just $ Trans (fromJust $ getCtx p) (fromJust $ getRel p) 
+                            (fromJust $ getStart p) (fromJust $ getEnd p') 
+                            h p' p''
+    where   h = toFocus $ preExprHole (pack "")
+            p'' = newProofWithoutEnd (fromJust $ getRel p) 
+                                     (fromJust $getEnd p') (pack "")
+addStep _ _ = Nothing

@@ -4,6 +4,7 @@
 {-# Language OverloadedStrings #-}
 module Equ.PreExpr ( freeVars, freshVar
                    , encode, decode, encodeFile, decodeFile
+                   , preExprHole, isPreExprHole
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
@@ -12,7 +13,7 @@ module Equ.PreExpr ( freeVars, freshVar
     where
 
 
-import Equ.Syntax(Variable, Operator, Quantifier, var)
+import Equ.Syntax(Variable, Operator, Quantifier, var, HoleInfo, hole)
 import Data.Set (Set,union,delete,empty,insert,member)
 import Equ.Types
 import Equ.PreExpr.Internal
@@ -24,6 +25,13 @@ import Data.Binary(encode, decode, encodeFile, decodeFile)
 
 import Equ.Parser
 import Equ.Theories.AbsName
+
+isPreExprHole :: Focus -> Bool
+isPreExprHole (PrExHole _, _) = True
+isPreExprHole _ = False
+
+preExprHole :: HoleInfo -> PreExpr
+preExprHole i = PrExHole $ hole i
 
 -- | Esta funcion devuelve todas las variables libres de una expresion
 freeVars :: PreExpr -> Set Variable

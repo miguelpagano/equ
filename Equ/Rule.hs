@@ -31,7 +31,10 @@ data Relation = Relation {
     , relName :: RelName
     , relTy   :: Type -- ^ Este es el tipo de las cosas relacionadas.  
     }
-    deriving (Eq, Show)
+    deriving Eq
+    
+instance Show Relation where
+    show (Relation r n t) = show n
 
 instance Arbitrary Relation where
     arbitrary = Relation <$> arbitrary <*> arbitrary <*> arbitrary
