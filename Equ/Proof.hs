@@ -13,10 +13,11 @@ module Equ.Proof (
                  , Basic(..)
                  -- * Ejemplos
                  -- $samples
+                 , module Equ.Proof.Zipper
                  ) where
 
-
 import Equ.Proof.Proof
+import Equ.Proof.Zipper
 import Equ.Proof.Monad
 import Equ.Proof.Error
 
@@ -27,8 +28,9 @@ import Equ.Rule
 import Equ.Rewrite
 import Equ.Theories.FOL
 
-import Data.Monoid
-import Equ.Parser
+import Data.Monoid(mappend)
+
+import Data.Binary
 
 import qualified Data.Text as T
 import Data.Map (unions)
@@ -144,8 +146,9 @@ mkTransProof :: Ctx -> Relation -> Focus -> Focus -> Focus ->
                     Proof -> Proof -> Proof
 mkTransProof ctx rel f1 f2 f3 p12 p23 = Trans new_ctx rel f1 f2 f3 p12 p23
     where 
-        new_ctx = unions [ctx, (fromJust . getCtx) p12, (fromJust . getCtx) p23]
-        
+        Right ctx12 = getCtx p12
+        Right ctx23 = getCtx p23
+        new_ctx = unions [ctx, ctx12, ctx23]
 
 
 {- 
@@ -212,9 +215,11 @@ stepUp (EstTrans ctx rel fi fm1 fm2 ff pi1 p2f) f p =
     {POS: El contexto de la prueba es vacio.}
     Dadas rel, f y f' tenemos una prueba del estilo;
     
-        f
-    rel {?}
-        f'
+@
+    f
+rel {?}
+    f'
+@
 -}
 
 newProof :: Relation -> Focus -> Focus -> Proof
@@ -224,44 +229,77 @@ newProof r f f' = Hole M.empty r f f'
     {POS: El contexto de la prueba es vacio.}
     Dadas rel y f tenemos una prueba del estilo;
     
-        f
-    rel {?}
-        ?{}
+@
+    f
+rel {?}
+    ?{}
+@
 -}
 
 newProofWithoutEnd :: Relation -> Focus -> HoleInfo -> Proof
 newProofWithoutEnd r f hi = Hole M.empty r f h
     where h = toFocus $ preExprHole hi
 
-{- | Dadas dos pruebas (una sin final), agregamos un paso.
-    Dadas p y p'
-    {PRE: p no tiene final, es decir getEnd p == (_, path)}
-    
-p:      startP
-    rel {?}
-        ?{}
-p':     startP'
-    rel { b }
-        endP'
-luego de addStep p p' (sii startP == startP')
+{- | Dado un proofFocus (p, path) y una prueba p', agregamos un paso.
 
-p'':    startP
-    rel { b }
-        endP'
-    rel {?}
-        ?{}
+p:
+
+@
+    startP
+rel {?}
+    endP
+@
+
+p':
+
+@
+    startP'
+rel { b }
+    endP'
+@
+
+    addStep (p, path) p' (sii startP == startP')
+    
+p'':
+
+@
+    startP
+rel { b }
+    endP'
+rel {?}
+    EndP
+@
+
+    addStep (p, path) p' (sii endP == startP')
+
+p'':
+
+@
+    startP
+rel {?}
+    startP'
+rel { b }
+    endP'
+@
 -}
 
-addStep :: Proof -> Proof -> Maybe Proof
-addStep p p' | (getCtx p == getCtx p') -- Acá no esta muy bien pedir la igualdad.
-             , (getRel p == getRel p')
-             , (getStart p == getStart p')
-             , (isPreExprHole $ (fromJust . getEnd) p)
-             , not (isPreExprHole $ (fromJust . getEnd) p')
-             = Just $ Trans (fromJust $ getCtx p) (fromJust $ getRel p) 
-                            (fromJust $ getStart p) (fromJust $ getEnd p') 
-                            h p' p''
-    where   h = toFocus $ preExprHole (pack "")
-            p'' = newProofWithoutEnd (fromJust $ getRel p) 
-                                     (fromJust $getEnd p') (pack "")
-addStep _ _ = Nothing
+addStep :: ProofFocus -> Proof -> PM Proof
+addStep (p@(Hole ctx r f f'), _) p' = 
+                do
+                ctx' <- getCtx p'
+                whenEqWithDefault (ClashCtx ctx ctx') ctx ctx'
+                r' <- getRel p'
+                whenEqWithDefault (ClashRel r r') r' r
+                endP' <- getEnd p' -- Acá no recuerdo si ibamos a querer esto.
+                when (isPreExprHole endP') (Left $ ProofEndWithHole p')
+                startP' <- getStart p'
+                case startP' of
+                     cf  | cf == f -> return $ p' `mappend` p'' 
+                                   -- Right $ Trans ctx r f endP' f' p' p''
+                     cf | cf == f' -> return $ p `mappend` p' 
+                                     -- Right $ Trans ctx r f f' endP' p p'
+                     _ -> Left $ ClashAddStep p p'
+    where
+        Right endP' = getEnd p'
+        p'' = newProof r endP' f'
+addStep (p, _) _ = Left $ ProofNOTEndWithHole p

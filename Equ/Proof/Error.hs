@@ -5,8 +5,18 @@ import Equ.Rewrite (RewriteError)
 import Equ.Proof.Proof
 
 -- Faltaría definir un buen conjunto de errores para las pruebas.
-data ProofError = Rewrite RewriteError 
-                | IncompatibleRels Relation Relation
+data ProofError = Rewrite RewriteError                 
                 | BasicNotApplicable Basic
                 | ProofError
+                | ClashCtx Ctx Ctx -- Contextos distintos.
+                | ClashRel Relation Relation -- Relaciones distintas
+                | ClashAddStep Proof Proof -- Error al intentar agregar un paso.
+                | ProofEndWithHole Proof -- Identifica una prueba que cuyo 
+                                         -- final es un hueco de preExpr.
+                | ProofNOTEndWithHole Proof -- La prueba no tiene un hueco 
+                                            -- de preExpr en su ultimo focus.
+                | ReflexHasNoCtx -- Reflex no tiene contexto.
+                | ReflexHasNoStart -- Reflex no tiene prueba de inicio.
+                | ReflexHasNoEnd -- Reflex no tiene prueba final.
+                | ReflexHasNoRel -- Reflex no tiene relacion.
     deriving Show

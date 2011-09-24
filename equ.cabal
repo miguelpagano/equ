@@ -34,8 +34,10 @@ Library
   -- Modules exported by the library.
   Exposed-modules:     Equ.PreExpr,
                        Equ.Expr,
-                       Equ.TypeChecker
-                       Equ.Theories
+                       Equ.TypeChecker,
+                       Equ.Theories,
+                       Equ.Proof,
+                       Equ.Parser
 
   -- Packages needed in order to build this package.
   -- Last three for test.

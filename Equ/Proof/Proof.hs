@@ -13,10 +13,6 @@ module Equ.Proof.Proof (
                  , Ctx 
                  -- * Ejemplos
                  -- $samples
-                 , getCtx
-                 , getStart
-                 , getEnd
-                 , getRel
                  , isHole
                  ) where
 
@@ -24,7 +20,6 @@ import Equ.Expr
 import Equ.PreExpr
 import Equ.Rule
 import Equ.Theories.FOL(neuterEquiv_Rule1,equiv,true)
-
 
 import Data.Text (Text, pack)
 import Data.Map (Map, fromList, empty)
@@ -144,7 +139,7 @@ instance Binary Basic where
     get = do
     tag_ <- getWord8
     case tag_ of
-        0 -> get >>= \a -> return (Ax a)
+        0 -> (Ax <$> get)
         1 -> get >>= \t -> return (Theo t)
         2 -> get >>= \h -> return (Hyp h)
 
@@ -384,7 +379,7 @@ instance Arbitrary Proof where
                 where   
                     -- Disminuimos el largo (visto como un arbol) de la prueba.
                     subProof :: Gen Proof
-                    subProof = proof (n `div` 8)
+                    subProof = proof (n `div` 10)
                     pairFocusProof :: Gen (Focus, Proof)
                     pairFocusProof = (,) <$> arbitrary <*> subProof
                     listPairFocusProof :: Gen [(Focus, Proof)]
@@ -453,7 +448,7 @@ instance Monoid Proof where
                           (fromJust $ getEnd p2) p1 p2
 
 isHole :: Proof -> Bool
-isHole (Hole c _ _ _) = True
+isHole (Hole _ _ _ _) = True
 isHole _ = False
 
 getCtx :: Proof -> Maybe Ctx
