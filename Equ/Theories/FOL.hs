@@ -741,6 +741,7 @@ existRule = Rule { lhs = exist varX range term
           term = Expr $ Var $ var "t" $ tyBool
 
 
+folRules :: [Rule]
 folRules = [ conmEquiv_Rule1, conmEquiv_Rule2, conmEquiv_Rule3 -- Conmutatividad.
            , neuterEquiv_Rule1, neuterEquiv_Rule2 -- Neutro.
            , equivNeg_Rule1, equivNeg_Rule2 -- Negacion.

@@ -7,7 +7,6 @@ module Equ.Proof.Zipper
     ) where
 
 import Equ.Proof.Proof
-import Equ.Rule
 import Data.Monoid
 
 -- | Definición de los posibles lugares en los que podemos estar

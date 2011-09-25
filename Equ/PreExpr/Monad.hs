@@ -15,9 +15,9 @@ import qualified Data.Sequence as S
 import Data.Maybe (fromJust)
 import Control.Monad.Trans.Class(lift)
 import Control.Monad.Trans.Either(runEitherT, EitherT (..))
-import Control.Monad.RWS (RWS (..))
+import Control.Monad.RWS (RWS)
 import Control.Monad.RWS.Class ( local, tell, listen
-                               , MonadState (..)
+                               , MonadState  (..)
                                , MonadReader (..)
                                , MonadWriter (..)
                                )

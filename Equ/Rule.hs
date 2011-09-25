@@ -8,15 +8,15 @@ import Equ.Types
 import Data.Text    
 import Data.Binary
 
-import Control.Applicative ((<$>), (<*>),Applicative(..))
+import Control.Applicative ((<$>), (<*>))
 import Test.QuickCheck(Arbitrary, arbitrary, elements)
 
 -- | Nombres de las relaciones entre pasos de una demostracion
-data RelName = Eq       -- ^ Igualdad polimorfica excepto para formulas
-               | Equiv  -- ^ FOL: equivalencia
-               | Impl   -- ^ FOL: implicacion
-               | Cons   -- ^ FOL: consecuencia
-    deriving (Eq, Show)
+data RelName = Eq     -- ^ Igualdad polimorfica excepto para formulas
+             | Equiv  -- ^ FOL: equivalencia
+             | Impl   -- ^ FOL: implicacion
+             | Cons   -- ^ FOL: consecuencia
+    deriving (Eq, Show, Enum)
 
 instance Arbitrary RelName where
     arbitrary = elements [ Eq
@@ -34,7 +34,7 @@ data Relation = Relation {
     deriving Eq
     
 instance Show Relation where
-    show (Relation r n t) = show n
+    show (Relation _ n _) = show n
 
 instance Arbitrary Relation where
     arbitrary = Relation <$> arbitrary <*> arbitrary <*> arbitrary
@@ -79,27 +79,17 @@ instance Arbitrary Rule where
                          arbitrary <*> arbitrary <*> arbitrary
 
 instance Binary Rule where
-    put (Rule lhs rhs r n desc) = put lhs >> put rhs >> put r >>
-                                  put n >> put desc  
+    put (Rule lhs rhs rel n desc) = put lhs >> put rhs >> put rel >>
+                                    put n >> put desc  
 
-    get = get >>= \lhs -> get >>= \rhs -> get >>= \r -> get >>=
-                  \n -> get >>= \desc -> return (Rule lhs rhs r n desc)
+    get = Rule <$> get <*> get <*> get <*> get <*> get
 
 instance Binary RelName where
-    put Eq = putWord8 0
-    put Equiv = putWord8 1
-    put Impl = putWord8 2
-    put Cons = putWord8 3
+    put = putWord8 . toEnum . fromEnum
 
-    get = do
-    tag_ <- getWord8
-    case tag_ of
-         0 -> return Eq
-         1 -> return Equiv
-         2 -> return Impl
-         3 -> return Cons
+    get = getWord8 >>= return . toEnum . fromEnum
 
 instance Binary Relation where
     put (Relation r n t) = put r >> put n >> put t
     
-    get = get >>= \r -> get >>= \n -> get >>= \t -> return (Relation r n t)
+    get = Relation <$> get <*> get <*> get

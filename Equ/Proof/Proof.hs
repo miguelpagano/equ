@@ -14,23 +14,22 @@ module Equ.Proof.Proof (
                  -- * Ejemplos
                  -- $samples
                  , isHole
+                 -- Proyecciones
+                 , getCtx, getStart, getEnd, getRel
                  ) where
 
 import Equ.Expr
 import Equ.PreExpr
 import Equ.Rule
-import Equ.Theories.FOL(neuterEquiv_Rule1,equiv,true)
 
-import Data.Text (Text, pack)
-import Data.Map (Map, fromList, empty)
+import Data.Text (Text)
+import Data.Map (Map, fromList)
 import Data.Monoid
 import Data.Maybe
 import Data.Binary
 
-import Control.Applicative ((<$>), (<*>),Applicative(..))
+import Control.Applicative ((<$>), (<*>))
 import Test.QuickCheck
-import Test.QuickCheck.Gen
-import System.Random
 
 
 -- | Las hip&#243;tesis son nombradas por n&#250;meros.
@@ -65,8 +64,7 @@ instance Arbitrary Axiom where
 instance Binary Axiom where
     put (Axiom n e r lru) = put n >> put e >> put r >> put lru
     
-    get = get >>= \n -> get >>= \e -> get >>= 
-                  \r -> get >>= \lru -> return (Axiom n e r lru)
+    get = Axiom <$> get <*> get <*> get <*> get
 
 -- | Instancia de Truth para el tipo Axiom.
 instance Truth Axiom where
@@ -95,8 +93,7 @@ instance Arbitrary Theorem where
 instance Binary Theorem where
     put (Theorem n e r p lru) = put n >> put e >> put r >> put p >> put lru
     
-    get = get >>= \n -> get >>= \e -> get >>= \r -> get >>= 
-                  \p ->get >>= \lru -> return (Theorem n e r p lru)
+    get = Theorem <$> get <*> get <*> get <*> get <*> get
 
 -- | Instancia de Truth para el tipo theorem.
 instance Truth Theorem where
@@ -136,12 +133,12 @@ instance Binary Basic where
     put (Theo t) = putWord8 1 >> put t
     put (Hyp h) = putWord8 2 >> put h
     
-    get = do
-    tag_ <- getWord8
-    case tag_ of
-        0 -> (Ax <$> get)
-        1 -> get >>= \t -> return (Theo t)
-        2 -> get >>= \h -> return (Hyp h)
+    get = getWord8 >>= \tag_ ->
+          case tag_ of
+            0 -> Ax <$> get
+            1 -> Theo <$> get
+            2 -> Hyp <$> get
+            _ -> fail ""
 
 {- $proofs
 
@@ -290,21 +287,22 @@ data Proof where
 
 -- Hace falta mejorar esta instancia.
 instance Show Proof where
-    show (Hole ctx r f f') = "\t" ++ show f ++ "\n" ++ show r ++ "{ ? }" ++  "\n\t" ++ show f'
-    show (Simple ctx r f f' b) = "\t" ++ show f ++ 
+    show Reflex = ""
+    show (Hole _ r f f') = "\t" ++ show f ++ "\n" ++ show r ++ "{ ? }" ++  "\n\t" ++ show f'
+    show (Simple _ r f f' b) = "\t" ++ show f ++ 
                                  "\n" ++ show r ++ "{" ++ show b ++ "}" ++ 
                                  "\n\t" ++ show f'
-    show (Trans ctx r f f' f'' p p') =  "\t" ++ show f ++ 
+    show (Trans _ r f f' f'' p p') =  "\t" ++ show f ++ 
                                         "\n" ++ show r ++ "\n{" ++ show p ++
                                         "\n\t\n}\n\t" ++ show f' ++ 
                                         "\n" ++ show r ++ "\n{" ++ show p' ++ 
                                         "\n\t\n}\n\t" ++ show f''
-    show (Cases ctx r f f' f'' lfp) = show r ++ show f ++ show f' ++ 
+    show (Cases _ r f f' f'' lfp) = show r ++ show f ++ show f' ++ 
                                       show f'' ++ show lfp
-    show (Ind ctx r f f' lf lfp) = show r ++ show f ++ show f' ++ 
+    show (Ind _ r f f' lf lfp) = show r ++ show f ++ show f' ++ 
                                       show lf ++ show lfp
-    show (Deduc ctx f f' p) = show f ++ show f' ++ show p
-    show (Focus ctx r f f' p) = show r ++ show f ++ show f' ++ show p
+    show (Deduc _ f f' p) = show f ++ show f' ++ show p
+    show (Focus _ r f f' p) = show r ++ show f ++ show f' ++ show p
 
 {- Instancia Arbitrary para Proof, la definición de arbitrary la realizamos
     con sized ya que si no las pruebas crecen descontroladamente y como
@@ -405,39 +403,25 @@ instance Binary Proof where
     put (Focus ctx r f f' p) = 
         putWord8 7 >> put ctx >> put r >> put f >> put f' >> put p
     
-    get = do
-    tag_ <- getWord8
-    case tag_ of
-        0 -> return Reflex 
-        1 -> get >>= \ctx -> get >>= \r -> get >>= 
-                     \f -> get >>= \f' -> return (Hole ctx r f f')
-        2 -> get >>= \ctx -> get >>= \r -> get >>=
-                     \f -> get >>= \f' -> get >>= 
-                     \b -> return (Simple ctx r f f' b)
-        3 -> get >>= \ctx -> get >>= \r -> get >>=
-                     \f -> get >>= \f' -> get >>= 
-                     \f'' -> get >>= \p -> get >>= 
-                     \p' -> return (Trans ctx r f f' f'' p p')
-        4 -> get >>= \ctx -> get >>= \r -> get >>=
-                     \f -> get >>= \f' -> get >>= 
-                     \f'' -> get >>= \lfp -> return (Cases ctx r f f' f'' lfp)
-        5 -> get >>= \ctx -> get >>= \r -> get >>=
-                     \f -> get >>= \f' -> get >>= 
-                     \lfp -> get >>= \llfp -> return (Ind ctx r f f' lfp llfp)
-        6 -> get >>= \ctx -> get >>= \f -> get >>=
-                     \f' -> get >>= \p -> return (Deduc ctx f f' p)
-        7 -> get >>= \ctx -> get >>= \r -> get >>=
-                     \f -> get >>= \f' -> get >>=
-                     \p -> return (Focus ctx r f f' p)
-        _ -> fail "Problem: Instance Binary Proof."
+    get = getWord8 >>= \tag_ ->
+          case tag_ of
+            0 -> return Reflex 
+            1 -> Hole <$> get <*> get <*> get <*> get
+            2 -> Simple <$> get <*> get <*> get <*> get <*> get
+            3 -> Trans <$> get <*> get <*> get <*> get <*> get <*> get <*> get
+            4 -> Cases <$> get <*> get <*> get <*> get <*> get <*> get
+            5 -> Ind <$> get <*> get <*> get <*> get <*> get <*> get
+            6 -> Deduc <$> get <*> get <*> get <*> get
+            7 -> Focus <$> get <*> get <*> get <*> get <*> get
+            _ -> fail "Problem: Instance Binary Proof."
 
 instance Binary Name where
     put (Index i) = putWord8 0 >> put i
 
-    get = do
-    tag_ <- getWord8
-    case tag_ of
-        0 -> get >>= return . Index
+    get = getWord8 >>= \tag_ -> 
+          case tag_ of
+            0 -> Index <$> get
+            _ -> fail ""
 
 instance Monoid Proof where
     mempty = Reflex

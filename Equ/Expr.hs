@@ -7,7 +7,7 @@ import Data.Binary
 -- import Equ.Theories
 -- import Equ.Syntax
 
-import Control.Applicative ((<$>), (<*>),Applicative(..))
+import Control.Applicative ((<$>))
 import Test.QuickCheck(Arbitrary, arbitrary)
 
 -- | Las expresiones son pre-expresiones bien tipadas. Es decir,
