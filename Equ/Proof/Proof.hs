@@ -22,11 +22,11 @@ import Equ.Expr
 import Equ.PreExpr
 import Equ.Rule
 
-import Data.Text (Text)
+import Data.Text (Text, unpack)
 import Data.Map (Map, fromList)
 import Data.Monoid
 import Data.Maybe
-import Data.Binary
+import Data.Serialize(Serialize, get, getWord8, put, putWord8)
 
 import Control.Applicative ((<$>), (<*>))
 import Test.QuickCheck
@@ -56,14 +56,16 @@ data Axiom = Axiom {
     , axRel   :: Relation
     , axRules :: [Rule] 
     }
-    deriving (Show, Eq)
+    deriving Eq
+
+instance Show Axiom where
+    show ax = (show . unpack . axName) ax ++ ": " ++ (show . axExpr) ax
 
 instance Arbitrary Axiom where
     arbitrary = Axiom <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
-instance Binary Axiom where
+instance Serialize Axiom where
     put (Axiom n e r lru) = put n >> put e >> put r >> put lru
-    
     get = Axiom <$> get <*> get <*> get <*> get
 
 -- | Instancia de Truth para el tipo Axiom.
@@ -84,15 +86,18 @@ data Theorem = Theorem {
     , thProof :: Proof
     , thRules :: [Rule]
     }
-    deriving (Show, Eq)
+    deriving Eq
+
+instance Show Theorem where
+    show th = (show . unpack . thName) th ++ ": " ++ (show . thExpr) th
+            
 
 instance Arbitrary Theorem where
     arbitrary = Theorem <$> arbitrary <*> arbitrary <*> 
                             arbitrary <*> arbitrary <*> arbitrary
 
-instance Binary Theorem where
+instance Serialize Theorem where
     put (Theorem n e r p lru) = put n >> put e >> put r >> put p >> put lru
-    
     get = Theorem <$> get <*> get <*> get <*> get <*> get
 
 -- | Instancia de Truth para el tipo theorem.
@@ -128,7 +133,7 @@ instance Arbitrary Basic where
               , Hyp <$> arbitrary
               ]
 
-instance Binary Basic where
+instance Serialize Basic where
     put (Ax a) = putWord8 0 >> put a
     put (Theo t) = putWord8 1 >> put t
     put (Hyp h) = putWord8 2 >> put h
@@ -138,7 +143,7 @@ instance Binary Basic where
             0 -> Ax <$> get
             1 -> Theo <$> get
             2 -> Hyp <$> get
-            _ -> fail ""
+            _ -> fail $ "SerializeErr Basic " ++ show tag_
 
 {- $proofs
 
@@ -387,7 +392,7 @@ instance Arbitrary Proof where
                     listPPFocusProof :: Gen [([Focus], Proof)]
                     listPPFocusProof = vectorOf 2 pPFocusProof
 
-instance Binary Proof where
+instance Serialize Proof where
     put Reflex = putWord8 0
     put (Hole ctx r f f') = putWord8 1 >> put ctx >> put r >>  put f >> put f'
     put (Simple ctx r f f' b) = 
@@ -413,15 +418,15 @@ instance Binary Proof where
             5 -> Ind <$> get <*> get <*> get <*> get <*> get <*> get
             6 -> Deduc <$> get <*> get <*> get <*> get
             7 -> Focus <$> get <*> get <*> get <*> get <*> get
-            _ -> fail "Problem: Instance Binary Proof."
+            _ -> fail $ "SerializeErr Proof " ++ show tag_
 
-instance Binary Name where
+instance Serialize Name where
     put (Index i) = putWord8 0 >> put i
 
     get = getWord8 >>= \tag_ -> 
           case tag_ of
             0 -> Index <$> get
-            _ -> fail ""
+            _ -> fail $ "SerializeErr Name " ++ show tag_
 
 instance Monoid Proof where
     mempty = Reflex

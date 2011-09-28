@@ -3,7 +3,7 @@
 module Equ.Theories.AbsName where
 
 import Test.QuickCheck(Arbitrary, arbitrary, elements)
-import Data.Binary
+import Data.Serialize
 
 -- | Nombres de constantes
 data ConName = Empty  -- ^ Lista: vacia
@@ -67,7 +67,7 @@ instance Arbitrary OpName where
 instance Arbitrary QuantName where
     arbitrary = elements [Forall, Exist]
 
-instance Binary ConName where
+instance Serialize ConName where
     put Empty = putWord8 0
     put Zero = putWord8 1
     put CTrue = putWord8 2
@@ -80,9 +80,9 @@ instance Binary ConName where
         1 -> return Zero
         2 -> return CTrue
         3 -> return CFalse
-        _ -> fail "Problem: Instance Binary ConName."
+        _ -> fail "Problem: Instance Serialize ConName."
 
-instance Binary OpName where
+instance Serialize OpName where
     put Append   = putWord8 0
     put Index    = putWord8 1
     put Length   = putWord8 2
@@ -123,9 +123,9 @@ instance Binary OpName where
         15 -> return Or
         16 -> return Neg
         17 -> return Equal
-        _ -> fail "Problem: Instance Binary OpName."
+        _ -> fail "Problem: Instance Serialize OpName."
 
-instance Binary QuantName where
+instance Serialize QuantName where
     put Forall = putWord8 0
     put Exist = putWord8 1
 
@@ -134,4 +134,4 @@ instance Binary QuantName where
     case tag_ of
         0 -> return Forall
         1 -> return Exist
-        _ -> fail "Problem: Instance Binary QuantName."
+        _ -> fail "Problem: Instance Serialize QuantName."

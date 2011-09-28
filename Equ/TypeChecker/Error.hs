@@ -15,6 +15,14 @@ data TyErr = ErrNotExpected Type Type -- ^ El tipo inferido/obtenido (primer
            | forall s . Syntactic s => ErrClashTypes s [Type]  
            | ErrUnification Type Type [(TyVarName,Type)]
 
+instance Eq TyErr where
+    (ErrNotExpected t t') == (ErrNotExpected t'' t''') = t == t'' && t' == t'''
+    (ErrClashTypes _ l) == (ErrClashTypes _ l') = l == l'
+    (ErrUnification t t' s) == (ErrUnification t'' t''' s') = t == t''   &&
+                                                              t' == t''' &&
+                                                              s == s'
+    _ == _ = False
+
 instance Show TyErr where
     show (ErrNotExpected t t') = "[ERR] Expected " ++ show t ++ ", inferred " ++ show t'
     show (ErrClashTypes s ts) = "[ERR] " ++ show (tRepr s) ++ " has more than one type: " ++ show ts

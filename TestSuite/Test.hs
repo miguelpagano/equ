@@ -24,6 +24,5 @@ tests = [ testGroup "PreExpr"
                 ]
         , testListRules 
         , testGroupMatch
-        , testGroup "Proof"
-                [ testProperty "decode . enconde == id" prop_serialization]
+        , testGroupProof
         ]

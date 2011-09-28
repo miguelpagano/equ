@@ -14,7 +14,7 @@ import Control.Applicative((<$>),(<*>))
 import Test.QuickCheck(Arbitrary, arbitrary, elements)
 
 import Data.Text hiding (null)
-import Data.Binary
+import Data.Serialize(Serialize, get, getWord8, put, putWord8)
 
 type VarName = Text
 type FuncName = Text
@@ -193,26 +193,25 @@ instance Arbitrary Assoc where
 instance Arbitrary NotationType where
     arbitrary = elements [ NInfix , NPrefix , NPostfix ]
 
-instance Binary Hole where
+instance Serialize Hole where
   put (Hole t i) = put t >> put i
-  get = get >>= \t -> get >>= \i -> return (Hole t i)
+  get = Hole <$> get <*> get
 
-instance Binary Variable where
+instance Serialize Variable where
     put (Variable n t) = put n >> put t
-    get = get >>= \n -> get >>= \i -> return (Variable n i)
+    get = Variable <$> get <*> get
     
-instance Binary Constant where
+instance Serialize Constant where
     put (Constant r n t) = put r >> put n >> put t
-    get = get >>= \r -> get >>= \n -> get >>= \i -> return (Constant r n i)
+    get = Constant <$> get <*> get <*> get
 
-instance Binary Operator where
+instance Serialize Operator where
     put (Operator r n t a nt p) = put r >> put n >> put t >> 
                                   put a >> put nt >> put p
     
-    get = get >>= \r -> get >>= \n -> get >>= \t -> get >>= 
-          \a -> get >>= \nt -> get >>= \p -> return (Operator r n t a nt p)
+    get = Operator <$> get <*> get <*> get <*> get <*> get <*> get
 
-instance Binary Assoc where
+instance Serialize Assoc where
     put None = putWord8 0
     put ALeft = putWord8 1
     put ARight = putWord8 2
@@ -223,9 +222,9 @@ instance Binary Assoc where
         0 -> return None
         1 -> return ALeft
         2 -> return ARight
-        _ -> fail "Problem: Instance Binary Assoc."
+        _ -> fail $ "SerializeErr Assoc " ++ show tag_
 
-instance Binary NotationType where
+instance Serialize NotationType where
     put NInfix = putWord8 0
     put NPrefix = putWord8 1
     put NPostfix = putWord8 2
@@ -236,12 +235,12 @@ instance Binary NotationType where
         0 -> return NInfix
         1 -> return NPrefix
         2 -> return NPostfix
-        _ -> fail "Problem: Instance Binary NotationType."
+        _ -> fail $ "SerializeErr NotationType " ++ show tag_
 
-instance Binary Func where
+instance Serialize Func where
     put (Func n t) = put n >> put t
-    get = get >>= \n -> get >>= \i -> return (Func n i)
+    get = Func <$> get <*> get
 
-instance Binary Quantifier where
+instance Serialize Quantifier where
     put (Quantifier r n t) = put r >> put n >> put t
-    get = get >>= \r -> get >>= \n -> get >>= \i -> return (Quantifier r n i)    
+    get = Quantifier <$> get <*> get <*> get

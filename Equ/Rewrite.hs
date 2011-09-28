@@ -17,7 +17,7 @@ import Equ.TypeChecker
 -- unificación de manera indistinta. Como referencia al error usamos el
 -- prefijo acerca sobre de que tipo fue el error.
 data RewriteError' a b = Matching a | Type b
-    deriving Show
+    deriving (Show, Eq)
 
 -- | Tipo general de errores de re-escritura. Contiene errores de matching
 -- y unificación.

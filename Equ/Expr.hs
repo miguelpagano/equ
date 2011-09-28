@@ -3,7 +3,7 @@
 module Equ.Expr where
 
 import Equ.PreExpr.Internal
-import Data.Binary
+import Data.Serialize(Serialize, get, put)
 -- import Equ.Theories
 -- import Equ.Syntax
 
@@ -24,10 +24,9 @@ instance Eq Expr where
 instance Arbitrary Expr where
     arbitrary = Expr <$> arbitrary
 
-instance Binary Expr where
+instance Serialize Expr where
     put (Expr e) = put e
-    
-    get = get >>= return . Expr
+    get = Expr <$> get
 
 getPreExpr :: Expr -> PreExpr
 getPreExpr (Expr e) = e

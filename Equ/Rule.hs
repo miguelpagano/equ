@@ -6,7 +6,7 @@ import Equ.Expr
 import Equ.Types
 
 import Data.Text    
-import Data.Binary
+import Data.Serialize
 
 import Control.Applicative ((<$>), (<*>))
 import Test.QuickCheck(Arbitrary, arbitrary, elements)
@@ -78,18 +78,16 @@ instance Arbitrary Rule where
     arbitrary = Rule <$> arbitrary <*> arbitrary <*> 
                          arbitrary <*> arbitrary <*> arbitrary
 
-instance Binary Rule where
+instance Serialize Rule where
     put (Rule lhs rhs rel n desc) = put lhs >> put rhs >> put rel >>
                                     put n >> put desc  
 
     get = Rule <$> get <*> get <*> get <*> get <*> get
 
-instance Binary RelName where
+instance Serialize RelName where
     put = putWord8 . toEnum . fromEnum
-
     get = getWord8 >>= return . toEnum . fromEnum
 
-instance Binary Relation where
+instance Serialize Relation where
     put (Relation r n t) = put r >> put n >> put t
-    
     get = Relation <$> get <*> get <*> get

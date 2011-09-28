@@ -13,7 +13,7 @@ import Test.QuickCheck(Arbitrary, arbitrary, elements, oneof)
 import Data.Monoid
 import qualified Data.Foldable as F
 import Data.Traversable
-import Data.Binary
+import Data.Serialize(Serialize, get, getWord8, put, putWord8)
 
 -- | Tipos de datos atómicos.
 data AtomTy = ATyNum  -- ^ Los reales.
@@ -79,11 +79,11 @@ instance Monad Type' where
     TyList t >>= f = TyList $ t >>= f
     t :-> t' >>= f = (:->) (t >>= f) (t' >>= f)
 
-instance Binary TyVarName where
+instance Serialize TyVarName where
     put = put . unpack
     get = get >>= return . pack
 
-instance Binary AtomTy where
+instance Serialize AtomTy where
     put ATyNum = putWord8 0
     put ATyInt = putWord8 1
     put ATyNat = putWord8 2
@@ -96,9 +96,9 @@ instance Binary AtomTy where
         1 -> return ATyInt
         2 -> return ATyNat
         3 -> return ATyBool
-        _ -> fail "Problem: Instance Binary AtomTy."
+        _ -> fail $ "SerializeErr AtomTy " ++ show tag_
 
-instance (Binary a) => Binary (Type' a) where
+instance (Serialize a) => Serialize (Type' a) where
     put TyUnknown = putWord8 0
     put (TyVar v) = putWord8 1 >> put v
     put (TyList t) = putWord8 2 >> put t
@@ -109,11 +109,11 @@ instance (Binary a) => Binary (Type' a) where
     tag_ <- getWord8
     case tag_ of
         0 -> return TyUnknown
-        1 -> get >>= return . TyVar
-        2 -> get >>= return . TyList
-        3 -> get >>= return . TyAtom
-        4 -> get >>= \t -> get >>= \t' -> return (t :-> t')
-        _ -> fail "Problem: Instance Binary Type' a."
+        1 -> TyVar <$> get
+        2 -> TyList <$> get
+        3 -> TyAtom <$> get
+        4 -> (:->) <$> get <*> get
+        _ -> fail $ "SerializeErr (Type' a) " ++ show tag_
 
 -- | El tipo concreto de nuestras expresiones.
 type Type = Type' TyVarName

@@ -5,7 +5,7 @@ import Equ.Syntax
 import Control.Applicative ((<$>), (<*>),Applicative(..))
 import Test.QuickCheck(Arbitrary, arbitrary, oneof)
 
-import Data.Binary
+import Data.Serialize(Serialize, get, getWord8, put, putWord8)
 
 data PreExpr' a = Var a
                 | Con Constant
@@ -19,7 +19,7 @@ data PreExpr' a = Var a
                   deriving Eq
 
 --  Instancia binary para PreExpr' a.
-instance Binary a => Binary (PreExpr' a) where
+instance Serialize a => Serialize (PreExpr' a) where
     put (Var a) = putWord8 0 >> put a
     put (Con c) = putWord8 1 >> put c
     put (Fun f) = putWord8 2 >> put f
@@ -33,18 +33,16 @@ instance Binary a => Binary (PreExpr' a) where
     get = do
     tag_ <- getWord8
     case tag_ of
-        0 -> get >>= return . Var
-        1 -> get >>= return . Con
-        2 -> get >>= return . Fun
-        3 -> get >>= return . PrExHole
-        4 -> get >>= \op -> get >>= \pe -> return (UnOp op pe)
-        5 -> get >>= \op -> get >>= \pe -> get >>= 
-                     \pe' -> return (BinOp op pe pe')
-        6 -> get >>= \pe -> get >>= \pe' -> return (App pe pe')
-        7 -> get >>= \q -> get >>= \a -> get >>= 
-                     \pe -> get >>= \pe' -> return (Quant q a pe pe')
-        8 -> get >>= return . Paren
-        _ -> fail "Problem: Instance Binary PreExpr' a."
+        0 -> Var <$> get
+        1 -> Con <$> get
+        2 -> Fun <$> get
+        3 -> PrExHole <$> get
+        4 -> UnOp <$> get <*> get
+        5 -> BinOp <$> get <*> get <*> get
+        6 -> App <$> get <*> get
+        7 -> Quant <$> get <*> get <*> get <*> get
+        8 -> Paren <$> get
+        _ -> fail $ "SerializeErr (PreExpr' a) " ++ show tag_
 
 type PreExpr = PreExpr' Variable
 

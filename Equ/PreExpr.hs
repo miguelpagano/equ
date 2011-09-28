@@ -3,7 +3,7 @@
 -- tipo que posiblemente puso el usuario está en las hojas del árbol.
 {-# Language OverloadedStrings #-}
 module Equ.PreExpr ( freeVars, freshVar
-                   , encode, decode, encodeFile, decodeFile
+                   , encode, decode
                    , preExprHole, isPreExprHole
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
@@ -21,7 +21,7 @@ import Equ.PreExpr.Zipper
 import Equ.PreExpr.Monad
 
 import Data.Text(pack)
-import Data.Binary(encode, decode, encodeFile, decodeFile)
+import Data.Serialize(encode, decode)
 
 import Equ.Parser
 import Equ.Theories.AbsName

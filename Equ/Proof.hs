@@ -2,11 +2,13 @@
 
 {-| Este m&#243;dulo define la noci&#243;n de una prueba. -}
 module Equ.Proof (
-                   encode, decode, encodeFile, decodeFile
+                   encode, decode
                  , newProof, newProofWithoutEnd, addStep
+                 , proofFromTruth
+                 , Truth (..)
                   -- * Axiomas y teoremas
-                 , Axiom
-                 , Theorem
+                 , Axiom(..)
+                 , Theorem(..)
                  -- * Pruebas
                  -- $proofs
                  , Proof(..)
@@ -14,6 +16,8 @@ module Equ.Proof (
                  -- * Ejemplos
                  -- $samples
                  , module Equ.Proof.Zipper
+                 , module Equ.Proof.Monad
+                 , module Equ.Proof.Error
                  ) where
 
 import Equ.Proof.Proof hiding (getCtx,getStart,getEnd,getRel)
@@ -21,7 +25,7 @@ import Equ.Proof.Zipper
 import Equ.Proof.Monad
 import Equ.Proof.Error
 
-import Equ.PreExpr
+import Equ.PreExpr hiding (replace)
 import Equ.Rule
 import Equ.Rewrite
 
@@ -74,7 +78,8 @@ proofFromRule f1 f2 rel t mkBasic r = whenEqWithDefault err rel (truthRel t) >>
 proofFromTruth :: Truth t => Focus -> Focus -> Relation -> t -> PM Proof
 proofFromTruth f1 f2 rel t = firstRight err $
                              map (proofFromRule f1 f2 rel t truthBasic) (truthRules t)
-    where err = Left $ BasicNotApplicable $ truthBasic t
+    where err :: PM Proof
+          err = Left $ BasicNotApplicable0 $ truthBasic t
 
 
 proofFromAxiom :: Focus -> Focus -> Relation -> Axiom -> PM Proof
@@ -94,7 +99,6 @@ rel {?}
     f'
 @
 -}
-
 newProof :: Relation -> Focus -> Focus -> Proof
 newProof r f f' = Hole empty r f f'
 
@@ -108,7 +112,6 @@ rel {?}
     ?{}
 @
 -}
-
 newProofWithoutEnd :: Relation -> Focus -> HoleInfo -> Proof
 newProofWithoutEnd r f hi = Hole empty r f h
     where h = toFocus $ preExprHole hi
@@ -155,7 +158,6 @@ rel { b }
     endP'
 @
 -}
-
 addStep :: ProofFocus -> Proof -> PM Proof
 addStep (p@(Hole ctx r f f'), _) p' = do
                 ctx' <- getCtx p'
@@ -171,4 +173,4 @@ addStep (p@(Hole ctx r f f'), _) p' = do
     where
         Right endP' = getEnd p'
         p'' = newProof r endP' f'
-addStep (p, _) _ = Left $ ProofNOTEndWithHole p
+addStep (p, _) _ = Left $ ClashProofNotHole p
