@@ -29,7 +29,7 @@ module Equ.Theories.FOL
     -- *** Conmutatividad.
     , conmOr_Rule
     -- *** Idempotencia.
-    , idempotOr_Rule
+    , idempotOr_Rule, idempotOr_Rule1
     -- *** Distributividad.
     , distEqOr_Rule1, distEqOr_Rule2
     -- *** Tercero excluido.
@@ -407,7 +407,7 @@ false_Rule = Rule { lhs = false
 discrep_Rule :: Rule
 discrep_Rule = Rule { lhs = discrep varP varQ
                     , rhs = neg $ equiv varP varQ
-                    , rel = relEq
+                    , rel = relEquiv
                     , name = ""
                     , desc = ""
                     }
@@ -424,7 +424,7 @@ discrep_Rule = Rule { lhs = discrep varP varQ
 asocOr_Rule :: Rule
 asocOr_Rule = Rule { lhs = or (or varP varQ) varR
                   , rhs = or varP (or varQ varR)
-                  , rel = relEq
+                  , rel = relEquiv
                   , name = ""
                   , desc = ""
                   }
@@ -437,7 +437,7 @@ asocOr_Rule = Rule { lhs = or (or varP varQ) varR
 conmOr_Rule :: Rule
 conmOr_Rule = Rule { lhs = or varP varQ
                   , rhs = or varQ varP
-                  , rel = relEq
+                  , rel = relEquiv
                   , name = ""
                   , desc = ""
                   }
@@ -450,10 +450,25 @@ conmOr_Rule = Rule { lhs = or varP varQ
 idempotOr_Rule :: Rule
 idempotOr_Rule = Rule { lhs = or varP varP
                       , rhs = varP
-                      , rel = relEq
+                      , rel = relEquiv
                       , name = ""
                       , desc = ""
                       }
+
+{- | Regla idempotencia:
+@
+    (p ∨ p ≡ p) ≡ True
+@
+-}
+idempotOr_Rule1 :: Rule
+idempotOr_Rule1 = Rule { lhs = equiv (or varP varP) (varP)
+                      , rhs = true
+                      , rel = relEquiv
+                      , name = ""
+                      , desc = ""
+                      }
+
+
 
 {- | Regla 1 distributividad con equivalencia: 
 @

@@ -18,8 +18,9 @@ import Equ.Rule
 import Data.Text
 import Equ.Proof
 import Equ.Parser
-import Equ.PreExpr
+import Equ.PreExpr hiding (goDownR)
 import Equ.Theories.FOL
+import Equ.Theories.List
 
 -- | Test sobre serializacion; decode . encode == id
 prop_serialization :: Proof -> Bool
@@ -32,6 +33,8 @@ f_Fy :: Focus
 f_Fy = toFocus $ parser "F@y"
 f_p :: Focus
 f_p = toFocus $ parser "p"
+f_q :: Focus
+f_q = toFocus $ parser "q"
 f_y :: Focus
 f_y = toFocus $ parser "y"
 f_z :: Focus
@@ -40,6 +43,8 @@ f_Q0 :: Focus
 f_Q0 = toFocus $ parser "〈∀ x : R@x ∨ S@x : T@x〉"
 f_Q1 :: Focus
 f_Q1 = toFocus $ parser "〈∀ x : R@x : T@x〉 ∧ 〈∀ x : S@x : T@x〉"
+f_equivNeg0 :: Focus
+f_equivNeg0 = toFocus $ parser "¬(p ≡ q) ≡ ¬p"
 f_star0 :: Focus
 f_star0 = toFocus $ parser "p ∨ q"
 f_star1 :: Focus
@@ -59,17 +64,17 @@ f_hole0 = toFocus $ preExprHole holeInfo0
 
 -- Pruebas utilizadas en unit-test.
 p_Fx_Eq_Y :: Proof
-p_Fx_Eq_Y = newProof relEq f_Fx f_y 
+p_Fx_Eq_Y = Hole M.empty relEq f_Fx f_y 
 p_Fx_Eq_Z :: Proof
-p_Fx_Eq_Z = newProof relEq f_Fx f_z
+p_Fx_Eq_Z = Hole M.empty relEq f_Fx f_z
 p_Z_Eq_Y :: Proof
-p_Z_Eq_Y = newProof relEq f_z f_y
+p_Z_Eq_Y = Hole M.empty relEq f_z f_y
 p_Y_Eq_Z :: Proof
-p_Y_Eq_Z = newProof relEq f_y f_z
+p_Y_Eq_Z = Hole M.empty relEq f_y f_z
 p_Fx_Impl_Z :: Proof
-p_Fx_Impl_Z = newProof relImpl f_Fx f_z
+p_Fx_Impl_Z = Hole M.empty relImpl f_Fx f_z
 p_Fy_Eq_Z :: Proof
-p_Fy_Eq_Z = newProof relEq f_Fy f_z
+p_Fy_Eq_Z = Hole M.empty relEq f_Fy f_z
 
 -- Información en huecos de preExpr para unit-test.
 holeInfo0 :: Text
@@ -95,43 +100,112 @@ axNeutralEquiv = Axiom { axName = pack "Neutro de la equivalencia"
                        , axRel = relEquiv
                        , axRules = [neuterEquiv_Rule1, neuterEquiv_Rule2]
                        }
-{- Todavía en proceso.
 
-f_true :: Focus
-f_true = toFocus $ parser "True"
+axEquivNeg :: Axiom
+axEquivNeg = Axiom { axName = pack "Negacion y Equivalencia: ¬(p ≡ q) ≡ ¬p ≡ q"
+                   , axExpr = Expr $ parser "¬(p ≡ q) ≡ ¬p ≡ q"
+                   , axRel = relEquiv
+                   , axRules = [equivNeg_Rule1, equivNeg_Rule2]
+                   }
+
+{- Prueba de que p ⇒ p ≡ True, comenzamos con una prueba de principio y final;
+
+    newP = newProof (≡) (p ⇒ p) (True)
+
+nos construimos una prueba usando la regla de implicacion;
+
+    pft = proofFromTruth (p ⇒ p) (p ∨ p ≡ p) (≡) (Ax p ⇒ q ≡ p ∨ q ≡ q)
+
+luego añadimos un paso usando regla de implicacion;
+
+    newStepP = addStep (toProofFocus newP) pft
+    
+hacemos un focus de la prueba con un nuevo paso y nos focalizamos en el hueco
+por completar;
+
+    hf = goDownR (toProofFocus newStepP)
+    
+completamos el hueco en la prueba usando (Ax (p ∨ p ≡ p) ≡ True);
+    
+    fp = fillHole hfs axImpl1
+    
+para finalizar nos posicionamos en el TOP de la prueba;
+
+    finalP = toProof fp
+    
+Luego podemos verificar que efectivamente esta es la prueba por transitividad,
+    finalP' = Trans (ctx) (p ⇒ p) (p ∨ p ≡ p) (True) pft pft' 
+    donde pft' = (proofFromTruth (p ∨ p ≡ p) (True) (≡) (Ax (p ∨ p ≡ p) ≡ True))
+
+NOTA IMPORTANTE; Pensar en generalizar proofFromTruth para que se pueda llevar
+    el contexto de un hueco.
+-}
+
+-- Expresiones a utilizar para generar la prueba.
 f_pip0 :: Focus
 f_pip0 = toFocus $ parser "p ⇒ p"
 f_pip1 :: Focus
-f_pip1 = toFocus $ parser "p ∨ q ≡ q"
-f_q :: Focus
-f_q = toFocus $ parser "q"
+f_pip1 = toFocus $ parser "p ∨ p ≡ p"
+f_true :: Focus
+f_true = toFocus $ parser "True"
 
+-- Comienzo una prueba de que, p ⇒ p ≡ True
+newP :: Proof
+newP = newProof relEquiv f_pip0 f_true
 
-implRule2 :: Rule
-implRule2 = Rule { lhs = f_pip0
-                 , rhs = f_pip1
-                 , rel = relEquiv
-                 , name = ""
-                 , desc = ""
-                 }
+-- Generamos una prueba simple de que, (p ⇒ p) ≡ (p ∨ p ≡ p)
+pft :: Proof
+Right pft = proofFromTruth f_pip0 f_pip1 relEquiv axImpl
+
+-- Añadimos un paso a la prueba, usando lo probado anteriormente.
+newStepP :: Proof
+Right newStepP = addStep (toProofFocus newP) pft
+
+-- Navegamos la prueba hasta ubicarnos en el hueco por completar.
+hf :: ProofFocus
+Just hf = goDownR (toProofFocus newStepP)
+
+-- Completamos el hueco de la prueba con (Ax (p ∨ p ≡ p) ≡ True)
+fp :: ProofFocus
+Right fp = fillHole hf axIdemPotOr
+
+-- Volvemos al Top de la prueba.
+finalP :: Proof
+finalP = toProof fp
 
 axImpl :: Axiom
 axImpl = Axiom { axName = pack "Regla implicacion"
                , axExpr = Expr $ parser "p ⇒ q ≡ p ∨ q ≡ q"
                , axRel = relEquiv
-               , axRules = [implRule0, implRule1, implRule2]
+               , axRules = [implRule1, implRule2]
                }
 
+axIdemPotOr :: Axiom
+axIdemPotOr = Axiom { axName = pack "Idempotencia del ∨"
+                    , axExpr = Expr $ parser "(p ∨ p ≡ p) ≡ True"
+                    , axRel = relEquiv
+                    , axRules = [idempotOr_Rule1]
+                    }
+
+-- Prueba simple (p ⇒ p) ≡ (p ∨ p ≡ p)
 p_pip01 :: Proof
 p_pip01 = Simple M.empty relEquiv f_pip0 f_pip1 (Ax axImpl)
 
+-- Prueba simple (p ∨ p ≡ p) ≡ True
 p_pip12 :: Proof
-p_pip12 = Simple M.empty relEquiv f_pip1 f_true (Ax axImpl)
+p_pip12 = Simple M.empty relEquiv f_pip1 f_true (Ax axIdemPotOr)
 
+-- Prueba trans (p ⇒ p) ≡ (p ∨ p ≡ p) ≡ True
 p_P_Impl_P :: Proof
 p_P_Impl_P = Trans M.empty relEquiv f_pip0 f_pip1 f_true p_pip01 p_pip12
 
--}
+-- Comenzar una prueba simple con principio y final, agregar un paso usando
+-- una prueba simple y llenar el hueco con otra prueba simple.
+testCaseProof0 :: Assertion
+testCaseProof0 = unless (finalP == p_P_Impl_P) $ 
+                 assertFailure $ 
+                 "FinalP: " ++ show finalP ++
+                 "P_Impl_P: " ++ show p_P_Impl_P
 
 -- Pruebas usadas en unit-test.
 p_Gr0 :: Proof
@@ -139,6 +213,9 @@ p_Gr0 = Simple M.empty relEquiv f_gr0 f_gr1 (Ax axGoldenRule)
 
 p_Neu0 :: Proof
 p_Neu0 = Simple M.empty relEquiv f_p f_neu0 (Ax axNeutralEquiv)
+
+p_EquivNeg :: Proof
+p_EquivNeg = Simple M.empty relEquiv f_equivNeg0 f_q (Ax axEquivNeg)
 
 {- Prueba usando regla dorada.
     ((p)∧(q),Top)
@@ -158,6 +235,16 @@ testCaseProofFromAxiom1 :: Assertion
 testCaseProofFromAxiom1 = testCaseProofFromTruth f_p f_neu0 relEquiv 
                                                  axNeutralEquiv (Right p_Neu0)
 
+
+{- Prueba usando la definición de concatenar (Caso inductivo).
+    ((x ▹ xs) ++ ys,Top)
+Equiv {Ax "Definición de Concatenar (++) CI": (x ▹ xs) ++ ys = x ▹ (xs ++ ys)}
+    (x ▹ (xs ++ ys),Top)
+-}
+testCaseProofFromAxiom2 :: Assertion
+testCaseProofFromAxiom2 = testCaseProofFromTruth f_equivNeg0 f_q relEquiv
+                                                axEquivNeg (Right p_EquivNeg)
+
 -- Verificar casos de tests para pruebas con axiomas y teoremas.
 testCaseProofFromTruth :: (Truth t) => Focus -> Focus -> Relation -> t
                           -> PM Proof -> Assertion
@@ -166,7 +253,6 @@ testCaseProofFromTruth f f' r t res = let p = proofFromTruth f f' r t
                                         assertFailure $ 
                                         "\n Resultado esperado: " ++ show res ++
                                         "\n Contra: " ++ show p
-
 
 {- Comenzar una prueba con la siguiente forma;
     (F (x),Top)
@@ -404,31 +490,24 @@ testGroupProof = testGroup "Proof"
                             "\n\t\t(True ≡ p, Top)"
                                )
                         testCaseProofFromAxiom1
+                    , testCase ("proofFromTruth [¬(p ≡ q) ≡ ¬p] [q]" ++
+                        " Equiv equivNeg =>" ++
+                        "\n\t\t(¬(p ≡ q) ≡ ¬p, Top) " ++
+                        "\n\t Equiv {Ax \"Negacion y Equivalencia\":"++
+                        " ¬(p ≡ q) ≡ ¬p ≡ q}" ++
+                        "\n\t\t(q, Top)"
+                            )
+                        testCaseProofFromAxiom2
+                    ]
+                , testGroup "*Test's combinando funciones de prueba."
+                    [ testCase ("Comenzar una prueba con principio y final, " ++
+                                "agregar un paso usando una prueba simple " ++
+                                "por axioma y \n\t luego completar el hueco " ++
+                                "restante usando una prueba simple.") 
+                        testCaseProof0
                     ]
                  , testGroup "Serialización"
                     [testProperty "decode . encode == id" 
                         prop_serialization
                     ]
                  ]
-
-
-{- Intento de añadir un paso en donde ninguna de las expresiones de los focus
-    coincide;
-
-p_FxEqY:
-    (F (x),Top)
-Eq  {?}
-    (y, Top)
-
-p_FyEqZ:
-    (F (y),Top)
-Impl  {...}
-    (z, Top)
-
-luego si añadimos un paso;
-ClashAddStep p_FxEqY p_FyEqZ
--}
-{-
-p_FyEqZ = newProof relEq f_Fy f_z
-
-p_ClashAddStep = addStep (toProofFocus p_FxEqY) p_FyEqZ-}

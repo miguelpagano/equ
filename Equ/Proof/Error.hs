@@ -7,7 +7,6 @@ import Equ.Proof.Proof
 -- Faltaría definir un buen conjunto de errores para las pruebas.
 data ProofError = Rewrite RewriteError                 
                 | BasicNotApplicable Basic
-                | BasicNotApplicable0 Basic
                 | ProofError
                 | ClashCtx Ctx Ctx -- Contextos distintos.
                 | ClashRel Relation Relation -- Relaciones distintas

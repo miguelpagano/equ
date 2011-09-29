@@ -4,7 +4,7 @@
 module Equ.Proof (
                    encode, decode
                  , newProof, newProofWithoutEnd, addStep
-                 , proofFromTruth
+                 , proofFromTruth, fillHole
                  , Truth (..)
                   -- * Axiomas y teoremas
                  , Axiom(..)
@@ -18,6 +18,7 @@ module Equ.Proof (
                  , module Equ.Proof.Zipper
                  , module Equ.Proof.Monad
                  , module Equ.Proof.Error
+                 , module Equ.Rewrite
                  ) where
 
 import Equ.Proof.Proof hiding (getCtx,getStart,getEnd,getRel)
@@ -61,8 +62,6 @@ Este kit de funciones debería proveer todas las herramientas
 necesarias para desarrollar pruebas en equ 
 -}
 
-
-
 proofFromRule :: Truth t => Focus -> Focus -> Relation -> t -> (t -> Basic) -> 
                             Rule -> PM Proof
 proofFromRule f1 f2 rel t mkBasic r = whenEqWithDefault err rel (truthRel t) >>
@@ -79,7 +78,7 @@ proofFromTruth :: Truth t => Focus -> Focus -> Relation -> t -> PM Proof
 proofFromTruth f1 f2 rel t = firstRight err $
                              map (proofFromRule f1 f2 rel t truthBasic) (truthRules t)
     where err :: PM Proof
-          err = Left $ BasicNotApplicable0 $ truthBasic t
+          err = Left $ BasicNotApplicable $ truthBasic t
 
 
 proofFromAxiom :: Focus -> Focus -> Relation -> Axiom -> PM Proof
@@ -174,3 +173,10 @@ addStep (p@(Hole ctx r f f'), _) p' = do
         Right endP' = getEnd p'
         p'' = newProof r endP' f'
 addStep (p, _) _ = Left $ ClashProofNotHole p
+
+-- | Completa un hueco en una prueba.
+fillHole :: Truth t => ProofFocus -> t -> PM ProofFocus
+fillHole pf@(Hole ctx r f f', _) t = either (\er -> Left er)
+                                            (\p -> Right $ replace pf p) $
+                                            proofFromTruth f f' r t
+fillHole (p, _) _ = Left $ ClashProofNotHole p
