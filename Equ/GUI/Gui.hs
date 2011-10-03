@@ -39,6 +39,11 @@ setVarFocus :: Entry -> IRExpr
 setVarFocus entry r f sb = do v <- entryGetText entry
                               updateRef (Var (var (pack v) TyUnknown)) r f sb
 
+setExprFocus :: Entry -> IRExpr
+setExprFocus entry r f sb = do e <- entryGetText entry
+                               updateRef (parser e) r f sb
+
+
 
 class Syntactic s => ExpWriter s where
     writeExp :: (BoxClass b) => s -> b -> IRExpr
@@ -68,6 +73,7 @@ instance ExpWriter Constant where
     writeExp s container r f sb = do
         removeAllChilds container
         writeConstant s container r f sb
+
 
 getMenuButton :: GladeXML -> String -> IO MenuItem
 getMenuButton w = xmlGetWidget w castToMenuItem 
@@ -112,6 +118,7 @@ loadItems menu box r f sb = do
     appendItems operatorsList
     appendItems constantsList
     appendItemVariable 
+    appendItemPreExpr
     
     where appendItems :: ExpWriter s => [s] -> IO ()
           appendItems [] = return ()
@@ -126,6 +133,12 @@ loadItems menu box r f sb = do
               onActivateLeaf item (writeVarExp box r f sb)
               menuShellAppend menu item
               
+          appendItemPreExpr = do
+              item <- menuItemNewWithLabel "Expresión"
+              onActivateLeaf item (writeExpr box r f sb)
+              menuShellAppend menu item
+              
+
 
 setVarQuant :: RExpr -> Entry -> (Statusbar, ContextId) -> IO ()
 setVarQuant r entry sb = do v <- entryGetText entry
@@ -228,6 +241,20 @@ writeVarExp box r f sb = do
     entry <- entryNew
 
     onEntryActivate entry (setVarFocus entry r f sb)
+
+    widgetSetSizeRequest entry 10 (-1)
+    removeAllChilds box
+    boxPackStart box entry PackGrow 0
+    widgetGrabFocus entry
+    widgetShowAll box
+    
+
+
+writeExpr :: (BoxClass b) => b -> IRExpr
+writeExpr box r f sb = do
+    entry <- entryNew
+
+    onEntryActivate entry (setExprFocus entry r f sb)
 
     widgetSetSizeRequest entry 10 (-1)
     removeAllChilds box
