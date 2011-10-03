@@ -107,6 +107,7 @@ loadItems menu box r f sb = do
     appendItems quantifiersList
     appendItems operatorsList
     appendItems constantsList
+    appendItemVariable
     
     where appendItems :: ExpWriter s => [s] -> IO ()
           appendItems [] = return ()
@@ -115,6 +116,12 @@ loadItems menu box r f sb = do
               onActivateLeaf item $ writeExp x box r f sb
               menuShellAppend menu item
               appendItems xs
+              
+          appendItemVariable = do
+              item <- menuItemNewWithLabel "Variable"
+              onActivateLeaf item (writeVarExp box)
+              menuShellAppend menu item
+              
 
 setValueQuant :: RExpr -> Entry -> (Statusbar, ContextId) -> IO ()
 setValueQuant r entry sb = do v <- entryGetText entry
@@ -144,6 +151,8 @@ writeQuantifier q box r f sb = do
     
     createButtonSubExpr box_sub_expr1 r (go goDown, go goUp) sb
     createButtonSubExpr box_sub_expr2 r (go goDownR, go goUp) sb
+    
+    widgetSetSizeRequest entry_var 10 (-1)
     
     boxPackStart box label_init PackGrow 0
     boxPackStart box entryVar PackGrow 0
@@ -207,6 +216,15 @@ writeConstant c box r f sb = do
 -- packWidgets b (x:xs) p i = do
 --     boxPackStart b x p i
 --     packWidgets b xs p i
+
+writeVarExp :: (BoxClass b) => b -> IO ()
+writeVarExp box = do
+    entry <- entryNew
+    widgetSetSizeRequest entry 10 (-1)
+    removeAllChilds box
+    boxPackStart box entry PackGrow 0
+    widgetShowAll box
+    
 
 removeAllChilds :: (BoxClass b) => b -> IO ()
 removeAllChilds b = containerForeach b (removeChild b)
