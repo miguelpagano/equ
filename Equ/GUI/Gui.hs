@@ -23,7 +23,7 @@ type IState a = RExpr -> (Focus -> Focus,Focus -> Focus) -> (Statusbar, ContextI
 type IRExpr = IState ()
 
 go :: (Focus -> Maybe Focus) -> Focus -> Focus
-go g e= maybe (error $ show e) id $ g e
+go g e = maybe (error $ show e) id $ g e
 
 showExpr :: RExpr -> (Statusbar,ContextId) -> IO ()
 showExpr r (s,c) = readIORef r >>= statusbarPush s c . show . toExpr >> return ()
@@ -35,6 +35,10 @@ updateRef :: PreExpr -> IRExpr
 updateRef e r (f,f') sb = do (_,p) <- liftM f . readIORef $ r                     
                              writeIORef r . f' $ (e, p)
                              showExpr r sb
+setVarFocus :: Entry -> IRExpr
+setVarFocus entry r f sb = do v <- entryGetText entry
+                              updateRef (Var (var (pack v) TyUnknown)) r f sb
+
 
 class Syntactic s => ExpWriter s where
     writeExp :: (BoxClass b) => s -> b -> IRExpr
@@ -107,7 +111,7 @@ loadItems menu box r f sb = do
     appendItems quantifiersList
     appendItems operatorsList
     appendItems constantsList
-    appendItemVariable
+    appendItemVariable 
     
     where appendItems :: ExpWriter s => [s] -> IO ()
           appendItems [] = return ()
@@ -119,18 +123,20 @@ loadItems menu box r f sb = do
               
           appendItemVariable = do
               item <- menuItemNewWithLabel "Variable"
-              onActivateLeaf item (writeVarExp box)
+              onActivateLeaf item (writeVarExp box r f sb)
               menuShellAppend menu item
               
 
-setValueQuant :: RExpr -> Entry -> (Statusbar, ContextId) -> IO ()
-setValueQuant r entry sb = do v <- entryGetText entry
-                              (e,p) <- readIORef r
-                              case e of
-                                (Quant q _ rng trm) -> writeIORef r (exp q v rng trm ,p)
-                                _ -> return ()
-                              showExpr r sb
+setVarQuant :: RExpr -> Entry -> (Statusbar, ContextId) -> IO ()
+setVarQuant r entry sb = do v <- entryGetText entry
+                            (e,p) <- readIORef r
+                            case e of
+                              (Quant q _ rng trm) -> writeIORef r (exp q v rng trm ,p)
+                              _ -> return ()
+                            showExpr r sb
     where exp q v r t  = Quant q (var (pack v) TyUnknown) r t
+
+
 
 writeQuantifier ::  (BoxClass b) => Quantifier -> b -> IRExpr
 writeQuantifier q box r f sb = do
@@ -141,7 +147,7 @@ writeQuantifier q box r f sb = do
 
     set entryVar [ entryEditable := True ]
     
-    onEntryActivate entryVar (setValueQuant r entryVar sb)
+    onEntryActivate entryVar (setVarQuant r entryVar sb)
 
     label_dots1 <- labelNew (Just ":")
     box_sub_expr1 <- hBoxNew False 10
@@ -149,10 +155,10 @@ writeQuantifier q box r f sb = do
     box_sub_expr2 <- hBoxNew False 10
     label_end   <- labelNew (Just quantEnd)
     
-    createButtonSubExpr box_sub_expr1 r (go goDown, go goUp) sb
-    createButtonSubExpr box_sub_expr2 r (go goDownR, go goUp) sb
+    createButtonSubExpr box_sub_expr1 r (go goDown . fst f, snd f . go goUp) sb
+    createButtonSubExpr box_sub_expr2 r (go goDownR . fst f, snd f . go goUp) sb
     
-    widgetSetSizeRequest entry_var 10 (-1)
+    widgetSetSizeRequest entryVar 10 (-1)
     
     boxPackStart box label_init PackGrow 0
     boxPackStart box entryVar PackGrow 0
@@ -175,7 +181,7 @@ writeOperator o box r f sb =
         NPrefix -> do
             updateRef (UnOp o (preExprHole "")) r f sb
             box_sub_expr <- hBoxNew False 10
-            createButtonSubExpr box_sub_expr r (go goDown,go goUp) sb
+            createButtonSubExpr box_sub_expr r (go goDown . fst f,snd f . go goUp) sb
             label <- labelNew (Just (unpack $ tRepr o))
             boxPackStart box label PackGrow 0
             boxPackStart box box_sub_expr PackGrow 0
@@ -184,9 +190,9 @@ writeOperator o box r f sb =
         NInfix -> do
             updateRef (BinOp o (preExprHole "") (preExprHole "")) r f sb
             box_sub_expr1 <- hBoxNew False 10
-            createButtonSubExpr box_sub_expr1 r (go goDown, go goUp) sb
+            createButtonSubExpr box_sub_expr1 r (go goDown . fst f, snd f . go goUp) sb
             box_sub_expr2 <- hBoxNew False 10
-            createButtonSubExpr box_sub_expr2 r (go goDownR, go goUp) sb
+            createButtonSubExpr box_sub_expr2 r (go goDownR . fst f, snd f . go goUp) sb
             label <- labelNew (Just (unpack $ tRepr o))
             boxPackStart box box_sub_expr1 PackGrow 0
             boxPackStart box label PackGrow 0
@@ -196,7 +202,7 @@ writeOperator o box r f sb =
         NPostfix -> do
             updateRef (UnOp o (preExprHole "")) r f sb
             box_sub_expr <- hBoxNew False 10
-            createButtonSubExpr box_sub_expr r (go goDown, go goUp) sb
+            createButtonSubExpr box_sub_expr r (go goDown . fst f, snd f . go goUp) sb
             label <- labelNew (Just (unpack $ tRepr o))
             boxPackStart box box_sub_expr PackGrow 0
             boxPackStart box label PackGrow 0
@@ -217,14 +223,19 @@ writeConstant c box r f sb = do
 --     boxPackStart b x p i
 --     packWidgets b xs p i
 
-writeVarExp :: (BoxClass b) => b -> IO ()
-writeVarExp box = do
+writeVarExp :: (BoxClass b) => b -> IRExpr
+writeVarExp box r f sb = do
     entry <- entryNew
+
+    onEntryActivate entry (setVarFocus entry r f sb)
+
     widgetSetSizeRequest entry 10 (-1)
     removeAllChilds box
     boxPackStart box entry PackGrow 0
+    widgetGrabFocus entry
     widgetShowAll box
     
+
 
 removeAllChilds :: (BoxClass b) => b -> IO ()
 removeAllChilds b = containerForeach b (removeChild b)
