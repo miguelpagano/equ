@@ -34,6 +34,7 @@ module Equ.Parser
     -- * Funciones principales de parseo
     , parseFromString
     , parser
+    , parserVar
     )
         
     where
@@ -263,6 +264,10 @@ parseFromString = runParser parsePreExpr (0,M.empty) "TEST"
 -- | Funcion principal de parseo.
 parser :: String -> PreExpr
 parser = either showError showPreExpr . parseFromString
+
+
+parserVar :: String -> Either ParseError Variable
+parserVar = runParser parseVar (0,M.empty) "TEST" 
 
 -- Imprimimos el error con version Exception de haskell.
 showError :: Show a => a -> b
