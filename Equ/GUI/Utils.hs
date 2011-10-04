@@ -30,6 +30,8 @@ data WExpr w = WExpr { widget :: WidgetClass w => w
 
 type GoBack = (Focus -> Focus,Focus -> Focus)
 
+holeExpr = preExprHole ""
+
 go :: (Focus -> Maybe Focus) -> Focus -> Focus
 go g e = maybe (error $ show e) id $ g e
 
@@ -47,12 +49,16 @@ showExpr :: RExpr -> (Statusbar,ContextId) -> IO ()
 showExpr r (s,c) = readIORef r >>= statusbarPush s c . show . toExpr >> return ()
 
 emptyRef :: IO RExpr
-emptyRef = newIORef . toFocus $ preExprHole ""
+emptyRef = newIORef . toFocus $ holeExpr
 
 updateRef :: PreExpr -> IRExpr
 updateRef e r (f,f') sb = (liftM (snd . f) . readIORef) r >>= \p -> 
                           (writeIORef r . f') (e, p) >>
                           showExpr r sb
+
+clearExpr :: BoxClass b => b -> IRExpr
+clearExpr b r f sb = removeAllChildren b >>
+                     updateRef holeExpr r f sb
 
 -- TODO: manejar errores del parser
 setVarFocus :: Entry -> IRExpr
@@ -91,8 +97,6 @@ addToBox' b (Boxeable w) = boxPackStart b w PackGrow 0
 addToBox :: (BoxClass b,WidgetClass w) => b -> w -> IO ()
 addToBox b w = boxPackStart b w PackGrow 0
 
-getMenuButton :: GladeXML -> String -> IO MenuItem
-getMenuButton w = xmlGetWidget w castToMenuItem 
 
 quitAction :: Window -> IO ()
 quitAction w = widgetDestroy w
@@ -177,8 +181,7 @@ frameQuant v rng trm q box r f sb = do
                          .*. widget rng
                          .*. lblTrm
                          .*. widget trm
-                         .*. lblEnd
-                         .*. []
+                         .*: lblEnd
                          )
 
     widgetShowAll box
@@ -252,14 +255,14 @@ writeOperator :: (BoxClass b) => Operator -> b -> IRExpr
 writeOperator o box r f sb = 
     case opNotationTy o of
         NPrefix -> do
-            boxExpr <- hBoxNew False 10
+            boxExpr <- newBox
             mkButtonSubExpr boxExpr r ((goDown,goUp) .^ f) sb
-            frameUnOp o (WExpr boxExpr (preExprHole "")) box r f sb
+            frameUnOp o (WExpr boxExpr holeExpr) box r f sb
 
         NPostfix -> do
-            boxExpr <- hBoxNew False 10
+            boxExpr <- newBox
             mkButtonSubExpr boxExpr r ((goDown,goUp) .^ f) sb
-            frameUnOp o (WExpr boxExpr (preExprHole "") ) box r f sb
+            frameUnOp o (WExpr boxExpr holeExpr) box r f sb
 
              
         NInfix -> do
@@ -268,8 +271,8 @@ writeOperator o box r f sb =
             boxExpr' <- newBox
             mkButtonSubExpr boxExpr' r ((goDownR, goUp) .^ f) sb
 
-            frameBinOp o (WExpr boxExpr (preExprHole "")) 
-                         (WExpr boxExpr' (preExprHole "")) 
+            frameBinOp o (WExpr boxExpr holeExpr) 
+                         (WExpr boxExpr' holeExpr) 
                          box r f sb
 
 
@@ -277,8 +280,8 @@ writeOperator o box r f sb =
 writeQuantifier ::  (BoxClass b) => Quantifier -> b -> IRExpr
 writeQuantifier q box r f sb = do
 
-    boxRng <- hBoxNew False 10
-    boxTrm <- hBoxNew False 10
+    boxRng <- newBox
+    boxTrm <- newBox
     
     mkButtonSubExpr boxRng r ((goDown, goUp) .^ f) sb
     mkButtonSubExpr boxTrm r ((goDownR,goUp) .^ f) sb

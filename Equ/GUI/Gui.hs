@@ -18,18 +18,27 @@ import Data.IORef
 import Data.Maybe(fromJust)
 import Control.Monad(liftM)
 
+getMenuButton w = xmlGetWidget w castToMenuItem 
+
+
 main :: IO ()
 main = do
     initGUI
-    Just xml <- xmlNew "Equ/GUI/interfaz1.glade"
+
+
+
+
+    Just xml <- xmlNew "Equ/GUI/equ.glade"
     exprRef <- emptyRef
 
     -- get widgets
-    window <- xmlGetWidget xml castToWindow "window1"
-    formBox <- xmlGetWidget xml castToHBox "box_formula"
-    exprButton <- xmlGetWidget xml castToButton "button_expr"
-    applyButton <- xmlGetWidget xml castToButton "applyButton"
+    window <- xmlGetWidget xml castToWindow "mainWindow"
+
     quitButton <- getMenuButton xml "QuitButton"
+
+    formBox <- xmlGetWidget xml castToHBox "formulaBox"
+    exprButton <- xmlGetWidget xml castToButton "addButton"
+    clearButton <- xmlGetWidget xml castToButton "clearButton"
 
     statusBar <- xmlGetWidget xml castToStatusbar "statusBar"
     ctxExpr <- statusbarGetContextId statusBar "Expr"
@@ -40,10 +49,12 @@ main = do
 
     -- signals
     onPressed exprButton $ menuPopup menuSymbols Nothing
-    onPressed applyButton $ menuPopup menuSymbols Nothing
-    onActivateLeaf quitButton $ quitAction window
-    onDestroy window mainQuit
+    onPressed clearButton $ clearExpr formBox exprRef (id,id) (statusBar,ctxExpr)
     
     widgetShowAll menuSymbols
+
+    onActivateLeaf quitButton $ quitAction window
+    onDestroy window mainQuit
+
     widgetShowAll window
     mainGUI
