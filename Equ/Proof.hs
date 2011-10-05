@@ -21,7 +21,7 @@ module Equ.Proof (
                  , module Equ.Rewrite
                  ) where
 
-import Equ.Proof.Proof hiding (getCtx,getStart,getEnd,getRel)
+import Equ.Proof.Proof hiding (getCtx,getStart,getEnd,getRel,setCtx)
 import Equ.Proof.Zipper
 import Equ.Proof.Monad
 import Equ.Proof.Error
@@ -31,21 +31,10 @@ import Equ.Rule
 import Equ.Rewrite
 
 import Data.Monoid(mappend)
+import Data.Either(partitionEithers)
 
 import Data.Map (empty)
 import Control.Monad
-
--- | Funciones auxiliares que podrían ir a su propio módulo.
-isRight :: Either a b -> Bool
-isRight (Right _) = True
-isRight _ = False
-
-firstWithDef :: a -> (a -> Bool) -> [a] -> a
-firstWithDef def f xs = head $ filter f xs ++ [def]
-
-firstRight :: Either a b -> [Either a b] -> Either a b
-firstRight def = firstWithDef def isRight
-                 
 
 -- Funcion para checkear igualdad, con la variante importante que en caso de
 -- no cumplirse devolvemos un resultado por default.
@@ -67,7 +56,7 @@ proofFromRule :: Truth t => Focus -> Focus -> Relation -> t -> (t -> Basic) ->
 proofFromRule f1 f2 rel t mkBasic r = whenEqWithDefault err rel (truthRel t) >>
                                       liftRw (focusedRewrite f1 r) >>= \f ->
                                       whenEqWithDefault err f f2 >>
-                                      (return $ Simple empty rel f1 f2 $ mkBasic t)
+                                      return (Simple empty rel f1 f2 $ mkBasic t)
         where err :: ProofError
               err = BasicNotApplicable $ mkBasic t
 
@@ -75,11 +64,22 @@ proofFromRule f1 f2 rel t mkBasic r = whenEqWithDefault err rel (truthRel t) >>
 -- teorema, intenta crear una prueba para f1 rel f2, utilizando el
 -- paso simple de aplicar el axioma o teorema.
 proofFromTruth :: Truth t => Focus -> Focus -> Relation -> t -> PM Proof
-proofFromTruth f1 f2 rel t = firstRight err $
-                             map (proofFromRule f1 f2 rel t truthBasic) (truthRules t)
-    where err :: PM Proof
-          err = Left $ BasicNotApplicable $ truthBasic t
+proofFromTruth f f' r t = case partitionEithers $
+                               map (proofFromRule f f' r t truthBasic) 
+                                   (truthRules t)
+                          of
+                          -- Devolvemos el primer error, esto tal vez se
+                          -- podría mejorar un poco devolviendo la lista de
+                          -- errores.
+                          (er:ers, []) -> Left er
+                          (_, p:ps) -> Right p
 
+-- | Igual que proofFromTruth, pero ahora cambiamos el contexto.
+proofFromTruthWithCtx :: Truth t => Ctx -> Focus -> Focus -> Relation -> t 
+                         -> PM Proof
+proofFromTruthWithCtx c f f' r b = either Left
+                                          (setCtx c)
+                                          (proofFromTruth f f' r b)
 
 proofFromAxiom :: Focus -> Focus -> Relation -> Axiom -> PM Proof
 proofFromAxiom = proofFromTruth
@@ -99,7 +99,7 @@ rel {?}
 @
 -}
 newProof :: Relation -> Focus -> Focus -> Proof
-newProof r f f' = Hole empty r f f'
+newProof = Hole empty
 
 {- | Comenzamos una prueba dado unfocus y una relacion.
     {POS: El contexto de la prueba es vacio.}
@@ -158,9 +158,9 @@ rel { b }
 @
 -}
 addStep :: ProofFocus -> Proof -> PM Proof
-addStep (p@(Hole ctx r f f'), _) p' = do
-                ctx' <- getCtx p'
-                whenEqWithDefault (ClashCtx ctx ctx') ctx ctx'
+addStep (p@(Hole c r f f'), _) p' = do
+                c' <- getCtx p'
+                whenEqWithDefault (ClashCtx c c') c c'
                 r' <- getRel p'
                 whenEqWithDefault (ClashRel r r') r' r
                 endP' <- getEnd p' -- Acá no recuerdo si ibamos a querer esto.
@@ -176,7 +176,7 @@ addStep (p, _) _ = Left $ ClashProofNotHole p
 
 -- | Completa un hueco en una prueba.
 fillHole :: Truth t => ProofFocus -> t -> PM ProofFocus
-fillHole pf@(Hole ctx r f f', _) t = either (\er -> Left er)
-                                            (\p -> Right $ replace pf p) $
-                                            proofFromTruth f f' r t
+fillHole pf@(Hole c r f f', _) t = either Left
+                                          (Right . replace pf) $
+                                          proofFromTruthWithCtx c f f' r t
 fillHole (p, _) _ = Left $ ClashProofNotHole p
