@@ -56,11 +56,17 @@ updateFrmCtrl l r = readIORef r >>= \gst -> writeIORef r $ gst { inpFocus = l }
 updateSymCtrl :: TreeView -> RExpr -> IO ()
 updateSymCtrl t r = readIORef r >>= \gst -> writeIORef r $ gst { symCtrl = t }
 
+updatePath :: GoBack -> RExpr -> IO ()
+updatePath p r = readIORef r >>= \gst -> writeIORef r $ gst { path = p }
+
 getFrmCtrl :: RExpr -> IO HBox
 getFrmCtrl r = readIORef r >>= return . inpFocus
 
 getSymCtrl :: RExpr -> IO TreeView
 getSymCtrl r = readIORef r >>= return . symCtrl
+
+getPath :: RExpr -> IO GoBack
+getPath r = readIORef r >>= return . path
 
 data Boxeable w = forall w . WidgetClass w => Boxeable w
 

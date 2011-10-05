@@ -9,6 +9,7 @@ import Data.IORef
 data GState = GState { expr :: Focus
                      , inpFocus  :: HBox
                      , symCtrl :: TreeView
+                     , path :: GoBack
                      }
 
 
