@@ -145,7 +145,7 @@
           </packing>
         </child>
         <child>
-          <widget class="GtkHPaned" id="hpaned1">
+          <widget class="GtkHPaned" id="panCtrl">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <child>
@@ -186,43 +186,27 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="orientation">vertical</property>
+                <property name="position">300</property>
                 <child>
-                  <widget class="GtkLayout" id="layout1">
+                  <widget class="GtkHBox" id="hbox1">
                     <property name="visible">True</property>
-                    <property name="hadjustment">0 0 546 0 491.40000000000003 546</property>
                     <child>
                       <widget class="GtkLabel" id="label1">
-                        <property name="width_request">82</property>
-                        <property name="height_request">40</property>
+                        <property name="width_request">80</property>
                         <property name="visible">True</property>
+                        <property name="tooltip" translatable="yes">			</property>
                         <property name="label" translatable="yes">&lt;b&gt;Expresi&#xF3;n:&lt;/b&gt;		</property>
                         <property name="use_markup">True</property>
                         <property name="justify">right</property>
                       </widget>
                       <packing>
-                        <property name="x">40</property>
-                        <property name="y">75</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkButton" id="clearButton">
-                        <property name="label">gtk-clear</property>
-                        <property name="width_request">96</property>
-                        <property name="height_request">40</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
-                        <property name="use_stock">True</property>
-                      </widget>
-                      <packing>
-                        <property name="x">448</property>
-                        <property name="y">75</property>
+                        <property name="expand">False</property>
+                        <property name="fill">False</property>
+                        <property name="position">0</property>
                       </packing>
                     </child>
                     <child>
                       <widget class="GtkScrolledWindow" id="scrolledwindow1">
-                        <property name="width_request">320</property>
-                        <property name="height_request">60</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="hscrollbar_policy">automatic</property>
@@ -257,8 +241,21 @@
                         </child>
                       </widget>
                       <packing>
-                        <property name="x">120</property>
-                        <property name="y">60</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkButton" id="clearButton">
+                        <property name="label">gtk-clear</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">True</property>
+                        <property name="use_stock">True</property>
+                      </widget>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">False</property>
+                        <property name="position">2</property>
                       </packing>
                     </child>
                   </widget>
