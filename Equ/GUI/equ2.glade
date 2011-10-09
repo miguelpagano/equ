@@ -145,7 +145,28 @@
           </packing>
         </child>
         <child>
-          <widget class="GtkHPaned" id="panCtrl">
+          <widget class="GtkToolbar" id="toolBar">
+            <property name="visible">True</property>
+            <child>
+              <widget class="GtkToolButton" id="newExprButton">
+                <property name="visible">True</property>
+                <property name="use_underline">True</property>
+                <property name="stock_id">gtk-new</property>
+              </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+          </widget>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <widget class="GtkHPaned" id="symPane">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <child>
@@ -182,20 +203,19 @@
               </packing>
             </child>
             <child>
-              <widget class="GtkVPaned" id="vpaned1">
+              <widget class="GtkVPaned" id="formPane">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="orientation">vertical</property>
-                <property name="position">300</property>
                 <child>
-                  <widget class="GtkHBox" id="hbox1">
+                  <widget class="GtkHBox" id="formWidget">
                     <property name="visible">True</property>
+                    <property name="spacing">2</property>
                     <child>
                       <widget class="GtkLabel" id="label1">
                         <property name="width_request">80</property>
                         <property name="visible">True</property>
-                        <property name="tooltip" translatable="yes">			</property>
-                        <property name="label" translatable="yes">&lt;b&gt;Expresi&#xF3;n:&lt;/b&gt;		</property>
+                        <property name="label" translatable="yes">&lt;b&gt;Expresi&#xF3;n:&lt;/b&gt;</property>
                         <property name="use_markup">True</property>
                         <property name="justify">right</property>
                       </widget>
@@ -208,32 +228,19 @@
                     <child>
                       <widget class="GtkScrolledWindow" id="scrolledwindow1">
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
+                        <property name="can_focus">False</property>
                         <property name="hscrollbar_policy">automatic</property>
                         <property name="vscrollbar_policy">never</property>
                         <child>
                           <widget class="GtkViewport" id="viewport1">
                             <property name="visible">True</property>
-                            <property name="resize_mode">queue</property>
                             <property name="shadow_type">none</property>
                             <child>
                               <widget class="GtkHBox" id="formulaBox">
                                 <property name="visible">True</property>
-                                <property name="app_paintable">True</property>
                                 <property name="spacing">2</property>
                                 <child>
-                                  <widget class="GtkLabel" id="formulaLabel">
-                                    <property name="visible">True</property>
-                                    <property name="app_paintable">True</property>
-                                    <property name="can_focus">True</property>
-                                    <property name="can_default">True</property>
-                                    <property name="has_default">True</property>
-                                    <property name="selectable">True</property>
-                                  </widget>
-                                  <packing>
-                                    <property name="padding">2</property>
-                                    <property name="position">0</property>
-                                  </packing>
+                                  <placeholder/>
                                 </child>
                               </widget>
                             </child>
@@ -245,22 +252,47 @@
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkButton" id="clearButton">
-                        <property name="label">gtk-clear</property>
+                      <widget class="GtkHButtonBox" id="hbuttonbox1">
+                        <property name="width_request">0</property>
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
-                        <property name="use_stock">True</property>
+                        <property name="spacing">4</property>
+                        <child>
+                          <widget class="GtkButton" id="clearButton">
+                            <property name="label">gtk-clear</property>
+                            <property name="can_focus">False</property>
+                            <property name="receives_default">False</property>
+                            <property name="use_stock">True</property>
+                          </widget>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">False</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkButton" id="applyButton">
+                            <property name="label">gtk-apply</property>
+                            <property name="can_focus">False</property>
+                            <property name="receives_default">False</property>
+                            <property name="use_stock">True</property>
+                          </widget>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">False</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
                       </widget>
                       <packing>
                         <property name="expand">False</property>
                         <property name="fill">False</property>
+                        <property name="padding">2</property>
                         <property name="position">2</property>
                       </packing>
                     </child>
                   </widget>
                   <packing>
-                    <property name="resize">False</property>
+                    <property name="resize">True</property>
                     <property name="shrink">True</property>
                   </packing>
                 </child>
@@ -287,7 +319,7 @@
             </child>
           </widget>
           <packing>
-            <property name="position">1</property>
+            <property name="position">2</property>
           </packing>
         </child>
         <child>
@@ -297,7 +329,7 @@
           </widget>
           <packing>
             <property name="expand">False</property>
-            <property name="position">2</property>
+            <property name="position">3</property>
           </packing>
         </child>
       </widget>

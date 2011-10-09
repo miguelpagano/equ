@@ -5,6 +5,8 @@
 module Equ.PreExpr ( freeVars, freshVar
                    , encode, decode
                    , preExprHole, isPreExprHole
+                   , placeHolderVar
+                   , isPlaceHolderVar
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
@@ -13,7 +15,7 @@ module Equ.PreExpr ( freeVars, freshVar
     where
 
 
-import Equ.Syntax(Variable, Operator, Quantifier, var, HoleInfo, hole)
+import Equ.Syntax(Variable(..), Operator, Quantifier, var, HoleInfo, hole)
 import Data.Set (Set,union,delete,empty,insert,member)
 import Equ.Types
 import Equ.PreExpr.Internal
@@ -52,3 +54,11 @@ freshVar s = firstNotIn s infListVar
           -- PRE: xs es infinita
           firstNotIn set xs | head xs `member` set = firstNotIn set $ tail xs
                             | otherwise = head xs
+
+-- | Una variable que el usuario no puede ingresar.
+placeHolderVar :: Variable
+placeHolderVar = var "" TyUnknown
+
+isPlaceHolderVar :: Variable -> Bool
+isPlaceHolderVar (Variable "" TyUnknown) = True
+isPlaceHolderVar _ = False
