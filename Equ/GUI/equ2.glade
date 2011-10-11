@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <glade-interface>
   <!-- interface-requires gtk+ 2.14 -->
   <!-- interface-naming-policy project-wide -->
@@ -6,7 +6,6 @@
     <child>
       <widget class="GtkVBox" id="vbox1">
         <property name="visible">True</property>
-        <property name="orientation">vertical</property>
         <child>
           <widget class="GtkMenuBar" id="menubar1">
             <property name="visible">True</property>
@@ -189,7 +188,7 @@
                 <child>
                   <widget class="GtkLabel" id="label2">
                     <property name="visible">True</property>
-                    <property name="label" translatable="yes">&lt;b&gt;S&#xED;mbolos&lt;/b&gt;</property>
+                    <property name="label" translatable="yes">&lt;b&gt;Símbolos&lt;/b&gt;</property>
                     <property name="use_markup">True</property>
                   </widget>
                   <packing>
@@ -206,7 +205,6 @@
               <widget class="GtkVPaned" id="formPane">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
-                <property name="orientation">vertical</property>
                 <child>
                   <widget class="GtkHBox" id="formWidget">
                     <property name="visible">True</property>
@@ -215,7 +213,7 @@
                       <widget class="GtkLabel" id="label1">
                         <property name="width_request">80</property>
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes">&lt;b&gt;Expresi&#xF3;n:&lt;/b&gt;</property>
+                        <property name="label" translatable="yes">&lt;b&gt;Expresión:&lt;/b&gt;</property>
                         <property name="use_markup">True</property>
                         <property name="justify">right</property>
                       </widget>
@@ -297,13 +295,44 @@
                   </packing>
                 </child>
                 <child>
-                  <widget class="GtkViewport" id="viewport2">
+                  <widget class="GtkHBox" id="hbox1">
                     <property name="visible">True</property>
-                    <property name="resize_mode">queue</property>
                     <child>
-                      <widget class="GtkDrawingArea" id="drawingarea1">
+                      <widget class="GtkVSeparator" id="vseparator1">
                         <property name="visible">True</property>
                       </widget>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">False</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkVBox" id="typedFormBox">
+                        <property name="visible">True</property>
+                        <child>
+                          <widget class="GtkHSeparator" id="hseparator1">
+                            <property name="visible">True</property>
+                          </widget>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">False</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkDrawingArea" id="drawingarea1">
+                            <property name="visible">True</property>
+                          </widget>
+                          <packing>
+                            <property name="pack_type">end</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                      </widget>
+                      <packing>
+                        <property name="position">1</property>
+                      </packing>
                     </child>
                   </widget>
                   <packing>

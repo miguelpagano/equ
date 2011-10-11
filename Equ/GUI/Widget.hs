@@ -29,13 +29,29 @@ openSymPane = getSymPane >>= \p ->
                             , panedPosition := paneSymbolWidth ] >>
                       widgetShowAll p)
 
+-- | Crea un label, en el cual al texto le coloca un string.
+setupLabelPreExpr :: String -> IO Label
+setupLabelPreExpr s = (labelNew $ Just s) >>= \lab ->
+                        set lab [ miscXalign := 0
+                                , widgetHeightRequest := 30
+                                , labelSelectable := True
+                                ] >>
+                        widgetShowAll lab >>
+                        return lab
+
+-- | Hace un update de la lista de expresiones ingresadas.
+updateTypedList :: VBox -> IState ()
+updateTypedList b = getExpr >>= 
+                    \(e, _) -> liftIO (
+                                setupLabelPreExpr ("$\t" ++ show e) >>= 
+                                \lab -> (boxPackStart b lab PackNatural 2) >> 
+                                widgetShowAll b)
+
 hideSymPane :: IState ()
 hideSymPane = getSymPane >>= \p -> 
               liftIO (set p [ panedPositionSet := True 
                             , panedPosition := 0 ] >>
                       widgetShowAll p)
-
-
 
 {- Las siguientes acciones muestran y ocultan el widget de fórmulas . -}
 openFormPane :: HBox -> Paned -> IState ()

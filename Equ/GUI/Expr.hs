@@ -33,7 +33,10 @@ clearFocus b = getExpr >>= \e ->
                updateFrmCtrl b >>
                clearExpr b >>
                (return . toExpr) e
- 
+{- 
+showExpr :: IState ()
+showExpr = getExpr >>= \e -> (liftIO (labelSetText l (show (expr gs)))) >>
+           liftIO (addToBox (box gs) l)-}
 
 -- | Limpia el contenido de una caja y pone el widget correspondiente
 -- para ingresar una nueva expresión en esa caja. En el estado sólo
@@ -62,7 +65,6 @@ setExprFocus entry box = liftIO (entryGetText entry) >>=
                          removeAllChildren box >>
                          addToBox box box' >>
                          liftIO (widgetShowAll box)
-
 
 -- | Esta es la función principal: dada una expresión, construye un
 -- widget con la expresión.

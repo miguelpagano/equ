@@ -11,7 +11,6 @@ hoverBg = Color 0 32000 65000
 focusBg :: Color
 focusBg = Color 0 65000 32000
 
-
 -- | Tamaño de entry-var para variables.
 entryVarLength :: Int
 entryVarLength = 5
