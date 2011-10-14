@@ -60,4 +60,3 @@ oneSelection list tree = liftIO (treeSelectionGetSelectedRows tree) >>= \sel ->
                                when (not (null h)) $ return (head h) >>= \s ->
                                    liftIO (listStoreGetValue list s) >>= \(repr,acc) ->
                                    getFrmCtrl >>= acc
-

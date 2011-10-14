@@ -165,6 +165,15 @@ getFormPane :: IState Paned
 getFormPane = getFrmCtrl >>= getParentNamed "formPane" . toWidget >>=
               return . castToPaned
 
+-- | Devuelve el paned que contiene al widget de errores.
+getFormErrPane :: IState Paned
+getFormErrPane = getFrmCtrl >>= getParentNamed "errPane" . toWidget >>=
+                 return . castToPaned
+
+-- | Devuelve el label que reporta los errores.
+getErrPanedLabel :: IState Label
+getErrPanedLabel = getFormErrPane >>= \erp -> liftIO (panedGetChild1 erp) >>= 
+                   \(Just l) -> return $ castToLabel l
 
 -- | Devuelve el box de fórmulas.
 getFormBox :: IState HBox

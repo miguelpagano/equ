@@ -28,6 +28,12 @@ openSymPane = getSymPane >>= \p ->
               liftIO (set p [ panedPositionSet := True 
                             , panedPosition := paneSymbolWidth ] >>
                       widgetShowAll p)
+                      
+openErrPane :: IState ()
+openErrPane = getFormErrPane >>= \erp ->
+              liftIO (set erp [ panedPositionSet := True 
+                              , panedPosition := paneErrPaneHeight ] >>
+                      widgetShowAll erp)
 
 -- | Crea un label, en el cual al texto le coloca un string.
 setupLabelPreExpr :: String -> IO Label

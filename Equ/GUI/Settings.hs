@@ -22,3 +22,7 @@ paneSymbolWidth = 100
 -- | Alto del sector para la construcción de fórmulas.
 paneFormHeight :: Int
 paneFormHeight = 30
+
+-- | Alto del sector que informa sobre errores.
+paneErrPaneHeight :: Int
+paneErrPaneHeight = 100

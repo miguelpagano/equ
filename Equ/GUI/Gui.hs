@@ -39,8 +39,9 @@ main = do
     symbolList    <- xmlGetWidget xml castToTreeView "symbolList"
     typedFormBox  <- xmlGetWidget xml castToVBox "typedFormBox"
 
-    symPane  <- xmlGetWidget xml castToPaned "symPane"
-    formPane <- xmlGetWidget xml castToPaned "formPane"
+    symPane   <- xmlGetWidget xml castToPaned "symPane"
+    formPane  <- xmlGetWidget xml castToPaned "formPane"
+    errPane <- xmlGetWidget xml castToPaned "errPane"
 
     exprRef <- newRef $ GState emptyExpr
                                formBox
@@ -52,15 +53,18 @@ main = do
     onDestroy window mainQuit
 
     flip evalStateT exprRef $ 
+        hideFormPane formBox errPane >>
         hideFormPane formBox formPane >>
         hideSymPane >>
         setupForm formBox >>
         setupSymbolList symbolList >>
         liftIO (clearButton `on` buttonPressEvent $ tryEvent $ 
-                            eventWithState (clearFocus formBox >> return ()) 
+                            eventWithState (hideFormPane formWidget errPane >>
+                                            clearFocus formBox >> return ()) 
                             exprRef) >>
         liftIO (applyButton `on` buttonPressEvent $ tryEvent $ 
-                            eventWithState (hideFormPane formWidget formPane >> 
+                            eventWithState (hideFormPane formWidget errPane >>
+                                            hideFormPane formWidget formPane >> 
                                             hideSymPane >>
                                             updateTypedList typedFormBox) 
                             exprRef) >>
