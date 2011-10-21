@@ -16,6 +16,7 @@ module Equ.Proof.Proof (
                  , isHole
                  -- Proyecciones
                  , getCtx, getStart, getEnd, getRel
+                 , setCtx
                  ) where
 
 import Equ.Expr
@@ -450,6 +451,18 @@ getCtx (Ind c _ _ _ _ _) = Just c
 getCtx (Deduc c _ _ _) = Just c
 getCtx (Focus c _ _ _ _) = Just c
 
+-- Esta función me hace pensar si no hara falta lo mismo para los demas
+-- componentes de las pruebas.
+-- | Cambiamos el contexto de una prueba.
+setCtx :: Ctx -> Proof ->  Maybe Proof
+setCtx _ Reflex = Nothing
+setCtx c (Hole _ r f f') = Just (Hole c r f f')
+setCtx c (Simple _ r f f' b) = Just (Simple c r f f' b)
+setCtx c (Trans _ r f f' f'' p p') = Just (Trans c r f f' f'' p p')
+setCtx c (Cases _ r f f' f'' lfp) = Just (Cases c r f f' f'' lfp)
+setCtx c (Ind _ r f f' lf lfp) = Just (Ind c r f f' lf lfp)
+setCtx c (Deduc _ f f' p) = Just (Deduc c f f' p)
+setCtx c (Focus _ r f f' p) = Just (Focus c r f f' p)
 
 -- DUDA: Que hacemos con Reflex aca??
 getStart :: Proof -> Maybe Focus

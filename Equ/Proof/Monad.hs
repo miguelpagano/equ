@@ -1,8 +1,8 @@
 module Equ.Proof.Monad where
 
 import Equ.Proof.Error
-import Equ.Proof.Proof hiding (getCtx, getStart, getEnd, getRel)
-import qualified Equ.Proof.Proof as P (getCtx, getStart, getEnd, getRel) 
+import Equ.Proof.Proof hiding (getCtx, getStart, getEnd, getRel, setCtx)
+import qualified Equ.Proof.Proof as P (getCtx, getStart, getEnd, getRel, setCtx) 
 
 import Equ.Rewrite(RM)
 import Equ.PreExpr
@@ -21,6 +21,9 @@ liftRw (Right a) = return a
 -- Lifting de proyecciones de Proof a la mónada de Proof.
 getCtx :: Proof -> PM Ctx
 getCtx = maybe (Left ReflexHasNoCtx) return . P.getCtx
+
+setCtx :: Ctx -> Proof -> PM Proof
+setCtx c = maybe (Left ReflexHasNoStart) return . (P.setCtx c)
 
 getStart :: Proof -> PM Focus
 getStart = maybe (Left ReflexHasNoStart) return . P.getStart

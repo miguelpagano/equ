@@ -27,54 +27,54 @@ prop_serialization :: Proof -> Bool
 prop_serialization p = let Right p' = (decode . encode) p in p == p'
 
 -- Focus utilizados en Unit-Test.
-f_Fx :: Focus
-f_Fx = toFocus $ parser "F@x"
-f_Fy :: Focus 
-f_Fy = toFocus $ parser "F@y"
-f_p :: Focus
-f_p = toFocus $ parser "p"
-f_q :: Focus
-f_q = toFocus $ parser "q"
-f_y :: Focus
-f_y = toFocus $ parser "y"
-f_z :: Focus
-f_z = toFocus $ parser "z"
-f_Q0 :: Focus
-f_Q0 = toFocus $ parser "〈∀ x : R@x ∨ S@x : T@x〉"
-f_Q1 :: Focus
-f_Q1 = toFocus $ parser "〈∀ x : R@x : T@x〉 ∧ 〈∀ x : S@x : T@x〉"
-f_equivNeg0 :: Focus
-f_equivNeg0 = toFocus $ parser "¬(p ≡ q) ≡ ¬p"
-f_star0 :: Focus
-f_star0 = toFocus $ parser "p ∨ q"
-f_star1 :: Focus
-f_star1 = toFocus $ parser "p ∨ ¬q ≡ p"
-f_gr0 :: Focus
-f_gr0 = toFocus $ parser "p ∧ q"
-f_gr1 :: Focus
-f_gr1 = toFocus $ parser "p ≡ q ≡ p ∨ q"
-f_neu0 :: Focus
-f_neu0 = toFocus $ parser "True ≡ p"
-f_dm :: Focus
-f_dm = toFocus $ parser "¬(p ∨ q)"
-f_hole1 :: Focus
-f_hole1 = toFocus $ preExprHole holeInfo1
-f_hole0 :: Focus
-f_hole0 = toFocus $ preExprHole holeInfo0
+fFx :: Focus
+fFx = toFocus $ parser "F@x"
+fFy :: Focus 
+fFy = toFocus $ parser "F@y"
+fp :: Focus
+fp = toFocus $ parser "p"
+fq :: Focus
+fq = toFocus $ parser "q"
+fy :: Focus
+fy = toFocus $ parser "y"
+fz :: Focus
+fz = toFocus $ parser "z"
+fQ0 :: Focus
+fQ0 = toFocus $ parser "〈∀ x : R@x ∨ S@x : T@x〉"
+fQ1 :: Focus
+fQ1 = toFocus $ parser "〈∀ x : R@x : T@x〉 ∧ 〈∀ x : S@x : T@x〉"
+fequivNeg0 :: Focus
+fequivNeg0 = toFocus $ parser "¬(p ≡ q) ≡ ¬p"
+fstar0 :: Focus
+fstar0 = toFocus $ parser "p ∨ q"
+fstar1 :: Focus
+fstar1 = toFocus $ parser "p ∨ ¬q ≡ p"
+fgr0 :: Focus
+fgr0 = toFocus $ parser "p ∧ q"
+fgr1 :: Focus
+fgr1 = toFocus $ parser "p ≡ q ≡ p ∨ q"
+fneu0 :: Focus
+fneu0 = toFocus $ parser "True ≡ p"
+fdm :: Focus
+fdm = toFocus $ parser "¬(p ∨ q)"
+fhole1 :: Focus
+fhole1 = toFocus $ preExprHole holeInfo1
+fhole0 :: Focus
+fhole0 = toFocus $ preExprHole holeInfo0
 
 -- Pruebas utilizadas en unit-test.
-p_Fx_Eq_Y :: Proof
-p_Fx_Eq_Y = Hole M.empty relEq f_Fx f_y 
-p_Fx_Eq_Z :: Proof
-p_Fx_Eq_Z = Hole M.empty relEq f_Fx f_z
-p_Z_Eq_Y :: Proof
-p_Z_Eq_Y = Hole M.empty relEq f_z f_y
-p_Y_Eq_Z :: Proof
-p_Y_Eq_Z = Hole M.empty relEq f_y f_z
-p_Fx_Impl_Z :: Proof
-p_Fx_Impl_Z = Hole M.empty relImpl f_Fx f_z
-p_Fy_Eq_Z :: Proof
-p_Fy_Eq_Z = Hole M.empty relEq f_Fy f_z
+pFxEqY :: Proof
+pFxEqY = Hole M.empty relEq fFx fy 
+pFxEqZ :: Proof
+pFxEqZ = Hole M.empty relEq fFx fz
+pZEqY :: Proof
+pZEqY = Hole M.empty relEq fz fy
+pYEqZ :: Proof
+pYEqZ = Hole M.empty relEq fy fz
+pFxImplZ :: Proof
+pFxImplZ = Hole M.empty relImpl fFx fz
+pFyEqZ :: Proof
+pFyEqZ = Hole M.empty relEq fFy fz
 
 -- Información en huecos de preExpr para unit-test.
 holeInfo0 :: Text
@@ -142,20 +142,20 @@ NOTA IMPORTANTE; Pensar en generalizar proofFromTruth para que se pueda llevar
 -}
 
 -- Expresiones a utilizar para generar la prueba.
-f_pip0 :: Focus
-f_pip0 = toFocus $ parser "p ⇒ p"
-f_pip1 :: Focus
-f_pip1 = toFocus $ parser "p ∨ p ≡ p"
-f_true :: Focus
-f_true = toFocus $ parser "True"
+fpip0 :: Focus
+fpip0 = toFocus $ parser "p ⇒ p"
+fpip1 :: Focus
+fpip1 = toFocus $ parser "p ∨ p ≡ p"
+ftrue :: Focus
+ftrue = toFocus $ parser "True"
 
 -- Comienzo una prueba de que, p ⇒ p ≡ True
 newP :: Proof
-newP = newProof relEquiv f_pip0 f_true
+newP = newProof relEquiv fpip0 ftrue
 
 -- Generamos una prueba simple de que, (p ⇒ p) ≡ (p ∨ p ≡ p)
 pft :: Proof
-Right pft = proofFromTruth f_pip0 f_pip1 relEquiv axImpl
+Right pft = proofFromTruth fpip0 fpip1 relEquiv axImpl
 
 -- Añadimos un paso a la prueba, usando lo probado anteriormente.
 newStepP :: Proof
@@ -166,12 +166,12 @@ hf :: ProofFocus
 Just hf = goDownR (toProofFocus newStepP)
 
 -- Completamos el hueco de la prueba con (Ax (p ∨ p ≡ p) ≡ True)
-fp :: ProofFocus
-Right fp = fillHole hf axIdemPotOr
+finalPF :: ProofFocus
+Right finalPF = fillHole hf axIdemPotOr
 
 -- Volvemos al Top de la prueba.
 finalP :: Proof
-finalP = toProof fp
+finalP = toProof finalPF
 
 axImpl :: Axiom
 axImpl = Axiom { axName = pack "Regla implicacion"
@@ -188,34 +188,34 @@ axIdemPotOr = Axiom { axName = pack "Idempotencia del ∨"
                     }
 
 -- Prueba simple (p ⇒ p) ≡ (p ∨ p ≡ p)
-p_pip01 :: Proof
-p_pip01 = Simple M.empty relEquiv f_pip0 f_pip1 (Ax axImpl)
+ppip01 :: Proof
+ppip01 = Simple M.empty relEquiv fpip0 fpip1 (Ax axImpl)
 
 -- Prueba simple (p ∨ p ≡ p) ≡ True
-p_pip12 :: Proof
-p_pip12 = Simple M.empty relEquiv f_pip1 f_true (Ax axIdemPotOr)
+ppip12 :: Proof
+ppip12 = Simple M.empty relEquiv fpip1 ftrue (Ax axIdemPotOr)
 
 -- Prueba trans (p ⇒ p) ≡ (p ∨ p ≡ p) ≡ True
-p_P_Impl_P :: Proof
-p_P_Impl_P = Trans M.empty relEquiv f_pip0 f_pip1 f_true p_pip01 p_pip12
+pPImplP :: Proof
+pPImplP = Trans M.empty relEquiv fpip0 fpip1 ftrue ppip01 ppip12
 
 -- Comenzar una prueba simple con principio y final, agregar un paso usando
 -- una prueba simple y llenar el hueco con otra prueba simple.
 testCaseProof0 :: Assertion
-testCaseProof0 = unless (finalP == p_P_Impl_P) $ 
+testCaseProof0 = unless (finalP == pPImplP) $ 
                  assertFailure $ 
                  "FinalP: " ++ show finalP ++
-                 "P_Impl_P: " ++ show p_P_Impl_P
+                 "PImplP: " ++ show pPImplP
 
 -- Pruebas usadas en unit-test.
-p_Gr0 :: Proof
-p_Gr0 = Simple M.empty relEquiv f_gr0 f_gr1 (Ax axGoldenRule)
+pGr0 :: Proof
+pGr0 = Simple M.empty relEquiv fgr0 fgr1 (Ax axGoldenRule)
 
-p_Neu0 :: Proof
-p_Neu0 = Simple M.empty relEquiv f_p f_neu0 (Ax axNeutralEquiv)
+pNeu0 :: Proof
+pNeu0 = Simple M.empty relEquiv fp fneu0 (Ax axNeutralEquiv)
 
-p_EquivNeg :: Proof
-p_EquivNeg = Simple M.empty relEquiv f_equivNeg0 f_q (Ax axEquivNeg)
+pEquivNeg :: Proof
+pEquivNeg = Simple M.empty relEquiv fequivNeg0 fq (Ax axEquivNeg)
 
 {- Prueba usando regla dorada.
     ((p)∧(q),Top)
@@ -223,8 +223,8 @@ Equiv {Ax "Regla Dorada": ((((p)∧(q))≡(p))≡(q))≡((p)∨(q))}
     (((p)≡(q))≡((p)∨(q)),Top)
 -}
 testCaseProofFromAxiom0 :: Assertion
-testCaseProofFromAxiom0 = testCaseProofFromTruth f_gr0 f_gr1 relEquiv 
-                                                 axGoldenRule (Right p_Gr0)
+testCaseProofFromAxiom0 = testCaseProofFromTruth fgr0 fgr1 relEquiv 
+                                                 axGoldenRule (Right pGr0)
 
 {- Prueba usando neutro de la equivalencia.
     (p,Top)
@@ -232,8 +232,8 @@ Equiv {Ax "Neutro de la equivalencia": ((p)≡(True))≡(p)}
     ((True)≡(p),Top)
 -}
 testCaseProofFromAxiom1 :: Assertion
-testCaseProofFromAxiom1 = testCaseProofFromTruth f_p f_neu0 relEquiv 
-                                                 axNeutralEquiv (Right p_Neu0)
+testCaseProofFromAxiom1 = testCaseProofFromTruth fp fneu0 relEquiv 
+                                                 axNeutralEquiv (Right pNeu0)
 
 
 {- Prueba usando la definición de concatenar (Caso inductivo).
@@ -242,8 +242,8 @@ Equiv {Ax "Definición de Concatenar (++) CI": (x ▹ xs) ++ ys = x ▹ (xs ++ y
     (x ▹ (xs ++ ys),Top)
 -}
 testCaseProofFromAxiom2 :: Assertion
-testCaseProofFromAxiom2 = testCaseProofFromTruth f_equivNeg0 f_q relEquiv
-                                                axEquivNeg (Right p_EquivNeg)
+testCaseProofFromAxiom2 = testCaseProofFromTruth fequivNeg0 fq relEquiv
+                                                axEquivNeg (Right pEquivNeg)
 
 -- Verificar casos de tests para pruebas con axiomas y teoremas.
 testCaseProofFromTruth :: (Truth t) => Focus -> Focus -> Relation -> t
@@ -260,8 +260,8 @@ Eq  {?}
     (y, Top)
 -}
 testCaseNewProof0 :: Assertion
-testCaseNewProof0 = testCaseNewProof relEq f_Fx f_y 
-                        (Hole M.empty relEq f_Fx f_y)
+testCaseNewProof0 = testCaseNewProof relEq fFx fy 
+                        (Hole M.empty relEq fFx fy)
 
 {- Comenzar una prueba con la siguiente forma;
     〈∀ x : R@x ∨ S@x : T@x〉
@@ -269,8 +269,8 @@ Equiv  {?}
     〈∀ x : R@x : T@x〉 ∧ 〈∀ x : S@x : T@x〉
 -}
 testCaseNewProof1 :: Assertion
-testCaseNewProof1 = testCaseNewProof relEquiv f_Q0 f_Q1 
-                        (Hole M.empty relEquiv f_Q0 f_Q1)
+testCaseNewProof1 = testCaseNewProof relEquiv fQ0 fQ1 
+                        (Hole M.empty relEquiv fQ0 fQ1)
 
 {- Comenzar una prueba con la siguiente forma;
     p ∨ q
@@ -278,8 +278,8 @@ Equiv  {?}
     p ∨ ¬q ≡ p
 -}
 testCaseNewProof2 :: Assertion
-testCaseNewProof2 = testCaseNewProof relEquiv f_star0 f_star1 
-                        (Hole M.empty relEquiv f_star0 f_star1)
+testCaseNewProof2 = testCaseNewProof relEquiv fstar0 fstar1 
+                        (Hole M.empty relEquiv fstar0 fstar1)
 
 -- Verificar casos de tests para el comienzo de pruebas sin huecos de preExpr.
 testCaseNewProof :: Relation -> Focus -> Focus -> Proof -> Assertion
@@ -295,8 +295,8 @@ Equiv  {?}
     ?{p ∨ ¬q}
 -}
 testCasenewProofWE0 :: Assertion
-testCasenewProofWE0 = testCasenewProofWE relEquiv f_star0 holeInfo1
-                            (Hole M.empty relEquiv f_star0 f_hole1)
+testCasenewProofWE0 = testCasenewProofWE relEquiv fstar0 holeInfo1
+                            (Hole M.empty relEquiv fstar0 fhole1)
 
 {- Comenzar una prueba con la siguiente forma;
     ¬(p ∨ q)
@@ -304,8 +304,8 @@ Impli  {?}
     ?
 -}
 testCasenewProofWE1 :: Assertion
-testCasenewProofWE1 = testCasenewProofWE relImpl f_dm holeInfo0
-                            (Hole M.empty relImpl f_dm f_hole0)
+testCasenewProofWE1 = testCasenewProofWE relImpl fdm holeInfo0
+                            (Hole M.empty relImpl fdm fhole0)
 
 -- Verificar casos de tests para el comienzo de una prueba sin final, es decir,
 -- una prueba en la que tenemos un hueco de preExpr como expresion final de
@@ -319,12 +319,12 @@ testCasenewProofWE r f hi res = let p = newProofWithoutEnd r f hi
 
 {- Agregamos un paso en el cual las prueba coinciden en su primer focus.
 
-p_FxEqY:
+pFxEqY:
     (F (x),Top)
 Eq  {?}
     (y, Top)
 
-p_FxEqZ:
+pFxEqZ:
     (F (x),Top)
 Eq  {...}
     (z, Top)
@@ -337,16 +337,16 @@ Eq {?}
     (y,Top)
 -}
 testCaseAddStep0 :: Assertion
-testCaseAddStep0 = testCaseAddStep p_Fx_Eq_Y p_Fx_Eq_Z 
-                   (Right $ Trans M.empty relEq f_Fx f_z f_y p_Fx_Eq_Z p_Z_Eq_Y)
+testCaseAddStep0 = testCaseAddStep pFxEqY pFxEqZ 
+                   (Right $ Trans M.empty relEq fFx fz fy pFxEqZ pZEqY)
 
 {- Agregamos un paso en el cual las prueba coinciden en su ultimo y primer focus.
-p_FxEqY:
+pFxEqY:
     (F (x),Top)
 Eq  {?}
     (y, Top)
 
-p_YEqZ:
+pYEqZ:
     (y,Top)
 Eq  {...}
     (z, Top)
@@ -359,18 +359,18 @@ Eq {?}
     (z,Top)
 -}
 testCaseAddStep1 :: Assertion
-testCaseAddStep1 = testCaseAddStep p_Fx_Eq_Y p_Y_Eq_Z 
-                   (Right $ Trans M.empty relEq f_Fx f_y f_z p_Fx_Eq_Y p_Y_Eq_Z)
+testCaseAddStep1 = testCaseAddStep pFxEqY pYEqZ 
+                   (Right $ Trans M.empty relEq fFx fy fz pFxEqY pYEqZ)
 
 
 {- Intentanmos agregar un paso en el que no coinciden las relaciones, luego
     entonces deberiamos devolver ClashRel.
-p_FxEqY:
+pFxEqY:
     (F (x),Top)
 Eq  {?}
     (y, Top)
 
-p_FxImplZ:
+pFxImplZ:
     (F (x),Top)
 Impl  {...}
     (z, Top)
@@ -378,26 +378,26 @@ Impl  {...}
 Res: ClashRelation eq impl
 -}
 testCaseAddStep2 :: Assertion
-testCaseAddStep2 = testCaseAddStep p_Fx_Eq_Y p_Fx_Impl_Z 
+testCaseAddStep2 = testCaseAddStep pFxEqY pFxImplZ 
                    (Left $ ClashRel relEq relImpl)
 
 {- Intentamos agregar un paso en el que no coinciden los focus de las pruebas,
     luego entonces deberiamos devolver ClashAddStep.
-p_FxEqY:
+pFxEqY:
     (F (x),Top)
 Eq  {?}
     (y, Top)
 
-p_FyEqZ:
+pFyEqZ:
     (F (y),Top)
 Impl  {...}
     (z, Top)
 
-Res: ClashAddStep p_FxEqY p_FyEqZ
+Res: ClashAddStep pFxEqY pFyEqZ
 -}
 testCaseAddStep3 :: Assertion
-testCaseAddStep3 = testCaseAddStep p_Fx_Eq_Y p_Fy_Eq_Z 
-                   (Left $ ClashAddStep p_Fx_Eq_Y p_Fy_Eq_Z)
+testCaseAddStep3 = testCaseAddStep pFxEqY pFyEqZ 
+                   (Left $ ClashAddStep pFxEqY pFyEqZ)
 
 -- Verifica los casos de test para, dada una prueba, agregar un paso, es decir
 -- otra prueba y generar una nueva prueba por transitividad.
