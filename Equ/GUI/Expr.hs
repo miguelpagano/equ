@@ -33,10 +33,6 @@ clearFocus b = getExpr >>= \e ->
                updateFrmCtrl b >>
                clearExpr b >>
                (return . toExpr) e
-{- 
-showExpr :: IState ()
-showExpr = getExpr >>= \e -> (liftIO (labelSetText l (show (expr gs)))) >>
-           liftIO (addToBox (box gs) l)-}
 
 -- | Limpia el contenido de una caja y pone el widget correspondiente
 -- para ingresar una nueva expresión en esa caja. En el estado sólo
@@ -55,16 +51,29 @@ exprInEntry entry = liftIO . entrySetText entry . repr
 
 
 -- TODO: manejar errores del parser.
+-- Ale: Empece a hacer algo, lo principal es que muestra el error (no se rompe),
+--      faltaría definirle forma y color.
 -- | Dada una caja de texto, parsea el contenido como una expresión
 -- y construye un widget con toda la expresión.
 setExprFocus :: Entry -> HBox -> IRExpr
-setExprFocus entry box = liftIO (entryGetText entry) >>= 
-                         return . parser >>= \expr ->
-                         updateExpr expr >>
-                         frameExp expr >>= \(WExpr box' _) ->
-                         removeAllChildren box >>
-                         addToBox box box' >>
-                         liftIO (widgetShowAll box)
+setExprFocus entry box = liftIO (entryGetText entry) >>= \s ->
+                         case parseFromString s of
+                            Right expr -> (updateExpr expr >>
+                                            frameExp expr >>= \(WExpr box' _) ->
+                                            removeAllChildren box >>
+                                            addToBox box box' >>
+                                            liftIO (widgetShowAll box))
+                            Left err -> 
+                                    getErrPanedLabel >>=
+                                    \l -> liftIO (labelSetMarkup l 
+                                                    (markSpan 
+                                                    [ FontBackground "#FF0000"
+                                                    , FontForeground "#000000"
+                                                    ] 
+                                                    (show err))) >>
+                                    openErrPane >>
+                                    liftIO (widgetShowAll box) >>
+                                    return ()
 
 -- | Esta es la función principal: dada una expresión, construye un
 -- widget con la expresión.
