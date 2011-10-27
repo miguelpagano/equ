@@ -13,6 +13,7 @@ import Equ.Syntax
 import Equ.Parser
 
 import Graphics.UI.Gtk hiding (eventButton, eventSent, get)
+
 import qualified Graphics.UI.Gtk as G
 
 import Data.Text (unpack)
@@ -74,7 +75,6 @@ update f = get >>= \r -> readRef r >>=
                         writeRef r . f >>
                         put r
 
-
 -- | Realiza una acción en un estado modificado y luego vuelve al estado
 -- anterior; devuelve el resultado de la acción.
 local :: (GState -> IO a) -> IState a
@@ -110,7 +110,7 @@ showExpr = withRefValue $ uncurry putMsg . (status &&& show . toExpr . expr)
 del estado. -}
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
 updateExpr :: PreExpr -> IState ()
-updateExpr e' = update (\gst@(GState e _ _ (f,g) _) -> 
+updateExpr e' = update (\gst@(GState e _ _ _ _ (f,g) _) -> 
                         gst {expr = g . first (const e') . f $ e }) >>
                 showExpr
 
@@ -120,7 +120,6 @@ del estado. -}
 updateFocus :: Focus -> GoBack -> IState ()
 updateFocus e' f = update (\gst -> gst {expr = e' , path = f}) >>
                    showExpr
-
 
 -- | Actualiza la caja donde tenemos foco de entrada.
 updateFrmCtrl :: HBox -> IState ()
@@ -134,7 +133,7 @@ updateSymCtrl t = update $ \gst -> gst { symCtrl = t }
 updatePath :: GoBack -> IState ()
 updatePath p = update $ \gst -> gst { path = p }
 
-{- Las cinco funciones siguientes devuelven cada uno de los
+{- Las nueve funciones siguientes devuelven cada uno de los
 componentes del estado. -}
 
 getExpr :: IState Focus
@@ -142,6 +141,18 @@ getExpr = askRef >>= return . expr
 
 getFrmCtrl :: IState HBox
 getFrmCtrl = askRef >>= return . inpFocus
+
+getTypedOptionPane :: IState HPaned
+getTypedOptionPane = askRef >>= return . typedOptionPane
+
+getTypedFormPane :: IState VPaned
+getTypedFormPane = askRef >>= return . paned . typedFormPane
+
+getTypedFormList :: IState TBExprList
+getTypedFormList = askRef >>= return . formList . typedFormPane
+
+getTypedFormTree :: IState TBExprList
+getTypedFormTree = askRef >>= return . formTree . typedFormPane
 
 getSymCtrl :: IState TreeView
 getSymCtrl = askRef >>= return . symCtrl
@@ -168,17 +179,27 @@ getFormPane = getFrmCtrl >>= getParentNamed "formPane" . toWidget >>=
 -- | Devuelve el paned que contiene al widget de errores.
 getFormErrPane :: IState Paned
 getFormErrPane = getFrmCtrl >>= getParentNamed "errPane" . toWidget >>=
-                 return . castToPaned
+                return . castToPaned
 
 -- | Devuelve el label que reporta los errores.
 getErrPanedLabel :: IState Label
 getErrPanedLabel = getFormErrPane >>= \erp -> liftIO (panedGetChild1 erp) >>= 
                    \(Just l) -> return $ castToLabel l
 
--- | Devuelve el box de fórmulas.
 getFormBox :: IState HBox
 getFormBox = getFrmCtrl >>= getParentNamed "formulaBox" . toWidget >>=
              return . castToHBox
+
+-- | Retorna el box que contiene a las expresiones tipadas.
+getTypedFormBox :: IState VBox
+getTypedFormBox = getTypedFormPane >>= \p -> liftIO (panedGetChild1 p) >>= 
+                  \(Just c) -> (return . castToVBox) c
+
+-- | Retorna el box que contiene a las expresiones que constituyen el arbol
+--  de tipado de una expresión.
+getBoxTypedFormTree :: IState VBox
+getBoxTypedFormTree = getTypedFormPane >>= \p -> liftIO (panedGetChild2 p) >>= 
+                     \(Just c) -> (return . castToVBox) c
 
 -- | Devuelve el ancestro que tiene un nombre. ¡Es insegura!
 getParentNamed :: String -> Widget -> IState Widget
@@ -187,7 +208,6 @@ getParentNamed name = go
                  if maybe False (== name) name'
                  then return w
                  else liftIO (widgetGetParent w) >>= go . fromJust
-
 
 {- Listas heterógeneas de cosas que pueden agregarse a cajas -}
 infixr 8 .*.
@@ -223,7 +243,23 @@ updateQVar v = getExpr >>= \e ->
                  Quant q _ r t -> parseVar (\v' -> updateExpr (Quant q v' r t)) v
                  _ -> return ()
 
+-- Añade una expresion y su respectivo boton a la lista de expresiones.
+addToggleButtonList :: PreExpr -> ToggleButton -> IState ()
+addToggleButtonList e tb = update $ \gst@(GState _ _ _ tp _ _ _) -> 
+                            gst {typedFormPane = 
+                                    tp {formList =  WExpr { widget = tb
+                                                            , wexpr = e
+                                                            } : (formList tp)}
+                                      }
 
+-- Añade una expresion y su respectivo boton a al arbol de tipado.
+addToggleButtonTree :: PreExpr -> ToggleButton -> IState ()
+addToggleButtonTree e tb = update $ \gst@(GState _ _ _ tp _ _ _) -> 
+                            gst {typedFormPane = 
+                                    tp {formTree =  WExpr { widget = tb
+                                                            , wexpr = e
+                                                            } : (formTree tp)}
+                                      }
 
 -- | Ejecuta una acción en la mónada de estado para obtener un
 -- resultado. Es útil para los event-handlers.

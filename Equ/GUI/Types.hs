@@ -3,7 +3,7 @@ module Equ.GUI.Types where
 
 import Equ.PreExpr
 
-import Graphics.UI.Gtk (WidgetClass, Statusbar, ContextId, HBox, TreeView,EventBox)
+import Graphics.UI.Gtk (WidgetClass, Statusbar, ContextId, HBox, VPaned, HPaned, TreeView, EventBox, ToggleButton)
 import Control.Monad.State
 import Data.Reference
 import Data.IORef
@@ -22,6 +22,8 @@ type StatusPlace = (Statusbar, ContextId)
 -- | El estado de nuestra interfaz.
 data GState = GState { expr :: Focus       -- ^ La expresión que estamos editando.
                      , inpFocus  :: HBox   -- ^ El contenedor de la expresión.
+                     , typedOptionPane :: HPaned
+                     , typedFormPane :: TypedPaned
                      , symCtrl :: TreeView -- ^ La lista de símbolos para construir expresiones.
                      , path :: GoBack      -- ^ Como ir de la expresión actual al top.
                      , status :: StatusPlace -- ^ La barra de estado.
@@ -36,12 +38,24 @@ type IState = StateT GRef IO
 
 type IRExpr = IState ()
 
+-- Agrupamos el panel que lleva la lista de expresiones ingresadas y
+-- y el arbol de tipado de una expresion seleccionada.
+-- No estoy seguro que esto este bien, tuve algunos problemas para implementar
+-- (todavía no esta listo) algunas funcionalidades sobre el arbol de tipado.
+data TypedPaned = TypedPaned { paned :: VPaned
+                             , formList :: TBExprList -- Lista de expresiones ingresadas.
+                             , formTree :: TBExprList -- Lista de expresiones que conforman
+                             }                        -- el arbol de tipado de una expresión.
+
 data WExpr w = WExpr { widget :: WidgetClass w => w
                      , wexpr :: PreExpr
                      }
 
-data Boxeable w = forall w . WidgetClass w => Boxeable w
+type TBExpr = WExpr ToggleButton
 
+type TBExprList = [TBExpr]
+
+data Boxeable w = forall w . WidgetClass w => Boxeable w
 
 instance Reference IORef IState where
     readRef = liftIO . readRef

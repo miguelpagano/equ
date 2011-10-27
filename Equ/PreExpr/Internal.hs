@@ -63,14 +63,13 @@ instance Show PreExpr where
     show (Con k) = show k
     show (Fun f) = show f
     show (PrExHole h) = show h
-    show (UnOp op preExp) = show op ++ "(" ++ show preExp ++ ")"
-    show (BinOp op preExp0 preExp1) = "(" ++ show preExp0 ++ ")" ++ show op ++ 
-                                      "(" ++ show preExp1 ++ ")"
-    show (App preExp0 preExp1) = show preExp0 ++ " " ++ "(" ++ show preExp1 ++ ")"
-    show (Quant qua v preExp0 preExp1) = show qua ++ show v ++ " in " 
-                                        ++ show preExp0 ++ " | " 
-                                        ++ show preExp1
-    show (Paren e) = "〔" ++ show e ++ " 〕"
+    show (UnOp op preExp) = show op ++ " " ++ show preExp
+    show (BinOp op preExp0 preExp1) = show preExp0 ++ show op ++ show preExp1
+    show (App preExp0 preExp1) = show preExp0 ++ "@" ++ show preExp1
+    show (Quant qua v preExp0 preExp1) = "〈" ++ show qua ++ show v ++ ":" 
+                                        ++ show preExp0 ++ ":" 
+                                        ++ show preExp1 ++ "〉"
+    show (Paren e) = "(" ++ show e ++ ")"
 
 -- | Instancia arbitrary para las preExpresiones, lo único que dejamos fijo es el 
 -- operador unario, esto para simplificar la forma de las preExpresiones.

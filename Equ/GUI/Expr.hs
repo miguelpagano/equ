@@ -12,6 +12,9 @@ import Equ.PreExpr
 import Equ.Syntax
 import Equ.Parser
 
+import qualified Data.Serialize as S
+import qualified Data.ByteString as L
+
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
 import Graphics.UI.Gtk.Gdk.EventM
 import Data.Text (unpack)
@@ -56,24 +59,27 @@ exprInEntry entry = liftIO . entrySetText entry . repr
 -- | Dada una caja de texto, parsea el contenido como una expresión
 -- y construye un widget con toda la expresión.
 setExprFocus :: Entry -> HBox -> IRExpr
-setExprFocus entry box = liftIO (entryGetText entry) >>= \s ->
-                         case parseFromString s of
-                            Right expr -> (updateExpr expr >>
-                                            frameExp expr >>= \(WExpr box' _) ->
-                                            removeAllChildren box >>
-                                            addToBox box box' >>
-                                            liftIO (widgetShowAll box))
-                            Left err -> 
-                                    getErrPanedLabel >>=
-                                    \l -> liftIO (labelSetMarkup l 
-                                                    (markSpan 
-                                                    [ FontBackground "#FF0000"
-                                                    , FontForeground "#000000"
-                                                    ] 
-                                                    (show err))) >>
-                                    openErrPane >>
-                                    liftIO (widgetShowAll box) >>
-                                    return ()
+setExprFocus entry box = liftIO (entryGetText entry) >>= 
+                         \s -> setExprFocus' s box
+
+setExprFocus' :: String -> HBox -> IRExpr
+setExprFocus' s b = case parseFromString s of
+                        Right expr -> (updateExpr expr >>
+                                        frameExp expr >>= \(WExpr b' _) ->
+                                        removeAllChildren b >>
+                                        addToBox b b' >>
+                                        liftIO (widgetShowAll b))
+                        Left err -> reportErrWithErrPaned $ show err
+
+typedExprEdit :: IState ()
+typedExprEdit = getTypedFormBox >>=
+                \b -> liftIO (activeTb b) >>=
+                \r -> case r of
+                        Nothing -> reportErrWithErrPaned 
+                                            "Ninguna expresion seleccionada."
+                        Just tb -> liftIO (buttonGetLabel tb) >>= 
+                                   \e -> getFormBox >>=
+                                   \b -> newExpr b >> setExprFocus' e b
 
 -- | Esta es la función principal: dada una expresión, construye un
 -- widget con la expresión.
@@ -233,3 +239,35 @@ instance ExpWriter Constant where
     writeExp s cont = removeAllChildren cont >>
                       writeConstant s cont 
 
+
+{- Conjunto de funciones para cargar y guardar una lista de expresiones.
+    Esto es una prueba no mas de lo que podemos llegar a querer hacer con
+    las pruebas.
+-}
+testFile :: FilePath
+testFile = "Saves/FormList"
+
+saveFormList :: IState ()
+saveFormList = getTypedFormList >>= 
+               \l -> liftIO $ encodeFile testFile $ map (\(WExpr _ e) -> e) l
+
+loadFormList :: IState ()
+loadFormList = liftIO (decodeFile testFile) >>= loadFormList'
+
+loadFormList' :: [PreExpr] -> IState ()
+loadFormList' [] = return ()
+loadFormList' (e:es) = getTypedFormBox >>=
+                       \b -> setupTbPreExpr (show e) >>=
+                       \tb -> liftIO (boxPackStart b tb PackNatural 2) >>
+                       addToggleButtonList e tb >>
+                       withState (onToggled tb) (selectToggleButton b tb) >>
+                       loadFormList' es
+
+encodeFile :: S.Serialize a => FilePath -> a -> IO ()
+encodeFile f v = L.writeFile f (S.encode v)
+
+decodeFile :: S.Serialize a => FilePath -> IO a
+decodeFile f = do s <- L.readFile f
+                  either (error) (return) $ S.runGet (do v <- S.get
+                                                         m <- S.isEmpty
+                                                         m `seq` return v) s
