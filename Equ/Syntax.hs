@@ -131,7 +131,7 @@ instance Syntactic Quantifier where
 
 -- | Instancia de syntax para el tipo Hole.
 instance Syntactic Hole where  
-    tRepr _ = ""
+    tRepr = info
     tType = holeTy
 
 -- | PrettyPrint para variables. 
@@ -156,7 +156,7 @@ instance Show Quantifier where
 
 -- | PrettyPrint para huecos. 
 instance Show Hole where
-    show s = if null i then "_" else "holeWithInfo: " ++ i
+    show s = if null i then "?{}" else "holeWithInfo: " ++ i
         where i = unpack $ info s
 
 -- | Instancia arbitrary para las variables.

@@ -29,20 +29,20 @@ localGo go = local (fromJust . go)
 -- | Tipo correspondiente a nuestros logs.
 type Log = S.Seq T.Text
 
-{- | Mónada de estado para preExpresiones (usando focus)
-    La idéa en esta monada es poder llevar, un log, un focus y un estado.
-    El log lo tenemos para tener un poco de información verbosa sobre que
-    esta ocurriendo durante la computación.
+{- | M&#243;nada de estado para preExpresiones (usando focus)
+    La id&#233;a en esta monada es poder llevar, un log, un focus y un estado.
+    El log lo tenemos para tener un poco de informaci&#243;n verbosa sobre que
+    esta ocurriendo durante la computaci&#243;n.
     El focus lo utilizamos para tener contexto a cerca de donde estamos
-    parados en relación a la expresión, de la cual pretendemos comprobar alguna
+    parados en relaci&#243;n a la expresi&#243;n, de la cual pretendemos comprobar alguna
     propiedad.
-    El estado esta bastante libre, de momento la idéa es utilizarlo para llevar
-    las substituciónes resultantes de correr los algoritmos de matching y 
+    El estado esta bastante libre, de momento la id&#233;a es utilizarlo para llevar
+    las substituci&#243;nes resultantes de correr los algoritmos de matching y 
     type checking.
 -}
 type MonadTraversal e a = EitherT e (RWS Focus Log a)
     
--- | Instancía de MonadWriter para utilizar el log.
+-- | Instanc&#237;a de MonadWriter para utilizar el log.
 instance MonadWriter Log (MonadTraversal e a) where
     tell w = lift (tell w)
     listen m = EitherT $ do 
@@ -56,14 +56,14 @@ instance MonadWriter Log (MonadTraversal e a) where
                  Left f -> return $ (Left f,id)
                  Right (r,f) -> return $ (Right r,f)
 
--- | Instancía de MonadReader para navegar en el focus.
--- Vamos cambiando el ambiente conforme vamos haciendo recursión en la
--- preExpresión, es decir, navegando por el focus.
+-- | Instanc&#237;a de MonadReader para navegar en el focus.
+-- Vamos cambiando el ambiente conforme vamos haciendo recursi&#243;n en la
+-- preExpresi&#243;n, es decir, navegando por el focus.
 instance MonadReader Focus (MonadTraversal e a) where
     ask = lift ask
     local f m = EitherT $ local f (runEitherT m)
 
--- | Instancía de MonadState
+-- | Instanc&#237;a de MonadState
 instance MonadState a (MonadTraversal e a) where
     get = lift get
     put s = lift (put s)

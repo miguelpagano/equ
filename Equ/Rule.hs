@@ -1,6 +1,12 @@
 -- | Este módulo define el tipo de las reglas de re-escritura.
 
-module Equ.Rule where
+module Equ.Rule (
+                  Relation (..)
+                , Rule (..)
+                -- * Constructores de las diferentes relaciones.
+                , relEq, relEquiv, relImpl, relCons
+                )
+    where
     
 import Equ.Expr
 import Equ.Types
@@ -39,25 +45,28 @@ instance Show Relation where
 instance Arbitrary Relation where
     arbitrary = Relation <$> arbitrary <*> arbitrary <*> arbitrary
 
--- | Constructores de las diferentes relaciones
+-- | Relación de igualdad ; =
 relEq :: Relation
 relEq = Relation { relRepr = pack "="
                  , relName = Eq
                  , relTy = tyVar "A"
                  }
 
+-- | Relación de equivalencia ; ≡
 relEquiv :: Relation
 relEquiv = Relation { relRepr = pack "≡"
                     , relName = Equiv
                     , relTy = tyBool
                     }
 
+-- | Relación de implicación ; "⇒"
 relImpl :: Relation
 relImpl = Relation { relRepr = pack "⇒"
                    , relName = Impl
                    , relTy = tyBool
                    }
 
+-- | relación de consecuencia ; ⇐
 relCons :: Relation
 relCons = Relation { relRepr = pack "⇐"
                    , relName = Cons

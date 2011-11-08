@@ -1,3 +1,5 @@
+-- | En este modulo definimos las funciones necesarias para analizar el
+--  matching entre preExpresiones.
 module Equ.Matching
     ( module Equ.Matching.Error
     , match
@@ -23,14 +25,14 @@ type ExprSubst = M.Map Variable PreExpr
 -- | Estructura general para los errores informativos con contexto.
 type MatchMErr = (Focus,MatchError)
 
--- | Mónada de estado para matching.
+-- | M&#243;nada de estado para matching.
 type MatchState = MonadTraversal MatchMErr ExprSubst
 
--- | Generación de mensaje de Error.
+-- | Generaci&#243;n de mensaje de Error.
 matcherr :: MatchError -> MatchState a
 matcherr err = ask >>= \foc -> hoistEither $ Left (foc, err)
 
--- | Aplica una substitución a una expresión dada.
+-- | Aplica una substituci&#243;n a una expresi&#243;n dada.
 applySubst :: PreExpr -> ExprSubst -> PreExpr
 applySubst (Var v) s = M.findWithDefault (Var v) v s
 applySubst (UnOp op e) s = UnOp op $ applySubst e s
@@ -45,18 +47,8 @@ applySubst (Fun f) _ = Fun f
 
 {- WhenM y whenML.
     Para un valor de verdad y un error particular; 
-        True => seguir la computación.
+        True => seguir la computaci&#243;n.
         False => devolver el error particular.
--}
-{-
-    Para intentar usar when* sin cambiar demasiado hice que MatchError
-    fuera instancia de Error para usar la MonadPlus Either Error, pero 
-    despues me parecio que era demasiado para algo mas bien simple.
-    
-    De ultima estoy seguro que puedo volver a hacerlo si es que queda mejor.
-    VERSIÓN 2; Tanto para whenM2 como para whenML2 cambio los tipos y
-    tenemos el caso especial de usar el generador de errores en caso de
-    error.
 -}
 whenM :: Bool -> MatchError -> MatchState ExprSubst -> MatchState ExprSubst
 whenM True _ = id
@@ -66,23 +58,23 @@ whenML :: Bool -> MatchError -> ExprSubst -> MatchState ExprSubst
 whenML True _ = return
 whenML False er = const $ matcherr er
 
-{- Función que implementa el algoritmo de matching. Toma una lista de variables
-que están ligadas a algún cuantificador, una expresión patrón, otra expresión y
+{- Funci&#243;n que implementa el algoritmo de matching. Toma una lista de variables
+que est&#225;n ligadas a alg&#250;n cuantificador, una expresi&#243;n patr&#243;n, otra expresi&#243;n y
 un mapa de sustituciones. 
 -}
 match' :: [Variable] -> PreExpr -> PreExpr -> ExprSubst -> MatchState ExprSubst
-{- El caso principal del algoritmo, donde el patrón es una variable. 
-* Si la expresión e' es igual al patrón Var v, se devuelve el mismo mapa de 
+{- El caso principal del algoritmo, donde el patr&#243;n es una variable. 
+* Si la expresi&#243;n e' es igual al patr&#243;n Var v, se devuelve el mismo mapa de 
 sustituciones (es decir, no hay que reemplazar nada para llegar desde una 
-expresión a la otra).
+expresi&#243;n a la otra).
 * Si las expresiones son distintas y v pertenece bvs, entonces no hay matching.
 (para que dos expresiones cuantificadas matcheen, se considera a sus variables 
 ligadas como la misma variable, y es la que se agrega a la lista bvs, por eso 
 no hay matching entre una de esas variables y cualquier otra cosa distinta).
 * Si las expresiones son distintas y v no pertenece a bvs, nos fijamos si en el 
 mapa de sustituciones se encuentra la variable. Si no, entonces podemos matchear
-v por e'. Si v está en el mapa, entonces para que haya matching tiene que estar 
-asociada con la expresión e'.
+v por e'. Si v est&#225; en el mapa, entonces para que haya matching tiene que estar 
+asociada con la expresi&#243;n e'.
 -}
 match' bvs e@(Var v) e' s | e == e' = return s
                            | v `elem` bvs = matcherr $ BindingVar v
@@ -97,7 +89,7 @@ match' bvs (UnOp op1 e1) (UnOp op2 e2) s = whenM (op1==op2)
 
 
 {-
-    VERSIÓN 2; Para operadores iguales, cada vez que pretendo intentar matchear
+    VERSI&#211;N 2; Para operadores iguales, cada vez que pretendo intentar matchear
     las expresiones internas, cambio el enviroment segun corresponda.
 -}
 match' bvs (BinOp op1 e1 e2) (BinOp op2 f1 f2) s = 
@@ -109,8 +101,8 @@ match' bvs (App e1 e2) (App f1 f2) s = localGo goDown (match' bvs e1 f1 s) >>=
                                        (localGo goDownR . match' bvs e2 f2)
 
 {-
-    VERSIÓN 2; Un detalle no menor acá es que como navegamos solamente
-    por el focus de la expresión a matchear, es decir no la expresión patron,
+    VERSI&#211;N 2; Un detalle no menor ac&#225; es que como navegamos solamente
+    por el focus de la expresi&#243;n a matchear, es decir no la expresi&#243;n patron,
     en el primer caso de los parentesis no cambiamos el enviroment.
 -}
 match' bvs (Paren e1) e2 s = match' bvs e1 e2 s
@@ -124,9 +116,9 @@ Si v/=w, entonces reemplazamos v y w por una variable fresca en ambas expresione
 y luego realizamos matching en las subexpresiones, agregando la variable fresca
 a bvs.
 
-VERSIÓN 2; Cada vez que voy a intentar matchear las expresiones internas del
+VERSI&#211;N 2; Cada vez que voy a intentar matchear las expresiones internas del
     cuantificador, cambio el enviroment, es decir, navego el focus con la
-    dirección que corresponda. Para esto uso dos funciones localGoL y localGoR
+    direcci&#243;n que corresponda. Para esto uso dos funciones localGoL y localGoR
     que representan navegar por izquierda o por derecha respectivamente.
 -}    
 
@@ -140,7 +132,7 @@ match' bvs (Quant q v e1 e2) (Quant p w f1 f2) s =
                                    freeVars f2]
           subst = substitution
 
--- Caso particular de intentar matchear una variable con una función.
+-- Caso particular de intentar matchear una variable con una funci&#243;n.
 {-match' _ (Fun _) (Var _) s = Left FuncWithVar
 -- Caso particular de intentar matchear una variable con una constante.
 match' _ (Con _) (Var _) s = Left ConstWithVar
@@ -152,34 +144,35 @@ match' _ (Con c1) (Con c2) s = whenML (c1==c2) InequNameConst s
 -- si las expresiones son iguales.
 -- En caso de error devuelvo InequPreExpr 
 
-    VERSIÓN 2; Ninguna diferencia con el original.
+    VERSI&#211;N 2; Ninguna diferencia con el original.
    -}
 match' _ e1 e2 s = whenML (e1==e2) (InequPreExpr e1 e2) s
 
-{- | VERSIÓN 2; Función principal de matching.
+{-  VERSI&#211;N 2; Funci&#243;n principal de matching.
     
-    Primer intento de agregar información al intentar realizar matching.
-    Hasta el momento se podría decir que tenemos dos grandes novedades con
-    respecto a la función vieja. Disponemos de un log y hacemos uso de focus
-    para rastrear donde estamos en la expresión que intentamos matchear.
-    Sobre el log todavía no hago ninguna utilización, estaría bueno usarlo
+    Primer intento de agregar informaci&#243;n al intentar realizar matching.
+    Hasta el momento se podr&#237;a decir que tenemos dos grandes novedades con
+    respecto a la funci&#243;n vieja. Disponemos de un log y hacemos uso de focus
+    para rastrear donde estamos en la expresi&#243;n que intentamos matchear.
+    Sobre el log todav&#237;a no hago ninguna utilizaci&#243;n, estar&#237;a bueno usarlo
     para llevar la cuenta de que matching he podido realizar?.
-    Sobre el focus, la idea es recorrer la expresión que estamos intentando
-    matchear, esta aclaración es importante ya que está la otra opción de 
-    recorrer la expresión patrón.
+    Sobre el focus, la idea es recorrer la expresi&#243;n que estamos intentando
+    matchear, esta aclaraci&#243;n es importante ya que est&#225; la otra opci&#243;n de 
+    recorrer la expresi&#243;n patr&#243;n.
     
-    Cosas interesantes; me base fuertemente en el modulo TypeChecker. Tan así
-    que la función principal basicamente la copie y pegue de la función que 
-    hizo miguel, creditos a él :). 
+    Cosas interesantes; me base fuertemente en el modulo TypeChecker. Tan as&#237;
+    que la funci&#243;n principal basicamente la copie y pegue de la funci&#243;n que 
+    hizo miguel, creditos a &#233;l :). 
     Yo no termino de entender bien como es que operta.
     
     Algunas aclaraciones a parte; no quise borrar lo hecho por las dudas y de 
-    ahí que tenemos esta versión 2.
+    ah&#237; que tenemos esta versi&#243;n 2.
 
 -}
-{-| match toma una expresión patrón y otra que quiere matchearse con el patrón.
+
+{-| match toma una expresi&#243;n patr&#243;n y otra que quiere matchearse con el patr&#243;n.
 Si hay matching, retorna el mapa de sustituciones que deben realizarse
-simultáneamente para llegar desde la expresión patrón a la expresión dada.
+simult&#225;neamente para llegar desde la expresi&#243;n patr&#243;n a la expresi&#243;n dada.
 -}
 match :: PreExpr -> PreExpr -> Either (MatchMErr,Log) ExprSubst
 match e e' = case runRWS (runEitherT (match' [] e e' M.empty)) (toFocus e') M.empty of

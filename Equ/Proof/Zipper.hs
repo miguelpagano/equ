@@ -35,11 +35,11 @@ toProofFocus p = (p,Top)
 replace :: ProofFocus -> Proof -> ProofFocus
 replace (_,p) p' = (p',p)
 
--- Bajar un nivel en el focus, yendo por izquierda.
+-- | Bajar un nivel en el focus, yendo por izquierda.
 goDownL :: ProofFocus -> Maybe ProofFocus
 goDownL = goDown
 
--- Bajar un nivel en el focus, yendo por derecha.
+-- | Bajar un nivel en el focus, yendo por derecha.
 goDownR :: ProofFocus -> Maybe ProofFocus
 goDownR f = goDown f >>= goRight
 

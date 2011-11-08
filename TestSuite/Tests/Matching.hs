@@ -5,10 +5,11 @@ module TestSuite.Tests.Matching where
 import qualified Data.Map as M
 import qualified Data.Sequence as S
 
+import TestSuite.Tests.Parser
+
 import Equ.Matching
 import Equ.Parser
 import Equ.PreExpr
-import Equ.Types
 import Equ.Theories.FOL(folForall,folExist)
 import Test.HUnit (Assertion, assertFailure)
 import Test.Framework (testGroup, Test)
@@ -16,44 +17,24 @@ import Test.Framework.Providers.HUnit (testCase)
 
 import Control.Monad (unless)
 
--- Variables para utilizar.
-p :: Variable
-p = var "p" TyUnknown
-q :: Variable
-q = var "q" TyUnknown
-x :: Variable
-x = var "x" TyUnknown
-v0 :: Variable
-v0 = var "v0" TyUnknown
-y :: Variable
-y = var "y" TyUnknown
-z :: Variable
-z = var "z" TyUnknown
-w :: Variable
-w = var "w" TyUnknown
-ys :: Variable
-ys = var "ys" TyUnknown
-
 -- | True v False -m-> p v p : No existe match.
 testCase0 :: Assertion
 testCase0 = testMatch lhs rhs res
-    where lhs = parser "p ∨ p"
-          rhs = parser "True ∨ False"
-          true = parser "True"
-          false = parser "False"
+    where lhs = pVp
+          rhs = trueVfalse
           Just frhs =  goDown (toFocus rhs) >>= goRight
           merror = (frhs, DoubleMatch p true false)
           res = Left (merror, S.fromList [])
 
 -- | True v False -m-> p v q : [p->True, q->False]
 testCase1 :: Assertion
-testCase1 = testMatch (parser "p ∨ q") (parser "True ∨ False") (Right s)
-    where s = M.insert p (parser "True") (M.insert q (parser "False") M.empty)
+testCase1 = testMatch pVq trueVfalse (Right s)
+    where s = M.insert p true (M.insert q false M.empty)
 
 -- | Sy + S(x+S0) + z -m-> x + Sy + z : [x->Sy, y->x+S0]
 testCase2 :: Assertion
-testCase2 = testMatch (parser "x + S@y + z") (parser "S@y + S@(x+S@0) + z") (Right s)
-    where s = M.insert x (parser "S@y") (M.insert y (parser "(x+S@0)") M.empty)
+testCase2 = testMatch xPlusSyPlusZ sAppyPlusSomePlusz  (Right s)
+    where s = M.insert x sAppy (M.insert y xPlussApp0 M.empty)
 
 -- | #([0] ++ [1]) + 1 -m-> #([x,y]) + z : [x->0, y->1, z->1]
 testCase3 :: Assertion

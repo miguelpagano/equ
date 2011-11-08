@@ -1,5 +1,4 @@
 -- | Este modulo es el parser de expresiones de tipos. 
-
 module Equ.Parser.Types (listAtomTy, parseTy) where
 
 import Text.Parsec
@@ -11,8 +10,6 @@ import qualified Text.Parsec.Expr as PE
 import Control.Monad.Identity
 import Control.Applicative ((<$>),(<$))
 import Equ.Types
-
-
 
 -- | Para definir la función anterior podemos necesitar definir 
 -- esta función para poder parsear los tipos que el usuario quiera
@@ -105,10 +102,6 @@ parseTy = either showError showType . parseTyFromString
 -- | Imprimimos Types usando que es instancia de show.
 showType :: a -> a
 showType = id
-
--- Expresiones de prueba:
--- (F@(succ 0) + x) ▹ [] ⇒ True
--- 〈∃ x : (G@(# []) + x) ▹ [] ⇒ True : p ⇒ q〉
 
 -- Imprimimos el error con version Exception de haskell.
 showError :: Show a => a -> b

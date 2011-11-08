@@ -379,7 +379,7 @@ Res: ClashRelation eq impl
 -}
 testCaseAddStep2 :: Assertion
 testCaseAddStep2 = testCaseAddStep pFxEqY pFxImplZ 
-                   (Left $ ClashRel relEq relImpl)
+                   (Left $ [ClashRel relEq relImpl])
 
 {- Intentamos agregar un paso en el que no coinciden los focus de las pruebas,
     luego entonces deberiamos devolver ClashAddStep.
@@ -397,7 +397,7 @@ Res: ClashAddStep pFxEqY pFyEqZ
 -}
 testCaseAddStep3 :: Assertion
 testCaseAddStep3 = testCaseAddStep pFxEqY pFyEqZ 
-                   (Left $ ClashAddStep pFxEqY pFyEqZ)
+                   (Left $ [ClashAddStep pFxEqY pFyEqZ])
 
 -- Verifica los casos de test para, dada una prueba, agregar un paso, es decir
 -- otra prueba y generar una nueva prueba por transitividad.

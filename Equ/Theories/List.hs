@@ -1,5 +1,5 @@
--- | El modulo de constructores de listas y sus símbolos de
--- función.
+-- | El modulo de constructores de listas y sus s&#237;mbolos de
+-- funci&#243;n.
 {-# Language OverloadedStrings #-}
 module Equ.Theories.List 
     ( -- * Constructores y operadores.
@@ -176,9 +176,11 @@ index (Expr xs) (Expr n) = Expr $ BinOp listIndex xs n
 -- Reglas para la definicion de Concatenar (++)
 
 {- | Caso base:
+
 @
     [] ++ ys = ys
 @
+
 -}
 emptyConcat :: Rule
 emptyConcat = Rule { lhs = concat emptyList varYS
@@ -190,9 +192,11 @@ emptyConcat = Rule { lhs = concat emptyList varYS
     where varYS = varList "ys" "A"
 
 {- | Caso inductivo
+
 @
-    (x ▹ xs) ++ ys = x ▹ (xs ++ ys)
+    (x &#9657; xs) ++ ys = x &#9657; (xs ++ ys)
 @
+
 -}
 consConcat :: Rule
 consConcat = Rule { lhs = concat (append varX varXS) varYS
@@ -209,9 +213,11 @@ consConcat = Rule { lhs = concat (append varX varXS) varYS
 -- Reglas para la definicion de length (#)
 
 {- | Caso base:
+
 @
     #[] = 0
 @
+
 -}
 emptyLength :: Rule
 emptyLength = Rule { lhs = length emptyList
@@ -222,9 +228,11 @@ emptyLength = Rule { lhs = length emptyList
                    }
 
 {- | Caso inductivo de la longitud de una lista.
+
 @
-    # (x ▹ xs) = 1 + # xs
+    \# (x &#9657; xs) = 1 + # xs
 @
+
 -}
 consLength :: Rule
 consLength = Rule { lhs = length (append varX varXS)
@@ -237,16 +245,18 @@ consLength = Rule { lhs = length (append varX varXS)
           varXS = varList "xs" "A"
 
 -- NOTA: En el libro Calculo de Programas, se incluyen otras reglas para la definicion de length
---       con respecto a las operaciones concat, take y drop. Se optó por incluir solo las que involucran
+--       con respecto a las operaciones concat, take y drop. Se opt&#243; por incluir solo las que involucran
 --       constructores, las demas pueden derivarse.
 
 
 -- Reglas para la definicion de take.
 
 {- | Caso base 1 de tomar:
+
 @
-    xs ↑ 0 = []
+    xs &#8593; 0 = []
 @
+
 -}
 zeroTake :: Rule
 zeroTake = Rule { lhs = take varXS zero
@@ -258,9 +268,11 @@ zeroTake = Rule { lhs = take varXS zero
     where varXS = varList "xs" "A"
                       
 {- | Caso base 2 de tomar:
+
 @
-    [] ↑ n = []
+    [] &#8593; n = []
 @
+
 -}
 emptyTake :: Rule
 emptyTake = Rule { lhs = take emptyList varN
@@ -272,9 +284,11 @@ emptyTake = Rule { lhs = take emptyList varN
     where varN = Expr $ Var $ var "x" $ TyAtom ATyNat
 
 {- | Caso inductivo de tomar:
+
 @
-    (x ▹ xs) ↑ (n+1) = x ▹ (xs ↑ n)
+    (x &#9657; xs) &#8593; (n+1) = x &#9657; (xs &#8593; n)
 @
+
 -}
 consTake :: Rule
 consTake = Rule { lhs = take (append varX varXS) (successor varN)
@@ -291,9 +305,11 @@ consTake = Rule { lhs = take (append varX varXS) (successor varN)
 -- Reglas para la definicion de drop
 
 {- | Caso base 1 de tirar:
+
 @
-    xs ↓ 0 = xs
+    xs &#8595; 0 = xs
 @
+
 -}
 zeroDrop :: Rule
 zeroDrop = Rule { lhs = drop varXS zero
@@ -305,9 +321,11 @@ zeroDrop = Rule { lhs = drop varXS zero
     where varXS = varList "xs" "A"
 
 {- | Caso base 2 de tirar:
+
 @
-    [] ↓ n = []
+    [] &#8595; n = []
 @
+
 -}
 emptyDrop :: Rule
 emptyDrop = Rule { lhs = drop emptyList varN
@@ -319,9 +337,11 @@ emptyDrop = Rule { lhs = drop emptyList varN
     where varN = Expr $ Var $ var "x" $ TyAtom ATyNat
 
 {- | Caso inductivo de tirar.
+
 @
-    (x ▹ xs) ↓ (n+1) = xs ↓ n
+    (x &#9657; xs) &#8595; (n+1) = xs &#8595; n
 @
+
 -}
 consDrop :: Rule
 consDrop = Rule { lhs = drop (append varX varXS) (successor varN)
@@ -337,10 +357,12 @@ consDrop = Rule { lhs = drop (append varX varXS) (successor varN)
 -- Reglas para la definicion de Index
 
 {- | Caso base de la proyeccion:
+
 @
-   (x ▹ xs).0 = x
+   (x &#9657; xs).0 = x
 @
- -}
+
+-}
 zeroIndex :: Rule
 zeroIndex = Rule { lhs = index (append varX varXS) zero
                  , rhs = varX
@@ -352,9 +374,11 @@ zeroIndex = Rule { lhs = index (append varX varXS) zero
           varX = Expr $ Var $ var "x" $ tyVar "A"
 
 {- | Caso inductivo de la proyeccion:
+
 @
-   (x ▹ xs).(n+1) = xs.n
+   (x &#9657; xs).(n+1) = xs.n
 @
+
 -}
 consIndex :: Rule
 consIndex = Rule { lhs = index (append varX varXS) (successor varN)

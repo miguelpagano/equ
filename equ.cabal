@@ -38,11 +38,15 @@ Executable equ
 Library
   -- Modules exported by the library.
   Exposed-modules:     Equ.PreExpr,
+                       Equ.PreExpr.Internal,
+                       Equ.PreExpr.Monad,
+                       Equ.PreExpr.Zipper,
                        Equ.Expr,
+                       Equ.Matching,
+                       Equ.Rewrite,
                        Equ.TypeChecker,
                        Equ.Theories,
-                       Equ.Proof,
-                       Equ.Parser
+                       Equ.Proof
 
   -- Packages needed in order to build this package.
   -- Last three for test.

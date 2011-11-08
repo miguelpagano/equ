@@ -1,29 +1,6 @@
--- | Este modulo es el parser a Pre-Expresiones. 
-{--
-Sobre Parsec
-
--- Informe de errores; Quisieramos poder marcar la posicion del error
-e informacion bonita de cual fue el error. Parece ser que con
-ParseError nos alcanza.
-
--- Funcion que determina el conName.
-
--- Hace falta hacer algun tipo de analisis para los tipos. Parseando
-una funcion no hay problema debido a los constructores definidos en
-las teorias pero que pasa con las constantes? por ejemplo, parseExpr
-3; deberia quedar parseado con su tipo? que pasa si el usuario lo
-especifico o no.  Resolucion: Parseamos con TyUnknown
-
--- Syntaxis de una escritura general; Como es una prueba bien escrita.
-Se permiten comentarios?
-
--- Operadores de lista; Precedencia, de momento todos tienen la misma.
-
--- Libreria; criterion para testear rendimiento.
---}
-
+-- | Este modulo es el parser a Pre-Expresiones.
 module Equ.Parser 
-    (-- * Caracteres especiales comunes a todas las teorías
+    (-- * Caracteres especiales comunes a todas las teor&#237;as
       quantInit
     , quantEnd
     , quantSep
@@ -34,6 +11,7 @@ module Equ.Parser
     -- * Funciones principales de parseo
     , parseFromString
     , parser
+    , parserVar
     )
         
     where
@@ -80,7 +58,7 @@ quantEnd = "〉"
 quantSep :: String
 quantSep = ":"
 
--- | Operador para la aplicación.
+-- | Operador para la aplicaci&#243;n.
 opApp :: String
 opApp = "@"
 
@@ -93,19 +71,19 @@ holeInfoEnd = "}"
 opHole :: String
 opHole = "?"
 
-
--- | Representantes de los operadores. (Salvo para aplicacion)
+-- | Representantes de los operadores. (Salvo para aplicación)
 rOpNames :: [String]
 rOpNames = opApp : opHole : map (unpack . opRepr) operatorsList
 
 -- | Representantes de las constantes y cuantificadores.
--- Además de los caracteres para representar expresiones cuantificadas.
+-- Adem&#225;s de los caracteres para representar expresiones cuantificadas.
 rNames :: [String]
 rNames = [quantInit,quantEnd,quantSep] 
          ++ map (unpack . conRepr) constantsList
          ++ map (unpack . quantRepr) quantifiersList
          ++ listAtomTy
 
+-- Para lexical analisys.
 lexer :: TokenParser PState
 lexer = makeTokenParser $
             emptyDef { reservedOpNames = rOpNames
@@ -114,6 +92,7 @@ lexer = makeTokenParser $
                      , identLetter = alphaNum <|> char '_'
                      }
 
+-- Parser principal de preExpresiones.
 parsePreExpr :: Parser' PreExpr
 parsePreExpr = PE.buildExpressionParser operatorTable subexpr 
                <?> "Parser error: Expresi&#243;n mal formada"
@@ -124,9 +103,11 @@ operatorTable :: ParserTable
 operatorTable = [parserApp] : makeTable operatorsList
     where parserApp = PE.Infix (App <$ reservedOp lexer opApp) PE.AssocLeft
 
+-- Genera un ParserTable de una lista de operadores.
 makeTable :: [Operator] -> ParserTable
 makeTable = map makeSubList . group . reverse . sort 
 
+-- Genera un ParserOper de un operador.
 makeOp :: Operator -> ParserOper
 makeOp op = case opNotationTy op of 
               NPrefix  -> PE.Prefix  $ UnOp op <$ parseOp
@@ -139,6 +120,7 @@ makeOp op = case opNotationTy op of
 makeSubList :: [Operator] -> [ParserOper]
 makeSubList = map makeOp
 
+-- Convierte el nuestro tipo de asociaci&#243;n al tipo de asociaci&#243;n de parsec.
 convertAssoc :: Assoc -> PE.Assoc
 convertAssoc None = PE.AssocNone
 convertAssoc ALeft = PE.AssocLeft
@@ -169,6 +151,7 @@ parseQuant :: [Quantifier] -> Parser' PreExpr
 parseQuant = foldr pquant $ fail "Cuantificador"
     where pquant q = ( pQuan q <|>)
 
+-- Funci&#243;n auxiliar para el parseo de quantificadores.
 pQuan :: Quantifier -> Parser' PreExpr
 pQuan q = try $ symbol lexer quantInit >>
           (symbol lexer . unpack . quantRepr) q >>
@@ -236,7 +219,7 @@ parseSugarPreExpr p = parseSugarList p <|> parseIntPreExpr
 
 -- | Parseo de la lista escrita con syntax sugar.
 sugarList :: Parser' PreExpr -> Parser' PreExpr
-sugarList p = foldl (BinOp listApp) (Con listEmpty) <$> (p `sepBy` char ',')
+sugarList p = foldr (BinOp listApp) (Con listEmpty) <$> (p `sepBy` char ',')
 
 -- | Parseo de la lista escrita con syntax sugar.
 parseSugarList :: Parser' PreExpr -> Parser' PreExpr
@@ -260,9 +243,57 @@ parseIntPreExpr = intToCon <$> parseInt
 parseFromString :: String -> Either ParseError PreExpr
 parseFromString = runParser parsePreExpr (0,M.empty) "TEST" 
 
--- | Funcion principal de parseo.
+-- | Gramatica de parseo.
+--
+-- @
+-- \<PreExpr\> ::= \<Atoms\>
+--           | \<UnOp\>
+--           | \<BinOp\>
+--           | \<App\>
+--           | \<Quant\>
+--           | \<Parent\>
+--
+-- \<Var\> ::= {a, b, c, ... , z}*
+-- \<Func\> ::= {A, B, C, ... , Z}*
+-- \<Const\> ::= True | False | [] | 0
+-- \<String\> ::= {a, b, c, ... , z, A, B, C, ... , Z}*
+-- 
+-- \<Atoms\> ::= \<Var\>
+--          |  \<Func\>
+--          |  \<Const\>
+--          |  ?{\<String\>}
+--
+-- \<UnOp\> ::= &#172; \<PreExpr\>
+--         |  # \<PreExpr\>
+--         |  Succ \<PreExpr\>
+--
+-- \<BinOp \> ::= \<PreExpr> &#8743; \<PreExpr\>
+--           |  \<PreExpr\> &#8744; \<PreExpr\>
+--           |  \<PreExpr\> &#8658; \<PreExpr\>
+--           |  \<PreExpr\> &#8656; \<PreExpr\>
+--           |  \<PreExpr\> &#8801; \<PreExpr\>
+--           |  \<PreExpr\> /&#8801; \<PreExpr\>
+--           |  \<PreExpr\> = \<PreExpr\>
+--           |  \<PreExpr\> &#9657; \<PreExpr\>
+--           |  \<PreExpr\> &#8593; \<PreExpr\>
+--           |  \<PreExpr\> &#8595; \<PreExpr\>
+--           |  \<PreExpr\> . \<PreExpr\>
+--           |  \<PreExpr\> ++ \<PreExpr\>
+--           |  \<PreExpr\> + \<PreExpr\>
+--           |  \<PreExpr\> * \<PreExpr\>
+-- 
+-- \<App\> ::= \<Func\> \@ \<PreExpr\>
+-- 
+-- \<Quant\> ::= &#12296;&#8704;\<Var\> : \<PreExpr\> : \<PreExpr\>&#12297;
+--          |  &#12296;&#8707;\<Var\> : \<PreExpr\> : \<PreExpr\>&#12297;
+-- 
+-- \<Parent\> ::= ( \<PreExpr\> )
+-- @
 parser :: String -> PreExpr
 parser = either showError showPreExpr . parseFromString
+
+parserVar :: String -> Either ParseError Variable
+parserVar = runParser parseVar (0,M.empty) "TEST" 
 
 -- Imprimimos el error con version Exception de haskell.
 showError :: Show a => a -> b

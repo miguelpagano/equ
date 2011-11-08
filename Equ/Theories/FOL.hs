@@ -1,4 +1,4 @@
--- | El módulo de expresiones de fórmulas de primer orden.
+-- | El m&#243;dulo de expresiones de f&#243;rmulas de primer orden.
 {-# Language OverloadedStrings #-}
 module Equ.Theories.FOL 
     ( -- * Constructores y operadores.
@@ -73,21 +73,21 @@ folTrue = Constant { conRepr = "True"
                    }
 
 -- | Constante False  
-folFalse :: Constant
+folFalse :: Constant          
 folFalse = Constant { conRepr = "False"
                     , conName = CFalse
                     , conTy = tyBool
                     }
                      
 -- CUANTIFICADORES
--- | Cuantificador ∀
+-- | Cuantificador &#8704;
 folForall :: Quantifier
 folForall = Quantifier { quantRepr = "∀"
                        , quantName = Forall
                        , quantTy = tyVar "A" :-> tyBool
                        }
 
--- | Cuantificador ∃
+-- | Cuantificador &#8707;
 folExist :: Quantifier
 folExist = Quantifier { quantRepr = "∃"
                       , quantName = Exist
@@ -111,7 +111,7 @@ folEqual = Operator { opRepr = "="
                   , opPrec = 5
                   }
 
--- | Equivalencia ≡
+-- | Equivalencia &#8801;
 folEquiv :: Operator
 folEquiv = Operator { opRepr = "≡"
                     , opName = Equival
@@ -121,7 +121,7 @@ folEquiv = Operator { opRepr = "≡"
                     , opPrec = 1
                     }
                     
--- | Discrepancia /≡
+-- | Discrepancia /&#8801;
 folDiscrep :: Operator
 folDiscrep = Operator { opRepr = "/≡"
                       , opName = Discrep
@@ -131,7 +131,7 @@ folDiscrep = Operator { opRepr = "/≡"
                       , opPrec = 1
                       }
 
--- | Conjuncion ∧
+-- | Conjuncion &#8743;
 folAnd :: Operator
 folAnd = Operator { opRepr = "∧"
                   , opName = And
@@ -141,7 +141,7 @@ folAnd = Operator { opRepr = "∧"
                   , opPrec = 3
                   }
 
--- | Disyuncion ∨
+-- | Disyuncion &#8744;
 folOr :: Operator
 folOr = Operator { opRepr = "∨"
                  , opName = Or
@@ -151,7 +151,7 @@ folOr = Operator { opRepr = "∨"
                  , opPrec = 3
                  }
      
--- | Negacion ¬
+-- | Negacion &#172;
 folNeg :: Operator
 folNeg = Operator { opRepr = "¬"
                   , opName = Neg
@@ -161,7 +161,7 @@ folNeg = Operator { opRepr = "¬"
                   , opPrec = 4
                   }
 
--- | Implicación ⇒
+-- | Implicaci&#243;n &#8658;
 folImpl :: Operator
 folImpl = Operator { opRepr = "⇒"
                    , opName = Implic
@@ -171,7 +171,7 @@ folImpl = Operator { opRepr = "⇒"
                    , opPrec = 2
                    }
 
--- | Consecuencia ⇐
+-- | Consecuencia &#8656;
 folConseq :: Operator
 folConseq = Operator { opRepr = "⇐"
                      , opName = Conseq
@@ -202,7 +202,7 @@ true = Expr $ Con $ folTrue
 false :: Expr
 false = Expr $ Con $ folFalse
 
--- | Constructores de Operaciones lógicas
+-- | Constructores de Operaciones l&#243;gicas
 
 -- | Igualdad
 equal :: Expr -> Expr -> Expr
@@ -263,7 +263,7 @@ varR= Expr $ Var $ var "r" tyBool
 -- EQUIVALENCIA
 -- ============
 
--- Ascociatividad: ((p ≡ q) ≡ r) ≡ (p ≡ (q ≡ r))
+-- Ascociatividad: ((p &#8801; q) &#8801; r) &#8801; (p &#8801; (q &#8801; r))
 -- VER CUANTAS SON LAS REGLAS QUE HAY QUE HACER PARA ESTE AXIOMA.
 -- Aca hay solo dos opciones, el equivalente del medio es siempre el de "relacion".
 -- Las dos formas posibles son conmutar ambos miembros.
@@ -272,11 +272,11 @@ exprAsocEquiv :: Expr
 exprAsocEquiv = equiv (equiv (equiv varP varQ) varR) (equiv varP (equiv varQ varR))
 
 -- ---------------------------------
--- Conmutatividad: p ≡ q ≡ q ≡ p
+-- Conmutatividad: p &#8801; q &#8801; q &#8801; p
 -- ---------------------------------
 {- | Regla 1:
 @
-    p ≡ (q ≡ (q ≡ p))
+    p &#8801; (q &#8801; (q &#8801; p))
 @
 -}
 conmEquiv_Rule1 :: Rule
@@ -289,7 +289,7 @@ conmEquiv_Rule1 = Rule { lhs = varP
  
 {- | Regla 2:
 @
-    (p ≡ q) ≡ (q ≡ p)
+    (p &#8801; q) &#8801; (q &#8801; p)
 @
 -}
 conmEquiv_Rule2 :: Rule
@@ -302,7 +302,7 @@ conmEquiv_Rule2 = Rule { lhs = equiv varP varQ
 
 {- | Regla 3:
 @
-    ((p ≡ q) ≡ q) ≡ p
+    ((p &#8801; q) &#8801; q) &#8801; p
 @
 -}
 conmEquiv_Rule3 :: Rule
@@ -314,16 +314,16 @@ conmEquiv_Rule3 = Rule { lhs = equiv (equiv varP varQ) varQ
                        }
                        
 -- NOTA: No se si hace falta poner dos reglas mas, que serian:
--- (p ≡ (q ≡ q)) ≡ p
--- p ≡ ((q ≡ q) ≡ p)
--- Puesto que q ≡ q es True por Neutro de Equiv
+-- (p &#8801; (q &#8801; q)) &#8801; p
+-- p &#8801; ((q &#8801; q) &#8801; p)
+-- Puesto que q &#8801; q es True por Neutro de Equiv
 
 -- ------------------------------
--- Neutro: p ≡ True ≡ p
+-- Neutro: p &#8801; True &#8801; p
 -- ------------------------------
 {- | Regla 1:
 @
-    (p ≡ True) ≡ p
+    (p &#8801; True) &#8801; p
 @
 -}
 neuterEquiv_Rule1 :: Rule
@@ -336,7 +336,7 @@ neuterEquiv_Rule1 = Rule { lhs = equiv varP true
                          
 {- | Regla 2:
 @
-    p ≡ (True ≡ p)
+    p &#8801; (True &#8801; p)
 @
 -}
 neuterEquiv_Rule2 :: Rule
@@ -353,11 +353,11 @@ neuterEquiv_Rule2 = Rule { lhs = varP
 -- =========
 
 -- ------------------------------
--- Negacion y Equivalencia: ¬(p ≡ q) ≡ ¬p ≡ q
+-- Negacion y Equivalencia: &#172;(p &#8801; q) &#8801; &#172;p &#8801; q
 -- ------------------------------
 {- | Regla 1:
 @
-    ¬(p ≡ q) ≡ (¬p ≡ q)
+    &#172;(p &#8801; q) &#8801; (&#172;p &#8801; q)
 @
 -}
 equivNeg_Rule1 :: Rule
@@ -370,7 +370,7 @@ equivNeg_Rule1 = Rule { lhs = neg $ equiv varP varQ
                       
 {- | Regla 2:
 @
-    (¬(p ≡ q) ≡ ¬p) ≡ q
+    (&#172;(p &#8801; q) &#8801; &#172;p) &#8801; q
 @
 -}
 equivNeg_Rule2 :: Rule
@@ -384,7 +384,7 @@ equivNeg_Rule2 = Rule { lhs = equiv (neg $ equiv varP varQ) (neg varP)
 
 {- | Definicion de false:
 @
-    False ≡ ¬True
+    False &#8801; &#172;True
 @
 -}
 false_Rule :: Rule
@@ -401,7 +401,7 @@ false_Rule = Rule { lhs = false
 
 {- | Definicion de discrepancia:
 @
-    (p /≡ q) ≡ ¬(p ≡ q)
+    (p /&#8801; q) &#8801; &#172;(p &#8801; q)
 @
 -}
 discrep_Rule :: Rule
@@ -418,7 +418,7 @@ discrep_Rule = Rule { lhs = discrep varP varQ
 
 {- | Regla asociatividad:
 @
-    (p ∨ q) ∨ r ≡ p ∨ (q ∨ r)
+    (p &#8744; q) &#8744; r &#8801; p &#8744; (q &#8744; r)
 @
 -}
 asocOr_Rule :: Rule
@@ -431,7 +431,7 @@ asocOr_Rule = Rule { lhs = or (or varP varQ) varR
 
 {- | Regla conmutatividad:
 @
-    p ∨ q ≡ q ∨ p
+    p &#8744; q &#8801; q &#8744; p
 @
 -}
 conmOr_Rule :: Rule
@@ -444,7 +444,7 @@ conmOr_Rule = Rule { lhs = or varP varQ
 
 {- | Regla idempotencia:
 @
-    p ∨ p ≡ p
+    p &#8744; p &#8801; p
 @
 -}
 idempotOr_Rule :: Rule
@@ -457,7 +457,7 @@ idempotOr_Rule = Rule { lhs = or varP varP
 
 {- | Regla idempotencia:
 @
-    (p ∨ p ≡ p) ≡ True
+    (p &#8744; p &#8801; p) &#8801; True
 @
 -}
 idempotOr_Rule1 :: Rule
@@ -472,7 +472,7 @@ idempotOr_Rule1 = Rule { lhs = equiv (or varP varP) (varP)
 
 {- | Regla 1 distributividad con equivalencia: 
 @
-    p ∨ (q ≡ r) ≡ ((p ∨ q) ≡ (p ∨ r))
+    p &#8744; (q &#8801; r) &#8801; ((p &#8744; q) &#8801; (p &#8744; r))
 @
 -}
 distEqOr_Rule1 :: Rule
@@ -485,7 +485,7 @@ distEqOr_Rule1 = Rule { lhs = or varP $ equiv varQ varR
 
 {- | Regla 2 distributividad con equivalencia:
 @
-    (p ∨ (q ≡ r) ≡ (p ∨ q)) ≡ (p ∨ r)
+    (p &#8744; (q &#8801; r) &#8801; (p &#8744; q)) &#8801; (p &#8744; r)
 @
 -}
 distEqOr_Rule2 :: Rule
@@ -498,7 +498,7 @@ distEqOr_Rule2 = Rule { lhs = equiv (or varP $ equiv varQ varR) (or varP varQ)
 
 {- | Tercero Excluido:
 @
-    p ∨ ¬p
+    p &#8744; &#172;p
 @
 -}
 excludOr_Rule :: Rule
@@ -515,7 +515,7 @@ excludOr_Rule = Rule { lhs = or varP $ neg varP
 
 {- | Regla 1 regla dorada:
 @
-    p ∧ q ≡ (p ≡ (q ≡ p ∨ q))
+    p &#8743; q &#8801; (p &#8801; (q &#8801; p &#8744; q))
 @
 -}
 goldenRule1 :: Rule
@@ -528,7 +528,7 @@ goldenRule1 = Rule { lhs = and varP varQ
 
 {- | Regla 2 regla dorada:
 @
-    p ∧ q ≡ ((p ≡ q) ≡ p ∨ q)
+    p &#8743; q &#8801; ((p &#8801; q) &#8801; p &#8744; q)
 @
 -}
 goldenRule2 :: Rule
@@ -540,15 +540,15 @@ goldenRule2 = Rule { lhs = and varP varQ
                    }
                    
 -- DUDA: Hace falta definir dos reglas para lo anterior? 
--- p ∧ q ≡ (p ≡ q ≡ p ∨ q)
+-- p &#8743; q &#8801; (p &#8801; q &#8801; p &#8744; q)
 -- Si nosotros escribimos el lado derecho de una de las dos formas posibles, luego
 -- la otra forma podria ser derivada por la regla de asociatividad:
--- p ≡ (q ≡ p ∨ q) es equivalente a ((p ≡ q) ≡ p ∨ q)
+-- p &#8801; (q &#8801; p &#8744; q) es equivalente a ((p &#8801; q) &#8801; p &#8744; q)
 
 
 {- | Regla 3 regla dorada:
 @
-    ((p ∧ q) ≡ p) ≡ (q ≡ p ∨ q)
+    ((p &#8743; q) &#8801; p) &#8801; (q &#8801; p &#8744; q)
 @
 -}
 goldenRule3 :: Rule
@@ -560,10 +560,10 @@ goldenRule3 = Rule { lhs = equiv (and varP varQ) varP
                    }
 
 
--- Tenemos la misma cuestión sobre la asociatividad en las siguientes reglas
+-- Tenemos la misma cuesti&#243;n sobre la asociatividad en las siguientes reglas
 {- | Regla 4 regla dorada:
 @
-    (p ∧ q ≡ p) ≡ q) ≡ p ∨ q
+    (p &#8743; q &#8801; p) &#8801; q) &#8801; p &#8744; q
 @
 -}
 goldenRule4 :: Rule
@@ -577,7 +577,7 @@ goldenRule4 = Rule { lhs = equiv (equiv (and varP varQ) varQ) (or varP varQ)
 
 {- | Regla 5 regla dorada:
 @
-    (p ∧ q ≡ (p ≡ q)) ≡ p ∨ q
+    (p &#8743; q &#8801; (p &#8801; q)) &#8801; p &#8744; q
 @
 -}
 goldenRule5 :: Rule
@@ -593,12 +593,12 @@ goldenRule5 = Rule { lhs = equiv (and varP varQ) (equiv varP varQ)
 -- ===========
 
 -- ------------------------------
--- Definicion de ⇒: p ⇒ q ≡ p ∨ q ≡ q
+-- Definicion de &#8658;: p &#8658; q &#8801; p &#8744; q &#8801; q
 -- ------------------------------
 
 {- | Regla 1 implicacion:
 @
-    (p ⇒ q ≡ p ∨ q) ≡ q
+    (p &#8658; q &#8801; p &#8744; q) &#8801; q
 @
 -}
 implRule1 :: Rule
@@ -611,7 +611,7 @@ implRule1 = Rule { lhs = equiv (impl varP varQ) (or varP varQ)
 
 {- | Regla 2 implicacion:
 @
-    p ⇒ q ≡ (p ∨ q ≡ q)
+    p &#8658; q &#8801; (p &#8744; q &#8801; q)
 @
 -}
 implRule2 :: Rule
@@ -627,11 +627,11 @@ implRule2 = Rule { lhs = impl varP varQ
 -- ===========
 
 -- ------------------------------
--- Definicion de ⇐: p ⇐ q ≡ p ∨ q ≡ p
+-- Definicion de &#8656;: p &#8656; q &#8801; p &#8744; q &#8801; p
 -- ------------------------------
 {- | Regla 1 consecuencia:
 @
-    (p ⇐ q ≡ p ∨ q) ≡ p
+    (p &#8656; q &#8801; p &#8744; q) &#8801; p
 @
 -}
 conseqRule1 :: Rule
@@ -644,7 +644,7 @@ conseqRule1 = Rule { lhs = equiv (conseq varP varQ) (or varP varQ)
 
 {- | Regla 2 consecuencia:
 @
-    p ⇐ q ≡ (p ∨ q ≡ p)
+    p &#8656; q &#8801; (p &#8744; q &#8801; p)
 @
 -}
 conseqRule2 :: Rule
@@ -661,9 +661,9 @@ conseqRule2 = Rule { lhs = conseq varP varQ
 -- PARA TODO
 -- ===========
 
-{- | Intercambio entre rango y término: 
+{- | Intercambio entre rango y t&#233;rmino: 
 @
-    <∀x : r.x : f.x> ≡ <∀x : : r.x ⇒ f.x>
+    <&#8704;x : r.x : f.x> &#8801; <&#8704;x : : r.x &#8658; f.x>
 @
 -}
 interRangeTermForall_Rule :: Rule
@@ -677,12 +677,12 @@ interRangeTermForall_Rule = Rule { lhs = forAll varX range term
           range = Expr $ Var $ var "r" $ tyBool
           term = Expr $ Var $ var "t" $ tyBool
           
--- Axioma 5.3 (distributividad con or): X ∨ ∀x : : f.x ≡ ∀x : : X ∨ f.x , siempre que x no ocurra en X. 
--- DUDA: Cómo se implementa eso?
+-- Axioma 5.3 (distributividad con or): X &#8744; &#8704;x : : f.x &#8801; &#8704;x : : X &#8744; f.x , siempre que x no ocurra en X. 
+-- DUDA: C&#243;mo se implementa eso?
 
-{- | Distributividad con ∧:
+{- | Distributividad con &#8743;:
 @
-    <∀x : : f.x> ∧ <∀x : : g.x> ≡ <∀x : : f.x ∧ g.x>
+    <&#8704;x : : f.x> &#8743; <&#8704;x : : g.x> &#8801; <&#8704;x : : f.x &#8743; g.x>
 @
 -}
 distribAndForall_Rule :: Rule
@@ -697,9 +697,9 @@ distribAndForall_Rule = Rule { lhs = and (forAll varX true term1) (forAll varX t
           term2 = Expr $ Var $ var "t2" $ tyBool
 
 -- ------------------------------
--- Rango Unitario: <∀x : x = Y : f.x> ≡ f.Y
+-- Rango Unitario: <&#8704;x : x = Y : f.x> &#8801; f.Y
 -- DUDA: Para definir esto tendriamos que saber si el tipo de la variable x tiene definida la igualdad. 
---       Algo como las typeclasses de haskell donde digamos que el tipo A es instancia de Eq, o algo así.
+--       Algo como las typeclasses de haskell donde digamos que el tipo A es instancia de Eq, o algo as&#237;.
 -- ------------------------------
 {-unitRangeForall_Rule :: Rule
 unitRangeForall_Rule = Rule { lhs = forAll varX (equal expr_varX expr_varY) term
@@ -716,12 +716,12 @@ unitRangeForall_Rule = Rule { lhs = forAll varX (equal expr_varX expr_varY) term
           subst = M.insert varX (Expr varY) M.empty
           -}
 -- ------------------------------
--- Intercambio de ∀: <∀x : : <∀y : : f.x.y> ≡ <∀y : : <∀x : : f.x.y>
+-- Intercambio de &#8704;: <&#8704;x : : <&#8704;y : : f.x.y> &#8801; <&#8704;y : : <&#8704;x : : f.x.y>
 -- DUDA: Es necesario que el termino sea una funcion que toma x e y? No podria ser cualquier termino?
 -- ------------------------------
-{- | Intercambio de ∀:
+{- | Intercambio de &#8704;:
 @
-    <∀x : : <∀y : : f.x.y> ≡ <∀y : : <∀x : : f.x.y>
+    <&#8704;x : : <&#8704;y : : f.x.y> &#8801; <&#8704;y : : <&#8704;x : : f.x.y>
 @
 -}
 intercForall_Rule :: Rule
@@ -741,7 +741,7 @@ intercForall_Rule = Rule { lhs = forAll varX true $ forAll varY true term
 
 {- | Definicion de Existe:
 @
-    <∃x : r.x : f.x> ≡ ¬ <∀x : r.x : ¬f.x>
+    <&#8707;x : r.x : f.x> &#8801; &#172; <&#8704;x : r.x : &#172;f.x>
 @
 -}
 existRule :: Rule

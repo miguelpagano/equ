@@ -4,7 +4,7 @@ import Equ.Rule (Relation)
 import Equ.Rewrite (RewriteError)
 import Equ.Proof.Proof
 
--- Faltaría definir un buen conjunto de errores para las pruebas.
+-- | Errores sobre las pruebas.
 data ProofError = Rewrite RewriteError                 
                 | BasicNotApplicable Basic
                 | ProofError

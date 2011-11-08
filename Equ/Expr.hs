@@ -1,17 +1,15 @@
--- | Una Expresión es algo que se puede manipular. Difiere
--- relativamente poco de una PreExpresión.
+-- | Una Expresi&#243;n es algo que se puede manipular. Difiere
+-- relativamente poco de una PreExpresi&#243;n.
 module Equ.Expr where
 
 import Equ.PreExpr.Internal
 import Data.Serialize(Serialize, get, put)
--- import Equ.Theories
--- import Equ.Syntax
 
 import Control.Applicative ((<$>))
 import Test.QuickCheck(Arbitrary, arbitrary)
 
 -- | Las expresiones son pre-expresiones bien tipadas. Es decir,
--- ningún constituyente de una expresión puede tener TyUnknown como
+-- ning&#250;n constituyente de una expresi&#243;n puede tener TyUnknown como
 -- tipo.
 newtype Expr = Expr PreExpr
 
@@ -28,5 +26,6 @@ instance Serialize Expr where
     put (Expr e) = put e
     get = Expr <$> get
 
+-- | Retorna la preExpresi&#243;n que constituye la expresi&#243;n.
 getPreExpr :: Expr -> PreExpr
 getPreExpr (Expr e) = e

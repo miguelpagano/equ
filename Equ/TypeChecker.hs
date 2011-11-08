@@ -1,7 +1,7 @@
--- | Transforma una PreExpresión en una Expresión.
+-- | Transforma una PreExpresi&#243;n en una Expresi&#243;n.
 module Equ.TypeChecker 
     ( module Equ.TypeChecker.Error      
-      -- * Algoritmo de unificación con relación de orden.
+      -- * Algoritmo de unificaci&#243;n con relaci&#243;n de orden.
     , unify
     , emptySubst
     , unifyTest
@@ -27,51 +27,51 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.RWS.Class (local, ask, tell, get, put)
 import Control.Monad.RWS (runRWS)
 
--- | Tipo de la sustitución para unificar expresiones de tipo.
+-- | Tipo de la sustituci&#243;n para unificar expresiones de tipo.
 type TySubst = M.Map TyVarName Type
 
--- | El error está acompañado de la expresión enfocada donde ocurrió.
+-- | El error est&#225; acompa&#241;ado de la expresi&#243;n enfocada donde ocurri&#243;.
 type TMErr = (Focus,TyErr)
 
--- TODO: cambiar: el estado tendría el contexto además de la
--- sustitución.
--- | La mónada de estado del type-checker.
+-- TODO: cambiar: el estado tendr&#237;a el contexto adem&#225;s de la
+-- sustituci&#243;n.
+-- | La m&#243;nada de estado del type-checker.
 type TyState = MonadTraversal TMErr TySubst
 
--- | Agrega una línea de log.
+-- | Agrega una l&#237;nea de log.
 addLog :: String -> TyState ()
 addLog s = tell . S.fromList $ [T.pack s]
 
--- | Generación de mensaje de Error.
+-- | Generaci&#243;n de mensaje de Error.
 tyerr :: TyErr -> TyState a
 tyerr err = ask >>= \foc -> hoistEither $ Left (foc, err)
 
 {- 
 
-   Las PreExpresiones y las Expresiones son básicamente árboles de
-   sintaxis abstracta con distinta información en cada nodo.  Por
-   ejemplo, podría ser que las PreExpresiones tengan un componente de
-   tipo 'Maybe Type', mientras que el mismo componente en una Expresión
-   será de tipo 'Type'. Esto nos permite ver las PreExpresiones cómo
+   Las PreExpresiones y las Expresiones son b&#225;sicamente &#225;rboles de
+   sintaxis abstracta con distinta informaci&#243;n en cada nodo.  Por
+   ejemplo, podr&#237;a ser que las PreExpresiones tengan un componente de
+   tipo 'Maybe Type', mientras que el mismo componente en una Expresi&#243;n
+   ser&#225; de tipo 'Type'. Esto nos permite ver las PreExpresiones c&#243;mo
    Expresiones parcialmente tipadas.
 
-   Una cosa que sí necesitamos es información sobre por qué falló un
+   Una cosa que s&#237; necesitamos es informaci&#243;n sobre por qu&#233; fall&#243; un
    chequeo/inferencia de tipos. 
 
-   El type-checker usará en lo posible la información de tipos de las
+   El type-checker usar&#225; en lo posible la informaci&#243;n de tipos de las
    PreExpresiones; de esta manera podremos tener un chequeo incremental.
 
 -}
 
--- | Ciertos símbolos deben tener un único tipo en toda una expresión;
+-- | Ciertos s&#237;mbolos deben tener un &#250;nico tipo en toda una expresi&#243;n;
 -- un contexto lleva la cuenta de todos los tipos que vamos viendo. En
--- principio sólo debería un tipo a lo sumo.
+-- principio s&#243;lo deber&#237;a un tipo a lo sumo.
 type CtxSyn s = M.Map s [Type]
 
 -- | El contexto global es un conjunto con los contextos de cada tipo
--- de símbolo; el contexto para los cuantificadores es fijo,
--- inicialmente tiene los cuantificadores "homogéneos" (por ejemplo,
--- sumatoria está, pero forall no está).
+-- de s&#237;mbolo; el contexto para los cuantificadores es fijo,
+-- inicialmente tiene los cuantificadores "homog&#233;neos" (por ejemplo,
+-- sumatoria est&#225;, pero forall no est&#225;).
 data Ctx = Ctx { vars :: CtxSyn VarName
                , funcs :: CtxSyn FuncName
                , ops  :: CtxSyn OpName 
@@ -84,7 +84,7 @@ data Ctx = Ctx { vars :: CtxSyn VarName
 insertList :: Ord k =>  k -> v -> M.Map k [v] -> M.Map k [v]
 insertList k v = M.insertWith (++) k [v] 
 
--- | Agrega los tipos vistos para una variable al contexto; esta función
+-- | Agrega los tipos vistos para una variable al contexto; esta funci&#243;n
 -- se usa en el chequeo de tipos de cuantificadores.
 addVar :: Ctx -> Variable -> [Type] -> Ctx
 addVar c _ [] = c
@@ -97,17 +97,17 @@ removeVar c v = (c { vars = M.delete (tRepr v) (vars c) } , M.findWithDefault []
     where vn = tRepr v
           vs = vars c
 
--- | Aplicar una sustitución (finita) a un variable de tipo.
+-- | Aplicar una sustituci&#243;n (finita) a un variable de tipo.
 findVar :: TyVarName -> TySubst -> Type
 findVar v = M.findWithDefault (TyVar v) v
 
--- | Uso de una sustitución para reemplazar todas las variables en un
+-- | Uso de una sustituci&#243;n para reemplazar todas las variables en un
 -- tipo.
 rewrite :: TySubst -> Type -> Type
 rewrite s = (>>= (\v -> findVar v s))
 
--- | Chequeo de diferentes elementos sintácticos simples como
--- variables, constantes, símbolos de función y operadores.
+-- | Chequeo de diferentes elementos sint&#225;cticos simples como
+-- variables, constantes, s&#237;mbolos de funci&#243;n y operadores.
 checkSyn :: (Syntactic s,Ord k) => s -> (s -> k) -> (s -> Type) -> 
            (Ctx -> M.Map k [Type], Ctx -> M.Map k [Type] -> Ctx) -> Ctx -> TyState (Ctx,Type)
 checkSyn s n t (i,j) ctxs = case M.lookup sName ctx of
@@ -130,7 +130,7 @@ checkQuant :: Quantifier -> Ctx -> TyState (Ctx,Type)
 checkQuant q = checkSyn q quantName tType (quants, \ctx _ -> ctx)
 
 
--- | Algoritmo de unificación. Suponemos que no hay 'TyUnknown'.
+-- | Algoritmo de unificaci&#243;n. Suponemos que no hay 'TyUnknown'.
 unify :: Type -> Type -> TySubst -> Either TyErr TySubst
 unify t@(TyAtom _) t'@(TyAtom _) s | t `leq` t' = return s
                                    | otherwise = Left $ ErrUnification t t' (M.toList s)
@@ -143,16 +143,16 @@ unify t@(TyVar v) t' s | t == t' = return s
 unify t (TyVar v) s = unify (TyVar v) t s
 unify t t' s = Left $ ErrUnification t t' (M.toList s)
 
--- | Usamos unify para comprobar si existe o no unificación. 
+-- | Usamos unify para comprobar si existe o no unificaci&#243;n. 
 --   Suponemos que no hay 'TyUnknown'.
 unifyTest :: Type -> Type -> Bool
 unifyTest t t' = either (const False) (const True) $ unify t t' emptySubst
 
--- | Sustitución vacía.
+-- | Sustituci&#243;n vac&#237;a.
 emptySubst :: TySubst
 emptySubst = M.empty
 
--- | Generación de variables de tipo frescas.
+-- | Generaci&#243;n de variables de tipo frescas.
 freshVars :: Type -> [TyVarName]
 freshVars t =  filter (not . flip occurs t) [(T.pack . ("t"++) . show) n | n <- [(0::Int)..]]
 
@@ -162,7 +162,7 @@ updateCtx ctx subst = ctx { vars = M.map (map (rewrite subst)) (vars ctx)
                           , ops = M.map (map (rewrite subst)) (ops ctx) 
                           , cons = M.map (map (rewrite subst)) (cons ctx) }
 
--- | Checkea una sub-expresión y actualiza el contexto.
+-- | Checkea una sub-expresi&#243;n y actualiza el contexto.
 checkAndUpdate :: Ctx -> PreExpr -> (Focus -> Maybe Focus) -> TyState (Ctx,Type)
 checkAndUpdate ctx e go = localGo go (check ctx e) >>= \(ctx',t) ->
                           get >>= \s -> 
@@ -171,7 +171,7 @@ checkAndUpdate ctx e go = localGo go (check ctx e) >>= \(ctx',t) ->
 
 -- TODO: 
 --  * agregar el contexto al estado?
---  * extraer la expresión del focus que tenemos en el ambiente?
+--  * extraer la expresi&#243;n del focus que tenemos en el ambiente?
 --  * pensar el caso de cuantificadores; 
 --  * definir propiedades.
 check :: Ctx -> PreExpr -> TyState (Ctx,Type)
@@ -235,6 +235,7 @@ initCtx = Ctx { vars = M.empty
               , quants = M.empty
               }
 
+-- | Retorna el tipo de una expresi&#243;n bien tipada.
 checkPreExpr :: PreExpr -> Either (TMErr,Log) Type
 checkPreExpr e = case runRWS (runEitherT (check initCtx e)) (toFocus e) emptySubst of
                    (res, _, l) -> either (\err -> Left (err,l)) (Right . snd) res

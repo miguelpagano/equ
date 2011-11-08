@@ -1,9 +1,7 @@
 {-# Language GADTs #-}
 
 {-| Este m&#243;dulo define la noci&#243;n de una prueba. -}
-module Equ.Proof (
-                   encode, decode
-                 , newProof, newProofWithoutEnd, addStep
+module Equ.Proof (newProof, newProofWithoutEnd, addStep
                  , proofFromTruth, fillHole
                  , Truth (..)
                   -- * Axiomas y teoremas
@@ -33,7 +31,7 @@ import Equ.Rewrite
 import Data.Monoid(mappend)
 import Data.Either(partitionEithers)
 
-import Data.Map (empty)
+import Data.Map (empty, singleton)
 import Control.Monad
 
 -- Funcion para checkear igualdad, con la variante importante que en caso de
@@ -47,8 +45,8 @@ whenEqWithDefault def a b = whenPM (==a) def b >> return ()
 
 {- 
 Funciones para construir y manipular pruebas.
-Este kit de funciones debería proveer todas las herramientas
-necesarias para desarrollar pruebas en equ 
+Este kit de funciones deber&#237;a proveer todas las herramientas
+necesarias para desarrollar pruebas en equ.
 -}
 
 proofFromRule :: Truth t => Focus -> Focus -> Relation -> t -> (t -> Basic) -> 
@@ -69,25 +67,27 @@ proofFromTruth f f' r t = case partitionEithers $
                                    (truthRules t)
                           of
                           -- Devolvemos el primer error, esto tal vez se
-                          -- podría mejorar un poco devolviendo la lista de
+                          -- podr&#237;a mejorar un poco devolviendo la lista de
                           -- errores.
-                          (er:ers, []) -> Left er
+                          ([er], []) -> Left er
                           (_, p:ps) -> Right p
 
 -- | Igual que proofFromTruth, pero ahora cambiamos el contexto.
-proofFromTruthWithCtx :: Truth t => Ctx -> Focus -> Focus -> Relation -> t 
+proofFromTruthWithCtx :: Truth t => Ctx -> Focus -> Focus -> Relation -> t
                          -> PM Proof
 proofFromTruthWithCtx c f f' r b = either Left
                                           (setCtx c)
                                           (proofFromTruth f f' r b)
 
+-- | Como en proofFromTruth pero a partir de un axioma.
 proofFromAxiom :: Focus -> Focus -> Relation -> Axiom -> PM Proof
 proofFromAxiom = proofFromTruth
 
+-- | Como en proofFromTruth pero a partir de un teorema.
 proofFromTheorem :: Focus -> Focus -> Relation -> Theorem -> PM Proof
 proofFromTheorem  = proofFromTruth
 
-{- | Comenzamos una prueba dados dos focus y una relación entre ellas, de 
+{- | Comenzamos una prueba dados dos focus y una relaci&#243;n entre ellas, de 
         la cual no tenemos una prueba.
     {POS: El contexto de la prueba es vacio.}
     Dadas rel, f y f' tenemos una prueba del estilo;
@@ -114,6 +114,31 @@ rel {?}
 newProofWithoutEnd :: Relation -> Focus -> HoleInfo -> Proof
 newProofWithoutEnd r f hi = Hole empty r f h
     where h = toFocus $ preExprHole hi
+
+{- | Comenzamos una prueba con el meta-teorema de deducción.
+Dadas hip y f generamos una prueba del estilo;
+
+@
+    hip
+⇒   {?}
+    f
+@
+Donde en el contexto de la prueba tenemos a hip.
+
+-}
+newProofWithHip :: Focus -> Focus -> Proof
+newProofWithHip hip@(e,_) f = Deduc ctx hip f $ Hole ctx relImpl hip f
+    where ctx :: Ctx
+          ctx = beginCtx e
+
+{- | Comenzamos una prueba por casos. -}
+
+newProofWithCases :: Relation -> Focus -> Focus -> Focus -> [Focus] -> Proof
+newProofWithCases r f f' c lc = Cases ctx r f f' c lp
+    where ctx :: Ctx
+          ctx = ctxFromList lc
+          lp :: [(Focus, Proof)]
+          lp = map (\fi@(ei,_) -> (fi, Hole (beginCtx ei) r f f')) lc
 
 {- | Dado un proofFocus (p, path) y una prueba p', agregamos un paso.
 
@@ -163,20 +188,20 @@ addStep (p@(Hole c r f f'), _) p' = do
                 whenEqWithDefault (ClashCtx c c') c c'
                 r' <- getRel p'
                 whenEqWithDefault (ClashRel r r') r' r
-                endP' <- getEnd p' -- Acá no recuerdo si ibamos a querer esto.
-                when (isPreExprHole endP') (Left $ ProofEndWithHole p')
+                endP' <- getEnd p' -- Ac&#225; no recuerdo si ibamos a querer esto.
+                when (isPreExprHole endP') (Left $ [ProofEndWithHole p'])
                 case getStart p' of
                      Right cf | cf == f -> return $ p' `mappend` p'' 
                      Right cf | cf == f' -> return $ p `mappend` p' 
-                     _ -> Left $ ClashAddStep p p'
+                     _ -> Left $ [ClashAddStep p p']
     where
         Right endP' = getEnd p'
         p'' = newProof r endP' f'
-addStep (p, _) _ = Left $ ClashProofNotHole p
+addStep (p, _) _ = Left $ [ClashProofNotHole p]
 
 -- | Completa un hueco en una prueba.
 fillHole :: Truth t => ProofFocus -> t -> PM ProofFocus
 fillHole pf@(Hole c r f f', _) t = either Left
                                           (Right . replace pf) $
                                           proofFromTruthWithCtx c f f' r t
-fillHole (p, _) _ = Left $ ClashProofNotHole p
+fillHole (p, _) _ = Left $ [ClashProofNotHole p]

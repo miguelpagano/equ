@@ -1,7 +1,7 @@
--- | Este módulo importa las distintas teorías y expone los
+-- | Este m&#243;dulo importa las distintas teor&#237;as y expone los
 -- constructores necesarios de cada una.
 module Equ.Theories 
-    ( -- * Teorías.
+    ( -- * Teor&#237;as.
       operatorsList
     , constantsList
     , quantifiersList
