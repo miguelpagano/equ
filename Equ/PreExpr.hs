@@ -7,6 +7,7 @@ module Equ.PreExpr ( freeVars, freshVar
                    , preExprHole, isPreExprHole
                    , placeHolderVar
                    , isPlaceHolderVar
+                   , emptyExpr, holeExpr
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper

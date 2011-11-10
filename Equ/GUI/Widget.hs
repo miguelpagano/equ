@@ -7,6 +7,7 @@ import Equ.GUI.Settings
 import Equ.Rule
 import Equ.Theories
 import Equ.Proof
+import Equ.PreExpr
 
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
 import qualified Graphics.UI.Gtk as G
@@ -147,6 +148,8 @@ removeAllChildren b = liftIO $ containerForeach b $
 setupForm ::  HBox -> IRProof
 setupForm b = labelStr "?" >>= setupFormEv b
 
+-- (MANU) Por qué la funcion que sigue es tan general si solo la usamos en setupForm?
+
 -- | Asigna los manejadores de eventos para widgets de expresiones a 
 -- los controles.
 setupFormEv :: WidgetClass w => HBox -> w -> IRProof
@@ -159,7 +162,7 @@ setupFormEv b c = liftIO eventBoxNew >>= \eb ->
 -- widget para construir expresiones.
 setupEvents :: WidgetClass w => HBox -> w -> IRProof
 setupEvents b eb = do s <- get
-                      ProofState _ sym e@(ExprFocus _ p i) _ axiom <- readRef s
+                      ProofState _ sym e@(ExprFocus _ p i) _ _ axiom <- readRef s
                       st <- liftIO $ widgetGetStyle b
                       bg <- liftIO $ styleGetBackground st (toEnum 0)
                       liftIO $ eb `on` enterNotifyEvent $ tryEvent $ highlightBox b hoverBg

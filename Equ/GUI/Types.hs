@@ -2,7 +2,7 @@
 module Equ.GUI.Types where
 
 import Equ.PreExpr
-import Equ.Proof (ProofFocus)
+import Equ.Proof (Proof)
 
 import Graphics.UI.Gtk (WidgetClass, Statusbar, ContextId, HBox, TreeView,EventBox, Label, Button)
 import Control.Monad.State
@@ -18,11 +18,6 @@ type GoBack = (Move,Move)
 -- | Si @(f,g) :: GoBack@, entonces @f . g = id = g . f@.
 type MGoBack = (Focus -> Maybe Focus,Focus -> Maybe Focus)
 
-type MoveProof = ProofFocus -> ProofFocus
-
-type GoBackProof = (MoveProof,MoveProof)
-
-type MGoBackProof = (ProofFocus -> Maybe ProofFocus,ProofFocus -> Maybe ProofFocus)
 
 type StatusPlace = (Statusbar, ContextId)
 
@@ -41,7 +36,7 @@ type ExprState = StateT ExprRef IO
 type IRExpr = ExprState ()
 
 
-data ProofState = ProofState { proof :: ProofFocus   -- ^ La prueba que estamos construyendo (POR AHORA SOLO ES UNA PRUEBA SIMPLE)
+data ProofState = ProofState { proof :: Proof   -- ^ La prueba que estamos construyendo (POR AHORA SOLO ES UNA PRUEBA SIMPLE)
                              , symCtrl :: TreeView   -- ^ La lista de símbolos para construir expresiones.
                              , focusedExpr :: ExprFocus      -- ^ Expresion enfocada
                              , modifExpr :: Proof -> Focus -> Proof  -- ^ Funcion para modificar la expresion enfocada DENTRO de la prueba. Esto sirve asi solo

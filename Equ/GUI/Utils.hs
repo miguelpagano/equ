@@ -11,6 +11,7 @@ import Equ.PreExpr
 import Equ.Theories
 import Equ.Syntax
 import Equ.Parser
+import Equ.Proof
 
 import Graphics.UI.Gtk hiding (eventButton, eventSent, get)
 import qualified Graphics.UI.Gtk as G
@@ -101,14 +102,14 @@ showExpr = withRefValue $ uncurry putMsg . (status &&& show . toExpr . (expr . f
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
-updateExpr e' = update updateExpr' >>
+updateExpr e' = update (updateExpr' e') >>
                 showExpr                
                 
 
-updateExpr' :: ProofState -> ProofState
-updateExpr' pst@(ProofState pr _ fexpr@(ExprFocus e (f,g) _) up _ _) = 
-    pst {proof = modif pr new_expr,
-         focusedExpr = fexpr {expr = new_expr
+updateExpr' :: PreExpr -> ProofState -> ProofState
+updateExpr' e' pst@(ProofState pr _ fexpr@(ExprFocus e (f,g) _) up _ _) = 
+    pst {proof = up pr new_expr,
+         focusedExpr = fexpr {expr = new_expr}
          }
     where new_expr = g . first (const e') . f $ e
     
@@ -130,6 +131,9 @@ updateSymCtrl t = update $ \gst -> gst { symCtrl = t }
 -- | Actualiza la función de ida-vuelta.
 updatePath :: GoBack -> IState ()
 updatePath p = update $ \pst -> pst { focusedExpr = (focusedExpr pst) {path = p }}
+
+updateModifExpr :: (Proof -> Focus -> Proof) -> IState ()
+updateModifExpr f = update $ \pst -> pst { modifExpr = f }
 
 {- Las cinco funciones siguientes devuelven cada uno de los
 componentes del estado. -}

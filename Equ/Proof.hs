@@ -5,6 +5,7 @@ module Equ.Proof (
                    encode, decode
                  , newProof, newProofWithoutEnd, addStep
                  , proofFromTruth, fillHole
+                 , emptyProof, updateStart, updateEnd
                  , Truth (..)
                   -- * Axiomas y teoremas
                  , Axiom(..)
@@ -100,6 +101,20 @@ rel {?}
 -}
 newProof :: Relation -> Focus -> Focus -> Proof
 newProof r f f' = Hole empty r f f'
+
+{- | Comenzamos una prueba dada una relación. No tenemos ni las expresiones
+     ni la prueba.
+    {POS: El contexto de la prueba es vacio.}
+    Dada rel tenemos una prueba del estilo;
+    
+@
+    Hole
+rel {?}
+    Hole
+@
+-}
+emptyProof :: Relation -> Proof
+emptyProof r = newProof r emptyExpr emptyExpr
 
 {- | Comenzamos una prueba dado unfocus y una relacion.
     {POS: El contexto de la prueba es vacio.}

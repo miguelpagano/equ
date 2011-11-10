@@ -8,6 +8,7 @@ import Equ.GUI.SymbolList
 import Equ.Rule
 import Equ.Theories
 import Equ.Proof
+import Equ.PreExpr
 import Equ.GUI.Widget
 import Equ.GUI.Expr
 
@@ -49,32 +50,46 @@ createFormWidget ext_box = do
                         , applyButton = button_apply
     }
     
-newProofRef :: ProofRef
+newProofRef :: FormWidget -> TreeView -> TreeView -> StatusPlace -> IO ProofRef
+newProofRef w symbolList axiomList st_place= do
+    ref <- newRef $ ProofState { proof = emptyProof $ head $ relationList
+                        , symCtrl = symbolList
+                        , focusedExpr = ExprFocus { expr = emptyExpr
+                                                  , path = (id,id)
+                                                  , inpFocus = formBox w
+                                        }
+                        , modifExpr = updateStart
+                        , status = st_place
+                        , axiomCtrl = axiomList
+                    }
+    return ref
 
-    proofRef <- newRef $ ProofState { proof = emptyProof
-                                    , symCtrl = symbolList
-                                    , focusedExpr = ExprFocus { expr = exptyExpr
-                                                              , path = (id,id)
-                                                              , inpFocus = formBox w
-                                      }
-                                    , modifExpr = updateStart
-                                    , status = st_place
-                                    , axiomCtrl = axiomList
-                         }
-
-eventsFormWidget :: ProofRef -> FormWidget -> TreeView -> 
-                    ListStore (String,HBox -> IRProof) -> TreeView -> StatusPlace -> IO ()
-eventsFormWidget proofRef w symbolList sListStore axiomList st_place= do
+{- Setea los eventos de un widget de expresion. La funcion f es la que se utiliza
+para actualizar la expresion dentro de la prueba
+-}
+eventsFormWidget :: VBox -> ProofRef -> FormWidget -> (Proof -> Focus -> Proof) ->
+                    ListStore (String,HBox -> IRProof) -> IO ()
+eventsFormWidget ext_box proofRef w f sListStore =
     
     flip evalStateT proofRef $ 
+        setupFocusEvent >>
         setupForm (formBox w) >>
-        eventsSymbolList symbolList sListStore >>
+        getSymCtrl >>=
+        (flip eventsSymbolList sListStore) >>
         liftIO ((clearButton w) `on` buttonPressEvent $ tryEvent $ 
                             eventWithState (clearFocus (formBox w) >> return ()) 
                             proofRef) >> return ()
     
+    where setupFocusEvent = eventBoxNew >>= \eb ->
+                            boxPackStart ext_box eb PackGrow 0 >>
+                            set eb [ containerChild := (formBox w) ] >>
+                            eb `on` focusInEvent (tryEvent changeSelectedExpr)
+                            
+          changeSelectedExpr = do
+              eventFocusIn
+              eventWithState (updateModifExpr f) proofRef
+              return ()
     
-
 relationListStore :: IO (ListStore Relation)
 relationListStore = listStoreNew relationList 
                       
@@ -95,12 +110,9 @@ createNewProof :: VBox ->  TreeView -> ListStore (String,HBox -> IRProof) -> Tre
 createNewProof ret_box symbolList sListStore axiomList st_place= do
     putStrLn "creando prueba..."
     
-    hboxInit <- newExprWidget 
-    
     hboxInit    <- hBoxNew False 2
     boxFormWidget1 <- hBoxNew False 2
     formWidget1 <- createFormWidget boxFormWidget1
-    eventsFormWidget formWidget1 symbolList sListStore axiomList st_place
     addStep1    <- buttonNewWithLabel "Agregar Paso ↓"
     widgetSetSizeRequest hboxInit (-1) 30
     separator1 <- vSeparatorNew
@@ -108,16 +120,22 @@ createNewProof ret_box symbolList sListStore axiomList st_place= do
     boxPackStart hboxInit separator1 PackNatural 8
     boxPackStart hboxInit addStep1 PackNatural 3
     
+    -- Consideramos que inicialmente la primera expresion está enfocada, por eso
+    -- construimos la referencia inicial con esa caja.
+    proofRef <- newProofRef formWidget1 symbolList axiomList st_place
+    eventsFormWidget ret_box proofRef formWidget1 updateStart sListStore
+    
     hboxEnd     <- hBoxNew False 2
     boxFormWidget2 <- hBoxNew False 2
     formWidget2 <- createFormWidget boxFormWidget2
-    eventsFormWidget formWidget2 symbolList sListStore axiomList st_place
     addStep2    <- buttonNewWithLabel "Agregar Paso ↑"
     widgetSetSizeRequest hboxEnd (-1) 30
     separator2 <- vSeparatorNew
     boxPackStart hboxEnd boxFormWidget2 PackGrow 3
     boxPackStart hboxEnd separator2 PackNatural 8
     boxPackStart hboxEnd addStep2 PackNatural 3
+    
+    eventsFormWidget ret_box proofRef formWidget2 updateEnd sListStore
     
     center_box  <- hBoxNew False 2
     combo_rel   <- newComboRel
@@ -130,17 +148,3 @@ createNewProof ret_box symbolList sListStore axiomList st_place= do
     boxPackStart ret_box center_box PackNatural 2
     boxPackStart ret_box hboxEnd PackNatural 2
     widgetShowAll ret_box
-    
-    
-newExprWidget :: IO HBox
-newExprWidget =     
-    hbox    <- hBoxNew False 2
-    boxFormWidget <- hBoxNew False 2
-    formWidget <- createFormWidget boxFormWidget
-    eventsFormWidget formWidget1 symbolList sListStore axiomList st_place
-    addStep1    <- buttonNewWithLabel "Agregar Paso ↓"
-    widgetSetSizeRequest hboxInit (-1) 30
-    separator1 <- vSeparatorNew
-    boxPackStart hboxInit boxFormWidget1 PackGrow 3
-    boxPackStart hboxInit separator1 PackNatural 8
-    boxPackStart hboxInit addStep1 PackNatural 3
