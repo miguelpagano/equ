@@ -13,7 +13,7 @@ focusBg = Color 0 65000 32000
 
 -- | Tamaño de entry-var para variables.
 entryVarLength :: Int
-entryVarLength = 5
+entryVarLength = 10
 
 -- | Ancho para la lista de símbolos.
 paneSymbolWidth :: Int

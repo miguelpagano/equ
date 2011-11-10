@@ -2,8 +2,9 @@
 module Equ.GUI.Types where
 
 import Equ.PreExpr
+import Equ.Proof (ProofFocus)
 
-import Graphics.UI.Gtk (WidgetClass, Statusbar, ContextId, HBox, TreeView,EventBox)
+import Graphics.UI.Gtk (WidgetClass, Statusbar, ContextId, HBox, TreeView,EventBox, Label, Button)
 import Control.Monad.State
 import Data.Reference
 import Data.IORef
@@ -17,24 +18,46 @@ type GoBack = (Move,Move)
 -- | Si @(f,g) :: GoBack@, entonces @f . g = id = g . f@.
 type MGoBack = (Focus -> Maybe Focus,Focus -> Maybe Focus)
 
+type MoveProof = ProofFocus -> ProofFocus
+
+type GoBackProof = (MoveProof,MoveProof)
+
+type MGoBackProof = (ProofFocus -> Maybe ProofFocus,ProofFocus -> Maybe ProofFocus)
+
 type StatusPlace = (Statusbar, ContextId)
 
 -- | El estado de nuestra interfaz.
-data GState = GState { expr :: Focus       -- ^ La expresión que estamos editando.
-                     , inpFocus  :: HBox   -- ^ El contenedor de la expresión.
-                     , symCtrl :: TreeView -- ^ La lista de símbolos para construir expresiones.
-                     , path :: GoBack      -- ^ Como ir de la expresión actual al top.
-                     , status :: StatusPlace -- ^ La barra de estado.
+data ExprFocus = ExprFocus { expr :: Focus       -- ^ La expresión que estamos editando.
+                           --, proofPath :: ProofPath   -- ^ Path a la expresión en la prueba.
+                           , path :: GoBack
+                           , inpFocus :: HBox      -- ^ El contenedor de la expresión enfocada
                      }
 
 -- | Una referencia polimórfica (ver Data.Reference).
-type GRef = IORef GState
+type ExprRef = IORef ExprFocus
+
+type ExprState = StateT ExprRef IO
+
+type IRExpr = ExprState ()
+
+
+data ProofState = ProofState { proof :: ProofFocus   -- ^ La prueba que estamos construyendo (POR AHORA SOLO ES UNA PRUEBA SIMPLE)
+                             , symCtrl :: TreeView   -- ^ La lista de símbolos para construir expresiones.
+                             , focusedExpr :: ExprFocus      -- ^ Expresion enfocada
+                             , modifExpr :: Proof -> Focus -> Proof  -- ^ Funcion para modificar la expresion enfocada DENTRO de la prueba. Esto sirve asi solo
+                                                                     --   para el caso prueba simple, donde esta funcion puede ser updateStart o updateEnd.
+                             , status :: StatusPlace  -- ^ La barra de estado.
+                             , axiomCtrl :: TreeView -- ^ La lista de axiomas para construir pruebas.
+                            }
+
+type ProofRef = IORef ProofState
 
 -- | El estado de nuestro programa encapsula una referencia junto con
 -- una computación en IO.
-type IState = StateT GRef IO
+type IState = StateT ProofRef IO
 
-type IRExpr = IState ()
+type IRProof = IState ()
+                            
 
 data WExpr w = WExpr { widget :: WidgetClass w => w
                      , wexpr :: PreExpr
@@ -47,3 +70,13 @@ instance Reference IORef IState where
     readRef = liftIO . readRef
     writeRef r = liftIO . writeRef r
     newRef = liftIO . newRef
+    
+data FormWidget = FormWidget { extBox :: HBox       -- ^ Widget más externo.
+                             , expLabel :: Label -- ^ Label con el texto "Expresión:"
+                             , formBox :: HBox   -- ^ Box donde se ingresa la formula
+                             , clearButton :: Button -- ^ Botón para borrar toda la expresión.
+                             , applyButton :: Button -- ^ Botón para aplicar la expresión.
+                             }
+                             
+    
+    

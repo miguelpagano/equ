@@ -483,6 +483,27 @@ getRel (Ind _ r _ _ _ _) = Just r
 getRel (Deduc _ _ _ _) = Just relImpl
 getRel (Focus _ r _ _ _) = Just r
 
+
+updateStart :: Proof -> Focus -> Proof
+updateStart Reflex f = Reflex
+updateStart (Hole c r f1 f2) f = Hole c r f f2
+updateStart (Simple c r f1 f2 b) f = Simple c r f f2 b
+updateStart (Trans c r f1 f2 fm p p') f = Trans c r f fm f2 p p'
+updateStart (Cases c r f1 f2 fc list) f = Cases c r f f2 fc list
+updateStart (Ind c r f1 f2 l1 l2) f = Ind c r f f2 l1 l2
+updateStart (Deduc c f1 f2 p) f = Deduc c f f2 p
+updateStart (Focus c r f1 f2 p) f = Focus c r f f2 p
+
+updateEnd :: Proof -> Focus -> Proof
+updateEnd Reflex f = Reflex
+updateEnd (Hole c r f1 f2) f = Hole c r f1 f
+updateEnd (Simple c r f1 f2 b) f = Simple c r f1 f b
+updateEnd (Trans c r f1 f2 fm p p') f = Trans c r f1 f fm p p'
+updateEnd (Cases c r f1 f2 fc list) f = Cases c r f1 f fc list
+updateEnd (Ind c r f1 f2 l1 l2) f = Ind c r f1 f l1 l2
+updateEnd (Deduc c f1 f2 p) f = Deduc c f1 f p
+updateEnd (Focus c r f1 f2 p) f = Focus c r f1 f p
+
 {- $samples
 
 [Axiomas]

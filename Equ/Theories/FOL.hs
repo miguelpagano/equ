@@ -8,6 +8,7 @@ module Equ.Theories.FOL
     , theoryConstantsList
     , theoryOperatorsList
     , theoryQuantifiersList
+    --, theoryAxiomList
     -- * Versión tipada de operadores.
     , true, false, equal, equiv, discrep
     , neg, and, or, impl, conseq, forAll, exist
@@ -61,6 +62,7 @@ import Equ.Expr
 import Equ.PreExpr.Internal
 import Equ.Rule
 import Equ.Theories.AbsName
+-- import Equ.Proof
 
 
 -- CONSTANTES
@@ -193,6 +195,9 @@ theoryOperatorsList = [folEqual,folEquiv,folDiscrep,folAnd,folOr,folImpl,folCons
 theoryQuantifiersList :: [Quantifier]
 theoryQuantifiersList = [folForall,folExist]
 
+-- theoryAxiomList :: [Axiom]
+-- theoryAxiomList = [conmEquivAxiom,neuterEquivAxiom,equivNegAxiom]
+
 -- A continuacion definimos constructores de expresiones, para su facil manejo
 
 -- | Constructor de Constantes logicas
@@ -312,7 +317,15 @@ conmEquiv_Rule3 = Rule { lhs = equiv (equiv varP varQ) varQ
                        , name = ""
                        , desc = ""
                        }
-                       
+
+-- Axioma Conmutatividad de la equivalencia:
+-- conmEquivAxiom :: Axiom
+-- conmEquivAxiom = Axiom { axName = "Conmutatividad de la Equivalencia"
+--                        , axExpr = equiv (equiv varP varQ) (equiv varQ varP)
+--                        , axRel = relEquiv
+--                        , axRules = [conmEquiv_Rule1,conmEquiv_Rule2,conmEquiv_Rule3]
+--                        }
+
 -- NOTA: No se si hace falta poner dos reglas mas, que serian:
 -- (p ≡ (q ≡ q)) ≡ p
 -- p ≡ ((q ≡ q) ≡ p)
@@ -347,6 +360,14 @@ neuterEquiv_Rule2 = Rule { lhs = varP
                          , desc = ""
                          }
 
+-- Axioma Neutro de la equivalencia
+-- neuterEquivAxiom :: Axiom
+-- neuterEquivAxiom = Axiom { axName = "Neutro de la equivalencia"
+--                        , axExpr = equiv (varP true) varP
+--                        , axRel = relEquiv
+--                        , axRules = [neuterEquiv_Rule1,neuterEquiv_Rule2]
+--                        }
+
 
 -- =========
 -- NEGACION
@@ -380,7 +401,14 @@ equivNeg_Rule2 = Rule { lhs = equiv (neg $ equiv varP varQ) (neg varP)
                       , name = ""
                       , desc = ""
                       }
-
+                      
+-- Axioma Negación y Equivalencia
+-- equivNegAxiom :: Axiom
+-- equivNegAxiom = Axiom { axName = "Negación y Equivalencia"
+--                        , axExpr = equiv (neg $ equiv varP varQ) (equiv (neg varP) varQ)
+--                        , axRel = relEquiv
+--                        , axRules = [equivNeg_Rule1,equivNeg_Rule2]
+--                        }
 
 {- | Definicion de false:
 @

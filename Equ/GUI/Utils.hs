@@ -24,14 +24,6 @@ import Control.Monad(liftM)
 import Control.Monad.State(get,put,evalStateT)
 import Control.Monad.Trans(liftIO)
 
-{- Las dos funciones siguientes podrían ir a Equ.PreExpr... -}
--- | Un hueco sin información.
-holeExpr :: PreExpr
-holeExpr = preExprHole ""
-
-emptyExpr :: Focus
-emptyExpr = toFocus holeExpr
-
 -- | Composición bastante usada; podría ir a Equ.PreExpr.Internal.
 repr :: Syntactic t => t -> String
 repr = unpack . tRepr
@@ -55,21 +47,21 @@ go g e = maybe (error $ show e) id $ g e
 
 {- Funciones que tienen que ver con el estado -} 
 -- | Devuelve el estado.
-askRef :: IState GState
+askRef :: IState ProofState
 askRef = get >>= readRef
 
 -- | Devuelve el estado y la referencia.
-askRef' :: IState (GState, GRef)
+askRef' :: IState (ProofState, ProofRef)
 askRef' = get >>= \r -> readRef r >>= \s -> return (s,r)
 
 
 -- | Consulta el estado y lo aplica a una computación con efectos.
-withRefValue :: (GState -> IO a) -> IState a
+withRefValue :: (ProofState -> IO a) -> IState a
 withRefValue f = get >>= readRef >>= liftIO . f
 
 -- | Consulta el estado, lo modifica de acuerdo al argumento y el
 -- resultado de esta función pasa a ser el nuevo estado.
-update :: (GState -> GState) -> IRExpr
+update :: (ProofState -> ProofState) -> IRProof
 update f = get >>= \r -> readRef r >>= 
                         writeRef r . f >>
                         put r
@@ -77,20 +69,20 @@ update f = get >>= \r -> readRef r >>=
 
 -- | Realiza una acción en un estado modificado y luego vuelve al estado
 -- anterior; devuelve el resultado de la acción.
-local :: (GState -> IO a) -> IState a
+local :: (ProofState -> IO a) -> IState a
 local f = askRef >>= \s -> liftIO (f s) >>= \a -> update (const s) >> return a
 
 
 -- | Realiza una acción en un estado modificado y luego vuelve al estado
 -- anterior; devuelve el resultado de la acción.
-local' :: (GState -> IState a) -> IState a
+local' :: (ProofState -> IState a) -> IState a
 local' f = askRef >>= \oldState -> f oldState >>= \a -> 
            update (const oldState) >> return a
 
 -- | Versión especializada de la anterior donde lo que se modifica es
 -- el path.
 localPath :: MGoBack -> IState a -> IState a
-localPath p act = local' $ \st -> (updatePath . (p .^) . path) st >> act
+localPath p act = local' $ \st -> (updatePath . (p .^) . (path . focusedExpr)) st >> act
 
 
 -- | Actualiza el mensaje que se muestra en el área de estado.
@@ -104,27 +96,32 @@ putMsg st m = uncurry statusbarPush st m >> return ()
 -- | Actualiza la expresión que se muestra en el área de estado;
 -- esta es una función que puede dejar de tener sentido más adelante.
 showExpr :: IState ()
-showExpr = withRefValue $ uncurry putMsg . (status &&& show . toExpr . expr)
+showExpr = withRefValue $ uncurry putMsg . (status &&& show . toExpr . (expr . focusedExpr) )
 
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
-updateExpr :: PreExpr -> IState ()
-updateExpr e' = update (\gst@(GState e _ _ (f,g) _) -> 
-                        gst {expr = g . first (const e') . f $ e }) >>
-                showExpr
+updateExpr e' = update updateExpr' >>
+                showExpr                
+                
 
+updateExpr' :: ProofState -> ProofState
+updateExpr' pst@(ProofState pr _ fexpr@(ExprFocus e (f,g) _) up _ _) = 
+    pst {proof = modif pr new_expr,
+         focusedExpr = fexpr {expr = new_expr
+         }
+    where new_expr = g . first (const e') . f $ e
+    
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
 updateFocus :: Focus -> GoBack -> IState ()
-updateFocus e' f = update (\gst -> gst {expr = e' , path = f}) >>
+updateFocus e' f = update (\pst -> pst {focusedExpr = (focusedExpr pst) {expr = e' , path = f}}) >>
                    showExpr
-
 
 -- | Actualiza la caja donde tenemos foco de entrada.
 updateFrmCtrl :: HBox -> IState ()
-updateFrmCtrl l = update $ \gst -> gst { inpFocus = l }
+updateFrmCtrl l = update $ \pst -> pst { focusedExpr = (focusedExpr pst) {inpFocus = l }}
 
 -- | Actualiza la lista de símbolos para construir expresiones.
 updateSymCtrl :: TreeView -> IState ()
@@ -132,22 +129,25 @@ updateSymCtrl t = update $ \gst -> gst { symCtrl = t }
 
 -- | Actualiza la función de ida-vuelta.
 updatePath :: GoBack -> IState ()
-updatePath p = update $ \gst -> gst { path = p }
+updatePath p = update $ \pst -> pst { focusedExpr = (focusedExpr pst) {path = p }}
 
 {- Las cinco funciones siguientes devuelven cada uno de los
 componentes del estado. -}
 
 getExpr :: IState Focus
-getExpr = askRef >>= return . expr
+getExpr = askRef >>= return . expr . focusedExpr
 
 getFrmCtrl :: IState HBox
-getFrmCtrl = askRef >>= return . inpFocus
+getFrmCtrl = askRef >>= return . inpFocus . focusedExpr
 
 getSymCtrl :: IState TreeView
 getSymCtrl = askRef >>= return . symCtrl
 
+getAxiomCtrl :: IState TreeView
+getAxiomCtrl = askRef >>= return . axiomCtrl
+
 getPath :: IState GoBack
-getPath  = askRef >>= return . path
+getPath  = askRef >>= return . path . focusedExpr
 
 getStatus :: IState (Statusbar, ContextId)
 getStatus  = askRef >>= return . status
@@ -156,13 +156,18 @@ getStatus  = askRef >>= return . status
    gracia está en getParentNamed. -}
 
 -- | Devuelve el paned que contiene la lista de símbolos.
-getSymPane :: IState Paned
-getSymPane = getSymCtrl >>= getParentNamed "symPane". toWidget >>=
-              return . castToPaned
+getSymFrame :: IState Frame
+getSymFrame = getSymCtrl >>= getParentNamed "symFrame". toWidget >>=
+              return . castToFrame
+              
+getAxiomFrame :: IState Frame
+getAxiomFrame = getAxiomCtrl >>= getParentNamed "axiomFrame" . toWidget >>=
+                return . castToFrame
 
 -- | Devuelve el paned que contiene al widget de fórmulas.
 getFormPane :: IState Paned
-getFormPane = getFrmCtrl >>= getParentNamed "formPane" . toWidget >>=
+getFormPane = getFrmCtrl >>=
+              getParentNamed "formPane" . toWidget >>=
               return . castToPaned
 
 -- | Devuelve el paned que contiene al widget de errores.
@@ -184,6 +189,7 @@ getFormBox = getFrmCtrl >>= getParentNamed "formulaBox" . toWidget >>=
 getParentNamed :: String -> Widget -> IState Widget
 getParentNamed name = go
     where go w = liftIO (G.get w widgetName) >>= \name' ->
+                 liftIO (putStrLn (maybe "Sin nombre" (\n -> if null n then "Nombre vacio" else n) name')) >>
                  if maybe False (== name) name'
                  then return w
                  else liftIO (widgetGetParent w) >>= go . fromJust
@@ -230,5 +236,5 @@ updateQVar v = getExpr >>= \e ->
 withState :: (IO a -> IO b) -> IState a -> IState b
 withState f m = get >>= liftIO . f . evalStateT m
 
-eventWithState :: IState a -> GRef -> EventM t a
+eventWithState :: IState a -> ProofRef -> EventM t a
 eventWithState m = liftIO . evalStateT m

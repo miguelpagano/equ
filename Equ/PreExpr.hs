@@ -62,3 +62,11 @@ placeHolderVar = var "" TyUnknown
 isPlaceHolderVar :: Variable -> Bool
 isPlaceHolderVar (Variable "" TyUnknown) = True
 isPlaceHolderVar _ = False
+
+-- | Un hueco sin información.
+holeExpr :: PreExpr
+holeExpr = preExprHole ""
+
+emptyExpr :: Focus
+emptyExpr = toFocus holeExpr
+

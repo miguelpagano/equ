@@ -37,7 +37,7 @@ clearFocus b = getExpr >>= \e ->
 -- | Limpia el contenido de una caja y pone el widget correspondiente
 -- para ingresar una nueva expresión en esa caja. En el estado sólo
 -- se actualiza la expresión del foco.
-clearExpr :: HBox -> IRExpr
+clearExpr :: HBox -> IRProof
 clearExpr b = removeAllChildren b >>
               setupForm b >> 
               liftIO (widgetShowAll b)
@@ -55,7 +55,7 @@ exprInEntry entry = liftIO . entrySetText entry . repr
 --      faltaría definirle forma y color.
 -- | Dada una caja de texto, parsea el contenido como una expresión
 -- y construye un widget con toda la expresión.
-setExprFocus :: Entry -> HBox -> IRExpr
+setExprFocus :: Entry -> HBox -> IRProof
 setExprFocus entry box = liftIO (entryGetText entry) >>= \s ->
                          case parseFromString s of
                             Right expr -> (updateExpr expr >>
@@ -178,7 +178,7 @@ frameExp e = (liftIO . putStrLn . show) e >> newBox >>= \b' -> return $ WExpr b'
 un constructor de la sintáxis. -}
 
 -- | Operadores.
-writeOperator :: Operator -> HBox -> IRExpr
+writeOperator :: Operator -> HBox -> IRProof
 writeOperator o box = expOp o >>= \(WExpr b e) ->
                       updateExpr e >>
                       addToBox box b >>
@@ -190,7 +190,7 @@ writeOperator o box = expOp o >>= \(WExpr b e) ->
                       NInfix -> frameExp $ BinOp o holeExpr holeExpr
 
 -- | Cuantificadores.
-writeQuantifier :: Quantifier -> HBox -> IRExpr
+writeQuantifier :: Quantifier -> HBox -> IRProof
 writeQuantifier q box = frameExp (Quant q 
                                   placeHolderVar
                                   (preExprHole "")
@@ -200,7 +200,7 @@ writeQuantifier q box = frameExp (Quant q
                         liftIO (widgetShowAll box)
 
 -- | Constantes.
-writeConstant :: Constant -> HBox -> IRExpr
+writeConstant :: Constant -> HBox -> IRProof
 writeConstant c box = updateExpr (Con c) >>
                       (labelStr . unpack . tRepr) c >>= \label ->
                       setupFormEv box label >>
@@ -209,7 +209,7 @@ writeConstant c box = updateExpr (Con c) >>
 -- | Pone una caja de texto para ingresar una expresión; cuando se
 -- activa (presionando Enter) parsea el texto de la caja como una
 -- expresión y construye el widget correspondiente.
-writeExpr :: HBox -> IRExpr
+writeExpr :: HBox -> IRProof
 writeExpr box = newEntry >>= \entry -> 
                 withState (onEntryActivate entry) (setExprFocus entry box) >>
                 removeAllChildren box >>
@@ -219,7 +219,7 @@ writeExpr box = newEntry >>= \entry ->
     
 
 class ExpWriter s where
-    writeExp :: s -> HBox -> IRExpr
+    writeExp :: s -> HBox -> IRProof
 
 instance ExpWriter Quantifier where
     writeExp s cont = removeAllChildren cont >> 

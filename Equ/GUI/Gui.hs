@@ -7,7 +7,11 @@ import Equ.GUI.Widget
 import Equ.GUI.Settings
 import Equ.GUI.Expr
 import Equ.GUI.SymbolList
+import Equ.GUI.Proof
+import Equ.Proof
+import Equ.Rule (relEq)
 
+import qualified Graphics.UI.Gtk as G
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
 import Graphics.UI.Gtk.Gdk.Events 
 import Graphics.UI.Gtk.Glade
@@ -24,53 +28,70 @@ main = do
     initGUI
 
     -- TODO: qué pasa si no existe el archivo.
-    Just xml <- xmlNew "Equ/GUI/equ2.glade"
+    Just xml <- xmlNew "Equ/GUI/equ.glade"
 
     -- get widgets
     window        <- xmlGetWidget xml castToWindow "mainWindow"
     quitButton    <- getMenuButton xml "QuitButton"
-    formWidget    <- xmlGetWidget xml castToHBox "formWidget"
-    formBox       <- xmlGetWidget xml castToHBox "formulaBox"
+    --formWidget    <- xmlGetWidget xml castToHBox "formWidget"
+    --formWidget    <- createFormWidget
+    formWidgetBox       <- xmlGetWidget xml castToHBox "formBox"
     newExprButton <- xmlGetWidget xml castToToolButton "newExprButton"
-    clearButton   <- xmlGetWidget xml castToButton "clearButton"
-    applyButton   <- xmlGetWidget xml castToButton "applyButton"
+    --clearButton   <- xmlGetWidget xml castToButton "clearButton"
+    --applyButton   <- xmlGetWidget xml castToButton "applyButton"
     statusBar     <- xmlGetWidget xml castToStatusbar "statusBar"
     ctxExpr       <- statusbarGetContextId statusBar "Expr"
     symbolList    <- xmlGetWidget xml castToTreeView "symbolList"
-    typedFormBox  <- xmlGetWidget xml castToVBox "typedFormBox"
+    axiomList     <- xmlGetWidget xml castToTreeView "axiomList"
+    --typedFormBox  <- xmlGetWidget xml castToVBox "typedFormBox"
 
-    symPane   <- xmlGetWidget xml castToPaned "symPane"
+    --symPane   <- xmlGetWidget xml castToPaned "symPane"
+    symFrame <- xmlGetWidget xml castToFrame "symFrame"
+    axiomFrame <- xmlGetWidget xml castToFrame "axiomFrame"
     formPane  <- xmlGetWidget xml castToPaned "formPane"
     errPane <- xmlGetWidget xml castToPaned "errPane"
+    
+    centralBox <- xmlGetWidget xml castToVBox "centralBox"
+    itemNewProof <- xmlGetWidget xml castToImageMenuItem "itemNewProof"
 
-    exprRef <- newRef $ GState emptyExpr
-                               formBox
-                               symbolList
-                               (id,id)
-                               (statusBar,ctxExpr)
+    formWidget <- createFormWidget formWidgetBox
+
+--     exprRef <- newRef $ GState emptyExpr
+--                                (formBox formWidget)
+--                                symbolList
+--                                (id,id)
+--                                (statusBar,ctxExpr)
+--                                axiomList
+--                                (toProofFocus (newProof relEq emptyExpr emptyExpr))
 
     onActivateLeaf quitButton $ quitAction window
     onDestroy window mainQuit
-
-    flip evalStateT exprRef $ 
-        hideFormPane formBox errPane >>
-        hideFormPane formBox formPane >>
-        hideSymPane >>
-        setupForm formBox >>
-        setupSymbolList symbolList >>
-        liftIO (clearButton `on` buttonPressEvent $ tryEvent $ 
-                            eventWithState (hideFormPane formWidget errPane >>
-                                            clearFocus formBox >> return ()) 
-                            exprRef) >>
-        liftIO (applyButton `on` buttonPressEvent $ tryEvent $ 
-                            eventWithState (hideFormPane formWidget errPane >>
-                                            hideFormPane formWidget formPane >> 
-                                            hideSymPane >>
-                                            updateTypedList typedFormBox) 
-                            exprRef) >>
-        withState (onToolButtonClicked newExprButton) 
-                    (newExpr formBox >> return ())
-
+    sListStore <- setupSymbolList symbolList
+    --onActivateLeaf itemNewProof (createNewProof centralBox symbolList sListStore axiomList (statusBar,ctxExpr))
 
     widgetShowAll window
+
+--     flip evalStateT exprRef $ 
+--         hideFormPane (formBox formWidget) errPane >>
+--         hideFormPane (formBox formWidget) formPane >>
+--         hideSymFrame >> hideAxiomFrame >>
+--         setupForm (formBox formWidget) >>
+--         setupSymbolList symbolList >>
+--         liftIO ((clearButton formWidget) `on` buttonPressEvent $ tryEvent $ 
+--                             eventWithState (hideFormPane (extBox formWidget) errPane >>
+--                                             clearFocus (formBox formWidget) >> return ()) 
+--                             exprRef) >>
+-- --         liftIO ((applyButton formWidget) `on` buttonPressEvent $ tryEvent $ 
+-- --                             eventWithState (hideFormPane (extBox formWidget) errPane >>
+-- --                                             hideFormPane (extBox formWidget) formPane >> 
+-- --                                             hideSymPane >>
+-- --                                             updateTypedList typedFormBox) 
+-- --                             exprRef) >>
+--         withState (onToolButtonClicked newExprButton) 
+--                     (newExpr (formBox formWidget) >> return ())
+
+    -- widgetShowAll formPane
+    
+    --widgetShowAll window
+    --flip evalStateT exprRef (newExpr (formBox formWidget) >> return ())
     mainGUI
