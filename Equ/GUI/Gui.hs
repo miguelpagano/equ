@@ -67,8 +67,8 @@ main = do
     onActivateLeaf quitButton $ quitAction window
     onDestroy window mainQuit
     sListStore <- setupSymbolList symbolList
-    --onActivateLeaf itemNewProof (createNewProof centralBox symbolList sListStore axiomList (statusBar,ctxExpr))
-
+    onActivateLeaf itemNewProof (createNewProof centralBox symbolList sListStore axiomList (statusBar,ctxExpr))
+    
     widgetShowAll window
 
 --     flip evalStateT exprRef $ 

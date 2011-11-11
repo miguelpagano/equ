@@ -72,7 +72,7 @@ eventsFormWidget :: VBox -> ProofRef -> FormWidget -> (Proof -> Focus -> Proof) 
 eventsFormWidget ext_box proofRef w f sListStore =
     
     flip evalStateT proofRef $ 
-        setupFocusEvent >>
+        liftIO setupFocusEvent >>
         setupForm (formBox w) >>
         getSymCtrl >>=
         (flip eventsSymbolList sListStore) >>
@@ -80,16 +80,15 @@ eventsFormWidget ext_box proofRef w f sListStore =
                             eventWithState (clearFocus (formBox w) >> return ()) 
                             proofRef) >> return ()
     
-    where setupFocusEvent = eventBoxNew >>= \eb ->
-                            boxPackStart ext_box eb PackGrow 0 >>
-                            set eb [ containerChild := (formBox w) ] >>
-                            eb `on` focusInEvent (tryEvent changeSelectedExpr)
-                            
-          changeSelectedExpr = do
-              eventFocusIn
-              eventWithState (updateModifExpr f) proofRef
-              return ()
-    
+    where setupFocusEvent = do
+                eb <- eventBoxNew
+                boxPackStart ext_box eb PackGrow 0
+                set eb [ containerChild := (formBox w) ]
+                eb `on` focusInEvent $ do
+                    eventFocusIn
+                    eventWithState (updateModifExpr f) proofRef
+                    return False
+                    
 relationListStore :: IO (ListStore Relation)
 relationListStore = listStoreNew relationList 
                       
