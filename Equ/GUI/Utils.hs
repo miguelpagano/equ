@@ -99,11 +99,15 @@ putMsg st m = uncurry statusbarPush st m >> return ()
 showExpr :: IState ()
 showExpr = withRefValue $ uncurry putMsg . (status &&& show . toExpr . (expr . focusedExpr) )
 
+showProof :: IState ()
+showProof = withRefValue $ uncurry putMsg . (status &&& show . proof )
+
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
 updateExpr e' = update (updateExpr' e') >>
-                showExpr                
+                --showExpr                
+                showProof
                 
 
 updateExpr' :: PreExpr -> ProofState -> ProofState
@@ -118,7 +122,9 @@ del estado. -}
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
 updateFocus :: Focus -> GoBack -> IState ()
 updateFocus e' f = update (\pst -> pst {focusedExpr = (focusedExpr pst) {expr = e' , path = f}}) >>
-                   showExpr
+                   --showExpr
+                   liftIO (putStrLn "updateFocus") >>
+                   showProof
 
 -- | Actualiza la caja donde tenemos foco de entrada.
 updateFrmCtrl :: HBox -> IState ()
