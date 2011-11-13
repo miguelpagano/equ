@@ -22,11 +22,11 @@ testEqTypes e e' = case checkPreExpr e of
                           Left _ -> err e
                           Right t -> case checkPreExpr e' of
                                            Left _ -> err e'
-                                           Right t' -> if t /= t' 
-                                                      then err' t t'
-                                                      else return ()
+                                           Right t' -> case unify t t' emptySubst of
+                                                        Left _ -> err' t t'
+                                                        Right _ -> return ()
     where err er = assertFailure $ "No se pudo tipar la expresión: " ++ show er
-          err' t t' = assertFailure $ "No coinciden los tipos de lhs con rhs: (" 
+          err' t t' = assertFailure $ "Los tipos de lhs con rhs no son unificables: (" 
                                     ++ show t ++"," ++ show t' ++")"
 
 -- TODO: Verificar que los tipos son iguales.

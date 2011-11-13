@@ -90,5 +90,5 @@ instance Arbitrary PreExpr where
 -- PRE = { v' variable fresca para pe }
 substitution :: Eq a => a -> a -> PreExpr' a -> PreExpr' a
 substitution v v' e = substVar v v' <$> e
-    where substVar w w' w'' | w==w'' = w'
+    where substVar w w' w'' | w == w'' = w'
                             | otherwise = w''

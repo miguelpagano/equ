@@ -2,7 +2,7 @@
 -- relativamente poco de una PreExpresi&#243;n.
 module Equ.Expr where
 
-import Equ.PreExpr.Internal
+import Equ.PreExpr(PreExpr)
 import Data.Serialize(Serialize, get, put)
 
 import Control.Applicative ((<$>))

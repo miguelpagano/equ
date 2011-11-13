@@ -3,8 +3,6 @@
 module Equ.Matching
     ( module Equ.Matching.Error
     , match
-    , applySubst
-    , ExprSubst
     , MatchMErr
     )
     where
@@ -19,8 +17,6 @@ import Control.Monad.RWS (runRWS)
 import Control.Monad.Trans.Either (runEitherT, hoistEither)
 import Control.Monad.RWS.Class(ask)
 
--- | Mapa de substituciones de variable - preExpresiones.
-type ExprSubst = M.Map Variable PreExpr
 
 -- | Estructura general para los errores informativos con contexto.
 type MatchMErr = (Focus,MatchError)
@@ -32,17 +28,6 @@ type MatchState = MonadTraversal MatchMErr ExprSubst
 matcherr :: MatchError -> MatchState a
 matcherr err = ask >>= \foc -> hoistEither $ Left (foc, err)
 
--- | Aplica una substituci&#243;n a una expresi&#243;n dada.
-applySubst :: PreExpr -> ExprSubst -> PreExpr
-applySubst (Var v) s = M.findWithDefault (Var v) v s
-applySubst (UnOp op e) s = UnOp op $ applySubst e s
-applySubst (BinOp op e f) s = BinOp op (applySubst e s) (applySubst f s)
-applySubst (App e f) s = App (applySubst e s) (applySubst f s)
-applySubst (Quant q v e1 e2) s = Quant q v (applySubst e1 s) (applySubst e2 s)
-applySubst (Paren e) s = Paren $ applySubst e s
-applySubst (PrExHole h) _ = PrExHole h
-applySubst (Con c) _ = Con c
-applySubst (Fun f) _ = Fun f
 
 
 {- WhenM y whenML.
@@ -123,13 +108,15 @@ VERSI&#211;N 2; Cada vez que voy a intentar matchear las expresiones internas de
 -}    
 
 match' bvs (Quant q v e1 e2) (Quant p w f1 f2) s =
-    whenM (q==p) (InequQuantifier q p) $ -- En caso de error devuelvo InequQuant
-        if v==w then localGo goDown (match' (v:bvs) e1 f1 s) >>= localGo goDownR . match' (v:bvs) e2 f2
-                else localGo goDown (match' (fv:bvs) (subst v fv e1) (subst w fv f1) s) >>=
-                     localGo goDownR . match' (fv:bvs) (subst v fv e2) (subst w fv f2)
-    where fv= freshVar $ S.unions [freeVars $ Var v,freeVars $ Var w,
-                                   freeVars e1, freeVars e2,freeVars f1, 
-                                   freeVars f2]
+    whenM (q == p) (InequQuantifier q p) $ -- En caso de error devuelvo InequQuant
+        if v == w 
+        then localGo goDown (match' (v:bvs) e1 f1 s) >>= 
+             localGo goDownR . match' (v:bvs) e2 f2
+        else localGo goDown (match' (fv:bvs) (subst v fv e1) (subst w fv f1) s) >>=
+             localGo goDownR . match' (fv:bvs) (subst v fv e2) (subst w fv f2)
+    where fv= freshVar $ S.unions [ S.singleton v, freeVars e1, freeVars e2
+                                  , S.singleton w, freeVars f1,freeVars f2
+                                  ]
           subst = substitution
 
 -- Caso particular de intentar matchear una variable con una funci&#243;n.

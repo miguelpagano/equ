@@ -19,7 +19,7 @@ import Data.Text (Text)
 import Equ.Syntax
 import Equ.Types
 import Equ.Expr
-import Equ.PreExpr.Internal
+import Equ.PreExpr
 -- TODO: Agregar reglas para este módulo.
 -- import Equ.Rule 
 import Equ.Theories.AbsName

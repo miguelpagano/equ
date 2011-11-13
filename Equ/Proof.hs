@@ -69,6 +69,7 @@ proofFromTruth f f' r t = case partitionEithers $
                           -- Devolvemos el primer error, esto tal vez se
                           -- podr&#237;a mejorar un poco devolviendo la lista de
                           -- errores.
+                          ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
                           ([er], []) -> Left er
                           (_, p:ps) -> Right p
 
@@ -78,14 +79,6 @@ proofFromTruthWithCtx :: Truth t => Ctx -> Focus -> Focus -> Relation -> t
 proofFromTruthWithCtx c f f' r b = either Left
                                           (setCtx c)
                                           (proofFromTruth f f' r b)
-
--- | Como en proofFromTruth pero a partir de un axioma.
-proofFromAxiom :: Focus -> Focus -> Relation -> Axiom -> PM Proof
-proofFromAxiom = proofFromTruth
-
--- | Como en proofFromTruth pero a partir de un teorema.
-proofFromTheorem :: Focus -> Focus -> Relation -> Theorem -> PM Proof
-proofFromTheorem  = proofFromTruth
 
 {- | Comenzamos una prueba dados dos focus y una relaci&#243;n entre ellas, de 
         la cual no tenemos una prueba.

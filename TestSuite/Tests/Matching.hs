@@ -1,11 +1,10 @@
 -- | Test correspondientes a las reglas de re-escritura.
-{-# Language OverloadedStrings #-}
 module TestSuite.Tests.Matching where
 
 import qualified Data.Map as M
 import qualified Data.Sequence as S
 
-import TestSuite.Tests.Parser
+import TestSuite.Tests.Samples
 
 import Equ.Matching
 import Equ.Parser
@@ -17,12 +16,13 @@ import Test.Framework.Providers.HUnit (testCase)
 
 import Control.Monad (unless)
 
+
 -- | True v False -m-> p v p : No existe match.
 testCase0 :: Assertion
 testCase0 = testMatch lhs rhs res
     where lhs = pVp
           rhs = trueVfalse
-          Just frhs =  goDown (toFocus rhs) >>= goRight
+          Just frhs = goDown (toFocus rhs) >>= goRight
           merror = (frhs, DoubleMatch p true false)
           res = Left (merror, S.fromList [])
 
@@ -62,12 +62,12 @@ testCase4 = testMatch lhs rhs res
 testCase5 :: Assertion
 testCase5 = testMatch (parser "〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉")
                       (parser "〈∃ xx : (G@(# []) + xx) ▹ [] ⇒ True : w ⇒ q〉") 
-                      (Right s)
-    where s = M.fromList [ (y, parser "(# [])")
-                         , (p, parser "True")
-                         , (w, parser "q")
-                         , (q, parser "w")
-                         ]
+                      (Right subst)
+    where subst = M.fromList [ (y, parser "(# [])")
+                             , (p, parser "True")
+                             , (w, parser "q")
+                             , (q, parser "w")
+                             ]
 
 
 -- Uno mas complicado con cuantificadores. Dejamos libre en la segunda expresion
@@ -75,27 +75,27 @@ testCase5 = testMatch (parser "〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉")
 testCase6 :: Assertion
 testCase6 = testMatch (parser "〈∃ xs : 〈∀ y : y = xs.0 : F@y ∧ p〉 : xs↓1 = ys↓1〉")
                       (parser "〈∃ ys : 〈∀ z : z = ys.0 : F@z ∧ (True ⇒ p ∨ q)〉 : ys↓1 = (xs++zs)↓1〉")
-                      (Right s)
-    where s = M.fromList [ (p,parser "(True ⇒ p ∨ q)")
-                         , (ys,parser "(xs++zs)")
-                         ]
+                      (Right subst)
+    where subst = M.fromList [ (p,parser "(True ⇒ p ∨ q)")
+                             , (ys,parser "(xs++zs)")
+                             ]
 
 testCaseParens :: Assertion
 testCaseParens = testMatch (parser "(p ⇒ q)") (parser "((True ∨ False) ∧ r) ⇒ (p ≡ q)")
-                 (Right s)
-    where s = M.fromList [ (p,parser "((True ∨ False) ∧ r)")
-                         , (q,parser "(p ≡ q)")
-                         ]
+                 (Right subst)
+    where subst = M.fromList [ (p,parser "((True ∨ False) ∧ r)")
+                             , (q,parser "(p ≡ q)")
+                             ]
 
 -- No deberiamos poder hacer matching de funciones con nombres distintos.
 testCase7 :: Assertion
 testCase7 = testMatch lhs rhs res
     where lhs = parser "R@y + x"
           rhs = parser "S@y + z"
-          r = parser "R"
-          s = parser "S"
+          funR = parser "R"
+          funS = parser "S"
           Just frhs = goDown (toFocus rhs) >>= goDown
-          merror = (frhs, InequPreExpr r s)
+          merror = (frhs, InequPreExpr funR funS)
           res = Left (merror, S.fromList [])
 
 
@@ -130,7 +130,7 @@ testMatch pe pe' mpe = let m = match pe pe'
 -- | Grupo de test para matching.
 testGroupMatch :: Test
 testGroupMatch = testGroup "Matching" 
-                 [ testCase "True v False -m-> p v p : No existe match." 
+                 [ testCase (dontMatch "True v False -m-> p v p")  
                     testCase0
                  , testCase "True v False -m-> p v q : [p->True, q->False]"
                     testCase1
@@ -138,13 +138,14 @@ testGroupMatch = testGroup "Matching"
                     testCase2
                  , testCase "#([0] ++ [1]) + 1 -m-> #([x,y]) + z : [x->0, y->1, z->1]"
                     testCase3
-                 , testCase ("〈∀ z : 〈∀ z : z = z : F@z@z〉 : G@z〉 -m->" ++ 
-                             "〈∀ x : 〈∀ y : y = x : F@y@x〉 : G@x〉  :" ++ 
-                             "No exite match.")
-                    testCase4
+                 , testCase (dontMatch $ 
+                             "〈∀ z : 〈∀ z : z = z : F@z@z〉 : G@z〉 -m->" ++ 
+                             "〈∀ x : 〈∀ y : y = x : F@y@x〉 : G@x〉"
+                            )
+                            testCase4
                  , testCase ("〈∃ xx : (G@(# []) + xx) ▹ [] ⇒ True : w ⇒ q〉 -m-> " ++
-                            "〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉 :" ++
-                            "[y->(# []), p->True , w->q, q->w]")
+                             "〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉 :" ++
+                             "[y->(# []), p->True , w->q, q->w]")
                     testCase5
                  , testCase ("〈∃ ys : 〈∀ z : z = ys.0 : F@y ∧ (True ⇒ p ∨ q)〉 : ys↓1 = (xs++zs)↓1〉 -m-> \n" ++
                             "〈∃ xs : 〈∀ y : y = xs.0 : F@y ∧ p〉 : xs↓1 = ys↓1〉 :"++
@@ -154,10 +155,8 @@ testGroupMatch = testGroup "Matching"
                             "(p ⇒ q) :" ++
                             "[p -> ((True ∨ False) ∧ r), q -> (p ≡ q)]")
                     testCaseParens
-                 , testCase "S@y + x -m-> R@y + x : No existe match."
-                    testCase7
-                 , testCase "∀ =/= ∃ : No existe match."
-                    testCase8
-                 , testCase "Constantes distintas; [] vs 0 : No existe match."
-                    testCase9
+                 , testCase (dontMatch "S@y + x -m-> R@y + x") testCase7
+                 , testCase (dontMatch "∀ =/= ∃")  testCase8
+                 , testCase (dontMatch "[] =/= 0") testCase9
                  ]
+    where dontMatch = ("No hay matching: " ++)

@@ -17,6 +17,7 @@ import Equ.PreExpr
 import Equ.Types
 import Equ.Theories.AbsName
 import Equ.TypeChecker.Error
+import Equ.TypeChecker.Unification
 
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -27,8 +28,6 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.RWS.Class (local, ask, tell, get, put)
 import Control.Monad.RWS (runRWS)
 
--- | Tipo de la sustituci&#243;n para unificar expresiones de tipo.
-type TySubst = M.Map TyVarName Type
 
 -- | El error est&#225; acompa&#241;ado de la expresi&#243;n enfocada donde ocurri&#243;.
 type TMErr = (Focus,TyErr)
@@ -97,15 +96,6 @@ removeVar c v = (c { vars = M.delete (tRepr v) (vars c) } , M.findWithDefault []
     where vn = tRepr v
           vs = vars c
 
--- | Aplicar una sustituci&#243;n (finita) a un variable de tipo.
-findVar :: TyVarName -> TySubst -> Type
-findVar v = M.findWithDefault (TyVar v) v
-
--- | Uso de una sustituci&#243;n para reemplazar todas las variables en un
--- tipo.
-rewrite :: TySubst -> Type -> Type
-rewrite s = (>>= (\v -> findVar v s))
-
 -- | Chequeo de diferentes elementos sint&#225;cticos simples como
 -- variables, constantes, s&#237;mbolos de funci&#243;n y operadores.
 checkSyn :: (Syntactic s,Ord k) => s -> (s -> k) -> (s -> Type) -> 
@@ -129,28 +119,6 @@ checkOp op = checkSyn op opName tType (ops, \ctx octx -> ctx { ops = octx})
 checkQuant :: Quantifier -> Ctx -> TyState (Ctx,Type)
 checkQuant q = checkSyn q quantName tType (quants, \ctx _ -> ctx)
 
-
--- | Algoritmo de unificaci&#243;n. Suponemos que no hay 'TyUnknown'.
-unify :: Type -> Type -> TySubst -> Either TyErr TySubst
-unify t@(TyAtom _) t'@(TyAtom _) s | t `leq` t' = return s
-                                   | otherwise = Left $ ErrUnification t t' (M.toList s)
-unify (t :-> t') (r :-> r') s = unify t r s >>= unify t' r'
-unify (TyList t) (TyList t') s = unify t t' s
-unify t@(TyVar v) t' s | t == t' = return s
-                       | v `occurs` t' = Left $ ErrUnification (TyVar v) t' (M.toList s)
-                       | v `M.member` s  = unify (M.findWithDefault TyUnknown v s) t' s
-                       | otherwise = return . M.insert v t' . M.map ((tyreplace v) t') $ s
-unify t (TyVar v) s = unify (TyVar v) t s
-unify t t' s = Left $ ErrUnification t t' (M.toList s)
-
--- | Usamos unify para comprobar si existe o no unificaci&#243;n. 
---   Suponemos que no hay 'TyUnknown'.
-unifyTest :: Type -> Type -> Bool
-unifyTest t t' = either (const False) (const True) $ unify t t' emptySubst
-
--- | Sustituci&#243;n vac&#237;a.
-emptySubst :: TySubst
-emptySubst = M.empty
 
 -- | Generaci&#243;n de variables de tipo frescas.
 freshVars :: Type -> [TyVarName]

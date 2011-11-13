@@ -8,14 +8,13 @@ module TestSuite.Tests.TypeChecker
 
 import Equ.Types
 import Equ.TypeChecker
-import Data.Poset
 
 -- | Si la unificación fue exitosa, entonces los tipos son iguales después
 -- de aplicar la sustitución.
 prop_unification :: (Type,Type) -> Bool
 prop_unification (t,t') = case unify t t' emptySubst of
                             Left _ -> True
-                            Right s -> rewrite s t `leq` rewrite s t'
+                            Right s -> rewrite s t == rewrite s t'
 
 -- | Si 'v `elem` freshVars t', entonces 'not (occurs v t)'.
 prop_freshVars :: Type -> Bool

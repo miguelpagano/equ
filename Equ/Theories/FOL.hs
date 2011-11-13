@@ -58,7 +58,7 @@ import Prelude hiding (and,or)
 import Equ.Syntax
 import Equ.Types
 import Equ.Expr
-import Equ.PreExpr.Internal
+import Equ.PreExpr
 import Equ.Rule
 import Equ.Theories.AbsName
 

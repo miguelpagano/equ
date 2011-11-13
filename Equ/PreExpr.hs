@@ -11,6 +11,7 @@ module Equ.PreExpr ( freeVars, freshVar
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
                    , module Equ.PreExpr.Monad
+                   , module Equ.PreExpr.Subst
                    ) 
     where
 
@@ -21,12 +22,10 @@ import Equ.Types
 import Equ.PreExpr.Internal
 import Equ.PreExpr.Zipper
 import Equ.PreExpr.Monad
+import Equ.PreExpr.Subst
 
 import Data.Text(pack)
 import Data.Serialize(encode, decode)
-
-import Equ.Parser
-import Equ.Theories.AbsName
 
 -- | Dado un focus de una preExpresion, nos dice si esta es un hueco.
 isPreExprHole :: Focus -> Bool
