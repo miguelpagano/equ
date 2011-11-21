@@ -5,6 +5,8 @@ import Equ.PreExpr
 
 import TestSuite.Tests.Samples
 
+import Equ.Theories.FOL hiding (true, false)
+import Equ.Theories.List
 
 import Test.HUnit (Assertion, assertFailure)
 import Test.Framework (testGroup, Test)
@@ -16,19 +18,24 @@ testsParser :: [Test]
 testsParser = map (\(str, expr) -> testCase (encloseQuotes str) (testParse str expr))
                 [ ("p", Var p)
                 , ("ys", Var ys)
-                , ("S@0", sApp0)
-                , ("S@y", sAppy)
-                , ("(x+S@0)", xPlussApp0)
-                , ("x + S@y + z", xPlusSyPlusZ)
-                , ("S@y + S@(x+S@0) + z", sAppyPlusSomePlusz)
+                , ("S%(0)", sApp0)
+                , ("S%(y)", sAppy)
+                , ("(x+S%(0))", xPlussApp0)
+                , ("x + S%(y) + z", xPlusSyPlusZ)
+                , ("S%(y) + S%((x+S%(0))) + z", sAppyPlusSomePlusz)
                 , ("[x]", listX)
                 , ("[y,w]", listYW)
                 , ("[x] ++ [y,w]", listXConcatListYW)
-                , ("#([x] ++ [y,w])", lengthList)              
-                -- TODO: Este es un caso en el que falla el parser. Para mas info del error
-                -- es interesante hacer goDown de la expresión esperada contra la expresión
-                -- parseada.
+                , ("(#([x] ++ [y,w]))", lengthListXYW)              
                 , ("(#([x] ++ [y,w])) + z", lengthListPlusz)
+                , ("[0]", listZero)
+                , ("[1,2]", listOneTwo)
+                , ("[0] ++ [1,2]", listZeroConcatOneTwo)
+                , ("(#([0] ++ [1,2])) + 1", lengthListPlusOne)
+                , ("x = F%(x)", equ0)
+                , ("xs↓1 = ys↓1", equ1)
+                , ("〈∃ x : x = F%(x): xs↓1 = ys↓1〉", exist0)
+                , ("〈∀ x : x = F%(x): xs↓1 = ys↓1〉", forAll0)
                 ]
     where encloseQuotes str = "\""++ str ++"\""
 

@@ -28,9 +28,9 @@ prop_serialization p = let Right p' = (decode . encode) p in p == p'
 
 -- Focus utilizados en Unit-Test.
 fFx :: Focus
-fFx = toFocus $ parser "F@x"
+fFx = toFocus $ parser "F%(x)"
 fFy :: Focus 
-fFy = toFocus $ parser "F@y"
+fFy = toFocus $ parser "F%(y)"
 fp :: Focus
 fp = toFocus $ parser "p"
 fq :: Focus
@@ -40,9 +40,9 @@ fy = toFocus $ parser "y"
 fz :: Focus
 fz = toFocus $ parser "z"
 fQ0 :: Focus
-fQ0 = toFocus $ parser "〈∀ x : R@x ∨ S@x : T@x〉"
+fQ0 = toFocus $ parser "〈∀ x : R%(x) ∨ S%(x) : T%(x)〉"
 fQ1 :: Focus
-fQ1 = toFocus $ parser "〈∀ x : R@x : T@x〉 ∧ 〈∀ x : S@x : T@x〉"
+fQ1 = toFocus $ parser "〈∀ x : R%(x) : T%(x)〉 ∧ 〈∀ x : S%(x) : T%(x)〉"
 fequivNeg0 :: Focus
 fequivNeg0 = toFocus $ parser "¬(p ≡ q) ≡ ¬p"
 fstar0 :: Focus

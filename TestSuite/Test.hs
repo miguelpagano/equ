@@ -27,10 +27,10 @@ tests = [ -- Grupo de test para las preExpresiones.
                 ]
         , -- Grupo de test para las reglas.
           testListRules 
-        , -- Grupo de test de matching.
-          testGroupMatch
         , -- Grupo de test del parser.
           testGroupParse
+        , -- Grupo de test de matching.
+          testGroupMatch
         , -- Grupo de test de las pruebas.
           testGroupProof
         ]
