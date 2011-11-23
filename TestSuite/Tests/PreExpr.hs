@@ -1,3 +1,4 @@
+-- | Test muy simple para comprobar la corrección del zipper.
 module TestSuite.Tests.PreExpr (
               prop_toFocuses
             )

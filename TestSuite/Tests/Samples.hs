@@ -1,5 +1,5 @@
 {-# Language OverloadedStrings #-}
-
+-- | Expresiones de ejemplos usados en matching y en parser.
 module TestSuite.Tests.Samples where
 
 import Equ.Types

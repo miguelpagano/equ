@@ -1,3 +1,5 @@
+-- | Tests para el parser: los tests consisten en verificar que ciertos
+-- strings 
 module TestSuite.Tests.Parser (testGroupParse) where
 
 import Equ.Parser
@@ -14,6 +16,9 @@ import Test.Framework.Providers.HUnit (testCase)
 
 import Control.Monad (unless)
 
+-- | La lista de test del parser. Este es un caso donde es más
+-- conveniente HUnit que QuickCheck pues generaríamos un montón
+-- de basura no parseable.
 testsParser :: [Test]
 testsParser = map (\(str, expr) -> testCase (encloseQuotes str) (testParse str expr))
                 [ ("p", Var p)
@@ -39,10 +44,12 @@ testsParser = map (\(str, expr) -> testCase (encloseQuotes str) (testParse str e
                 ]
     where encloseQuotes str = "\""++ str ++"\""
 
--- Controlamos que el parseo de un string sea el esperado, comparandolo con
--- la preExpresion que le pasamos. TODO: Sobre el control de errores,
--- ParseError no tiene instancia de Eq, esto genera un problema para comparar.
+-- TODO: Sobre el control de errores,
+-- @ParseError@ no tiene instancia de @Eq@, esto genera un problema para comparar.
 -- Por esa razon de momento no testeamos errores informativos de parseo.
+
+-- | Controlamos que el parseo de un string sea el esperado, comparandolo con
+-- la preExpresion que le pasamos.
 testParse :: String -> PreExpr -> Assertion
 testParse s pe = case parseFromString s of
                    Left _ -> assertFailure "Error de parseo."

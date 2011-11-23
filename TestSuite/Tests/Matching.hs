@@ -70,7 +70,7 @@ testCase5 = testMatch (parser "〈∃ x : G%(y) + x ▹ [] ⇒ p : q ⇒ w〉")
                              ]
 
 
--- Uno mas complicado con cuantificadores. Dejamos libre en la segunda expresion
+-- | Uno mas complicado con cuantificadores. Dejamos libre en la segunda expresion
 -- una variable que es ligada en la primera.
 testCase6 :: Assertion
 testCase6 = testMatch (parser "〈∃ xs : 〈∀ y : y = xs.0 : F%(y) ∧ p〉 : xs↓1 = ys↓1〉")
@@ -79,7 +79,7 @@ testCase6 = testMatch (parser "〈∃ xs : 〈∀ y : y = xs.0 : F%(y) ∧ p〉 
     where subst = M.fromList [ (p,parser "(True ⇒ p ∨ q)")
                              , (ys,parser "(xs++zs)")
                              ]
-
+-- | Test para expresiones con paréntesis.
 testCaseParens :: Assertion
 testCaseParens = testMatch (parser "(p ⇒ q)") (parser "((True ∨ False) ∧ r) ⇒ (p ≡ q)")
                  (Right subst)
@@ -87,7 +87,7 @@ testCaseParens = testMatch (parser "(p ⇒ q)") (parser "((True ∨ False) ∧ r
                              , (q,parser "(p ≡ q)")
                              ]
 
--- No deberiamos poder hacer matching de funciones con nombres distintos.
+-- | No deberiamos poder hacer matching de funciones con nombres distintos.
 testCase7 :: Assertion
 testCase7 = testMatch lhs rhs res
     where lhs = parser "G%(y) + x"
@@ -98,7 +98,7 @@ testCase7 = testMatch lhs rhs res
           merror = (frhs, InequPreExpr funG funS)
           res = Left (merror, S.fromList [])
 
--- No deberiamos poder hacer matching de distintos cuantificadores.
+-- | No deberiamos poder hacer matching de distintos cuantificadores.
 testCase8 :: Assertion
 testCase8 = testMatch lhs rhs res
     where lhs = exist0
@@ -108,7 +108,7 @@ testCase8 = testMatch lhs rhs res
           res = Left (merror, S.fromList [])
 
 
--- No deberiamos poder hacer matching de distintas constantes.
+-- | No deberiamos poder hacer matching de distintas constantes.
 testCase9 :: Assertion
 testCase9 = testMatch conL conR res
     where conL = parser "[]"

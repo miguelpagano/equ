@@ -1,3 +1,7 @@
+-- | Tests para pruebas. Hay dos aspectos que se controlan: primero
+-- con QuickCheck se verifica la corrección de la serialización; en
+-- segundo lugar, se utiliza HUnit para verificar que las funciones de
+-- manipulación y construcción de pruebas no tienen errores.
 module TestSuite.Tests.Proof (
             testGroupProof
             )
@@ -22,7 +26,9 @@ import Equ.PreExpr hiding (goDownR)
 import Equ.Theories.FOL
 import Equ.Theories.List
 
--- | Test sobre serializacion; decode . encode == id
+-- | Test sobre serializacion; @decode . encode == id@ Notar que este 
+-- test, implica verificar la serialización de la mayor parte de las 
+-- estructuras.
 prop_serialization :: Proof -> Bool
 prop_serialization p = let Right p' = (decode . encode) p in p == p'
 

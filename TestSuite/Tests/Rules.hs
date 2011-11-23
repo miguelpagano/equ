@@ -1,4 +1,6 @@
--- | Test correspondientes a las reglas de re-escritura.
+-- | Test correspondientes a las reglas de re-escritura; se
+-- verifica que los lados izquierdo y derecho de cada regla
+-- se pueda tipar y que ambos tipos sean unificables.
 module TestSuite.Tests.Rules where
 
 import Equ.Theories
