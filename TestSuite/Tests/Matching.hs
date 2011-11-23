@@ -38,20 +38,20 @@ testCase2 = testMatch xPlusSyPlusZ sAppyPlusSomePlusz  (Right s)
 
 -- | #([0] ++ [1]) + 1 -m-> #([x,y]) + z : [x->0, y->1, z->1]
 testCase3 :: Assertion
-testCase3 = testMatch (parser "#([x] ++ [y,w]) + z")
-                      (parser "#([0] ++ [1,2]) + 1") (Right s)
-    where s = M.fromList [ (x, parser "0")
-                         , (y, parser "1")
-                         , (w, parser "2")
-                         , (z, parser "1")
+testCase3 = testMatch lengthListPlusz
+                      lengthListPlusOne (Right s)
+    where s = M.fromList [ (x, zero)
+                         , (y, one)
+                         , (w, two)
+                         , (z, one)
                          ]
 
 -- | 〈∀ z : 〈∀ z : z = z : F@z@z〉 : G@z〉 -m->
 --   〈∀ x : 〈∀ y : y = x : F@y@x〉 : G@x〉 : No existe match.
 testCase4 :: Assertion
 testCase4 = testMatch lhs rhs res
-    where lhs = parser "〈∀ x :〈∀ y : y = x : F@y@x〉: G@x〉"
-          rhs = parser "〈∀ z :〈∀ z : z = z : F@z@z〉: G@z〉"
+    where lhs = parser "〈∀ x :〈∀ y : y = x : F%(y,x)〉: G%(x)〉"
+          rhs = parser "〈∀ z :〈∀ z : z = z : F%(z,z)〉: G%(z)〉"
           Just frhs =  goDown (toFocus rhs) >>= goDown >>= goDown >>= goRight
           merror = (frhs, BindingVar v0)
           res = Left (merror, S.fromList [])
@@ -60,8 +60,8 @@ testCase4 = testMatch lhs rhs res
 -- | 〈∃ xx : (G@(# []) + xx) ▹ [] ⇒ True : w ⇒ q〉 -m->
 --   〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉 : [y->(# []), p->True , w->q, q->w]
 testCase5 :: Assertion
-testCase5 = testMatch (parser "〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉")
-                      (parser "〈∃ xx : (G@(# []) + xx) ▹ [] ⇒ True : w ⇒ q〉") 
+testCase5 = testMatch (parser "〈∃ x : G%(y) + x ▹ [] ⇒ p : q ⇒ w〉")
+                      (parser "〈∃ xx : (G%((# [])) + xx) ▹ [] ⇒ True : w ⇒ q〉") 
                       (Right subst)
     where subst = M.fromList [ (y, parser "(# [])")
                              , (p, parser "True")
@@ -73,8 +73,8 @@ testCase5 = testMatch (parser "〈∃ x : G@y + x ▹ [] ⇒ p : q ⇒ w〉")
 -- Uno mas complicado con cuantificadores. Dejamos libre en la segunda expresion
 -- una variable que es ligada en la primera.
 testCase6 :: Assertion
-testCase6 = testMatch (parser "〈∃ xs : 〈∀ y : y = xs.0 : F@y ∧ p〉 : xs↓1 = ys↓1〉")
-                      (parser "〈∃ ys : 〈∀ z : z = ys.0 : F@z ∧ (True ⇒ p ∨ q)〉 : ys↓1 = (xs++zs)↓1〉")
+testCase6 = testMatch (parser "〈∃ xs : 〈∀ y : y = xs.0 : F%(y) ∧ p〉 : xs↓1 = ys↓1〉")
+                      (parser "〈∃ ys : 〈∀ z : z = ys.0 : F%(z) ∧ (True ⇒ p ∨ q)〉 : ys↓1 = (xs++zs)↓1〉")
                       (Right subst)
     where subst = M.fromList [ (p,parser "(True ⇒ p ∨ q)")
                              , (ys,parser "(xs++zs)")
@@ -90,20 +90,19 @@ testCaseParens = testMatch (parser "(p ⇒ q)") (parser "((True ∨ False) ∧ r
 -- No deberiamos poder hacer matching de funciones con nombres distintos.
 testCase7 :: Assertion
 testCase7 = testMatch lhs rhs res
-    where lhs = parser "R@y + x"
-          rhs = parser "S@y + z"
-          funR = parser "R"
-          funS = parser "S"
+    where lhs = parser "G%(y) + x"
+          rhs = parser "S%(y) + z"
+          funG = Fun $ g
+          funS = Fun $ s
           Just frhs = goDown (toFocus rhs) >>= goDown
-          merror = (frhs, InequPreExpr funR funS)
+          merror = (frhs, InequPreExpr funG funS)
           res = Left (merror, S.fromList [])
-
 
 -- No deberiamos poder hacer matching de distintos cuantificadores.
 testCase8 :: Assertion
 testCase8 = testMatch lhs rhs res
-    where lhs = parser "〈∃ x : x = F@x: xs↓1 = ys↓1〉"
-          rhs = parser "〈∀ x : x = F@x: xs↓1 = ys↓1〉"
+    where lhs = exist0
+          rhs = forAll0
           frhs = toFocus rhs
           merror = (frhs, InequQuantifier folExist folForall)
           res = Left (merror, S.fromList [])
@@ -155,7 +154,7 @@ testGroupMatch = testGroup "Matching"
                             "(p ⇒ q) :" ++
                             "[p -> ((True ∨ False) ∧ r), q -> (p ≡ q)]")
                     testCaseParens
-                 , testCase (dontMatch "S@y + x -m-> R@y + x") testCase7
+                 , testCase (dontMatch "S@y + x -m-> G@y + z") testCase7
                  , testCase (dontMatch "∀ =/= ∃")  testCase8
                  , testCase (dontMatch "[] =/= 0") testCase9
                  ]

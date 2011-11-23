@@ -64,7 +64,7 @@ equLang = LangDef {
             quantInit = "〈" 
           , quantEnd = "〉" 
           , quantSep = ":" 
-          , opApp = "@" 
+          , opApp = "@"
           , holeInfoInit = "{"
           , holeInfoEnd = "}"
           , opHole = "?"
@@ -131,8 +131,8 @@ convertAssoc ARight = PE.AssocRight
 -- una variable, una funci&#243;n o una expresion que viene desde un parseo por syntactic sugar
 subexpr :: Parser' PreExpr
 subexpr = Paren <$> parens lexer parsePreExpr
-          <|> parseSugarPreExpr parsePreExpr
           <|> Con <$> parseConst
+          <|> parseSugarPreExpr parsePreExpr
           <|> parseQuant 
           <|> Var <$> parseVar
           <|> Fun <$> parseFunc
@@ -278,7 +278,7 @@ parseFromString = runParser parsePreExpr (0,M.empty) "TEST"
 --           |  \<PreExpr\> + \<PreExpr\>
 --           |  \<PreExpr\> * \<PreExpr\>
 -- 
--- \<App\> ::= \<Func\> \@ \<PreExpr\>
+-- \<App\> ::= \<PreExpr\> \@ \<PreExpr\>
 -- 
 -- \<Quant\> ::= &#12296;&#8704;\<Var\> : \<PreExpr\> : \<PreExpr\>&#12297;
 --          |  &#12296;&#8707;\<Var\> : \<PreExpr\> : \<PreExpr\>&#12297;
