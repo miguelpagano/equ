@@ -1,5 +1,5 @@
 -- | Tests para el parser: los tests consisten en verificar que ciertos
--- strings 
+-- strings se parsean correctamente (para estos tests utilizamos HUnit).
 module TestSuite.Tests.Parser (testGroupParse) where
 
 import Equ.Parser
