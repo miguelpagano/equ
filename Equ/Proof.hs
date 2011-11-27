@@ -8,18 +8,16 @@ ultima instancia del algoritmo de matching (y eventualmente la
 normalizacion de expresiones que debe ser entendida como la generacion
 automática de pasos inmediatos utilizando las reglas de reescritura).
 -}
-module Equ.Proof (newProof, newProofWithoutEnd, addStep
-                 , proofFromTruth, fillHole
+module Equ.Proof ( newProof
+                 , newProofWithoutEnd
+                 , addStep
+                 , proofFromTruth
+                 , fillHole
                  , Truth (..)
-                  -- * Axiomas y teoremas
                  , Axiom(..)
                  , Theorem(..)
-                 -- * Pruebas
-                 -- $proofs
                  , Proof(..)
                  , Basic(..)
-                 -- * Ejemplos
-                 -- $samples
                  , module Equ.Proof.Zipper
                  , module Equ.Proof.Monad
                  , module Equ.Proof.Error

@@ -5,7 +5,7 @@
 -- demostraciones sobre expresiones (instancias del tipo de datos
 -- Proof), asumen que las expresiones manipuladas están bien
 -- tipadas.
-
+module Equ.Expr where
 import Equ.PreExpr(PreExpr)
 import Data.Serialize(Serialize, get, put)
 
