@@ -1,19 +1,29 @@
--- | Este modulo es el parser a Pre-Expresiones.
-module Equ.Parser 
-    (-- * Caracteres especiales comunes a todas las teor&#237;as
-      quantInit
-    , quantEnd
-    , quantSep
-    , opApp
-    , holeInfoInit
-    , holeInfoEnd
-    , opHole
-    -- * Funciones principales de parseo
-    , parseFromString
-    , parser
-    , parserVar
-    )
-        
+{-| Este módulo define el algoritmo principal para construir
+pre-expresiones a partir de los datos ingresados por el usuario.
+
+Las producciones de los operadores, cuantificadores y constantes se
+construye a partir de las teorías exportadas por el modulo
+'Theories'. La sintaxis concreta de cada uno de esos terminales está
+definida en la teoría correspondiente. Eso facilita cambiar la
+elección de la sintaxis concreta (y eventualmente permitir varias
+formas concretas de escribir el mismo terminal).
+
+Asociado a este módulo, se encuentra 'Parser-Types', que define el
+parser para la información de tipado provista por el usuario.  -}
+
+module Equ.Parser (-- * Caracteres especiales comunes a todas lasteor&#237;as 
+                   quantInit
+                  , quantEnd
+                  , quantSep
+                  , opApp
+                  , holeInfoInit 
+                  , holeInfoEnd
+                  , opHole
+                  -- * Funciones principales de parseo
+                  , parseFromString
+                  , parser
+                  , parserVar
+                  )        
     where
 
 import Text.Parsec

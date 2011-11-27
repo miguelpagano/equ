@@ -1,4 +1,13 @@
--- | Transforma una PreExpresi&#243;n en una Expresi&#243;n.
+{-| Algoritmo de chequeo e inferencia de tipos para pre-expre-
+siones. Este algoritmo es esencialmente el de Hindley-Milner-Damas
+para el cálculo lambda: si tenemos informacion en la pre-expresion
+entonces se verifica que sea unificable con el tipo de inferido. A
+diferencia de esos algoritmos, no se hay un contexto donde se declara
+el tipo de las variabes, ya que la informacion de las variables
+(símbolos de función y constantes son tratadas exactamente de la misma
+manera) está contenida en la expresión misma (en este aspecto se
+parece más al chequeo de un cálculo à la Church).
+-}
 module Equ.TypeChecker 
     ( module Equ.TypeChecker.Error      
       -- * Algoritmo de unificaci&#243;n con relaci&#243;n de orden.

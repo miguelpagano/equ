@@ -1,5 +1,11 @@
--- | En este modulo definimos las funciones necesarias para analizar el
---  matching entre preExpresiones.
+{-| Algoritmo de matching entre expresiones. La función principal de
+este módulo toma dos expresiones @ptn@ y @expr@ e intenta generar la
+substitución de las variables que aparecen en @ptn@ de manera que al
+aplicarla sobre @ptn@ se obtenga expr.  Este es un algoritmo bien
+conocido. La unica variacion es que contamos con expresiones
+cuantificadas; en esas expresiones, las variables cuantificadas son
+tratadas como parámetros.  -}
+
 module Equ.Matching
     ( module Equ.Matching.Error
     , match
@@ -157,7 +163,7 @@ match' _ e1 e2 s = whenML (e1==e2) (InequPreExpr e1 e2) s
 
 -}
 
-{-| match toma una expresi&#243;n patr&#243;n y otra que quiere matchearse con el patr&#243;n.
+{-| @match@ toma una expresi&#243;n patr&#243;n y otra que quiere matchearse con el patr&#243;n.
 Si hay matching, retorna el mapa de sustituciones que deben realizarse
 simult&#225;neamente para llegar desde la expresi&#243;n patr&#243;n a la expresi&#243;n dada.
 -}

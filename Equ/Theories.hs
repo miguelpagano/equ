@@ -1,5 +1,7 @@
--- | Este m&#243;dulo importa las distintas teor&#237;as y expone los
--- constructores necesarios de cada una.
+-- | En este m&#243;dulo se re-exportan las definiciones sintácticas
+-- de cada teoría y las reglas de reescritura de expresiones que
+-- incluyen elementos sintácticos definidos en esa teoría.
+
 module Equ.Theories 
     ( -- * Teor&#237;as.
       operatorsList

@@ -1,10 +1,12 @@
--- | En este módulo definimos los posibles valores de las hojas de
--- pre-expresiones y expresiones. El campo correspondiente al tipo
--- tiene dos significados diferentes: cuando se está en una pre-expresión
--- corresponde a información dada por el usuario; cuando se está en
--- las expresiones es el tipo definido por la teoría correspondiente
--- a donde se definió el término en cuestión o el tipo inferido (por 
--- ejemplo en variables) por el type-checker.
+-- | En este módulo se definen los posibles valores de las hojas de
+-- pre-expresiones y expresiones: variables, constantes, operadores,
+-- funciones, cuantificadores lógicos, etc. Todos los componentes
+-- mantienen infromación del tipo; esta información significa una de
+-- dos cosas: cuando se está en una pre-expresión corresponde a
+-- información dada por el usuario; cuando se está en las expresiones
+-- es el tipo definido por la teoría correspondiente a donde se
+-- definió el término en cuestión o el tipo inferido (por ejemplo en
+-- variables) por el type-checker.
 {-# Language OverloadedStrings#-}
 module Equ.Syntax where
 

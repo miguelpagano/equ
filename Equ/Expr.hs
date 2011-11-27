@@ -1,6 +1,10 @@
--- | Una Expresi&#243;n es algo que se puede manipular. Difiere
--- relativamente poco de una PreExpresi&#243;n.
-module Equ.Expr where
+-- | Las expresiones son pre-expresiones bien tipadas. La verificación
+-- del tipo de la expresion y sus terminos se lleva adelante por el
+-- algoritmo principal del modulo 'Typechecker'. El algoritmo de
+-- unificación que es central para la construcción y verificación de
+-- demostraciones sobre expresiones (instancias del tipo de datos
+-- Proof), asumen que las expresiones manipuladas están bien
+-- tipadas.
 
 import Equ.PreExpr(PreExpr)
 import Data.Serialize(Serialize, get, put)

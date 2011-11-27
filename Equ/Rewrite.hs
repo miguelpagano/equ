@@ -75,6 +75,9 @@ focusedRewrite f@(pe, p) r = exprRewrite (Expr pe) r >>=
     tiene un bonito log sobre errores para devolver eso en caso de que no
     existe unificaci&#243;n.
 -}
+{- | Variante de reescritura donde se chequea que los tipos de las
+expresiones a reescribir tengan el mismo tipo (salvo unificación).
+-}
 typedRewrite :: Expr -> Rule -> RM Expr
 typedRewrite e@(Expr pe) ru@(Rule{lhs=Expr l,rhs=Expr r}) = 
     let (Right te) = checkPreExpr pe

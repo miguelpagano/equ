@@ -1,7 +1,8 @@
--- | Declaración de los posibles tipos que puede informar el usuario
--- en un árbol de tipado. Si se desea agregar una nueva teoría,
--- entonces es necesario extender los tipos atómicos (o los 
--- constructores de tipos, por ejemplo para árboles binarios).
+{-| Este modulo contiene la declaracion de los posibles tipos para
+los términos de las (pre-)expresiones. Como en las pre-expresiones,
+declaramos un tipo de datos general que nos permite utilizar muchas
+funciones e idiomas estándares de Haskell.  -}
+
 {-# Language TypeSynonymInstances #-}
 module Equ.Types where
 

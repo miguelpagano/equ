@@ -1,6 +1,13 @@
 {-# Language GADTs #-}
 
-{-| Este m&#243;dulo define la noci&#243;n de una prueba. -}
+{-| En este módulo se definen las maneras posibles de construir
+pruebas y las maneras básicas (axiomas, teoremas ya probados o
+hipotesis) en que se puede justificar un paso lógico. Notar que la
+verificación de que un paso de prueba está justificado depende en
+ultima instancia del algoritmo de matching (y eventualmente la
+normalizacion de expresiones que debe ser entendida como la generacion
+automática de pasos inmediatos utilizando las reglas de reescritura).
+-}
 module Equ.Proof (newProof, newProofWithoutEnd, addStep
                  , proofFromTruth, fillHole
                  , Truth (..)
