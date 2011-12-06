@@ -11,7 +11,8 @@ import Equ.PreExpr
 import Equ.Theories
 import Equ.Syntax
 import Equ.Parser
-import Equ.Proof
+import Equ.Proof.Proof
+import Equ.Rule
 
 import Graphics.UI.Gtk hiding (eventButton, eventSent, get)
 import qualified Graphics.UI.Gtk as G
@@ -111,11 +112,24 @@ updateExpr e' = update (updateExpr' e') >>
                 
 
 updateExpr' :: PreExpr -> ProofState -> ProofState
-updateExpr' e' pst@(ProofState pr _ fexpr@(ExprFocus e (f,g) _) up _ _) = 
+updateExpr' e' pst@(ProofState pr _ _ fexpr@(ExprFocus e (f,g) _) up _ _ _) = 
     pst {proof = up pr new_expr,
          focusedExpr = fexpr {expr = new_expr}
          }
     where new_expr = g . first (const e') . f $ e
+    
+updateProof p = update (updateProof' p) >>
+                showProof
+
+updateProof' :: Proof -> ProofState -> ProofState
+updateProof' p pst@(ProofState _ _ _ fexpr@(ExprFocus _ _ box) _ _ _ _) =
+    pst { proof = p
+        , focusedExpr = ExprFocus { expr = fromJust $ getStart p
+                                  , path = (id,id)
+                                  , inpFocus = box
+                                  }
+        , modifExpr = updateStart
+        }
     
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}
@@ -141,8 +155,15 @@ updatePath p = update $ \pst -> pst { focusedExpr = (focusedExpr pst) {path = p 
 updateModifExpr :: (Proof -> Focus -> Proof) -> IState ()
 updateModifExpr f = update $ \pst -> pst { modifExpr = f }
 
+updateRelation :: Relation -> IState ()
+updateRelation r = update (\pst -> pst { proof = (updateRel (proof pst) r) }) >>
+                   showProof
+
 {- Las cinco funciones siguientes devuelven cada uno de los
 componentes del estado. -}
+
+getProof :: IState Proof
+getProof = askRef >>= return . proof
 
 getExpr :: IState Focus
 getExpr = askRef >>= return . expr . focusedExpr
@@ -161,6 +182,9 @@ getPath  = askRef >>= return . path . focusedExpr
 
 getStatus :: IState (Statusbar, ContextId)
 getStatus  = askRef >>= return . status
+
+getAxiomBox :: IState HBox
+getAxiomBox = askRef >>= return . axiomBox
 
 {- Las dos funciones que siguen devuelven cada uno de los panes; toda la 
    gracia está en getParentNamed. -}

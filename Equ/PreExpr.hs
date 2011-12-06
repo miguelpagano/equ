@@ -26,7 +26,7 @@ import Equ.PreExpr.Monad
 import Data.Text(pack)
 import Data.Serialize(encode, decode)
 
-import Equ.Parser
+-- import Equ.Parser
 import Equ.Theories.AbsName
 
 isPreExprHole :: Focus -> Bool

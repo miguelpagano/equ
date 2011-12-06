@@ -5,7 +5,8 @@ module Equ.Proof (
                    encode, decode
                  , newProof, newProofWithoutEnd, addStep
                  , proofFromTruth, fillHole
-                 , emptyProof, updateStart, updateEnd
+                 , emptyProof, updateStart, updateEnd, updateRel
+                 , validateProof
                  , Truth (..)
                   -- * Axiomas y teoremas
                  , Axiom(..)
@@ -13,7 +14,7 @@ module Equ.Proof (
                  -- * Pruebas
                  -- $proofs
                  , Proof(..)
-                 , Basic(..)
+                 --, Basic(..)
                  -- * Ejemplos
                  -- $samples
                  , module Equ.Proof.Zipper
@@ -34,6 +35,7 @@ import Equ.Rewrite
 import Data.Monoid(mappend)
 
 import Data.Map (empty)
+import Data.Maybe
 import Control.Monad
 
 -- | Funciones auxiliares que podrían ir a su propio módulo.
@@ -57,36 +59,65 @@ checkEqWithDefault def a b | a /= b = Left def
 whenEqWithDefault :: Eq a => ProofError -> a -> a -> PM ()
 whenEqWithDefault def a b = whenPM (==a) def b >> return ()
 
+checkSimpleStepFromRule :: Truth t => Focus -> Focus -> Relation -> t -> Rule
+                              -> PM ()
+checkSimpleStepFromRule f1 f2 rel t rule = 
+    whenEqWithDefault err rel (truthRel t) >>
+    liftRw (focusedRewrite f1 rule) >>= \f ->
+    whenEqWithDefault err f f2 
+    
+        where err :: ProofError
+              err = BasicNotApplicable $ truthBasic t
+
 {- 
 Funciones para construir y manipular pruebas.
 Este kit de funciones debería proveer todas las herramientas
 necesarias para desarrollar pruebas en equ 
 -}
 
-proofFromRule :: Truth t => Focus -> Focus -> Relation -> t -> (t -> Basic) -> 
+proofFromRule :: Truth t => Focus -> Focus -> Relation -> t -> 
                             Rule -> PM Proof
-proofFromRule f1 f2 rel t mkBasic r = whenEqWithDefault err rel (truthRel t) >>
-                                      liftRw (focusedRewrite f1 r) >>= \f ->
-                                      whenEqWithDefault err f f2 >>
-                                      (return $ Simple empty rel f1 f2 $ mkBasic t)
-        where err :: ProofError
-              err = BasicNotApplicable $ mkBasic t
+proofFromRule f1 f2 rel t r = checkSimpleStepFromRule f1 f2 rel t r >>
+                                      (return $ Simple empty rel f1 f2 $ truthBasic t)
 
 -- | Dados dos focuses f1 y f2, una relacion rel y un axioma o
 -- teorema, intenta crear una prueba para f1 rel f2, utilizando el
 -- paso simple de aplicar el axioma o teorema.
 proofFromTruth :: Truth t => Focus -> Focus -> Relation -> t -> PM Proof
 proofFromTruth f1 f2 rel t = firstRight err $
-                             map (proofFromRule f1 f2 rel t truthBasic) (truthRules t)
+                             map (proofFromRule f1 f2 rel t) (truthRules t)
     where err :: PM Proof
           err = Left $ BasicNotApplicable $ truthBasic t
 
 
+notValidSimpleProof :: Truth t => Focus -> Focus -> Relation -> t -> Proof
+notValidSimpleProof f1 f2 r t = Simple empty r f1 f2 $ truthBasic t
+          
 proofFromAxiom :: Focus -> Focus -> Relation -> Axiom -> PM Proof
 proofFromAxiom = proofFromTruth
 
 proofFromTheorem :: Focus -> Focus -> Relation -> Theorem -> PM Proof
 proofFromTheorem  = proofFromTruth
+
+validateProof :: Proof -> PM Proof
+validateProof proof@(Simple ctx rel f1 f2 b) = 
+    proofFromTruth f1 f2 rel b >>
+    return proof
+validateProof proof@(Trans ctx rel f1 f2 f p1 p2) = 
+    getStart p1 >>= whenEqWithDefault err f1 >>
+    getEnd p1 >>= whenEqWithDefault err f >>
+    getStart p2 >>= whenEqWithDefault err f >>
+    getEnd p2 >>= whenEqWithDefault err f2 >>
+    validateProof p1 >> validateProof p2 >>
+    return proof
+    
+    where err :: ProofError
+          err = TransInconsistent
+    
+validateProof _ = undefined
+
+
+
 
 {- | Comenzamos una prueba dados dos focus y una relación entre ellas, de 
         la cual no tenemos una prueba.

@@ -78,6 +78,16 @@ openErrPane = getFormErrPane >>= \erp ->
               liftIO (set erp [ panedPositionSet := True 
                               , panedPosition := paneErrPaneHeight ] >>
                       widgetShowAll erp)
+                      
+setErrMessage :: String -> IState ()
+setErrMessage msg =  getErrPanedLabel >>=
+                    \l -> liftIO (labelSetMarkup l 
+                        (markSpan 
+                        [ FontBackground "#FF0000"
+                        , FontForeground "#000000"
+                        ] 
+                    msg)) >>
+                    openErrPane
 
 -- | Crea un label, en el cual al texto le coloca un string.
 setupLabelPreExpr :: String -> IO Label
@@ -139,7 +149,7 @@ addToBox b w = liftIO $ boxPackStart b w PackGrow 0
 
 -- | Elimina todos los controles contenidos en una caja (también
 -- destruye los hijos para liberar memoria -- está bien hacer esto?).
-removeAllChildren :: HBox -> IRProof
+removeAllChildren :: BoxClass b => b -> IRProof
 removeAllChildren b = liftIO $ containerForeach b $ 
                          \x -> containerRemove b x >> widgetDestroy x
 
@@ -162,7 +172,7 @@ setupFormEv b c = liftIO eventBoxNew >>= \eb ->
 -- widget para construir expresiones.
 setupEvents :: WidgetClass w => HBox -> w -> IRProof
 setupEvents b eb = do s <- get
-                      ProofState _ sym e@(ExprFocus _ p i) _ _ axiom <- readRef s
+                      ProofState _ _ sym e@(ExprFocus _ p i) _ _ axiom _ <- readRef s
                       st <- liftIO $ widgetGetStyle b
                       bg <- liftIO $ styleGetBackground st (toEnum 0)
                       liftIO $ eb `on` enterNotifyEvent $ tryEvent $ highlightBox b hoverBg
@@ -210,3 +220,33 @@ highlight bg w = widgetModifyBg w (toEnum 0) bg
 -- | Le quita el color especial a un control.
 unlight :: WidgetClass w => Color -> w -> IO ()
 unlight bg w = widgetModifyBg w (toEnum 0) bg
+
+
+-- | Crea un nuevo widget para ingresar una expresión
+createExprWidget :: HBox -> IO ExprWidget
+createExprWidget ext_box = do
+    label <- labelNew (Just "Expresión:")
+    widgetSetSizeRequest label 80 (-1)
+    scrolled <- scrolledWindowNew Nothing Nothing
+    box <- hBoxNew False 2
+    scrolledWindowAddWithViewport scrolled box
+    button_apply <- buttonNewFromStock stockApply
+    button_clear <- buttonNewFromStock stockClear
+    --widgetSetSizeRequest button_apply (-1) 30
+    button_box <- hButtonBoxNew
+    widgetSetSizeRequest button_box 200 (-1)
+    --widgetSetSizeRequest button_box 20 (-1)
+    --boxPackStart button_box button_apply PackNatural 2
+    boxPackStart button_box button_clear PackNatural 2
+    boxPackStart ext_box label PackNatural 1
+    boxPackStart ext_box scrolled PackGrow 1
+    boxPackStart ext_box button_box PackNatural 1
+    return $ ExprWidget { extBox = ext_box -- Box externa
+                        , expLabel = label
+                        , formBox = box
+                        , clearButton = button_clear
+                        , applyButton = button_apply
+    }
+
+
+

@@ -7,6 +7,7 @@ import Equ.GUI.Widget
 import Equ.GUI.Settings
 import Equ.GUI.Expr
 import Equ.GUI.SymbolList
+import Equ.GUI.TruthList
 import Equ.GUI.Proof
 import Equ.Proof
 import Equ.Rule (relEq)
@@ -54,7 +55,7 @@ main = do
     centralBox <- xmlGetWidget xml castToVBox "centralBox"
     itemNewProof <- xmlGetWidget xml castToImageMenuItem "itemNewProof"
 
-    formWidget <- createFormWidget formWidgetBox
+    --formWidget <- createFormWidget formWidgetBox
 
 --     exprRef <- newRef $ GState emptyExpr
 --                                (formBox formWidget)
@@ -67,7 +68,8 @@ main = do
     onActivateLeaf quitButton $ quitAction window
     onDestroy window mainQuit
     sListStore <- setupSymbolList symbolList
-    onActivateLeaf itemNewProof (createNewProof centralBox symbolList sListStore axiomList (statusBar,ctxExpr))
+    aListStore <- setupTruthList axiomList
+    onActivateLeaf itemNewProof (createNewProof centralBox symbolList sListStore axiomList aListStore (statusBar,ctxExpr))
     
     widgetShowAll window
 

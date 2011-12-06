@@ -2,7 +2,7 @@
 module Equ.GUI.Types where
 
 import Equ.PreExpr
-import Equ.Proof (Proof)
+import Equ.Proof (Proof,PM)
 
 import Graphics.UI.Gtk (WidgetClass, Statusbar, ContextId, HBox, TreeView,EventBox, Label, Button)
 import Control.Monad.State
@@ -37,12 +37,14 @@ type IRExpr = ExprState ()
 
 
 data ProofState = ProofState { proof :: Proof   -- ^ La prueba que estamos construyendo (POR AHORA SOLO ES UNA PRUEBA SIMPLE)
+                             , validProof :: PM Proof
                              , symCtrl :: TreeView   -- ^ La lista de símbolos para construir expresiones.
                              , focusedExpr :: ExprFocus      -- ^ Expresion enfocada
                              , modifExpr :: Proof -> Focus -> Proof  -- ^ Funcion para modificar la expresion enfocada DENTRO de la prueba. Esto sirve asi solo
                                                                      --   para el caso prueba simple, donde esta funcion puede ser updateStart o updateEnd.
                              , status :: StatusPlace  -- ^ La barra de estado.
                              , axiomCtrl :: TreeView -- ^ La lista de axiomas para construir pruebas.
+                             , axiomBox :: HBox      -- ^ El contenedor para mostrar el axioma aplicado
                             }
 
 type ProofRef = IORef ProofState
@@ -66,7 +68,7 @@ instance Reference IORef IState where
     writeRef r = liftIO . writeRef r
     newRef = liftIO . newRef
     
-data FormWidget = FormWidget { extBox :: HBox       -- ^ Widget más externo.
+data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , expLabel :: Label -- ^ Label con el texto "Expresión:"
                              , formBox :: HBox   -- ^ Box donde se ingresa la formula
                              , clearButton :: Button -- ^ Botón para borrar toda la expresión.

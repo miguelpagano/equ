@@ -5,7 +5,7 @@ module Equ.Theories
       operatorsList
     , constantsList
     , quantifiersList
-    --, axiomList
+    , axiomList
     , L.listRules
     , relationList
     )
@@ -16,6 +16,7 @@ import qualified Equ.Theories.List as L
 import qualified Equ.Theories.FOL as F
 import Equ.Rule
 import Equ.Syntax (Operator,Constant,Quantifier)
+import Equ.Proof
 
 operatorsList :: [Operator]
 operatorsList = A.theoryOperatorsList ++ L.theoryOperatorsList ++ F.theoryOperatorsList
@@ -29,5 +30,5 @@ quantifiersList = A.theoryQuantifiersList ++ L.theoryQuantifiersList ++ F.theory
 relationList :: [Relation]
 relationList = [relEq,relEquiv,relImpl,relCons]
 
--- axiomList :: [Axiom]
--- axiomList = F.theoryAxiomList
+axiomList :: [Axiom]
+axiomList = F.theoryAxiomList

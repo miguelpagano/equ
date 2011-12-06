@@ -18,4 +18,6 @@ data ProofError = Rewrite RewriteError
                 | ReflexHasNoStart -- Reflex no tiene prueba de inicio.
                 | ReflexHasNoEnd -- Reflex no tiene prueba final.
                 | ReflexHasNoRel -- Reflex no tiene relacion.
+                | TransInconsistent  -- Una prueba transitiva donde los focuses 
+                                     --no coinciden con las pruebas
     deriving (Show, Eq)

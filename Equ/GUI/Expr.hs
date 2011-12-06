@@ -64,14 +64,7 @@ setExprFocus entry box = liftIO (entryGetText entry) >>= \s ->
                                             addToBox box box' >>
                                             liftIO (widgetShowAll box))
                             Left err -> 
-                                    getErrPanedLabel >>=
-                                    \l -> liftIO (labelSetMarkup l 
-                                                    (markSpan 
-                                                    [ FontBackground "#FF0000"
-                                                    , FontForeground "#000000"
-                                                    ] 
-                                                    (show err))) >>
-                                    openErrPane >>
+                                   setErrMessage (show err) >>
                                     liftIO (widgetShowAll box) >>
                                     return ()
 
