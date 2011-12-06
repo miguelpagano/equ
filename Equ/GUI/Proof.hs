@@ -110,9 +110,11 @@ createNewProof ret_box symbolList sListStore axiomList aListStore st_place= do
     (combo_rel,store_rel)   <- newComboRel
     comboBoxSetActive combo_rel 0
     axiom_box   <- hBoxNew False 2
+    validImage <- imageNewFromStock stockCancel IconSizeSmallToolbar
     widgetSetSizeRequest combo_rel 80 (-1)
     boxPackStart center_box combo_rel PackNatural 5
     boxPackStart center_box axiom_box PackGrow 5
+    boxPackStart center_box validImage PackNatural 5
     
     
     -- Consideramos que inicialmente la primera expresion está enfocada, por eso
@@ -144,12 +146,10 @@ createNewProof ret_box symbolList sListStore axiomList aListStore st_place= do
     boxPackStart ret_box hboxEnd PackNatural 2
     
     valid_button <- buttonNewWithLabel "Validar prueba"
-    valid_string <- labelNew (Just "")
     boxPackStart ret_box valid_button PackNatural 20
-    boxPackStart ret_box valid_string PackNatural 20
                             
     valid_button `on` buttonPressEvent $ tryEvent $
-                            eventWithState (checkProof valid_string) proofRef
+                            eventWithState (checkProof validImage) proofRef
     
     widgetShowAll ret_box
     
@@ -161,11 +161,12 @@ createNewProof ret_box symbolList sListStore axiomList aListStore st_place= do
             
         
         
-checkProof valid_string = getProof >>= 
+checkProof validImage = getProof >>= 
              \p -> (let vp = validateProof p in
                 case vp of
-                     Right _ -> liftIO $ labelSetText valid_string "PRUEBA VALIDA"
-                     Left err -> setErrMessage (show err)
+                     Right _ -> liftIO $ imageSetFromStock validImage stockOk IconSizeSmallToolbar
+                     Left err -> setErrMessage (show err) >> 
+                                 liftIO (imageSetFromStock validImage stockCancel IconSizeSmallToolbar)
                 )
                 
     

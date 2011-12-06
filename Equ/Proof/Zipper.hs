@@ -16,9 +16,6 @@ data ProofPath = Top
                | TransR Proof ProofPath
             deriving (Eq,Show)
 
--- | Un Focus representa la expresión que consiste de completar el
--- hueco denotado por Path con la expresión PreExpr (eso es lo que
--- hace toExpr).
 type ProofFocus = (Proof,ProofPath)
 
 toProof :: ProofFocus -> Proof
@@ -26,8 +23,6 @@ toProof (p, Top) = p
 toProof (p, TransL path pr) = toProof (mappend p pr,path)
 toProof (p, TransR pl path) = toProof (mappend pl p,path)
 
--- | Dado una expresión la enfocamos. Es decir luego de llamar a toFocus con 
--- preExp queda el focus que tiene a la expresión y estamos en el Top.
 toProofFocus :: Proof -> ProofFocus
 toProofFocus p = (p,Top)
 
