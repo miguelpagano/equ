@@ -20,4 +20,19 @@ data ProofError = Rewrite RewriteError
                 | ReflexHasNoRel -- Reflex no tiene relacion.
                 | TransInconsistent  -- Una prueba transitiva donde los focuses 
                                      --no coinciden con las pruebas
-    deriving (Show, Eq)
+    deriving Eq
+    
+instance Show ProofError where
+    show (Rewrite r) = "Error de reescritura: "++ show r
+    show (BasicNotApplicable b) = "No se puede aplicar el paso básico: "++ show b
+    show ProofError = "Error en la prueba"
+    show (ClashCtx c1 c2) = "Los contextos no coinciden: "++ show c1 ++ ", " ++ show c2
+    show (ClashRel r1 r2) = "Las relaciones no coinciden: "++ show r1 ++ ", "++show r2
+    show (ClashAddStep p1 p2) = "No es posible agregar paso"
+    show (ProofEndWithHole p) = "La prueba no puede terminar en hueco"
+    show (ClashProofNotHole p) = "La prueba " ++ show p ++" debe ser un hueco"
+    show ReflexHasNoCtx = "Una prueba reflexiva no debe tener contexto"
+    show ReflexHasNoStart = "Una prueba reflexiva no debe tener expresión inicial"
+    show ReflexHasNoEnd = "Una prueba reflexiva no debe tener expresión final"
+    show ReflexHasNoRel = "Una prueba reflexiva no debe tener relación"
+    show TransInconsistent = "La prueba transitiva es inconsistente"

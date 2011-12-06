@@ -62,12 +62,14 @@ whenEqWithDefault def a b = whenPM (==a) def b >> return ()
 checkSimpleStepFromRule :: Truth t => Focus -> Focus -> Relation -> t -> Rule
                               -> PM ()
 checkSimpleStepFromRule f1 f2 rel t rule = 
-    whenEqWithDefault err rel (truthRel t) >>
+    whenEqWithDefault errRel rel (truthRel t) >>
     liftRw (focusedRewrite f1 rule) >>= \f ->
     whenEqWithDefault err f f2 
     
-        where err :: ProofError
-              err = BasicNotApplicable $ truthBasic t
+    where errRel :: ProofError
+          errRel = ClashRel rel (truthRel t)
+          err :: ProofError
+          err = BasicNotApplicable $ truthBasic t
 
 {- 
 Funciones para construir y manipular pruebas.
@@ -100,6 +102,7 @@ proofFromTheorem :: Focus -> Focus -> Relation -> Theorem -> PM Proof
 proofFromTheorem  = proofFromTruth
 
 validateProof :: Proof -> PM Proof
+validateProof (Hole ctx rel f1 f2) = Left ProofError
 validateProof proof@(Simple ctx rel f1 f2 b) = 
     proofFromTruth f1 f2 rel b >>
     return proof

@@ -165,7 +165,7 @@ checkProof valid_string = getProof >>=
              \p -> (let vp = validateProof p in
                 case vp of
                      Right _ -> liftIO $ labelSetText valid_string "PRUEBA VALIDA"
-                     Left err -> setErrMessage "No se puede aplicar el axioma"
+                     Left err -> setErrMessage (show err)
                 )
                 
     
