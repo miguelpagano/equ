@@ -353,9 +353,9 @@ instance Show Proof where
                                  "\n\t" ++ show f'
     show (Trans _ r f f' f'' p p') =  "\t" ++ show f ++ 
                                         "\n" ++ show r ++ "\n{" ++ show p ++
-                                        "\n\t\n}\n\t" ++ show f' ++ 
+                                        "\n\t\n}\n\t" ++ show f'' ++ 
                                         "\n" ++ show r ++ "\n{" ++ show p' ++ 
-                                        "\n\t\n}\n\t" ++ show f''
+                                        "\n\t\n}\n\t" ++ show f'
     show (Cases _ r f f' f'' lfp) = show r ++ show f ++ show f' ++ 
                                       show f'' ++ show lfp
     show (Ind _ r f f' lf lfp) = show r ++ show f ++ show f' ++ 
