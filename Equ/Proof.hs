@@ -5,8 +5,10 @@ module Equ.Proof (
                    encode, decode
                  , newProof, newProofWithoutEnd, addStep
                  , proofFromTruth, fillHole
-                 , emptyProof, updateStart, updateEnd, updateRel
+                 , holeProof, emptyProof, updateStart, updateEnd, updateRel
                  , validateProof
+                 , simpleProof, addEmptyStep, updateStartFocus, updateEndFocus
+                 , updateMiddleFocus
                  , Truth (..)
                   -- * Axiomas y teoremas
                  , Axiom(..)
@@ -147,8 +149,15 @@ rel {?}
     Hole
 @
 -}
-emptyProof :: Relation -> Proof
-emptyProof r = newProof r emptyExpr emptyExpr
+holeProof :: Relation -> Proof
+holeProof r = newProof r emptyExpr emptyExpr
+
+-- | ProofFocus vacio
+emptyProof :: Relation -> ProofFocus
+emptyProof r = toProofFocus $ holeProof r
+
+
+
 
 {- | Comenzamos una prueba dado unfocus y una relacion.
     {POS: El contexto de la prueba es vacio.}
@@ -229,3 +238,34 @@ fillHole pf@(Hole ctx r f f', _) t = either (\er -> Left er)
                                             (\p -> Right $ replace pf p) $
                                             proofFromTruth f f' r t
 fillHole (p, _) _ = Left $ ClashProofNotHole p
+
+
+
+
+
+{- Funciones para pasar de una prueba vacía a una prueba con más contenido.
+   Todas las funciones no validan la prueba, son solo para manipulacion -}
+
+-- | Convierte una prueba vacía en un Simple o transforma una prueba simple en otra.
+simpleProof :: ProofFocus -> Basic -> ProofFocus
+simpleProof (p@(Hole ctx r f1 f2),path) b =
+    (Simple ctx r f1 f2 b,path)
+simpleProof (p@(Simple ctx r f1 f2 b'),path) b =
+    (Simple ctx r f1 f2 b,path)
+
+
+
+-- | Pasa de una prueba vacia a una prueba transitiva vacia.
+addEmptyStep :: ProofFocus -> ProofFocus
+addEmptyStep (p@(Hole ctx r f1 f2),path) = 
+    (Trans ctx r f1 f2 emptyExpr (Hole ctx r f1 emptyExpr) (Hole ctx r emptyExpr f2),path)
+
+
+updateStartFocus :: ProofFocus -> Focus -> Maybe ProofFocus
+updateStartFocus (p,path) f = Just (updateStart p f,path)
+
+updateEndFocus :: ProofFocus -> Focus -> Maybe ProofFocus
+updateEndFocus (p,path) f = Just (updateEnd p f,path)
+
+updateMiddleFocus :: ProofFocus -> Focus -> Maybe ProofFocus
+updateMiddleFocus (p,path) f = Just (updateMiddle p f,path)

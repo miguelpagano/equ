@@ -12,6 +12,7 @@ import Equ.Theories
 import Equ.Syntax
 import Equ.Parser
 import Equ.Proof.Proof
+import Equ.Proof(ProofFocus,updateStartFocus,updateEndFocus)
 import Equ.Rule
 
 import Graphics.UI.Gtk hiding (eventButton, eventSent, get)
@@ -113,22 +114,23 @@ updateExpr e' = update (updateExpr' e') >>
 
 updateExpr' :: PreExpr -> ProofState -> ProofState
 updateExpr' e' pst@(ProofState pr _ _ fexpr@(ExprFocus e (f,g) _) up _ _ _) = 
-    pst {proof = up pr new_expr,
+    pst {proof = fromJust $ up pr new_expr,
          focusedExpr = fexpr {expr = new_expr}
          }
     where new_expr = g . first (const e') . f $ e
     
-updateProof p = update (updateProof' p) >>
-                showProof
+updateProof pf = update (updateProof' pf) >>
+                showProof >>
+                getProof >>= \p -> liftIO (putStrLn (show p))
 
-updateProof' :: Proof -> ProofState -> ProofState
-updateProof' p pst@(ProofState _ _ _ fexpr@(ExprFocus _ _ box) _ _ _ _) =
-    pst { proof = p
+updateProof' :: ProofFocus -> ProofState -> ProofState
+updateProof' (p,path) pst@(ProofState _ _ _ fexpr@(ExprFocus _ _ box) _ _ _ _) =
+    pst { proof = (p,path)
         , focusedExpr = ExprFocus { expr = fromJust $ getStart p
                                   , path = (id,id)
                                   , inpFocus = box
                                   }
-        , modifExpr = updateStart
+        , modifExpr = updateStartFocus
         }
     
 {- Las tres funciones que siguen actualizan componentes particulares
@@ -152,17 +154,21 @@ updateSymCtrl t = update $ \gst -> gst { symCtrl = t }
 updatePath :: GoBack -> IState ()
 updatePath p = update $ \pst -> pst { focusedExpr = (focusedExpr pst) {path = p }}
 
-updateModifExpr :: (Proof -> Focus -> Proof) -> IState ()
+updateModifExpr :: (ProofFocus -> Focus -> Maybe ProofFocus) -> IState ()
 updateModifExpr f = update $ \pst -> pst { modifExpr = f }
 
 updateRelation :: Relation -> IState ()
-updateRelation r = update (\pst -> pst { proof = (updateRel (proof pst) r) }) >>
+updateRelation r = getProof >>= \(p,path) ->
+                   update (\pst -> pst { proof = ((updateRel p r),path) }) >>
                    showProof
+                   
+updateAxiomBox :: HBox -> IState ()
+updateAxiomBox b = update $ \pst -> pst { axiomBox = b}
 
 {- Las cinco funciones siguientes devuelven cada uno de los
 componentes del estado. -}
 
-getProof :: IState Proof
+getProof :: IState ProofFocus
 getProof = askRef >>= return . proof
 
 getExpr :: IState Focus

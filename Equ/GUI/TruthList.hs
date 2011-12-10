@@ -33,10 +33,11 @@ writeTruth t b = do
     removeAllChildren b
     label <- liftIO (labelNew (Just $ show t))
     liftIO $ boxPackStart b label PackGrow 0
-    old_proof <- getProof
-    updateProof (Simple empty (fromJust $ P.getRel old_proof) 
-                (fromJust $ P.getStart old_proof) (fromJust $ P.getEnd old_proof) 
-                (truthBasic t))
+    (old_proof,path) <- getProof
+    updateProof (simpleProof (old_proof,path) $ truthBasic t)
+--     updateProof (Simple empty (fromJust $ P.getRel old_proof) 
+--                 (fromJust $ P.getStart old_proof) (fromJust $ P.getEnd old_proof) 
+--                 (truthBasic t))
     liftIO $ widgetShowAll b
 
 -- | La configuración de la lista de símbolos propiamente hablando.

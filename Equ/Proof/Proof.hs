@@ -16,7 +16,7 @@ module Equ.Proof.Proof (
                  , isHole
                  -- Proyecciones
                  , getCtx, getStart, getEnd, getRel
-                 , updateStart, updateEnd, updateRel
+                 , updateStart, updateEnd, updateRel, updateMiddle
                  ) where
 
 import Equ.Expr
@@ -557,6 +557,10 @@ updateEnd (Cases c r f1 _ fc list) f = Cases c r f1 f fc list
 updateEnd (Ind c r f1 _ l1 l2) f = Ind c r f1 f l1 l2
 updateEnd (Deduc c f1 _ p) f = Deduc c f1 f p
 updateEnd (Focus c r f1 _ p) f = Focus c r f1 f p
+
+updateMiddle :: Proof -> Focus -> Proof
+updateMiddle (Trans c r f1 f2 _ p p') f = Trans c r f1 f2 f p p'
+updateMiddle _ f = undefined
 
 updateRel :: Proof -> Relation -> Proof
 updateRel Reflex r = Reflex

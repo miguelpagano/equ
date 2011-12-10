@@ -3,11 +3,12 @@ module Equ.Proof.Zipper
     , ProofPath
     , toProof, toProofFocus
     , replace
-    , goDown, goUp, goLeft, goRight, goDownR, goDownL
+    , goDown, goUp, goLeft, goRight, goDownR, goDownL, goTop
     ) where
 
 import Equ.Proof.Proof
 import Data.Monoid
+import Data.Maybe(fromJust)
 
 -- | Definición de los posibles lugares en los que podemos estar
 -- enfocándonos.
@@ -16,6 +17,7 @@ data ProofPath = Top
                | TransR Proof ProofPath
             deriving (Eq,Show)
 
+            
 type ProofFocus = (Proof,ProofPath)
 
 toProof :: ProofFocus -> Proof
@@ -49,6 +51,12 @@ goUp :: ProofFocus -> Maybe ProofFocus
 goUp (_, Top) = Nothing
 goUp (p, TransL path pr) = Just (mappend p pr,path)
 goUp (p, TransR pl path) = Just (mappend pl p,path)
+
+-- | Sube hasta el tope.
+goTop :: ProofFocus -> Maybe ProofFocus
+goTop (p,Top) = Just (p,Top)
+goTop pf = goTop $ fromJust $ goUp pf
+
 
 -- | Ir a la izquierda en un focus, sin cambiar de nivel.
 goLeft :: ProofFocus -> Maybe ProofFocus
