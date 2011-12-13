@@ -43,47 +43,6 @@ newProofRef boxExpr symbolList axiomList axiom_box st_place= do
                     }
     return ref
 
-{- Setea los eventos de un widget de expresion. La funcion f es la que se utiliza
-para actualizar la expresion dentro de la prueba
--}
-eventsExprWidget :: HBox -> ProofRef -> HBox -> ExprWidget -> (ProofFocus -> Focus -> Maybe ProofFocus) 
-                    -> String -> ListStore (String,HBox -> IRProof) -> IO ()
-eventsExprWidget ext_box proofRef hb w f fname sListStore =
-    
-    flip evalStateT proofRef $ 
-        liftIO setupFocusEvent >>
-        setupForm (formBox w) >>
-        getSymCtrl >>=
-        (flip eventsSymbolList sListStore) >>
-        liftIO ((clearButton w) `on` buttonPressEvent $ tryEvent $ 
-                            eventWithState (clearFocus (formBox w) >> return ()) 
-                            proofRef) >> return ()
-    
-    where setupFocusEvent = do
-                eb <- eventBoxNew
-                set eb [ containerChild := hb ]
-                boxPackStart ext_box eb PackGrow 0
-                eb `on` buttonReleaseEvent $ do
-                    -- movemos el proofFocus hasta donde está esta expresión.
-                    eventWithState (updateModifExpr f) proofRef
-                    liftIO $ putStrLn fname
-                    liftIO $ widgetShowAll eb
-                    return False
-                    
-relationListStore :: IO (ListStore Relation)
-relationListStore = listStoreNew relationList 
-                      
-newComboRel :: IO (ComboBox,ListStore Relation)
-newComboRel = do
-    list <- relationListStore
-    combo <- comboBoxNew
-    renderer <- cellRendererTextNew
-    cellLayoutPackStart combo renderer False
-    cellLayoutSetAttributes combo renderer list (\ind -> [cellText := unpack $ relRepr ind])
-    comboBoxSetModel combo (Just list)
-    return (combo,list)
-
-
 createNewProof :: VBox ->  TreeView -> ListStore (String,HBox -> IRProof) -> TreeView -> 
                   ListStore (String,HBox -> IRProof) -> StatusPlace -> IO ()
 createNewProof ret_box symbolList sListStore axiomList aListStore st_place= do
@@ -131,17 +90,7 @@ createNewProof ret_box symbolList sListStore axiomList aListStore st_place= do
     
     valid_button `on` buttonPressEvent $ tryEvent $
                             eventWithState (checkProof validImage) proofRef
-    
-    
---     center_box `on` buttonReleaseEvent $ tryEvent $
---                             eventWithState (liftIO $ putStrLn "center box clicked") proofRef
-
-    {-
-    addStepButton `on` buttonPressEvent $ tryEvent $ 
-                        eventWithState (-}
                             
-    
-    
     widgetShowAll ret_box
             
 
@@ -256,7 +205,23 @@ createCenterBox proofRef moveFocus symbolList= do
             ind <- liftIO $ comboBoxGetActive c
             newRel <- liftIO $ listStoreGetValue list ind
             updateRelation newRel
-    
+
+            
+relationListStore :: IO (ListStore Relation)
+relationListStore = listStoreNew relationList 
+                      
+newComboRel :: IO (ComboBox,ListStore Relation)
+newComboRel = do
+    list <- relationListStore
+    combo <- comboBoxNew
+    renderer <- cellRendererTextNew
+    cellLayoutPackStart combo renderer False
+    cellLayoutSetAttributes combo renderer list (\ind -> [cellText := unpack $ relRepr ind])
+    comboBoxSetModel combo (Just list)
+    return (combo,list)
+            
+            
+            
 createExprWidget :: ProofRef -> (ProofFocus -> Focus -> Maybe ProofFocus) -> String -> 
               ListStore (String,HBox -> IRProof) -> IO HBox
               
@@ -295,4 +260,30 @@ createExprWidget proofRef fUpdateFocus fname sListStore = do
     eventsExprWidget hbox proofRef boxExprWidget exprWidget fUpdateFocus fname sListStore
     
     return hbox   
+
+{- Setea los eventos de un widget de expresion. La funcion f es la que se utiliza
+para actualizar la expresion dentro de la prueba
+-}
+eventsExprWidget :: HBox -> ProofRef -> HBox -> ExprWidget -> (ProofFocus -> Focus -> Maybe ProofFocus) 
+                    -> String -> ListStore (String,HBox -> IRProof) -> IO ()
+eventsExprWidget ext_box proofRef hb w f fname sListStore =
     
+    flip evalStateT proofRef $ 
+        liftIO setupFocusEvent >>
+        setupForm (formBox w) >>
+        getSymCtrl >>=
+        (flip eventsSymbolList sListStore) >>
+        liftIO ((clearButton w) `on` buttonPressEvent $ tryEvent $ 
+                            eventWithState (clearFocus (formBox w) >> return ()) 
+                            proofRef) >> return ()
+    
+    where setupFocusEvent = do
+                eb <- eventBoxNew
+                set eb [ containerChild := hb ]
+                boxPackStart ext_box eb PackGrow 0
+                eb `on` buttonReleaseEvent $ do
+                    -- movemos el proofFocus hasta donde está esta expresión.
+                    eventWithState (updateModifExpr f) proofRef
+                    liftIO $ putStrLn fname
+                    liftIO $ widgetShowAll eb
+                    return False
