@@ -60,8 +60,9 @@ data Axiom = Axiom {
     deriving Eq
 
 instance Show Axiom where
-    show ax = (show . unpack . axName) ax ++ ": " ++ (show . axExpr) ax
-
+    --show ax = (show . unpack . axName) ax ++ ": " ++ (show . axExpr) ax
+    show ax = (show . unpack . axName) ax
+    
 instance Arbitrary Axiom where
     arbitrary = Axiom <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
@@ -342,26 +343,33 @@ instance Eq Proof where
                (fromJust $ getEnd p1) == (fromJust $ getEnd p2)-}
     
 
-    
-
--- Hace falta mejorar esta instancia.
 instance Show Proof where
     show Reflex = ""
-    show (Hole _ r f f') = "\t" ++ show f ++ "\n" ++ show r ++ "{ ? }" ++  "\n\t" ++ show f'
-    show (Simple _ r f f' b) = "\t" ++ show f ++ 
-                                 "\n" ++ show r ++ "{" ++ show b ++ "}" ++ 
-                                 "\n\t" ++ show f'
-    show (Trans _ r f f' f'' p p') =  "\t" ++ show f ++ 
-                                        "\n" ++ show r ++ "\n{" ++ show p ++
-                                        "\n\t\n}\n\t" ++ show f'' ++ 
-                                        "\n" ++ show r ++ "\n{" ++ show p' ++ 
-                                        "\n\t\n}\n\t" ++ show f'
-    show (Cases _ r f f' f'' lfp) = show r ++ show f ++ show f' ++ 
-                                      show f'' ++ show lfp
-    show (Ind _ r f f' lf lfp) = show r ++ show f ++ show f' ++ 
-                                      show lf ++ show lfp
-    show (Deduc _ f f' p) = show f ++ show f' ++ show p
-    show (Focus _ r f f' p) = show r ++ show f ++ show f' ++ show p
+    show (Hole _ r f f') = "Hole " ++ show r ++ " " ++ show (fst f) ++ " " ++ show (fst f')
+    show (Simple _ r f f' b) = "Simple " ++ show r ++ " " ++ show (fst f) ++ " " ++ show (fst f') ++ " { " ++ show b ++" } "
+    show (Trans _ r f f' f'' p p') = "Trans " ++ show r ++ " " ++ show (fst f) ++ " " ++ 
+                                                 show (fst f') ++ " " ++ show (fst f'') ++ " { " ++ show p ++ " } " ++
+                                                 " { " ++ show p' ++ " } "
+    show _ = "prueba no implementada"
+
+-- Hace falta mejorar esta instancia.
+-- instance Show Proof where
+--     show Reflex = ""
+--     show (Hole _ r f f') = "\t" ++ show (fst f) ++ "\n" ++ show r ++ "{ ? }" ++  "\n\t" ++ show (fst f')
+--     show (Simple _ r f f' b) = "\t" ++ show (fst f) ++ 
+--                                  "\n" ++ show r ++ "{" ++ show b ++ "}" ++ 
+--                                  "\n\t" ++ show (fst f')
+--     show (Trans _ r f f' f'' p p') =  "\t" ++ show (fst f) ++ 
+--                                         "\n" ++ show r ++ "\n{" ++ show p ++
+--                                         "\n\t\n}\n\t" ++ show (fst f'') ++ 
+--                                         "\n" ++ show r ++ "\n{" ++ show p' ++ 
+--                                         "\n\t\n}\n\t" ++ show (fst f')
+--     show (Cases _ r f f' f'' lfp) = show r ++ show f ++ show f' ++ 
+--                                       show f'' ++ show lfp
+--     show (Ind _ r f f' lf lfp) = show r ++ show f ++ show f' ++ 
+--                                       show lf ++ show lfp
+--     show (Deduc _ f f' p) = show f ++ show f' ++ show p
+--     show (Focus _ r f f' p) = show r ++ show f ++ show f' ++ show p
 
 {- Instancia Arbitrary para Proof, la definición de arbitrary la realizamos
     con sized ya que si no las pruebas crecen descontroladamente y como
@@ -487,8 +495,8 @@ instance Monoid Proof where
     mappend Reflex p = p
     mappend p Reflex = p
     mappend p1 p2 = Trans (fromJust $ getCtx p1) (fromJust $ getRel p1) 
-                          (fromJust $ getStart p1) (fromJust $ getStart p2) 
-                          (fromJust $ getEnd p2) p1 p2
+                          (fromJust $ getStart p1) (fromJust $ getEnd p2) 
+                          (fromJust $ getStart p2) p1 p2
 
 isHole :: Proof -> Bool
 isHole (Hole _ _ _ _) = True
@@ -542,7 +550,7 @@ updateStart :: Proof -> Focus -> Proof
 updateStart Reflex _ = Reflex
 updateStart (Hole c r _ f2) f = Hole c r f f2
 updateStart (Simple c r _ f2 b) f = Simple c r f f2 b
-updateStart (Trans c r _ f2 fm p p') f = Trans c r f fm f2 p p'
+updateStart (Trans c r _ f2 fm p p') f = Trans c r f fm f2 (updateStart p f) p'
 updateStart (Cases c r _ f2 fc list) f = Cases c r f f2 fc list
 updateStart (Ind c r _ f2 l1 l2) f = Ind c r f f2 l1 l2
 updateStart (Deduc c _ f2 p) f = Deduc c f f2 p
@@ -552,14 +560,14 @@ updateEnd :: Proof -> Focus -> Proof
 updateEnd Reflex f = Reflex
 updateEnd (Hole c r f1 _) f = Hole c r f1 f
 updateEnd (Simple c r f1 _ b) f = Simple c r f1 f b
-updateEnd (Trans c r f1 _ fm p p') f = Trans c r f1 f fm p p'
+updateEnd (Trans c r f1 _ fm p p') f = Trans c r f1 f fm p (updateEnd p' f)
 updateEnd (Cases c r f1 _ fc list) f = Cases c r f1 f fc list
 updateEnd (Ind c r f1 _ l1 l2) f = Ind c r f1 f l1 l2
 updateEnd (Deduc c f1 _ p) f = Deduc c f1 f p
 updateEnd (Focus c r f1 _ p) f = Focus c r f1 f p
 
 updateMiddle :: Proof -> Focus -> Proof
-updateMiddle (Trans c r f1 f2 _ p p') f = Trans c r f1 f2 f p p'
+updateMiddle (Trans c r f1 f2 _ p p') f = Trans c r f1 f2 f (updateEnd p f) (updateStart p' f)
 updateMiddle _ f = undefined
 
 updateRel :: Proof -> Relation -> Proof

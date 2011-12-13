@@ -159,11 +159,16 @@ updateModifExpr f = update $ \pst -> pst { modifExpr = f }
 
 updateRelation :: Relation -> IState ()
 updateRelation r = getProof >>= \(p,path) ->
-                   update (\pst -> pst { proof = ((updateRel p r),path) }) >>
-                   showProof
+                   updateProof (updateRel p r,path)
                    
 updateAxiomBox :: HBox -> IState ()
 updateAxiomBox b = update $ \pst -> pst { axiomBox = b}
+
+
+
+changeProofFocus :: (ProofFocus -> Maybe ProofFocus) -> HBox -> IState ()
+changeProofFocus moveFocus box = getProof >>= \pf -> updateProof (fromJust $ moveFocus pf) >>
+                                 updateAxiomBox box
 
 {- Las cinco funciones siguientes devuelven cada uno de los
 componentes del estado. -}

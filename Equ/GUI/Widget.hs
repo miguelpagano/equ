@@ -158,8 +158,6 @@ removeAllChildren b = liftIO $ containerForeach b $
 setupForm ::  HBox -> IRProof
 setupForm b = labelStr "?" >>= setupFormEv b
 
--- (MANU) Por qué la funcion que sigue es tan general si solo la usamos en setupForm?
-
 -- | Asigna los manejadores de eventos para widgets de expresiones a 
 -- los controles.
 setupFormEv :: WidgetClass w => HBox -> w -> IRProof

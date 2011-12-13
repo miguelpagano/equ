@@ -114,8 +114,8 @@ createNewProof ret_box symbolList sListStore axiomList aListStore st_place= do
         (flip eventsTruthList aListStore))
 
 
-    hboxInit <- createExprWidget proofRef updateStartFocus "start" sListStore
-    hboxEnd  <- createExprWidget proofRef updateEndFocus "end" sListStore
+    hboxInit <- createExprWidget proofRef updateFirstExpr "start" sListStore
+    hboxEnd  <- createExprWidget proofRef updateFinalExpr "end" sListStore
     
     boxPackStart ret_box hboxInit PackNatural 2
     boxPackStart ret_box center_box PackNatural 2
@@ -144,13 +144,16 @@ createNewProof ret_box symbolList sListStore axiomList aListStore st_place= do
     
     widgetShowAll ret_box
             
-        
+
+    where updateFirstExpr pf f = updateStartFocus (fromJust $ goTop pf) f
+          updateFinalExpr pf f = updateEndFocus (fromJust $ goTop pf) f
         
 checkProof validImage = getProof >>= 
     \pf -> (let vp = validateProof (toProof pf) in
                 case vp of
                      Right _ -> liftIO $ imageSetFromStock validImage stockOk IconSizeSmallToolbar
                      Left err -> setErrMessage (show err) >> 
+                                 liftIO (putStrLn $ show err) >> 
                                  liftIO (imageSetFromStock validImage stockCancel IconSizeSmallToolbar)
                 )
 
@@ -168,17 +171,24 @@ newStepProof proofRef moveFocus container symbolList = do
     boxPackStart container centerBoxR PackNatural 5
     
     (flip evalStateT proofRef $ 
-        -- Movemos el ProofFocus:
+        -- Movemos el ProofFocus hasta donde está el hueco que queremos reemplazar
+        -- por una transitividad
         getProof >>= \pf -> updateProof (fromJust $ moveFocus pf) >>
         -- Reemplazamos el hueco por una transitividad
-        getProof >>= \pf -> updateProof (addEmptyStep pf))
+        getProof >>= \pf -> updateProof (addEmptyStep pf) >>
+        -- Dejamos enfocada la prueba derecha de la transitividad
+        getProof >>= \pf -> updateProof (fromJust $ goDownR pf))
         
     widgetShowAll container
     
-    
-    where updateFocus pf f = updateEndFocus (fromJust $ goDownL $ fromJust $ moveFocus pf) f >>= \pf' ->
-                             updateStartFocus (fromJust $ goRight pf') f >>= \pf'' ->
-                             updateMiddleFocus (fromJust $ goUp pf'') f
+    {- Cuando se modifique la expresion que queda en el medio de esta transitividad,
+       tenemos que actualizar la expr del medio de la transitividad, la expr final de la
+       prueba izquierda y la expr inicial de la prueba derecha. Para hacer todo esto vamos moviéndonos
+       con el zipper
+       -}
+    where updateFocus pf f = updateMiddleFocus (fromJust $ moveFocus pf) f >>= \pf' ->
+                             updateEndFocus (fromJust $ goDownL pf') f >>= \pf'' ->
+                             updateStartFocus (fromJust $ goRight pf'') f
                 
     
 createCenterBox :: ProofRef -> (ProofFocus -> Maybe ProofFocus) -> 
@@ -207,14 +217,31 @@ createCenterBox proofRef moveFocus symbolList= do
     boxPackStart hbox eb_axiom_box PackNatural 5
     boxPackStart hbox addStepButton PackNatural 5
 
-    combo_rel `on` changed $ evalStateT (changeItem combo_rel store_rel) proofRef
+    combo_rel `on` changed $ evalStateT (changeItem combo_rel store_rel axiom_box) proofRef
     
-    eb_axiom_box `on` buttonReleaseEvent $ do
+    eb_axiom_box `on` enterNotifyEvent $ tryEvent $ highlightBox hbox hoverBg
+                                                    
+    eb_axiom_box `on` leaveNotifyEvent $ tryEvent $ (liftIO $ widgetGetStyle hbox) >>=
+                                \st -> (liftIO $ styleGetBackground st (toEnum 0)) >>=
+                                \bg -> unlightBox hbox bg
+    
+    eb_axiom_box `on` buttonPressEvent $ tryEvent $ do
+        LeftButton <- eventButton
         liftIO $ putStrLn "axiom_box clicked"
-        eventWithState (getProof >>= \pf -> updateProof (fromJust $ moveFocus pf) >>
-                        updateAxiomBox axiom_box) proofRef
-        return False
-
+        eventWithState (changeProofFocus moveFocus axiom_box) proofRef
+        
+    eb_axiom_box `on` buttonPressEvent $ tryEvent $ do
+        RightButton <- eventButton
+        liftIO $ putStrLn "axiom_box right clicked"
+        eventWithState (changeProofFocus moveFocus axiom_box) proofRef
+        liftIO $ containerForeach axiom_box $ \x -> containerRemove axiom_box x >> widgetDestroy x
+        label <- liftIO (labelNew (Just $ "?"))
+        liftIO $ boxPackStart axiom_box label PackGrow 0
+        eventWithState (getProof >>= \pf ->
+                        updateProof (toHoleProof pf)
+            ) proofRef
+        liftIO $ widgetShowAll axiom_box
+        
     addStepButton `on` buttonPressEvent $ 
                         liftIO (newStepProof proofRef moveFocus center_box symbolList) >>
                         return False
@@ -224,7 +251,8 @@ createCenterBox proofRef moveFocus symbolList= do
     
     return center_box
         
-    where changeItem c list = do 
+    where changeItem c list box = do 
+            changeProofFocus moveFocus box
             ind <- liftIO $ comboBoxGetActive c
             newRel <- liftIO $ listStoreGetValue list ind
             updateRelation newRel

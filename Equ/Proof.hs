@@ -6,7 +6,7 @@ module Equ.Proof (
                  , newProof, newProofWithoutEnd, addStep
                  , proofFromTruth, fillHole
                  , holeProof, emptyProof, updateStart, updateEnd, updateRel
-                 , validateProof
+                 , validateProof, toHoleProof
                  , simpleProof, addEmptyStep, updateStartFocus, updateEndFocus
                  , updateMiddleFocus
                  , Truth (..)
@@ -117,7 +117,7 @@ validateProof proof@(Trans ctx rel f1 f2 f p1 p2) =
     return proof
     
     where err :: ProofError
-          err = TransInconsistent
+          err = TransInconsistent proof
     
 validateProof _ = undefined
 
@@ -240,25 +240,38 @@ fillHole pf@(Hole ctx r f f', _) t = either (\er -> Left er)
 fillHole (p, _) _ = Left $ ClashProofNotHole p
 
 
-
-
+-- | Función para convertir una prueba Simple en un Hole
+toHoleProof :: ProofFocus -> ProofFocus
+toHoleProof (p@(Simple ctx r f f' b),path) = (Hole ctx r f f',path)
+toHoleProof pf = pf
 
 {- Funciones para pasar de una prueba vacía a una prueba con más contenido.
    Todas las funciones no validan la prueba, son solo para manipulacion -}
 
--- | Convierte una prueba vacía en un Simple o transforma una prueba simple en otra.
+{- | Convierte una prueba vacía en un Simple o transforma una prueba simple en otra.
+     Si la prueba no es vacía o no es simple, entonces se comporta como la identidad
+     -}
 simpleProof :: ProofFocus -> Basic -> ProofFocus
 simpleProof (p@(Hole ctx r f1 f2),path) b =
     (Simple ctx r f1 f2 b,path)
 simpleProof (p@(Simple ctx r f1 f2 b'),path) b =
     (Simple ctx r f1 f2 b,path)
+simpleProof p _ = p
 
 
 
--- | Pasa de una prueba vacia a una prueba transitiva vacia.
+{- | Pasa de una prueba vacia a una prueba transitiva vacia. Si la prueba no es vacía
+     o no es Simple, entonces se comporta como la identidad
+     -}
 addEmptyStep :: ProofFocus -> ProofFocus
 addEmptyStep (p@(Hole ctx r f1 f2),path) = 
     (Trans ctx r f1 f2 emptyExpr (Hole ctx r f1 emptyExpr) (Hole ctx r emptyExpr f2),path)
+-- Si le pasamos una prueba simple, la considera un hueco
+addEmptyStep (p@(Simple ctx r f1 f2 b),path) = 
+    (Trans ctx r f1 f2 emptyExpr (Hole ctx r f1 emptyExpr) (Hole ctx r emptyExpr f2),path)
+addEmptyStep p = p
+
+
 
 
 updateStartFocus :: ProofFocus -> Focus -> Maybe ProofFocus

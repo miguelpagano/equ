@@ -34,6 +34,7 @@ writeTruth t b = do
     label <- liftIO (labelNew (Just $ show t))
     liftIO $ boxPackStart b label PackGrow 0
     (old_proof,path) <- getProof
+    --liftIO (putStrLn $ "PRUEBA EN FOCO ES: " ++ show old_proof)
     updateProof (simpleProof (old_proof,path) $ truthBasic t)
 --     updateProof (Simple empty (fromJust $ P.getRel old_proof) 
 --                 (fromJust $ P.getStart old_proof) (fromJust $ P.getEnd old_proof) 

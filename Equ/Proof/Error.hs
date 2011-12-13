@@ -18,7 +18,7 @@ data ProofError = Rewrite RewriteError
                 | ReflexHasNoStart -- Reflex no tiene prueba de inicio.
                 | ReflexHasNoEnd -- Reflex no tiene prueba final.
                 | ReflexHasNoRel -- Reflex no tiene relacion.
-                | TransInconsistent  -- Una prueba transitiva donde los focuses 
+                | TransInconsistent Proof -- Una prueba transitiva donde los focuses 
                                      --no coinciden con las pruebas
     deriving Eq
     
@@ -35,4 +35,4 @@ instance Show ProofError where
     show ReflexHasNoStart = "Una prueba reflexiva no debe tener expresión inicial"
     show ReflexHasNoEnd = "Una prueba reflexiva no debe tener expresión final"
     show ReflexHasNoRel = "Una prueba reflexiva no debe tener relación"
-    show TransInconsistent = "La prueba transitiva es inconsistente"
+    show (TransInconsistent p) = "La prueba transitiva es inconsistente: " ++ show p
