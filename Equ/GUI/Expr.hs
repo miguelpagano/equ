@@ -11,9 +11,7 @@ import Equ.Expr
 import Equ.PreExpr
 import Equ.Syntax
 import Equ.Parser
-
-import qualified Data.Serialize as S
-import qualified Data.ByteString as L
+import Equ.Types
 
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
 import Graphics.UI.Gtk.Gdk.EventM
@@ -71,15 +69,18 @@ setExprFocus' s b = case parseFromString s of
                                         liftIO (widgetShowAll b))
                         Left err -> reportErrWithErrPaned $ show err
 
-typedExprEdit :: IState ()
-typedExprEdit = getTypedFormBox >>=
-                \b -> liftIO (activeTb b) >>=
-                \r -> case r of
-                        Nothing -> reportErrWithErrPaned 
-                                            "Ninguna expresion seleccionada."
-                        Just tb -> liftIO (buttonGetLabel tb) >>= 
-                                   \e -> getFormBox >>=
-                                   \b -> newExpr b >> setExprFocus' e b
+typedExprEdit :: HBox -> IState ()
+typedExprEdit b = getTypedSelectExpr >>= \res ->
+                    case res of
+                            Nothing -> reportErrWithErrPaned 
+                                                "Ninguna expresion seleccionada."
+                            Just te -> return (typedExpr te) >>= \(expr,_) ->
+                                       newExpr b >>
+                                       updateExpr expr >>
+                                       frameExp expr >>= \(WExpr b' _) ->
+                                       removeAllChildren b >>
+                                       addToBox b b' >>
+                                       liftIO (widgetShowAll b)
 
 -- | Esta es la función principal: dada una expresión, construye un
 -- widget con la expresión.
@@ -222,7 +223,6 @@ writeExpr box = newEntry >>= \entry ->
                 addToBox box entry >>
                 liftIO (widgetGrabFocus entry >>
                         widgetShowAll box)
-    
 
 class ExpWriter s where
     writeExp :: s -> HBox -> IRExpr
@@ -238,36 +238,3 @@ instance ExpWriter Operator where
 instance ExpWriter Constant where
     writeExp s cont = removeAllChildren cont >>
                       writeConstant s cont 
-
-
-{- Conjunto de funciones para cargar y guardar una lista de expresiones.
-    Esto es una prueba no mas de lo que podemos llegar a querer hacer con
-    las pruebas.
--}
-testFile :: FilePath
-testFile = "Saves/FormList"
-
-saveFormList :: IState ()
-saveFormList = getTypedFormList >>= 
-               \l -> liftIO $ encodeFile testFile $ map (\(WExpr _ e) -> e) l
-
-loadFormList :: IState ()
-loadFormList = liftIO (decodeFile testFile) >>= loadFormList'
-
-loadFormList' :: [PreExpr] -> IState ()
-loadFormList' [] = return ()
-loadFormList' (e:es) = getTypedFormBox >>=
-                       \b -> setupTbPreExpr (show e) >>=
-                       \tb -> liftIO (boxPackStart b tb PackNatural 2) >>
-                       addToggleButtonList e tb >>
-                       withState (onToggled tb) (selectToggleButton b tb) >>
-                       loadFormList' es
-
-encodeFile :: S.Serialize a => FilePath -> a -> IO ()
-encodeFile f v = L.writeFile f (S.encode v)
-
-decodeFile :: S.Serialize a => FilePath -> IO a
-decodeFile f = do s <- L.readFile f
-                  either (error) (return) $ S.runGet (do v <- S.get
-                                                         m <- S.isEmpty
-                                                         m `seq` return v) s

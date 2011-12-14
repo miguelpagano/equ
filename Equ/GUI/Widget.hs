@@ -19,6 +19,10 @@ import Control.Monad.Trans(lift,liftIO)
 import Control.Monad.State(get)
 import Control.Monad(filterM) 
 
+import Data.List (deleteBy)
+import qualified Data.Serialize as S
+import qualified Data.ByteString as L
+
 -- | Abstracción de la acción que queremos realizar al cerrar la ventana.
 quitAction :: Window -> IO ()
 quitAction w = widgetDestroy w
@@ -39,14 +43,19 @@ openSymPane = getSymPane >>= \p ->
 -- lo muestra en el panel. TODO: Que pasa si el string es muuuuuy largo. 
 -- ¿Sería buena idea pasarle el formato con el string para mas versatilidad?
 reportErrWithErrPaned :: String -> IState ()
-reportErrWithErrPaned s = getErrPanedLabel >>=
-                          \l -> liftIO (labelSetMarkup l 
+reportErrWithErrPaned s = getErrPanedLabel >>= \eb ->
+                          liftIO (containerGetChildren eb) >>=
+                          \[l] -> liftIO (labelSetMarkup (castToLabel l) 
                                             (markSpan 
                                             [ FontBackground "#FF0000"
                                             , FontForeground "#000000"
                                             ] 
                                             s)) >>
-                          openErrPane
+                          openErrPane >>
+                          get >>= \s' ->
+                          liftIO (eb `on` buttonPressEvent $ tryEvent $ 
+                                          eventWithState (closeErrPane) s') >> 
+                          return ()
 
 -- | Abre el panel de error.
 openErrPane :: IState ()
@@ -55,127 +64,283 @@ openErrPane = getFormErrPane >>= \erp ->
                               , panedPosition := paneErrPaneHeight ] >>
                       widgetShowAll erp)
 
--- | Setea un boton activable con la expresion ingresada.
-setupTbPreExpr :: String -> IState ToggleButton
-setupTbPreExpr s = liftIO ( toggleButtonNewWithLabel s >>= \exprTb ->
-                            set exprTb [ buttonRelief := ReliefNone
-                                       , widgetHeightRequest := 40
-                                       ] >>
-                            widgetShowAll exprTb >>
-                            return exprTb)
+closeErrPane :: IState ()
+closeErrPane = getFormErrPane >>= \erp ->
+              liftIO (set erp [ panedPositionSet := True 
+                              , panedPosition := 0 ] >>
+                      widgetShowAll erp)
 
--- | Desactiva el boton activable siempre que no sea el pasado en el primer
--- argumento. TODO: Que pasa si el widget no es un toggleButton (?)
-resetActiveTb :: WidgetClass w => Maybe ToggleButton -> w -> IO ()
-resetActiveTb Nothing w = set (castToToggleButton w) [toggleButtonActive := False]
-resetActiveTb (Just tb) w = let w' = (castToToggleButton w)
-                            in case tb == w' of
-                                    True -> return ()
-                                    False -> set w' [toggleButtonActive := False]
-
--- | Desactiva un boton activable.
-resetAllActiveTb :: WidgetClass w => w -> IO ()
-resetAllActiveTb = resetActiveTb Nothing
-
--- | Cuando se activa un boton activable dentro de un contenedor, se desactiva 
--- el resto, es decir, una exclusion de activacion mutua dentro del contenedor.
-selectToggleButton :: (ContainerClass c) => c -> ToggleButton -> IState ()
-selectToggleButton b tb = liftIO (toggleButtonGetActive tb) >>= 
-                          \tbActive -> 
-                            if tbActive then 
-                                openTypedOptionPane >> 
-                                liftIO (containerForeach b $ 
-                                             resetActiveTb $ Just tb)
-                            else return ()
+updateTypedList :: IState ()
+updateTypedList = getExpr >>= \e -> updateTypedList' e
 
 -- | Hace un update de la lista de expresiones ingresadas.
-updateTypedList :: IState ()
-updateTypedList = getTypedFormBox >>=
-                    \b -> getExpr >>= 
-                    \(e, _) ->  setupTbPreExpr (show e) >>=
-                    \tb -> liftIO (boxPackStart b tb PackNatural 2) >>
-                    addToggleButtonList e tb >>
-                    withState (onToggled tb) (selectToggleButton b tb) >>
+updateTypedList' :: Focus ->  IState ()
+updateTypedList' f = get >>= \s ->
+                    getTypedFormBox >>=
+                    \b -> setupEventExpr f TyUnknown >>= \(eb, tb) ->
+                    liftIO (boxPackStart b eb PackNatural 2) >>
+                    liftIO (widgetShowAll b) >>
+                    liftIO (configEventSelectExprFromList eb s) >>
+                    addExprToList f eb tb >>
                     return ()
 
--- | Configura los botones activables que representan las expresiones, en el
--- arbol de tipado.
-configToggleButton :: ToggleButton -> IState ()
-configToggleButton tb = getBoxTypedFormTree >>=
-                        \b -> withState (onToggled tb) 
-                                        (return ()) >>
-                        --(selectToggleButton b tb) >>
-                        return ()
-
 -- Función principal que construye el arbol de tipado.
--- TODO: Esta muy feo hacerlo en base al string, de todas formas parte de
--- la nueva estructura que hice esta pensado para solucionar esto.
-buildTypedFormTree :: String -> IState ()
-buildTypedFormTree s = case parseFromString s of   
-                            Right expr ->
-                                    getBoxTypedFormTree >>= \bTree -> 
-                                    (buildTypedFormTree' . toFocus) expr $ bTree
-                            Left err -> reportErrWithErrPaned $ show err
+buildTypedFormTree :: TypedExpr -> IState ()
+buildTypedFormTree te = get >>= \s ->
+                        getBoxTypedFormTree >>= \bTree -> 
+                        setupEventExpr (typedExpr te) (typedType te) >>= 
+                        \(eb, tb) -> newBox >>=
+                        \bb -> 
+                        liftIO (configEventSelectExprFromTree eb s >>
+                                configEventSelectTypeFromTree tb s >>
+                                boxPackStart bb eb PackGrow 2 >>
+                                boxPackStart bb tb PackGrow 2 >>
+                                boxPackEnd bTree bb PackNatural 2 >>
+                                widgetShowAll bb
+                                ) >>
+                        addExprToTree (typedExpr te) (typedType te) 
+                                      (pathExpr te) eb tb >>
+                        buildTypedFormTree' te bTree
 
--- Creería que una vez que este andando la nueva estructura esta va a pasar 
--- a ser la principal.
-buildTypedFormTree' :: (BoxClass b) => Focus -> b -> IState ()
-buildTypedFormTree' f@(e,_) bTree = 
-            case checkPreExpr e of
-                Left err -> reportErrWithErrPaned $ show err
-                Right te -> 
-                    setupTbPreExpr (show e ++ " : " ++ show te) >>=
-                    \tb -> configToggleButton tb >>
-                    liftIO (boxPackEnd bTree tb PackNatural 2) >>
-                    case (goDown f, goDownR f) of
-                        (Just df, Just dRf) -> 
-                                newBox >>= \nb -> 
-                                fillNewBox bTree nb >>=
-                                \nVb -> buildTypedFormTree' dRf nVb >>
-                                fillNewBox bTree nb >>=
-                                \nVb -> buildTypedFormTree' df nVb
-                        (Just df, Nothing) -> 
-                                newBox >>= \nb -> 
-                                fillNewBox bTree nb >>=
-                                \nVb -> buildTypedFormTree' df nVb
+buildTypedFormTree' :: (BoxClass b) => TypedExpr -> b -> IState ()
+buildTypedFormTree' te bTree = 
+                    do
+                    goDownLTe <- goDownLTypedExpr te
+                    goDownRTe <- goDownRTypedExpr te
+                    case (goDownLTe, goDownRTe) of
+                        (Just (dlte, leb, ltb), Just (drte, reb, rtb)) -> 
+                            newBox >>= \bTree' ->
+                            liftIO (boxPackEnd bTree bTree' PackNatural 2) >>
+                            fillNewBox bTree' reb rtb >>= \nVb ->
+                            buildTypedFormTree' drte nVb >>
+                            fillNewBox bTree' leb ltb >>= \nVb ->
+                            buildTypedFormTree' dlte nVb
+                        (Just (dlte, leb, ltb), Nothing) -> 
+                            newBox >>= \bTree' ->
+                            liftIO (boxPackEnd bTree bTree' PackNatural 2) >>
+                            fillNewBox bTree' leb ltb >>= \nVb ->
+                            buildTypedFormTree' dlte nVb
                         (Nothing, _) -> return ()
     where
-        fillNewBox :: (BoxClass b, BoxClass b') => b -> b' -> IState VBox
-        fillNewBox bTree nb = newVBox >>=
-                              \nVb ->liftIO (boxPackEnd nb nVb PackGrow 2) >>
-                              liftIO (boxPackEnd bTree nb PackGrow 2) >>
-                              return nVb
+        fillNewBox :: (BoxClass b) => b -> HBox -> HBox -> IState VBox
+        fillNewBox bTree eb tb = get >>= \s ->newVBox >>= \nVb ->
+                                 newBox >>= \nb -> 
+                                 liftIO (
+                                     boxPackStart nb eb PackGrow 2 >> 
+                                     boxPackStart nb tb PackGrow 2 >> 
+                                     boxPackEnd nVb nb PackGrow 2 >> 
+                                     boxPackEnd bTree nVb PackGrow 2 >> 
+                                     widgetShowAll bTree
+                                 ) >>
+                                 return nVb
+
+configEventGeneralExpr :: EventBox -> HBox -> IO ()
+configEventGeneralExpr eb b = do 
+                    (eb `on` enterNotifyEvent $ tryEvent $ 
+                                                highlightBox b hoverBg)
+                    (eb `on` leaveNotifyEvent $ tryEvent $ unlightBox b genericBg)
+                    return ()
+                    
+configEventSelectExprFromProof :: HBox -> GRef -> IO ()
+configEventSelectExprFromProof b s = 
+                        containerGetChildren b >>= \[eb] ->
+                        do
+                        eb `on` buttonPressEvent $ tryEvent $ 
+                                eventWithState (selectTypedProofExpr b >> 
+                                                openTypedOptionPane) s
+                        return ()
+                    
+configEventSelectExprFromList :: HBox -> GRef -> IO ()
+configEventSelectExprFromList b s = 
+                        containerGetChildren b >>= \[eb] ->
+                        do
+                        eb `on` buttonPressEvent $ tryEvent $ 
+                                eventWithState (selectTypedExpr b >> 
+                                                openTypedOptionPane) s
+                        return ()
+
+configEventSelectExprFromTree :: HBox -> GRef -> IO ()
+configEventSelectExprFromTree b s = containerGetChildren b >>= \[eb] ->
+                        do
+                        eb `on` buttonPressEvent $ tryEvent $ 
+                                eventWithState (selectTypedTreeExpr b >> 
+                                                openTypedOptionPane) s
+                        return ()
+
+configEventSelectTypeFromTree :: HBox -> GRef -> IO (ConnectId EventBox)
+configEventSelectTypeFromTree b s = 
+                        containerGetChildren b >>= \[tb'] ->
+                        do
+                        tb <- return $ castToEventBox tb'
+                        tb `on` buttonPressEvent $ tryEvent $ 
+                            eventWithState (
+                                selectTypedTreeType b >>
+                                getTypedSelectExpr >>= \(Just te) ->
+                                liftIO (entryNew) >>= \eText ->
+                                liftIO (entrySetText eText (show (typedType te)) >>
+                                        containerRemove b tb >>
+                                        boxPackStart b eText PackGrow 0 >> 
+                                        widgetShowAll b) >>
+                                configTypedEntry eText b tb te
+                                        ) s
+
+configExprEntry :: Entry -> HBox -> TypedExpr -> IState ()
+configExprEntry eText b te = withState (onEntryActivate eText) 
+                                    (liftIO (entryGetText eText) >>= 
+                                       \text -> checkInExpr text >>= \checkText ->
+                                       case checkText of
+                                            Nothing -> return ()
+                                            Just e -> 
+                                                updateTypedSelectExpr te e >>
+                                                liftIO (labelNew $ Just $ show e) >>= 
+                                                \typeL -> 
+                                                cleanTypedFormPane >>
+                                                cleanTypedTreeExpr >>
+                                                getTypedSelectExpr >>= \(Just te) ->
+                                                buildTypedFormTree te >>
+                                                return ()) >> 
+                                return ()
+
+configTypedEntry :: Entry -> HBox -> EventBox -> TypedExpr -> IState ()
+configTypedEntry eText b tb te = withState (onEntryActivate eText) 
+                                      (liftIO (entryGetText eText) >>= 
+                                       \text -> checkInType text >>= \checkText ->
+                                       case checkText of
+                                            Nothing -> return ()
+                                            Just t -> 
+                                                updateTypedSelectType te t >>
+                                                updateTypedTypeFromTree te t >>
+                                                liftIO (labelNew $ Just $ show t) >>= 
+                                                \typeL -> 
+                                                liftIO (containerGetChildren tb) >>= \[oldL] ->
+                                                liftIO (containerRemove tb oldL) >> 
+                                                liftIO (containerRemove b eText) >> 
+                                                liftIO (set tb [containerChild := typeL]) >> 
+                                                liftIO (set b [containerChild := tb] >> widgetShowAll b)
+                                                >> return ()) >> 
+                            return ()
+
+typedCheckType :: IState ()
+typedCheckType = getTypedSelectExpr >>= \(Just te) ->
+                 case checkPreExpr (fst . typedExpr $ te) of
+                      Left err -> (reportErrWithErrPaned $ show err)
+                      Right checkType ->
+                        if checkType == (typedType te) then
+                            liftIO (highlightBox (eventType te) focusBg >> 
+                                    widgetShowAll (eventType te))
+                        else 
+                            get >>= \s ->
+                            liftIO (configEventCheckType (eventType te) checkType s)
+                            
+
+configEventCheckType :: HBox -> Type -> GRef -> IO ()
+configEventCheckType b t s = labelNew (Just $ show t) >>= 
+                            \typeL -> labelNew (Just $ "Vs") >>= 
+                             \vsL -> eventBoxNew >>= \typeEb -> 
+                             set typeEb [containerChild := typeL] >>
+                             set b [containerChild := vsL] >>
+                             set b [containerChild := typeEb] >>
+                             highlightBox b errBg >> 
+                             widgetShowAll b >>
+                             (typeEb `on` buttonPressEvent $ tryEvent $ 
+                                          eventWithState (
+                                          liftIO (containerRemove b vsL >> 
+                                                  containerRemove b typeEb >> 
+                                                  widgetShowAll b)) s) >> 
+                              return ()
+
+checkInExpr :: String -> IState (Maybe PreExpr)
+checkInExpr s = case parseFromString s of
+                        Left err -> (reportErrWithErrPaned $ show err) >> return Nothing
+                        Right expr -> return $ Just expr
+
+checkInType :: String -> IState (Maybe Type)
+checkInType s = case parseTyFromString s of
+                     Left err -> reportErrWithErrPaned (show err) >> return Nothing
+                     Right t -> return $ Just t
+
+goDownLTypedExpr :: TypedExpr -> IState (Maybe (TypedExpr, HBox, HBox))
+goDownLTypedExpr te = goTypedExpr (goDownL) te
+
+goDownRTypedExpr :: TypedExpr -> IState (Maybe (TypedExpr, HBox, HBox))
+goDownRTypedExpr te = goTypedExpr (goDownR) te
+
+goTypedExpr :: (Focus -> Maybe Focus) -> TypedExpr -> IState (Maybe (TypedExpr, HBox, HBox))
+goTypedExpr go te = 
+            case (go . typedExpr) te of
+                Nothing -> return Nothing
+                Just f ->   get >>= \s -> setupEventExpr f TyUnknown >>= \(eb,tb) -> 
+                            liftIO (configEventSelectExprFromTree eb s) >>
+                            liftIO (configEventSelectTypeFromTree tb s) >>
+                            addExprToTree f TyUnknown 
+                                          (fromJust . (go . (fst . pathExpr $ te)), fromJust . (go . (snd . pathExpr $ te)))
+                                          eb tb >>= 
+                            \te' -> return $ Just (te', eb, tb)
+
+saveTypedExpr :: IState ()
+saveTypedExpr =  getTypedSelectExpr >>= \(Just te) -> 
+                 updateTypedList' $ (toFocus . fst . typedExpr) te
+
+typedExprInEdit :: IState ()
+typedExprInEdit = getTypedSelectExpr >>= \(Just te) -> 
+                  do
+                  b <- return $ eventExpr te
+                  [eb] <- liftIO $ containerGetChildren b
+                  eText <- liftIO $ entryNew
+                  liftIO (entrySetText eText (show (fst . typedExpr $ te)) >>
+                          containerRemove (castToBox b) eb >>
+                          boxPackStart b eText PackGrow 0 >> 
+                          widgetShowAll b)
+                  configExprEntry eText b te
+
+setupEventExpr :: Focus -> Type -> IState (HBox, HBox)
+setupEventExpr (e,_) t = liftIO $
+                            do 
+                                exprL <- (labelNew $ Just $ show e)
+                                typeL <- (labelNew $ Just $ show t)
+                                exprEb <- eventBoxNew
+                                typeEb <- eventBoxNew
+                                exprEbb <- hBoxNew False 0
+                                typeEbb <- hBoxNew False 0
+                                configEventGeneralExpr exprEb exprEbb
+                                configEventGeneralExpr typeEb typeEbb
+                                set exprEb [ containerChild := exprL ]
+                                set typeEb [ containerChild := typeL ]
+                                set exprEbb [ containerChild := exprEb ]
+                                set typeEbb [ containerChild := typeEb ]
+                                return (exprEbb, typeEbb)
 
 -- | En base a una expresion seleccionada genera el arbol de tipado y abre
 -- el respectivo panel.
 typedExprTree :: IState ()
-typedExprTree = getTypedFormBox >>=
-                \b -> liftIO (activeTb b) >>=
-                \r -> case r of
-                        Nothing -> reportErrWithErrPaned 
+typedExprTree = openTypedFormPane >>
+                getTypedSelectExpr >>= \tse ->
+                case tse of
+                     Just se -> buildTypedFormTree se
+                     Nothing -> reportErrWithErrPaned 
                                             "Ninguna expresion seleccionada."
-                        Just tb -> liftIO (buttonGetLabel tb) >>= 
-                                   \e -> buildTypedFormTree e >>
-                                   openTypedFormPane
-
--- | Retorna el boton activado, si no Nothing, en el contenedor VBox.
--- TODO: Creo que tuve algun problemas de tipos cuando quise generalizar
--- la signatura de esta función.
-activeTb :: VBox -> IO (Maybe ToggleButton)
-activeTb b = containerGetChildren b >>= 
-            \c -> filterM (toggleButtonGetActive . castToToggleButton) c >>=
-            \c' -> case c' of
-                        [] -> return Nothing
-                        w:_ -> return . Just $ castToToggleButton w
 
 -- | Borra una expresión seleccionada de una lista.
 typedExprRemove :: IState ()
-typedExprRemove = getTypedFormBox >>=
-                  \b -> liftIO (activeTb b) >>=
-                  \r -> case r of
-                        Nothing -> reportErrWithErrPaned 
-                                            "Ninguna expresion seleccionada."
-                        Just tb -> liftIO (containerRemove b tb)
+typedExprRemove = getTypedFormList >>= \tel ->
+                  getTypedSelectExpr >>= \tse ->
+                  case tse of
+                      Just se -> return (deleteBy 
+                                        (\se -> \se' -> 
+                                        eventExpr se == eventExpr se') 
+                                        se tel) >>= 
+                                        \tel' -> updateTypedListExpr tel' >> 
+                                        getTypedFormBox >>=
+                                        \b -> cleanContainer (eventExpr se) >>
+                                              liftIO (containerForeach b $ 
+                                                        typedExprRemove' 
+                                                        (eventExpr se)) >>
+                                        return ()
+                      Nothing -> reportErrWithErrPaned 
+                                          "Ninguna expresion seleccionada."
+
+typedExprRemove' :: HBox -> Widget -> IO ()
+typedExprRemove' eb w = containerRemove (castToBox w) eb
 
 -- Elimina todos los widget's de una contenedor.
 cleanContainer :: (ContainerClass c) => c -> IState ()
@@ -229,6 +394,27 @@ hideTypedOptionPane = getTypedOptionPane >>=
                                           , panedPositionSet := True ] >>
                                     widgetShowAll p
                                    )
+
+openProofFace :: Notebook -> IO ()
+openProofFace nt = set nt [notebookPage := 0]
+
+openExprFace :: Notebook -> IO ()
+openExprFace nt = set nt [notebookPage := 1]
+
+configArrowToProof :: Notebook -> HBox -> IState ()
+configArrowToProof p b = liftIO (containerGetChildren b) >>= \[eb] ->
+                         liftIO ((castToEventBox eb) `on` enterNotifyEvent $ tryEvent $ highlightBox b hoverBg) >>
+                         liftIO ((castToEventBox eb) `on` leaveNotifyEvent $ tryEvent $ unlightBox b genericBg) >>
+                         liftIO ((castToEventBox eb) `on` buttonPressEvent $ tryEvent $ liftIO $ openProofFace p) >>
+                         return ()
+                           
+
+configArrowToExpr :: Notebook -> HBox -> IState ()
+configArrowToExpr p b = liftIO (containerGetChildren b) >>= \[eb] ->
+                        liftIO ((castToEventBox eb) `on` enterNotifyEvent $ tryEvent $ (highlightBox b hoverBg >> return ())) >>
+                        liftIO ((castToEventBox eb) `on` leaveNotifyEvent $ tryEvent $ unlightBox b genericBg) >>
+                        liftIO ((castToEventBox eb) `on` buttonPressEvent $ tryEvent $ liftIO $ openExprFace p) >>
+                        return ()
 
 -- | Abre el panel para mostrar el arbol de tipado de una expresión.
 openTypedFormPane :: IState ()
@@ -298,10 +484,8 @@ setupFormEv b c = liftIO eventBoxNew >>= \eb ->
 setupEvents :: WidgetClass w => HBox -> w -> IRExpr
 setupEvents b eb = do s <- get
                       GState _ i _ _ sym p _ <- readRef s
-                      st <- liftIO $ widgetGetStyle b
-                      bg <- liftIO $ styleGetBackground st (toEnum 0)
                       liftIO $ eb `on` enterNotifyEvent $ tryEvent $ highlightBox b hoverBg
-                      liftIO $ eb `on` leaveNotifyEvent $ tryEvent $ unlightBox b bg
+                      liftIO $ eb `on` leaveNotifyEvent $ tryEvent $ unlightBox b genericBg
                       liftIO $ eb `on` buttonPressEvent $ tryEvent $ newFocusToSym b p sym s
                       liftIO $ eb `on` buttonPressEvent $ tryEvent $ removeExpr b s
                       return ()
@@ -345,3 +529,59 @@ highlight bg w = widgetModifyBg w (toEnum 0) bg
 -- | Le quita el color especial a un control.
 unlight :: WidgetClass w => Color -> w -> IO ()
 unlight bg w = widgetModifyBg w (toEnum 0) bg
+
+{- Conjunto de funciones para cargar y guardar una lista de expresiones.
+    Esto es una prueba no mas de lo que podemos llegar a querer hacer con
+    las pruebas.
+    ESTO ESTA SUPER MAL ACÁ, EN ESTE MODULO.
+-}
+exprListFile :: FilePath
+exprListFile = "Saves/FormList"
+
+pseudoProofFile :: FilePath
+pseudoProofFile = "Saves/FormList"
+
+saveDummyProof :: IState ()
+saveDummyProof = getExprListFromProof >>= 
+                \l -> liftIO $ encodeFile pseudoProofFile $ map (\(TypedExpr e t _ _ _) -> (e,t)) l
+
+loadDummyProof :: VBox -> IState ()
+loadDummyProof b = liftIO (decodeFile pseudoProofFile) >>= loadDummyProof' b
+
+loadDummyProof' :: VBox -> [(Focus, Type)] -> IState ()
+loadDummyProof' b [] = liftIO $ containerGetChildren b >>= \(e:es) -> containerRemove b e >> return ()
+loadDummyProof' b ((f,t):es) =  get >>= \s -> setupEventExpr f t >>= \(eb, tb) ->
+                                labelStr "≡ \t\t\t\t [AXIOMA/TEOREMA]" >>= \l ->
+                                liftIO (boxPackStart b l PackNatural 2) >>
+                                liftIO (boxPackStart b eb PackNatural 2) >>
+                                liftIO (widgetShowAll b) >>
+                                liftIO (configEventSelectExprFromProof eb s) >>
+                                addExprToProof f eb tb >>
+                                loadDummyProof' b es
+
+saveFormList :: IState ()
+saveFormList = getTypedFormList >>= 
+               \l -> liftIO $ encodeFile exprListFile $ map (\(TypedExpr e t _ _ _) -> (e,t)) l
+
+loadFormList :: IState ()
+loadFormList = liftIO (decodeFile exprListFile) >>= loadFormList'
+
+loadFormList' :: [(Focus, Type)] -> IState ()
+loadFormList' [] = return ()
+loadFormList' ((f,t):es) = get >>= \s -> getTypedFormBox >>=
+                       \b -> setupEventExpr f t >>= \(eb, tb) ->
+                       liftIO (boxPackStart b eb PackNatural 2) >>
+                       liftIO (widgetShowAll eb) >>
+                       liftIO (configEventSelectExprFromList eb s) >>
+                       addExprToList f eb tb >>
+                       loadFormList' es
+
+encodeFile :: S.Serialize a => FilePath -> a -> IO ()
+encodeFile f v = L.writeFile f (S.encode v)
+
+decodeFile :: S.Serialize a => FilePath -> IO a
+decodeFile f = do s <- L.readFile f
+                  either (error) (return) $ S.runGet (do v <- S.get
+                                                         m <- S.isEmpty
+                                                         m `seq` return v) s
+

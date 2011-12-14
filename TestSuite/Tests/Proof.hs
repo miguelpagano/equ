@@ -1,3 +1,7 @@
+-- | Tests para pruebas. Hay dos aspectos que se controlan: primero
+-- con QuickCheck se verifica la corrección de la serialización; en
+-- segundo lugar, se utiliza HUnit para verificar que las funciones de
+-- manipulación y construcción de pruebas no tienen errores.
 module TestSuite.Tests.Proof (
             testGroupProof
             )
@@ -22,7 +26,9 @@ import Equ.PreExpr hiding (goDownR)
 import Equ.Theories.FOL
 import Equ.Theories.List
 
--- | Test sobre serializacion; decode . encode == id
+-- | Test sobre serializacion; @decode . encode == id@ Notar que este 
+-- test, implica verificar la serialización de la mayor parte de las 
+-- estructuras.
 prop_serialization :: Proof -> Bool
 prop_serialization p = let Right p' = (decode . encode) p in p == p'
 
@@ -379,7 +385,7 @@ Res: ClashRelation eq impl
 -}
 testCaseAddStep2 :: Assertion
 testCaseAddStep2 = testCaseAddStep pFxEqY pFxImplZ 
-                   (Left $ ClashRel relEq relImpl)
+                   (Left $ [ClashRel relEq relImpl])
 
 {- Intentamos agregar un paso en el que no coinciden los focus de las pruebas,
     luego entonces deberiamos devolver ClashAddStep.
@@ -397,7 +403,7 @@ Res: ClashAddStep pFxEqY pFyEqZ
 -}
 testCaseAddStep3 :: Assertion
 testCaseAddStep3 = testCaseAddStep pFxEqY pFyEqZ 
-                   (Left $ ClashAddStep pFxEqY pFyEqZ)
+                   (Left $ [ClashAddStep pFxEqY pFyEqZ])
 
 -- Verifica los casos de test para, dada una prueba, agregar un paso, es decir
 -- otra prueba y generar una nueva prueba por transitividad.

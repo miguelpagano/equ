@@ -29,7 +29,7 @@ instance Serialize a => Serialize (PreExpr' a) where
     put (App pe pe') = putWord8 6 >> put pe >> put pe'
     put (Quant q a pe pe') = putWord8 7 >> put q >> put a >> put pe >> put pe'
     put (Paren pe) = putWord8 8 >> put pe
-    
+
     get = do
     tag_ <- getWord8
     case tag_ of

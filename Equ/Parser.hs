@@ -35,6 +35,7 @@ module Equ.Parser
     , parseFromString
     , parser
     , parserVar
+    , parseTyFromString
     )
         
     where
@@ -56,7 +57,7 @@ import Equ.PreExpr.Internal
 import Equ.Types
 import Equ.Theories.List(listApp, listEmpty)
 import Equ.Theories.Arith(intToCon)
-import Equ.Parser.Types(listAtomTy)
+import Equ.Parser.Types(listAtomTy, parseTyFromString)
 
 data PError = UnOpNotApplied Operator 
             | BinOpNotApplied Operator

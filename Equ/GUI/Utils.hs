@@ -11,12 +11,14 @@ import Equ.PreExpr
 import Equ.Theories
 import Equ.Syntax
 import Equ.Parser
+import Equ.Types
 
 import Graphics.UI.Gtk hiding (eventButton, eventSent, get)
 
 import qualified Graphics.UI.Gtk as G
 
 import Data.Text (unpack)
+import Data.List
 
 import Data.Reference
 import Control.Arrow(first,second,(***),(&&&))
@@ -148,10 +150,16 @@ getTypedOptionPane = askRef >>= return . typedOptionPane
 getTypedFormPane :: IState VPaned
 getTypedFormPane = askRef >>= return . paned . typedFormPane
 
-getTypedFormList :: IState TBExprList
+getTypedSelectExpr :: IState (Maybe TypedExpr)
+getTypedSelectExpr = askRef >>= return . selectExpr . typedFormPane
+
+getExprListFromProof :: IState TypedListExpr
+getExprListFromProof = askRef >>= return . formProof . typedFormPane
+
+getTypedFormList :: IState TypedListExpr
 getTypedFormList = askRef >>= return . formList . typedFormPane
 
-getTypedFormTree :: IState TBExprList
+getTypedFormTree :: IState TypedTreeExpr
 getTypedFormTree = askRef >>= return . formTree . typedFormPane
 
 getSymCtrl :: IState TreeView
@@ -182,9 +190,9 @@ getFormErrPane = getFrmCtrl >>= getParentNamed "errPane" . toWidget >>=
                 return . castToPaned
 
 -- | Devuelve el label que reporta los errores.
-getErrPanedLabel :: IState Label
+getErrPanedLabel :: IState EventBox
 getErrPanedLabel = getFormErrPane >>= \erp -> liftIO (panedGetChild1 erp) >>= 
-                   \(Just l) -> return $ castToLabel l
+                   \(Just eb) -> return $ castToEventBox eb
 
 getFormBox :: IState HBox
 getFormBox = getFrmCtrl >>= getParentNamed "formulaBox" . toWidget >>=
@@ -243,23 +251,117 @@ updateQVar v = getExpr >>= \e ->
                  Quant q _ r t -> parseVar (\v' -> updateExpr (Quant q v' r t)) v
                  _ -> return ()
 
--- Añade una expresion y su respectivo boton a la lista de expresiones.
-addToggleButtonList :: PreExpr -> ToggleButton -> IState ()
-addToggleButtonList e tb = update $ \gst@(GState _ _ _ tp _ _ _) -> 
+selectTypedProofExpr :: HBox -> IState ()
+selectTypedProofExpr = selectExprFrom getExprListFromProof
+
+selectTypedExpr :: HBox -> IState ()
+selectTypedExpr = selectExprFrom getTypedFormList
+
+selectTypedTreeExpr :: HBox -> IState ()
+selectTypedTreeExpr = selectExprFrom getTypedFormTree
+
+selectExprFrom :: IState TypedListExpr -> HBox -> IState ()
+selectExprFrom = selectFrom (eventExpr)
+
+selectTypedTreeType :: HBox -> IState ()
+selectTypedTreeType = selectTypeFrom getTypedFormTree
+
+selectTypeFrom :: IState TypedListExpr -> HBox -> IState ()
+selectTypeFrom = selectFrom (eventType)
+
+selectFrom :: (TypedExpr -> HBox) -> IState TypedListExpr -> HBox -> IState ()
+selectFrom eventTE f eb = f >>= \fl -> updateStatus (show $ map (\f -> typedExpr f) fl) >>
+                   case find (\te -> (eventTE te) == eb) fl of
+                        Nothing -> return ()
+                        Just se -> update (\gst@(GState _ _ _ tp _ _ _) ->
+                                            gst {typedFormPane = 
+                                                    tp {selectExpr = Just se}
+                                                }
+                                          )
+
+updateTypedSelectExpr :: TypedExpr -> PreExpr -> IState ()
+updateTypedSelectExpr te e = update (\gst@(GState _ _ _ tp _ _ _) ->
+                                            gst {typedFormPane = 
+                                                    tp {selectExpr = Just te'}
+                                                }
+                                          )
+    where
+        te' :: TypedExpr
+        te' = te {typedExpr = (toFocus . toExpr . (flip replace $ e) . typedExpr) te}
+
+updateTypedSelectType :: TypedExpr -> Type -> IState ()
+updateTypedSelectType te t = update (\gst@(GState _ _ _ tp _ _ _) ->
+                                            gst {typedFormPane = 
+                                                    tp {selectExpr = Just te'}
+                                                }
+                                          )
+    where
+        te' :: TypedExpr
+        te' = te {typedType = t}
+
+updateTypedTypeFromTree :: TypedExpr -> Type -> IState ()
+updateTypedTypeFromTree te t = getTypedFormTree >>= \fl ->
+                    case find (\te' -> (eventExpr te') == (eventExpr te)) fl of
+                        Nothing -> return ()
+                        Just se -> updateStatus "jojo" >>
+                                    return (deleteBy 
+                                            (\se -> \se' -> 
+                                            eventExpr se == eventExpr se') 
+                                            se fl) >>= \fl' ->
+                                    update (\gst@(GState _ _ _ tp _ _ _) ->
+                                            gst {typedFormPane = 
+                                                tp {formTree = (se {typedType = t}) : fl'}
+                                                }
+                                          )
+
+updateTypedListExpr :: TypedListExpr -> IState ()
+updateTypedListExpr tl = update $ \gst@(GState _ _ _ tp _ _ _) -> 
+                                gst {typedFormPane = 
+                                    tp {formList = tl}}
+
+
+cleanTypedTreeExpr :: IState ()
+cleanTypedTreeExpr = update (\gst@(GState _ _ _ tp _ _ _) -> 
+                                    gst {typedFormPane = 
+                                            tp {formTree = []}
+                                        })
+
+addExprToProof :: Focus -> HBox -> HBox -> IState ()
+addExprToProof f be bt = update $ \gst@(GState _ _ _ tp _ _ _) -> 
                             gst {typedFormPane = 
-                                    tp {formList =  WExpr { widget = tb
-                                                            , wexpr = e
-                                                            } : (formList tp)}
+                                    tp {formProof = TypedExpr { typedExpr = f
+                                                              , typedType = TyUnknown
+                                                              , pathExpr = (id,id)
+                                                              , eventExpr = be
+                                                              , eventType = bt
+                                                              } : (formProof tp)}
+                                      }
+
+-- Añade una expresion y su respectivo boton a la lista de expresiones.
+addExprToList :: Focus -> HBox -> HBox -> IState ()
+addExprToList f be bt = update $ \gst@(GState _ _ _ tp _ _ _) -> 
+                            gst {typedFormPane = 
+                                    tp {formList = TypedExpr { typedExpr = f
+                                                             , typedType = TyUnknown
+                                                             , pathExpr = (id,id)
+                                                             , eventExpr = be
+                                                             , eventType = bt
+                                                             } : (formList tp)}
                                       }
 
 -- Añade una expresion y su respectivo boton a al arbol de tipado.
-addToggleButtonTree :: PreExpr -> ToggleButton -> IState ()
-addToggleButtonTree e tb = update $ \gst@(GState _ _ _ tp _ _ _) -> 
-                            gst {typedFormPane = 
-                                    tp {formTree =  WExpr { widget = tb
-                                                            , wexpr = e
-                                                            } : (formTree tp)}
-                                      }
+addExprToTree :: Focus -> Type -> GoBack -> HBox -> HBox -> IState TypedExpr
+addExprToTree f t p be bt = update (\gst@(GState _ _ _ tp _ _ _) -> 
+                                    gst {typedFormPane = 
+                                            tp {formTree = te : (formTree tp)}
+                                        }) >> return te
+    where te :: TypedExpr
+          te = TypedExpr { typedExpr = f
+                         , typedType = t
+                         , pathExpr = p
+                         , eventExpr = be
+                         , eventType = bt
+                         }
 
 -- | Ejecuta una acción en la mónada de estado para obtener un
 -- resultado. Es útil para los event-handlers.

@@ -2,6 +2,7 @@
 module Equ.GUI.Types where
 
 import Equ.PreExpr
+import Equ.Types
 
 import Graphics.UI.Gtk (WidgetClass, Statusbar, ContextId, HBox, VPaned, HPaned, TreeView, EventBox, ToggleButton)
 import Control.Monad.State
@@ -43,17 +44,27 @@ type IRExpr = IState ()
 -- No estoy seguro que esto este bien, tuve algunos problemas para implementar
 -- (todavía no esta listo) algunas funcionalidades sobre el arbol de tipado.
 data TypedPaned = TypedPaned { paned :: VPaned
-                             , formList :: TBExprList -- Lista de expresiones ingresadas.
-                             , formTree :: TBExprList -- Lista de expresiones que conforman
-                             }                        -- el arbol de tipado de una expresión.
+                             , selectExpr :: Maybe TypedExpr
+                             , formProof :: TypedListExpr
+                             , formList :: TypedListExpr -- Lista de expresiones ingresadas.
+                             , formTree :: TypedTreeExpr -- Lista de expresiones que conforman
+                             }                           -- el arbol de tipado de una expresión.
+
+data TypedExpr = TypedExpr { typedExpr :: Focus
+                           , typedType :: Type
+                           , pathExpr :: GoBack
+                           , eventExpr :: HBox
+                           , eventType :: HBox
+                           }
+                 
+type TypedListExpr = [TypedExpr]
+type TypedTreeExpr = [TypedExpr]
+
+data TypeOfSelect = SExpr | SType
 
 data WExpr w = WExpr { widget :: WidgetClass w => w
                      , wexpr :: PreExpr
                      }
-
-type TBExpr = WExpr ToggleButton
-
-type TBExprList = [TBExpr]
 
 data Boxeable w = forall w . WidgetClass w => Boxeable w
 
