@@ -3,7 +3,7 @@
 {-| Este m&#243;dulo define la noci&#243;n de una prueba. -}
 module Equ.Proof.Proof (
                   -- * Axiomas y teoremas
-                   Basic(..)
+                 Basic(..)
                  , Axiom(..)
                  , Theorem(..)
                  , Truth(..)
@@ -17,6 +17,7 @@ module Equ.Proof.Proof (
                  -- Proyecciones
                  , getCtx, getStart, getEnd, getRel
                  , setCtx, beginCtx, freshName, ctxFromList
+                 , updateStart, updateEnd, updateRel, updateMiddle
                  ) where
 
 import Equ.Expr
@@ -70,8 +71,9 @@ data Axiom = Axiom {
     deriving Eq
 
 instance Show Axiom where
-    show ax = (show . unpack . axName) ax ++ ": " ++ (show . axExpr) ax
-
+    --show ax = (show . unpack . axName) ax ++ ": " ++ (show . axExpr) ax
+    show ax = (show . unpack . axName) ax
+    
 instance Arbitrary Axiom where
     arbitrary = Axiom <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
@@ -98,6 +100,7 @@ data Theorem = Theorem {
     , thRules :: [Rule]
     }
     deriving Eq
+    
 
 instance Show Theorem where
     show th = (show . unpack . thName) th ++ ": " ++ (show . thExpr) th
@@ -118,12 +121,34 @@ instance Truth Theorem where
     truthRules = thRules
     truthBasic = Theo
 
+data Hypothesis = Hypothesis {
+     hypName :: Text
+   , hypExpr :: Expr
+   , hypRel  :: Relation
+   , hypRule :: Rule
+}
+    deriving (Eq,Show)
+
+instance Truth Hypothesis where
+    truthName = hypName
+    truthExpr = hypExpr
+    truthRel  = hypRel
+    truthRules = (\r -> r:[]) . hypRule
+    truthBasic = Hyp
+
+instance Arbitrary Hypothesis where
+    arbitrary = Hypothesis <$> arbitrary <*> arbitrary <*> 
+                            arbitrary <*> arbitrary
+                            
+instance Serialize Hypothesis where
+    put _ = undefined
+    get = undefined
+    
 -- | El contexto lleva las hip&#243;tesis actuales; en nuestro caso hay
 -- tres formas de agregar hip&#243;tesis al contexto: en una prueba por
 -- casos hay nuevas igualdades; en una prueba por inducci&#243;n hay
 -- hip&#243;tesis inductivas y en una prueba que usa el metateorema de la
 -- deducci&#243;n asumimos el antecedente de una implicaci&#243;n.
-type Ctx = M.Map Name Expr
 
 -- Auxiliar para ctxFromList.
 ctxFromList' :: Int -> [Focus] -> [(Name, Expr)]
@@ -135,6 +160,9 @@ ctxFromList' i ((e,_):fs) = (Index i, Expr e) : ctxFromList' (i+1) fs
 ctxFromList :: [Focus] -> Ctx
 ctxFromList = M.fromList . (ctxFromList' 0)
 
+type Ctx = Map Name Hypothesis
+
+
 instance Arbitrary Ctx where
     arbitrary = M.fromList <$> arbitrary
 
@@ -143,16 +171,32 @@ instance Arbitrary Ctx where
 data Basic where
     Ax  :: Axiom -> Basic    -- Un axioma de cierta teor&#237;a.
     Theo :: Theorem -> Basic  -- Un teorema ya probado.
-    Hyp :: Name -> Basic   --  Una hip&#243;tesis que aparece en el contexto.               
+    Hyp :: Hypothesis -> Basic   --  Una hip&#243;tesis que aparece en el contexto.               
     deriving (Show, Eq)
-
+    
+instance Truth Basic where
+    truthName (Ax a) = axName a
+    truthName (Theo t) = thName t
+    truthName (Hyp h) = hypName h
+    truthExpr (Ax a) = axExpr a
+    truthExpr (Theo t) = thExpr t
+    truthExpr (Hyp h) = hypExpr h
+    truthRel (Ax a) = axRel a
+    truthRel (Theo t) = thRel t
+    truthRel (Hyp h) = hypRel h
+    truthRules (Ax a) = axRules a
+    truthRules (Theo t) = thRules t
+    truthRules (Hyp h) = [hypRule h]
+    truthBasic b = b
+    
+-- 
 instance Arbitrary Basic where
     arbitrary = 
         oneof [ Ax <$> arbitrary
               , Theo <$> arbitrary
               , Hyp <$> arbitrary
               ]
-
+-- 
 instance Serialize Basic where
     put (Ax a) = putWord8 0 >> put a
     put (Theo t) = putWord8 1 >> put t
@@ -165,6 +209,8 @@ instance Serialize Basic where
             2 -> Hyp <$> get
             _ -> fail $ "SerializeErr Basic " ++ show tag_
 
+--             
+--             
 {- $proofs
 
 [@Simple@] 
@@ -308,26 +354,44 @@ data Proof where
     Ind    :: Ctx -> Relation -> Focus -> Focus -> [Focus] -> [([Focus],Proof)] -> Proof
     Deduc  :: Ctx -> Focus -> Focus -> Proof -> Proof
     Focus  :: Ctx -> Relation -> Focus -> Focus -> Proof -> Proof
-    deriving Eq
 
--- Hace falta mejorar esta instancia.
+    deriving Eq
+{-    
+instance Eq Proof where
+    Reflex == Reflex = True
+    Reflex == _ = False
+    _ == Reflex = False
+    p1 == p2 = (fromJust $ getStart p1) == (fromJust $ getStart p2) &&
+               (fromJust $ getEnd p1) == (fromJust $ getEnd p2)-}
+    
+
 instance Show Proof where
     show Reflex = ""
-    show (Hole _ r f f') = "\t" ++ show f ++ "\n" ++ show r ++ "{ ? }" ++  "\n\t" ++ show f'
-    show (Simple _ r f f' b) = "\t" ++ show f ++ 
-                                 "\n" ++ show r ++ "{" ++ show b ++ "}" ++ 
-                                 "\n\t" ++ show f'
-    show (Trans _ r f f' f'' p p') =  "\t" ++ show f ++ 
-                                        "\n" ++ show r ++ "\n{" ++ show p ++
-                                        "\n\t\n}\n\t" ++ show f' ++ 
-                                        "\n" ++ show r ++ "\n{" ++ show p' ++ 
-                                        "\n\t\n}\n\t" ++ show f''
-    show (Cases _ r f f' f'' lfp) = show r ++ show f ++ show f' ++ 
-                                      show f'' ++ show lfp
-    show (Ind _ r f f' lf lfp) = show r ++ show f ++ show f' ++ 
-                                      show lf ++ show lfp
-    show (Deduc _ f f' p) = show f ++ show f' ++ show p
-    show (Focus _ r f f' p) = show r ++ show f ++ show f' ++ show p
+    show (Hole _ r f f') = "Hole " ++ show r ++ " " ++ show (fst f) ++ " " ++ show (fst f')
+    show (Simple _ r f f' b) = "Simple " ++ show r ++ " " ++ show (fst f) ++ " " ++ show (fst f') ++ " { " ++ show b ++" } "
+    show (Trans _ r f f' f'' p p') = "Trans " ++ show r ++ " " ++ show (fst f) ++ " " ++ 
+                                                 show (fst f') ++ " " ++ show (fst f'') ++ " { " ++ show p ++ " } " ++
+                                                 " { " ++ show p' ++ " } "
+    show _ = "prueba no implementada"
+
+-- Hace falta mejorar esta instancia.
+-- instance Show Proof where
+--     show Reflex = ""
+--     show (Hole _ r f f') = "\t" ++ show (fst f) ++ "\n" ++ show r ++ "{ ? }" ++  "\n\t" ++ show (fst f')
+--     show (Simple _ r f f' b) = "\t" ++ show (fst f) ++ 
+--                                  "\n" ++ show r ++ "{" ++ show b ++ "}" ++ 
+--                                  "\n\t" ++ show (fst f')
+--     show (Trans _ r f f' f'' p p') =  "\t" ++ show (fst f) ++ 
+--                                         "\n" ++ show r ++ "\n{" ++ show p ++
+--                                         "\n\t\n}\n\t" ++ show (fst f'') ++ 
+--                                         "\n" ++ show r ++ "\n{" ++ show p' ++ 
+--                                         "\n\t\n}\n\t" ++ show (fst f')
+--     show (Cases _ r f f' f'' lfp) = show r ++ show f ++ show f' ++ 
+--                                       show f'' ++ show lfp
+--     show (Ind _ r f f' lf lfp) = show r ++ show f ++ show f' ++ 
+--                                       show lf ++ show lfp
+--     show (Deduc _ f f' p) = show f ++ show f' ++ show p
+--     show (Focus _ r f f' p) = show r ++ show f ++ show f' ++ show p
 
 {- Instancia Arbitrary para Proof, la definición de arbitrary la realizamos
     con sized ya que si no las pruebas crecen descontroladamente y como
@@ -453,8 +517,8 @@ instance Monoid Proof where
     mappend Reflex p = p
     mappend p Reflex = p
     mappend p1 p2 = Trans (fromJust $ getCtx p1) (fromJust $ getRel p1) 
-                          (fromJust $ getStart p1) (fromJust $ getStart p2) 
-                          (fromJust $ getEnd p2) p1 p2
+                          (fromJust $ getStart p1) (fromJust $ getEnd p2) 
+                          (fromJust $ getStart p2) p1 p2
 
 isHole :: Proof -> Bool
 isHole (Hole _ _ _ _) = True
@@ -514,6 +578,42 @@ getRel (Cases _ r _ _ _ _) = Just r
 getRel (Ind _ r _ _ _ _) = Just r
 getRel (Deduc _ _ _ _) = Just relImpl
 getRel (Focus _ r _ _ _) = Just r
+
+
+updateStart :: Proof -> Focus -> Proof
+updateStart Reflex _ = Reflex
+updateStart (Hole c r _ f2) f = Hole c r f f2
+updateStart (Simple c r _ f2 b) f = Simple c r f f2 b
+updateStart (Trans c r _ f2 fm p p') f = Trans c r f fm f2 (updateStart p f) p'
+updateStart (Cases c r _ f2 fc list) f = Cases c r f f2 fc list
+updateStart (Ind c r _ f2 l1 l2) f = Ind c r f f2 l1 l2
+updateStart (Deduc c _ f2 p) f = Deduc c f f2 p
+updateStart (Focus c r _ f2 p) f = Focus c r f f2 p
+
+updateEnd :: Proof -> Focus -> Proof
+updateEnd Reflex f = Reflex
+updateEnd (Hole c r f1 _) f = Hole c r f1 f
+updateEnd (Simple c r f1 _ b) f = Simple c r f1 f b
+updateEnd (Trans c r f1 _ fm p p') f = Trans c r f1 f fm p (updateEnd p' f)
+updateEnd (Cases c r f1 _ fc list) f = Cases c r f1 f fc list
+updateEnd (Ind c r f1 _ l1 l2) f = Ind c r f1 f l1 l2
+updateEnd (Deduc c f1 _ p) f = Deduc c f1 f p
+updateEnd (Focus c r f1 _ p) f = Focus c r f1 f p
+
+updateMiddle :: Proof -> Focus -> Proof
+updateMiddle (Trans c r f1 f2 _ p p') f = Trans c r f1 f2 f (updateEnd p f) (updateStart p' f)
+updateMiddle _ f = undefined
+
+updateRel :: Proof -> Relation -> Proof
+updateRel Reflex r = Reflex
+updateRel (Hole c _ f1 f2) r = Hole c r f1 f2
+updateRel (Simple c _ f1 f2 b) r = Simple c r f1 f2 b
+updateRel (Trans c _ f1 f2 fm p p') r = Trans c r f1 f2 fm p p'
+updateRel (Cases c _ f1 f2 fc list) r = Cases c r f1 f2 fc list
+updateRel (Ind c _ f1 f2 l1 l2) r = Ind c r f1 f2 l1 l2
+updateRel (Deduc c f1 f2 p) r = Deduc c f1 f2 p
+updateRel (Focus c _ f1 f2 p) r = Focus c r f1 f2 p
+
 
 {- $samples
 

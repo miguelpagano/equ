@@ -1,29 +1,41 @@
-{-| Este módulo define el algoritmo principal para construir
-pre-expresiones a partir de los datos ingresados por el usuario.
+-- | Este modulo es el parser a Pre-Expresiones. 
+{--
+Sobre Parsec
 
-Las producciones de los operadores, cuantificadores y constantes se
-construye a partir de las teorías exportadas por el modulo
-'Theories'. La sintaxis concreta de cada uno de esos terminales está
-definida en la teoría correspondiente. Eso facilita cambiar la
-elección de la sintaxis concreta (y eventualmente permitir varias
-formas concretas de escribir el mismo terminal).
+-- Informe de errores; Quisieramos poder marcar la posicion del error
+e informacion bonita de cual fue el error. Parece ser que con
+ParseError nos alcanza.
 
-Asociado a este módulo, se encuentra 'Parser-Types', que define el
-parser para la información de tipado provista por el usuario.  -}
+-- Funcion que determina el conName.
 
-module Equ.Parser (-- * Caracteres especiales comunes a todas lasteor&#237;as 
-                   quantInit
-                  , quantEnd
-                  , quantSep
-                  , opApp
-                  , holeInfoInit 
-                  , holeInfoEnd
-                  , opHole
-                  -- * Funciones principales de parseo
-                  , parseFromString
-                  , parser
-                  , parserVar
-                  )        
+-- Hace falta hacer algun tipo de analisis para los tipos. Parseando
+una funcion no hay problema debido a los constructores definidos en
+las teorias pero que pasa con las constantes? por ejemplo, parseExpr
+3; deberia quedar parseado con su tipo? que pasa si el usuario lo
+especifico o no.  Resolucion: Parseamos con TyUnknown
+
+-- Syntaxis de una escritura general; Como es una prueba bien escrita.
+Se permiten comentarios?
+
+-- Operadores de lista; Precedencia, de momento todos tienen la misma.
+
+-- Libreria; criterion para testear rendimiento.
+--}
+
+module Equ.Parser 
+    (-- * Caracteres especiales comunes a todas las teorías
+      quantInit
+    , quantEnd
+    , quantSep
+    , opApp
+    , holeInfoInit
+    , holeInfoEnd
+    , opHole
+    -- * Funciones principales de parseo
+    , parseFromString
+    , parser
+    , parserVar
+    )
     where
 
 import Text.Parsec

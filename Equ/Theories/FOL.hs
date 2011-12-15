@@ -8,6 +8,8 @@ module Equ.Theories.FOL
     , theoryConstantsList
     , theoryOperatorsList
     , theoryQuantifiersList
+    -- ** Lista de axiomas de la teoria
+    , theoryAxiomList
     -- * Versión tipada de operadores.
     , true, false, equal, equiv, discrep
     , neg, and, or, impl, conseq, forAll, exist
@@ -61,6 +63,7 @@ import Equ.Expr
 import Equ.PreExpr
 import Equ.Rule
 import Equ.Theories.AbsName
+import Equ.Proof
 
 
 -- CONSTANTES
@@ -193,6 +196,11 @@ theoryOperatorsList = [folEqual,folEquiv,folDiscrep,folAnd,folOr,folImpl,folCons
 theoryQuantifiersList :: [Quantifier]
 theoryQuantifiersList = [folForall,folExist]
 
+theoryAxiomList :: [Axiom]
+theoryAxiomList = [conmEquivAxiom,neuterEquivAxiom,equivNegAxiom,falseDefAxiom,
+                   discrepDefAxiom,asocOrAxiom,conmOrAxiom,idempotOrAxiom,distEqOrAxiom,
+                   excludThirdAxiom,goldenRuleAxiom]
+
 -- A continuacion definimos constructores de expresiones, para su facil manejo
 
 -- | Constructor de Constantes logicas
@@ -312,7 +320,15 @@ conmEquiv_Rule3 = Rule { lhs = equiv (equiv varP varQ) varQ
                        , name = ""
                        , desc = ""
                        }
-                       
+
+-- Axioma Conmutatividad de la equivalencia:
+conmEquivAxiom :: Axiom
+conmEquivAxiom = Axiom { axName = "Conmutatividad de la Equivalencia"
+                       , axExpr = equiv (equiv varP varQ) (equiv varQ varP)
+                       , axRel = relEquiv
+                       , axRules = [conmEquiv_Rule1,conmEquiv_Rule2,conmEquiv_Rule3]
+                       }
+
 -- NOTA: No se si hace falta poner dos reglas mas, que serian:
 -- (p &#8801; (q &#8801; q)) &#8801; p
 -- p &#8801; ((q &#8801; q) &#8801; p)
@@ -347,6 +363,14 @@ neuterEquiv_Rule2 = Rule { lhs = varP
                          , desc = ""
                          }
 
+-- Axioma Neutro de la equivalencia
+neuterEquivAxiom :: Axiom
+neuterEquivAxiom = Axiom { axName = "Neutro de la equivalencia"
+                       , axExpr = equiv (equiv varP true) varP
+                       , axRel = relEquiv
+                       , axRules = [neuterEquiv_Rule1,neuterEquiv_Rule2]
+                       }
+
 
 -- =========
 -- NEGACION
@@ -380,7 +404,14 @@ equivNeg_Rule2 = Rule { lhs = equiv (neg $ equiv varP varQ) (neg varP)
                       , name = ""
                       , desc = ""
                       }
-
+                      
+-- Axioma Negación y Equivalencia
+equivNegAxiom :: Axiom
+equivNegAxiom = Axiom { axName = "Negación y Equivalencia"
+                       , axExpr = equiv (neg $ equiv varP varQ) (equiv (neg varP) varQ)
+                       , axRel = relEquiv
+                       , axRules = [equivNeg_Rule1,equivNeg_Rule2]
+                       }
 
 {- | Definicion de false:
 @
@@ -394,6 +425,13 @@ false_Rule = Rule { lhs = false
                   , name = ""
                   , desc = ""
                   }
+                  
+falseDefAxiom :: Axiom
+falseDefAxiom = Axiom { axName = "Definición de False"
+                      , axExpr = equiv false (neg true)
+                      , axRel = relEquiv
+                      , axRules = [false_Rule]
+                      }
 
 -- ============
 -- DISCREPANCIA
@@ -411,7 +449,14 @@ discrep_Rule = Rule { lhs = discrep varP varQ
                     , name = ""
                     , desc = ""
                     }
-                   
+
+discrepDefAxiom :: Axiom
+discrepDefAxiom = Axiom { axName = "Definición de discrepancia"
+                        , axExpr = equiv (discrep varP varQ) (neg (equiv varP varQ))
+                        , axRel = relEquiv
+                        , axRules = [discrep_Rule]
+                    }
+                    
 -- ===========
 -- DISYUNCION
 -- ===========
@@ -428,7 +473,14 @@ asocOr_Rule = Rule { lhs = or (or varP varQ) varR
                   , name = ""
                   , desc = ""
                   }
-
+                  
+asocOrAxiom :: Axiom
+asocOrAxiom = Axiom { axName = "Asociatividad del ∨"
+                    , axExpr = equiv (or (or varP varQ) varR) (or varP (or varQ varR))
+                    , axRel = relEquiv
+                    , axRules = [asocOr_Rule]
+                    }
+                    
 {- | Regla conmutatividad:
 @
     p &#8744; q &#8801; q &#8744; p
@@ -441,6 +493,13 @@ conmOr_Rule = Rule { lhs = or varP varQ
                   , name = ""
                   , desc = ""
                   }
+                  
+conmOrAxiom :: Axiom
+conmOrAxiom = Axiom { axName = "Conmutatividad del ∨"
+                    , axExpr = equiv (or varP varQ) (or varQ varP)
+                    , axRel = relEquiv
+                    , axRules = [conmOr_Rule]
+                    }
 
 {- | Regla idempotencia:
 @
@@ -468,7 +527,12 @@ idempotOr_Rule1 = Rule { lhs = equiv (or varP varP) (varP)
                       , desc = ""
                       }
 
-
+idempotOrAxiom :: Axiom
+idempotOrAxiom = Axiom { axName = "Idempotencia del ∨"
+                        , axExpr = equiv (or varP varP) varP
+                        , axRel = relEquiv
+                        , axRules = [idempotOr_Rule,idempotOr_Rule1]
+                        }
 
 {- | Regla 1 distributividad con equivalencia: 
 @
@@ -495,6 +559,13 @@ distEqOr_Rule2 = Rule { lhs = equiv (or varP $ equiv varQ varR) (or varP varQ)
                       , name = ""
                       , desc = ""
                       }
+                      
+distEqOrAxiom :: Axiom
+distEqOrAxiom = Axiom { axName = "Distributividad de ≡ con ∨"
+                      , axExpr = equiv (or varP (equiv varQ varR)) (equiv (or varP varQ) (or varP varR))
+                      , axRel = relEquiv
+                      , axRules = [distEqOr_Rule1,distEqOr_Rule2]
+                      }
 
 {- | Tercero Excluido:
 @
@@ -508,6 +579,13 @@ excludOr_Rule = Rule { lhs = or varP $ neg varP
                      , name = ""
                      , desc = ""
                      }
+                     
+excludThirdAxiom :: Axiom
+excludThirdAxiom = Axiom { axName = "Tercero excluido"
+                         , axExpr = or varP (neg varP)
+                         , axRel = relEquiv
+                         , axRules = [excludOr_Rule]
+                         }
 
 -- ===========
 -- CONJUNCION
@@ -588,6 +666,13 @@ goldenRule5 = Rule { lhs = equiv (and varP varQ) (equiv varP varQ)
                    , desc = ""
                    }
 
+goldenRuleAxiom :: Axiom
+goldenRuleAxiom = Axiom { axName = "Regla Dorada"
+                        , axExpr = equiv (equiv (and varP varQ) varP) (equiv varQ (or varP varQ))
+                        , axRel = relEquiv
+                        , axRules = [goldenRule1,goldenRule2,goldenRule3,goldenRule4,goldenRule5]
+                        }
+                   
 -- ===========
 -- IMPLICACION
 -- ===========

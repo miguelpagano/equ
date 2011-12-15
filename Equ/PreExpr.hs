@@ -7,6 +7,7 @@ module Equ.PreExpr ( freeVars, freshVar
                    , preExprHole, isPreExprHole
                    , placeHolderVar
                    , isPlaceHolderVar
+                   , emptyExpr, holeExpr
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
@@ -27,7 +28,11 @@ import Equ.PreExpr.Subst
 import Data.Text(pack)
 import Data.Serialize(encode, decode)
 
+
 -- | Dado un focus de una preExpresion, nos dice si esta es un hueco.
+-- import Equ.Parser
+import Equ.Theories.AbsName
+
 isPreExprHole :: Focus -> Bool
 isPreExprHole (PrExHole _, _) = True
 isPreExprHole _ = False
@@ -63,3 +68,10 @@ placeHolderVar = var "" TyUnknown
 isPlaceHolderVar :: Variable -> Bool
 isPlaceHolderVar (Variable "" TyUnknown) = True
 isPlaceHolderVar _ = False
+
+-- | Un hueco sin información.
+holeExpr :: PreExpr
+holeExpr = preExprHole ""
+
+emptyExpr :: Focus
+emptyExpr = toFocus holeExpr
