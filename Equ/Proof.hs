@@ -13,6 +13,7 @@ module Equ.Proof (
                   -- * Axiomas y teoremas
                  , Axiom(..)
                  , Theorem(..)
+                 , Basic(..)
                  -- * Pruebas
                  -- $proofs
                  , Proof(..)
@@ -282,3 +283,4 @@ updateEndFocus (p,path) f = Just (updateEnd p f,path)
 
 updateMiddleFocus :: ProofFocus -> Focus -> Maybe ProofFocus
 updateMiddleFocus (p,path) f = Just (updateMiddle p f,path)
+

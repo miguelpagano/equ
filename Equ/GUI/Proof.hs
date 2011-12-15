@@ -24,6 +24,8 @@ import Control.Monad.Trans(lift,liftIO)
 import Control.Monad.State(get,evalStateT)
 import Data.Text(unpack)
 import Data.Map(empty)
+import Data.List(elemIndex)
+import Data.Either(rights)
 
 
 -- | Crea una nueva referencia
@@ -43,9 +45,26 @@ newProofRef boxExpr symbolList axiomList axiom_box st_place= do
                     }
     return ref
 
-createNewProof :: VBox ->  TreeView -> ListStore (String,HBox -> IRProof) -> TreeView -> 
+                    
+loadProof :: Proof -> VBox -> ProofRef -> ListStore (String,HBox -> IRProof) -> IO ()
+loadProof p@(Hole _ rel f f') ret_box proofRef sListStore = do
+    -- Caja central para colocar la relacion y el axioma aplicado. La funcion para mover el foco
+    -- es ir hasta el tope.
+    center_box  <- createCenterBox proofRef goTop sListStore (head relationList) Nothing
+
+    hboxInit <- createExprWidget (toExpr f) proofRef updateFirstExpr "start" sListStore
+    hboxEnd  <- createExprWidget (toExpr f') proofRef updateFinalExpr "end" sListStore
+    
+    boxPackStart ret_box hboxInit PackNatural 2
+    boxPackStart ret_box center_box PackNatural 2
+    boxPackStart ret_box hboxEnd PackNatural 2
+    
+    evalStateT (updateProof $ toProofFocus p) proofRef
+    
+    
+createNewProof :: (Maybe Proof) -> VBox ->  TreeView -> ListStore (String,HBox -> IRProof) -> TreeView -> 
                   ListStore (String,HBox -> IRProof) -> StatusPlace -> IO ()
-createNewProof ret_box symbolList sListStore axiomList aListStore st_place= do
+createNewProof maybe_proof ret_box symbolList sListStore axiomList aListStore st_place= do
     putStrLn "creando prueba..."
     
     -- delete all children
@@ -65,20 +84,24 @@ createNewProof ret_box symbolList sListStore axiomList aListStore st_place= do
     
     -- Caja central para colocar la relacion y el axioma aplicado. La funcion para mover el foco
     -- es ir hasta el tope.
-    center_box  <- createCenterBox proofRef goTop sListStore
+    center_box  <- createCenterBox proofRef goTop sListStore (head relationList) Nothing
 
     
     (flip evalStateT proofRef $ 
          getAxiomCtrl >>=
         (flip eventsTruthList aListStore))
 
+    case maybe_proof of
+         Nothing -> do
+            hboxInit <- createExprWidget holeExpr proofRef updateFirstExpr "start" sListStore
+            hboxEnd  <- createExprWidget holeExpr proofRef updateFinalExpr "end" sListStore
 
-    hboxInit <- createExprWidget proofRef updateFirstExpr "start" sListStore
-    hboxEnd  <- createExprWidget proofRef updateFinalExpr "end" sListStore
+            boxPackStart ret_box hboxInit PackNatural 2
+            boxPackStart ret_box center_box PackNatural 2
+            boxPackStart ret_box hboxEnd PackNatural 2
+         Just p -> loadProof p ret_box proofRef sListStore
     
-    boxPackStart ret_box hboxInit PackNatural 2
-    boxPackStart ret_box center_box PackNatural 2
-    boxPackStart ret_box hboxEnd PackNatural 2
+    
     
     valid_button <- buttonNewWithLabel "Validar prueba"
     validImage <- imageNewFromStock stockCancel IconSizeSmallToolbar
@@ -94,8 +117,9 @@ createNewProof ret_box symbolList sListStore axiomList aListStore st_place= do
     widgetShowAll ret_box
             
 
-    where updateFirstExpr pf f = updateStartFocus (fromJust $ goTop pf) f
-          updateFinalExpr pf f = updateEndFocus (fromJust $ goTop pf) f
+-- TODO: VER DONDE METER ESTAS FUNCIONES
+updateFirstExpr pf f = updateStartFocus (fromJust $ goTop pf) f
+updateFinalExpr pf f = updateEndFocus (fromJust $ goTop pf) f
         
 checkProof validImage = getProof >>= 
     \pf -> (let vp = validateProof (toProof pf) in
@@ -111,14 +135,6 @@ newStepProof :: ProofRef -> (ProofFocus -> Maybe ProofFocus) ->
 newStepProof proofRef moveFocus container symbolList = do
     containerForeach container $ \x -> containerRemove container x >> widgetDestroy x
     
-    centerBoxL <- createCenterBox proofRef (goDownL . fromJust . moveFocus) symbolList
-    centerBoxR <- createCenterBox proofRef (goDownR . fromJust . moveFocus) symbolList
-    exprBox <- createExprWidget proofRef updateFocus "?" symbolList
-    
-    boxPackStart container centerBoxL PackNatural 5
-    boxPackStart container exprBox PackNatural 5
-    boxPackStart container centerBoxR PackNatural 5
-    
     (flip evalStateT proofRef $ 
         -- Movemos el ProofFocus hasta donde está el hueco que queremos reemplazar
         -- por una transitividad
@@ -127,6 +143,17 @@ newStepProof proofRef moveFocus container symbolList = do
         getProof >>= \pf -> updateProof (addEmptyStep pf) >>
         -- Dejamos enfocada la prueba derecha de la transitividad
         getProof >>= \pf -> updateProof (fromJust $ goDownR pf))
+    
+    relation <- evalStateT (getProof >>= \(proof,_) -> 
+                            return (fromRight $ getRel proof)) proofRef
+    
+    centerBoxL <- createCenterBox proofRef (goDownL . fromJust . moveFocus) symbolList relation Nothing
+    centerBoxR <- createCenterBox proofRef (goDownR . fromJust . moveFocus) symbolList relation Nothing
+    exprBox <- createExprWidget holeExpr proofRef updateFocus "?" symbolList
+    
+    boxPackStart container centerBoxL PackNatural 5
+    boxPackStart container exprBox PackNatural 5
+    boxPackStart container centerBoxR PackNatural 5
         
     widgetShowAll container
     
@@ -139,18 +166,18 @@ newStepProof proofRef moveFocus container symbolList = do
                              updateEndFocus (fromJust $ goDownL pf') f >>= \pf'' ->
                              updateStartFocus (fromJust $ goRight pf'') f
                 
+          fromRight = head . rights . return
     
 createCenterBox :: ProofRef -> (ProofFocus -> Maybe ProofFocus) -> 
-                   ListStore (String,HBox -> IRProof) -> IO VBox
-createCenterBox proofRef moveFocus symbolList= do
+                   ListStore (String,HBox -> IRProof) -> Relation -> Maybe Basic -> IO VBox
+createCenterBox proofRef moveFocus symbolList rel maybe_basic = do
     -- Caja central para colocar la relacion y el axioma aplicado
     center_box  <- vBoxNew False 2
     
     hbox <- hBoxNew False 2
     
     -- Relation combo Box
-    (combo_rel,store_rel)   <- newComboRel
-    comboBoxSetActive combo_rel 0
+    (combo_rel,store_rel)   <- newComboRel rel
     
     -- Axiom box
     axiom_box   <- hBoxNew False 2
@@ -198,6 +225,10 @@ createCenterBox proofRef moveFocus symbolList= do
         
     boxPackStart center_box hbox PackNatural 5
     
+    case maybe_basic of 
+         Nothing -> return ()
+         Just basic -> evalStateT (writeTruth basic axiom_box) proofRef
+    
     return center_box
         
     where changeItem c list box = do 
@@ -210,22 +241,29 @@ createCenterBox proofRef moveFocus symbolList= do
 relationListStore :: IO (ListStore Relation)
 relationListStore = listStoreNew relationList 
                       
-newComboRel :: IO (ComboBox,ListStore Relation)
-newComboRel = do
+newComboRel :: Relation -> IO (ComboBox,ListStore Relation)
+newComboRel rel = do
     list <- relationListStore
     combo <- comboBoxNew
     renderer <- cellRendererTextNew
     cellLayoutPackStart combo renderer False
     cellLayoutSetAttributes combo renderer list (\ind -> [cellText := unpack $ relRepr ind])
     comboBoxSetModel combo (Just list)
+    selectRelation rel combo list
     return (combo,list)
             
+selectRelation :: Relation -> ComboBox -> ListStore Relation -> IO ()
+selectRelation r combo lstore = do
+    ls <- listStoreToList lstore
+    comboBoxSetActive combo (getIndexFromList ls r)
+    
+    where getIndexFromList ls rel = fromJust $ elemIndex rel ls
+
             
-            
-createExprWidget :: ProofRef -> (ProofFocus -> Focus -> Maybe ProofFocus) -> String -> 
-              ListStore (String,HBox -> IRProof) -> IO HBox
+createExprWidget :: PreExpr -> ProofRef -> (ProofFocus -> Focus -> Maybe ProofFocus) -> 
+                    String -> ListStore (String,HBox -> IRProof) -> IO HBox
               
-createExprWidget proofRef fUpdateFocus fname sListStore = do
+createExprWidget expr proofRef fUpdateFocus fname sListStore = do
     
     
     hbox    <- hBoxNew False 2
@@ -258,6 +296,9 @@ createExprWidget proofRef fUpdateFocus fname sListStore = do
     }
     
     eventsExprWidget hbox proofRef boxExprWidget exprWidget fUpdateFocus fname sListStore
+    
+    flip evalStateT proofRef $
+        writeExprWidget expr box
     
     return hbox   
 

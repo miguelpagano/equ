@@ -26,19 +26,16 @@ import Control.Monad.Trans(liftIO)
 listTruths :: IO (ListStore (String, HBox -> IRProof))
 listTruths = listStoreNew $ map addItem axiomList
     where addItem :: (Truth t, Show t) => t -> (String, HBox -> IRProof)
-          addItem t = (show t, writeTruth t)
+          addItem t = (show t, writeTruth $ truthBasic t)
           
-writeTruth :: (Truth t, Show t) => t -> HBox -> IRProof
-writeTruth t b = do
+writeTruth :: Basic -> HBox -> IRProof
+writeTruth basic b = do
     removeAllChildren b
-    label <- liftIO (labelNew (Just $ show t))
+    label <- liftIO (labelNew (Just $ show basic))
     liftIO $ boxPackStart b label PackGrow 0
     (old_proof,path) <- getProof
     --liftIO (putStrLn $ "PRUEBA EN FOCO ES: " ++ show old_proof)
-    updateProof (simpleProof (old_proof,path) $ truthBasic t)
---     updateProof (Simple empty (fromJust $ P.getRel old_proof) 
---                 (fromJust $ P.getStart old_proof) (fromJust $ P.getEnd old_proof) 
---                 (truthBasic t))
+    updateProof (simpleProof (old_proof,path) basic)
     liftIO $ widgetShowAll b
 
 -- | La configuración de la lista de símbolos propiamente hablando.
