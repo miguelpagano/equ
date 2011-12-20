@@ -16,8 +16,8 @@ module Equ.Proof.Proof (
                  , isHole
                  -- Proyecciones
                  , getCtx, getStart, getEnd, getRel
-                 , setCtx, beginCtx, freshName, ctxFromList
                  , updateStart, updateEnd, updateRel, updateMiddle
+                 , encode, decode
                  ) where
 
 import Equ.Expr
@@ -25,10 +25,10 @@ import Equ.PreExpr
 import Equ.Rule
 
 import Data.Text (Text, unpack)
-import qualified Data.Map as M (Map, fromList, findMax, null)
+import Data.Map (Map (..), fromList)
 import Data.Monoid
 import Data.Maybe
-import Data.Serialize(Serialize, get, getWord8, put, putWord8)
+import Data.Serialize(Serialize, get, getWord8, put, putWord8, encode, decode)
 
 import Control.Applicative ((<$>), (<*>))
 import Test.QuickCheck
@@ -37,16 +37,6 @@ import Test.QuickCheck
 -- | Las hip&#243;tesis son nombradas por n&#250;meros.
 data Name = Index Int
     deriving (Show,Ord,Eq)
-
--- | Comienza un contexto en base a una preExpresion.
-beginCtx :: PreExpr -> Ctx
-beginCtx e = M.fromList [(Index 0, Expr e)]
-
--- | Retorna un nombre fresco sobre un contexto.
-freshName :: Ctx -> Name
-freshName c = if M.null c then Index 0 else Index $ 1 + max
-    where max :: Int
-          Index max = (fst . M.findMax) c
 
 instance Arbitrary Name where
     arbitrary = Index <$> arbitrary
@@ -104,6 +94,7 @@ data Theorem = Theorem {
 
 instance Show Theorem where
     show th = (show . unpack . thName) th ++ ": " ++ (show . thExpr) th
+            
 
 instance Arbitrary Theorem where
     arbitrary = Theorem <$> arbitrary <*> arbitrary <*> 
@@ -141,30 +132,18 @@ instance Arbitrary Hypothesis where
                             arbitrary <*> arbitrary
                             
 instance Serialize Hypothesis where
-    put _ = undefined
-    get = undefined
+    put (Hypothesis t e r ru) = put t >> put e >> put r >> put ru
+    get = Hypothesis <$> get <*> get <*> get <*> get
     
 -- | El contexto lleva las hip&#243;tesis actuales; en nuestro caso hay
 -- tres formas de agregar hip&#243;tesis al contexto: en una prueba por
 -- casos hay nuevas igualdades; en una prueba por inducci&#243;n hay
 -- hip&#243;tesis inductivas y en una prueba que usa el metateorema de la
 -- deducci&#243;n asumimos el antecedente de una implicaci&#243;n.
-
--- Auxiliar para ctxFromList.
-ctxFromList' :: Int -> [Focus] -> [(Name, Expr)]
-ctxFromList' _ [] = []
-ctxFromList' i ((e,_):fs) = (Index i, Expr e) : ctxFromList' (i+1) fs 
-
--- | En base a una lista de focus genera un contexto nuevo, en el que cada focus
--- ahora se convierte en una hip&#243;tesis.
-ctxFromList :: [Focus] -> Ctx
-ctxFromList = M.fromList . (ctxFromList' 0)
-
 type Ctx = Map Name Hypothesis
 
-
 instance Arbitrary Ctx where
-    arbitrary = M.fromList <$> arbitrary
+    arbitrary = fromList <$> arbitrary
 
 -- | Las pruebas elementales son aplicar un axioma (en un foco), 
 -- usar un teorema ya probado, o usar una hip&#243;tesis.
@@ -347,7 +326,7 @@ theoFocus = Focus ctx rel (e,p) (e',p') prf
 
 data Proof where
     Reflex :: Proof
-    Hole   :: Ctx -> Relation -> Focus -> Focus -> Proof
+    Hole   :: Ctx -> Relation -> Focus -> Focus -> Proof 
     Simple :: Ctx -> Relation -> Focus -> Focus -> Basic -> Proof
     Trans  :: Ctx -> Relation -> Focus -> Focus -> Focus -> Proof -> Proof -> Proof
     Cases  :: Ctx -> Relation -> Focus -> Focus -> Focus -> [(Focus,Proof)] -> Proof
@@ -534,18 +513,6 @@ getCtx (Ind c _ _ _ _ _) = Just c
 getCtx (Deduc c _ _ _) = Just c
 getCtx (Focus c _ _ _ _) = Just c
 
--- Esta función me hace pensar si no hara falta lo mismo para los demas
--- componentes de las pruebas.
--- | Cambiamos el contexto de una prueba.
-setCtx :: Ctx -> Proof ->  Maybe Proof
-setCtx _ Reflex = Nothing
-setCtx c (Hole _ r f f') = Just (Hole c r f f')
-setCtx c (Simple _ r f f' b) = Just (Simple c r f f' b)
-setCtx c (Trans _ r f f' f'' p p') = Just (Trans c r f f' f'' p p')
-setCtx c (Cases _ r f f' f'' lfp) = Just (Cases c r f f' f'' lfp)
-setCtx c (Ind _ r f f' lf lfp) = Just (Ind c r f f' lf lfp)
-setCtx c (Deduc _ f f' p) = Just (Deduc c f f' p)
-setCtx c (Focus _ r f f' p) = Just (Focus c r f f' p)
 
 -- DUDA: Que hacemos con Reflex aca??
 getStart :: Proof -> Maybe Focus

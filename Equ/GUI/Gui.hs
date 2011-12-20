@@ -9,7 +9,10 @@ import Equ.GUI.Expr
 import Equ.GUI.SymbolList
 import Equ.GUI.TruthList
 import Equ.GUI.Proof
+import Equ.PreExpr(toFocus)
 import Equ.Proof
+import Equ.Parser
+
 import Equ.Rule (relEq)
 
 import qualified Graphics.UI.Gtk as G
@@ -54,6 +57,7 @@ main = do
     
     centralBox <- xmlGetWidget xml castToVBox "centralBox"
     itemNewProof <- xmlGetWidget xml castToImageMenuItem "itemNewProof"
+    itemLoadProof <- xmlGetWidget xml castToImageMenuItem "itemLoadProof"
 
     --formWidget <- createFormWidget formWidgetBox
 
@@ -69,7 +73,8 @@ main = do
     onDestroy window mainQuit
     sListStore <- setupSymbolList symbolList
     aListStore <- setupTruthList axiomList
-    onActivateLeaf itemNewProof (createNewProof centralBox symbolList sListStore axiomList aListStore (statusBar,ctxExpr))
+    onActivateLeaf itemNewProof (createNewProof Nothing centralBox symbolList sListStore axiomList aListStore (statusBar,ctxExpr))
+    onActivateLeaf itemLoadProof (createNewProof test_proof centralBox symbolList sListStore axiomList aListStore (statusBar,ctxExpr))
     
     widgetShowAll window
 
@@ -97,3 +102,7 @@ main = do
     --widgetShowAll window
     --flip evalStateT exprRef (newExpr (formBox formWidget) >> return ())
     mainGUI
+    
+    where test_proof = Just $ newProof relEq (toFocus $ parser "1 + 1") (toFocus $ parser "0") 
+          
+          

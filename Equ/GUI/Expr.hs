@@ -59,14 +59,17 @@ setExprFocus :: Entry -> HBox -> IRProof
 setExprFocus entry box = liftIO (entryGetText entry) >>= \s ->
                          case parseFromString s of
                             Right expr -> (updateExpr expr >>
-                                            frameExp expr >>= \(WExpr box' _) ->
-                                            removeAllChildren box >>
-                                            addToBox box box' >>
-                                            liftIO (widgetShowAll box))
+                                            writeExprWidget expr box)
                             Left err -> 
                                    setErrMessage (show err) >>
                                     liftIO (widgetShowAll box) >>
                                     return ()
+                                    
+writeExprWidget :: PreExpr -> HBox -> IRProof
+writeExprWidget expr box =  frameExp expr >>= \(WExpr box' _) ->
+                            removeAllChildren box >>
+                            addToBox box box' >>
+                            liftIO (widgetShowAll box)
 
 -- | Esta es la función principal: dada una expresión, construye un
 -- widget con la expresión.
