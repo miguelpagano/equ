@@ -50,7 +50,7 @@ loadProof :: Proof -> VBox -> ProofRef -> ListStore (String,HBox -> IRProof) -> 
 loadProof p@(Hole _ rel f f') ret_box proofRef sListStore = do
     -- Caja central para colocar la relacion y el axioma aplicado. La funcion para mover el foco
     -- es ir hasta el tope.
-    center_box  <- createCenterBox proofRef goTop sListStore (head relationList) Nothing
+    center_box  <- createCenterBox proofRef goTop sListStore rel Nothing
 
     hboxInit <- createExprWidget (toExpr f) proofRef updateFirstExpr "start" sListStore
     hboxEnd  <- createExprWidget (toExpr f') proofRef updateFinalExpr "end" sListStore
@@ -60,6 +60,15 @@ loadProof p@(Hole _ rel f f') ret_box proofRef sListStore = do
     boxPackStart ret_box hboxEnd PackNatural 2
     
     evalStateT (updateProof $ toProofFocus p) proofRef
+loadProof p@(Simple _ rel f f' b) ret_box proofRef sListStore = do
+    center_box <- createCenterBox proofRef goTop sListStore rel (Just b)
+    
+    hboxInit <- createExprWidget (toExpr f) proofRef updateFirstExpr "start" sListStore
+    hboxEnd  <- createExprWidget (toExpr f') proofRef updateFinalExpr "end" sListStore
+    
+    boxPackStart ret_box hboxInit PackNatural 2
+    boxPackStart ret_box center_box PackNatural 2
+    boxPackStart ret_box hboxEnd PackNatural 2
     
     
 createNewProof :: (Maybe Proof) -> VBox ->  TreeView -> ListStore (String,HBox -> IRProof) -> TreeView -> 

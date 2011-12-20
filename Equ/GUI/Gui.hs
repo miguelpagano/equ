@@ -13,7 +13,7 @@ import Equ.PreExpr(toFocus)
 import Equ.Proof
 import Equ.Parser
 
-import Equ.Rule (relEq)
+import Equ.Rule (relEq,relEquiv)
 
 import qualified Graphics.UI.Gtk as G
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
@@ -103,6 +103,6 @@ main = do
     --flip evalStateT exprRef (newExpr (formBox formWidget) >> return ())
     mainGUI
     
-    where test_proof = Just $ newProof relEq (toFocus $ parser "1 + 1") (toFocus $ parser "0") 
+    where test_proof = Just $ newProof relEquiv (toFocus $ parser "1 + 1") (toFocus $ parser "0") 
           
           

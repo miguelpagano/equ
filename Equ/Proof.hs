@@ -109,7 +109,7 @@ validateProof (Hole ctx rel f1 f2) = Left ProofError
 validateProof proof@(Simple ctx rel f1 f2 b) = 
     proofFromTruth f1 f2 rel b >>
     return proof
-validateProof proof@(Trans ctx rel f1 f2 f p1 p2) = 
+validateProof proof@(Trans ctx rel f1 f f2 p1 p2) = 
     getStart p1 >>= whenEqWithDefault err f1 >>
     getEnd p1 >>= whenEqWithDefault err f >>
     getStart p2 >>= whenEqWithDefault err f >>
@@ -266,10 +266,10 @@ simpleProof p _ = p
      -}
 addEmptyStep :: ProofFocus -> ProofFocus
 addEmptyStep (p@(Hole ctx r f1 f2),path) = 
-    (Trans ctx r f1 f2 emptyExpr (Hole ctx r f1 emptyExpr) (Hole ctx r emptyExpr f2),path)
+    (Trans ctx r f1 emptyExpr f2 (Hole ctx r f1 emptyExpr) (Hole ctx r emptyExpr f2),path)
 -- Si le pasamos una prueba simple, la considera un hueco
 addEmptyStep (p@(Simple ctx r f1 f2 b),path) = 
-    (Trans ctx r f1 f2 emptyExpr (Hole ctx r f1 emptyExpr) (Hole ctx r emptyExpr f2),path)
+    (Trans ctx r f1 emptyExpr f2 (Hole ctx r f1 emptyExpr) (Hole ctx r emptyExpr f2),path)
 addEmptyStep p = p
 
 
