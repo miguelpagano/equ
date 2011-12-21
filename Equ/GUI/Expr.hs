@@ -129,10 +129,10 @@ frameExp e@(Quant q v e1 e2) = newBox >>= \box ->
                                quantVar v >>= \vbox ->
                                localPath (goDown,goUp)  (frameExp e1) >>= \(WExpr box1 _) ->
                                localPath (goDownR,goUp) (frameExp e2) >>= \(WExpr box2 _) ->
-                               labelStr (quantInit ++ (unpack $ tRepr q)) >>= \lblQnt ->
+                               labelStr (qInit ++ (unpack $ tRepr q)) >>= \lblQnt ->
                                labelStr ":" >>= \lblRng ->
                                labelStr ":" >>= \lblTrm -> 
-                               labelStr quantEnd >>= \lblEnd ->
+                               labelStr qEnd >>= \lblEnd ->
                                setupFormEv box lblQnt >>
                                addToBox box vbox  >>
                                setupFormEv box lblRng >>
@@ -141,23 +141,26 @@ frameExp e@(Quant q v e1 e2) = newBox >>= \box ->
                                addToBox box box2 >>
                                setupFormEv box lblEnd >>
                                return (WExpr box e)
-    where quantVar :: Variable -> IState HBox
-          quantVar v = if isPlaceHolderVar v
-                       then entryvar 
-                       else frameExp (Var v) >>= \(WExpr box _) ->
-                            return box
-
-          -- TOOD: hacer que si tenemos éxito parseando la variable, entonces
-          -- la caja de texto se cambie por un label.
-          entryvar = newEntry >>= \entry ->
-                     liftIO (set entry [ entryEditable := True ]) >>
-                     withState (onEntryActivate entry) 
-                               (liftIO (entryGetText entry) >>=
-                                       updateQVar) >>
-                     entryDim entry entryVarLength >>
-                     newBox >>= \box -> 
-                     addToBox box entry >> return box
-
+    where 
+        quantVar :: Variable -> IState HBox
+        quantVar v = if isPlaceHolderVar v
+                    then entryvar 
+                    else frameExp (Var v) >>= \(WExpr box _) ->
+                        return box
+        -- TOOD: hacer que si tenemos éxito parseando la variable, entonces
+        -- la caja de texto se cambie por un label.
+        entryvar = newEntry >>= \entry ->
+                    liftIO (set entry [ entryEditable := True ]) >>
+                    withState (onEntryActivate entry) 
+                            (liftIO (entryGetText entry) >>=
+                                    updateQVar) >>
+                    entryDim entry entryVarLength >>
+                    newBox >>= \box -> 
+                    addToBox box entry >> return box
+        qInit :: String
+        qInit = quantInit equLang
+        qEnd :: String
+        qEnd = quantInit equLang
 
 frameExp e@(Paren e') = newBox >>= \box ->
                         localPath (goDown,goUp) (frameExp e') >>= \(WExpr box1 _) ->

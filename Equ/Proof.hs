@@ -92,7 +92,7 @@ proofFromTruth :: Truth t => Focus -> Focus -> Relation -> t -> PM Proof
 proofFromTruth f1 f2 rel t = firstRight err $
                              map (proofFromRule f1 f2 rel t) (truthRules t)
     where err :: PM Proof
-          err = Left $ BasicNotApplicable $ truthBasic t
+          err = Left $ [BasicNotApplicable $ truthBasic t]
 
 
 notValidSimpleProof :: Truth t => Focus -> Focus -> Relation -> t -> Proof
@@ -105,7 +105,7 @@ proofFromTheorem :: Focus -> Focus -> Relation -> Theorem -> PM Proof
 proofFromTheorem  = proofFromTruth
 
 validateProof :: Proof -> PM Proof
-validateProof (Hole ctx rel f1 f2) = Left ProofError
+validateProof (Hole ctx rel f1 f2) = Left [ProofError]
 validateProof proof@(Simple ctx rel f1 f2 b) = 
     proofFromTruth f1 f2 rel b >>
     return proof
@@ -223,22 +223,22 @@ addStep (p@(Hole ctx r f f'), _) p' = do
                 r' <- getRel p'
                 whenEqWithDefault (ClashRel r r') r' r
                 endP' <- getEnd p' -- Acá no recuerdo si ibamos a querer esto.
-                when (isPreExprHole endP') (Left $ ProofEndWithHole p')
+                when (isPreExprHole endP') (Left $ [ProofEndWithHole p'])
                 case getStart p' of
                      Right cf | cf == f -> return $ p' `mappend` p'' 
                      Right cf | cf == f' -> return $ p `mappend` p' 
-                     _ -> Left $ ClashAddStep p p'
+                     _ -> Left $ [ClashAddStep p p']
     where
         Right endP' = getEnd p'
         p'' = newProof r endP' f'
-addStep (p, _) _ = Left $ ClashProofNotHole p
+addStep (p, _) _ = Left $ [ClashProofNotHole p]
 
 -- | Completa un hueco en una prueba.
 fillHole :: Truth t => ProofFocus -> t -> PM ProofFocus
 fillHole pf@(Hole ctx r f f', _) t = either (\er -> Left er)
                                             (\p -> Right $ replace pf p) $
                                             proofFromTruth f f' r t
-fillHole (p, _) _ = Left $ ClashProofNotHole p
+fillHole (p, _) _ = Left $ [ClashProofNotHole p]
 
 
 -- | Función para convertir una prueba Simple en un Hole

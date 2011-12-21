@@ -31,6 +31,7 @@ module Equ.Parser
     , holeInfoInit
     , holeInfoEnd
     , opHole
+    , equLang
     -- * Funciones principales de parseo
     , parseFromString
     , parser
