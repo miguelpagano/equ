@@ -26,6 +26,7 @@ import Data.Reference
 import Control.Monad.State (evalStateT,get)
 import Control.Monad(liftM, when)
 import Control.Monad.Trans(liftIO)
+import Data.Monoid
 
 main :: IO ()
 main = do 
@@ -58,6 +59,7 @@ main = do
     centralBox <- xmlGetWidget xml castToVBox "centralBox"
     itemNewProof <- xmlGetWidget xml castToImageMenuItem "itemNewProof"
     itemLoadProof <- xmlGetWidget xml castToImageMenuItem "itemLoadProof"
+    itemSaveProof <- xmlGetWidget xml castToImageMenuItem "itemSaveProof"
 
     --formWidget <- createFormWidget formWidgetBox
 
@@ -74,7 +76,8 @@ main = do
     sListStore <- setupSymbolList symbolList
     aListStore <- setupTruthList axiomList
     onActivateLeaf itemNewProof (createNewProof Nothing centralBox symbolList sListStore axiomList aListStore (statusBar,ctxExpr))
-    onActivateLeaf itemLoadProof (createNewProof test_proof centralBox symbolList sListStore axiomList aListStore (statusBar,ctxExpr))
+    --onActivateLeaf itemLoadProof (createNewProof test_proof centralBox symbolList sListStore axiomList aListStore (statusBar,ctxExpr))
+    onActivateLeaf itemLoadProof $ dialogLoadProof centralBox symbolList sListStore axiomList aListStore (statusBar,ctxExpr)
     
     widgetShowAll window
 
@@ -103,6 +106,25 @@ main = do
     --flip evalStateT exprRef (newExpr (formBox formWidget) >> return ())
     mainGUI
     
-    where test_proof = Just $ newProof relEquiv (toFocus $ parser "1 + 1") (toFocus $ parser "0") 
+    where --test_proof = Just $ newProof relEquiv (toFocus $ parser "1 + 1") (toFocus $ parser "0") 
+          test_proof = Just $ mappend p1 p2
+          p1 = newProof relEquiv (toFocus $ parser "0 + 0") (toFocus $ parser "0") 
+          p2 = newProof relEquiv (toFocus $ parser "0") (toFocus $ parser "True")
           
-          
+dialogLoadProof :: VBox ->  TreeView -> ListStore (String,HBox -> IRProof) -> TreeView -> 
+                   ListStore (String,HBox -> IRProof) -> StatusPlace -> IO ()
+dialogLoadProof centralBox symbolList sListStore axiomList aListStore sPlace= do
+    dialog <- fileChooserDialogNew (Just "Cargar Prueba") Nothing FileChooserActionOpen
+                                [("Cargar",ResponseAccept),("Cancelar",ResponseCancel)]
+    response <- liftIO $ dialogRun dialog
+    
+    case response of
+         ResponseAccept -> do
+             selected <- liftIO $ fileChooserGetFilename dialog
+             liftIO $ putStrLn ("aceptar clicked. Selected is " ++ show selected)
+             case selected of
+                  Just filepath -> decodeFile filepath >>= \proof ->
+                                  createNewProof (Just proof) centralBox symbolList sListStore axiomList aListStore sPlace >>
+                                  widgetDestroy dialog
+                  Nothing -> widgetDestroy dialog
+         _ -> liftIO $ widgetDestroy dialog

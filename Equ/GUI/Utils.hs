@@ -27,6 +27,9 @@ import Control.Monad(liftM)
 import Control.Monad.State(get,put,evalStateT)
 import Control.Monad.Trans(liftIO)
 
+import qualified Data.Serialize as S
+import qualified Data.ByteString as L
+
 -- | Composición bastante usada; podría ir a Equ.PreExpr.Internal.
 repr :: Syntactic t => t -> String
 repr = unpack . tRepr
@@ -283,3 +286,15 @@ withState f m = get >>= liftIO . f . evalStateT m
 
 eventWithState :: IState a -> ProofRef -> EventM t a
 eventWithState m = liftIO . evalStateT m
+
+
+
+-- DONDE VAN ESTAS FUNCIONES???
+encodeFile :: S.Serialize a => FilePath -> a -> IO ()
+encodeFile f v = L.writeFile f (S.encode v)
+ 
+decodeFile :: S.Serialize a => FilePath -> IO a
+decodeFile f = do s <- L.readFile f
+                  either (error) (return) $ S.runGet (do v <- S.get
+                                                         m <- S.isEmpty
+                                                         m `seq` return v) s

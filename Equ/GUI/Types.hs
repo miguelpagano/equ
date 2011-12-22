@@ -74,6 +74,3 @@ data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , clearButton :: Button -- ^ Botón para borrar toda la expresión.
                              , applyButton :: Button -- ^ Botón para aplicar la expresión.
                              }
-                             
-    
-    
