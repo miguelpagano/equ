@@ -11,6 +11,7 @@ import Equ.Expr
 import Equ.PreExpr
 import Equ.Syntax
 import Equ.Parser
+import Equ.Types
 
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
 import Graphics.UI.Gtk.Gdk.EventM
@@ -37,7 +38,7 @@ clearFocus b = getExpr >>= \e ->
 -- | Limpia el contenido de una caja y pone el widget correspondiente
 -- para ingresar una nueva expresión en esa caja. En el estado sólo
 -- se actualiza la expresión del foco.
-clearExpr :: HBox -> IRProof
+clearExpr :: HBox -> IRG
 clearExpr b = removeAllChildren b >>
               setupForm b >> 
               liftIO (widgetShowAll b)
@@ -55,7 +56,7 @@ exprInEntry entry = liftIO . entrySetText entry . repr
 --      faltaría definirle forma y color.
 -- | Dada una caja de texto, parsea el contenido como una expresión
 -- y construye un widget con toda la expresión.
-setExprFocus :: Entry -> HBox -> IRProof
+setExprFocus :: Entry -> HBox -> IRG
 setExprFocus entry box = liftIO (entryGetText entry) >>= \s ->
                          case parseFromString s of
                             Right expr -> (updateExpr expr >>
@@ -65,11 +66,24 @@ setExprFocus entry box = liftIO (entryGetText entry) >>= \s ->
                                     liftIO (widgetShowAll box) >>
                                     return ()
                                     
-writeExprWidget :: PreExpr -> HBox -> IRProof
+writeExprWidget :: PreExpr -> HBox -> IRG
 writeExprWidget expr box =  frameExp expr >>= \(WExpr box' _) ->
                             removeAllChildren box >>
                             addToBox box box' >>
                             liftIO (widgetShowAll box)
+
+typedExprEdit :: HBox -> IState ()
+typedExprEdit b = getSelectExpr >>= \res ->
+                    case res of
+                            Nothing -> reportErrWithErrPaned 
+                                                "Ninguna expresion seleccionada."
+                            Just te -> return (fExpr te) >>= \(expr,_) ->
+                                       newExpr b >>
+                                       updateExpr expr >>
+                                       frameExp expr >>= \(WExpr b' _) ->
+                                       removeAllChildren b >>
+                                       addToBox b b' >>
+                                       liftIO (widgetShowAll b)
 
 -- | Esta es la función principal: dada una expresión, construye un
 -- widget con la expresión.
@@ -89,19 +103,19 @@ frameExp e@(PrExHole h) = newBox >>= \box -> setupForm box >>
 
 frameExp e@(Var v) = newBox >>= \box ->
                      (labelStr . repr) v >>= \lblVar ->
-                     setupFormEv box lblVar >> 
+                     setupFormEv box lblVar e >> 
                      return (WExpr box e)
 
 frameExp e@(Con c) = newBox >>= \box ->
                      (labelStr . repr) c >>= \lblConst ->
-                     setupFormEv box lblConst >> 
+                     setupFormEv box lblConst e >> 
                      return (WExpr box e)
 
 frameExp e@(UnOp op e') = newBox >>= \box ->
                           localPath (goDown,goUp) (frameExp e') >>= \(WExpr box' _) ->
                           (labelStr . repr) op >>= \lblOp ->
-                          setupFormEv box lblOp  >>
-                          setupFormEv box box' >>
+                          setupFormEv box lblOp e >>
+                          setupFormEv box box' e >>
                           return (WExpr box e)
 
 frameExp e@(BinOp op e1 e2) = newBox >>= \box ->
@@ -109,7 +123,7 @@ frameExp e@(BinOp op e1 e2) = newBox >>= \box ->
                               localPath (goDownR,goUp) (frameExp e2) >>= \(WExpr box2 _) ->
                               (labelStr . repr) op >>= \lblOp ->
                               addToBox box box1 >>
-                              setupFormEv box lblOp >>
+                              setupFormEv box lblOp e >>
                               addToBox box box2 >>
                               return (WExpr box e)
 
@@ -118,7 +132,7 @@ frameExp e@(App e1 e2) = newBox >>= \box ->
                            localPath (goDownR,goUp) (frameExp e2) >>= \(WExpr box2 _) ->
                            labelStr  " " >>= \lblEnd ->
                            addToBox box box1 >>
-                           setupFormEv box lblEnd >>
+                           setupFormEv box lblEnd e >>
                            addToBox box box2 >>
                            return (WExpr box e)
 
@@ -133,13 +147,13 @@ frameExp e@(Quant q v e1 e2) = newBox >>= \box ->
                                labelStr ":" >>= \lblRng ->
                                labelStr ":" >>= \lblTrm -> 
                                labelStr qEnd >>= \lblEnd ->
-                               setupFormEv box lblQnt >>
+                               setupFormEv box lblQnt e >>
                                addToBox box vbox  >>
-                               setupFormEv box lblRng >>
+                               setupFormEv box lblRng e >>
                                addToBox box box1 >>
-                               setupFormEv box lblTrm >>
+                               setupFormEv box lblTrm e >>
                                addToBox box box2 >>
-                               setupFormEv box lblEnd >>
+                               setupFormEv box lblEnd e >>
                                return (WExpr box e)
     where 
         quantVar :: Variable -> IState HBox
@@ -160,15 +174,15 @@ frameExp e@(Quant q v e1 e2) = newBox >>= \box ->
         qInit :: String
         qInit = quantInit equLang
         qEnd :: String
-        qEnd = quantInit equLang
+        qEnd = quantEnd equLang
 
 frameExp e@(Paren e') = newBox >>= \box ->
                         localPath (goDown,goUp) (frameExp e') >>= \(WExpr box1 _) ->
                         labelStr "[" >>= \lblOpen ->
                         labelStr "]" >>= \lblClose -> 
-                        setupFormEv box lblOpen >>
+                        setupFormEv box lblOpen e >>
                         addToBox box box1 >>
-                        setupFormEv box  lblClose >>
+                        setupFormEv box  lblClose e >>
                         return (WExpr box e)
 
 frameExp e = (liftIO . putStrLn . show) e >> newBox >>= \b' -> return $ WExpr b' e
@@ -177,7 +191,7 @@ frameExp e = (liftIO . putStrLn . show) e >> newBox >>= \b' -> return $ WExpr b'
 un constructor de la sintáxis. -}
 
 -- | Operadores.
-writeOperator :: Operator -> HBox -> IRProof
+writeOperator :: Operator -> HBox -> IRG
 writeOperator o box = expOp o >>= \(WExpr b e) ->
                       updateExpr e >>
                       addToBox box b >>
@@ -189,7 +203,7 @@ writeOperator o box = expOp o >>= \(WExpr b e) ->
                       NInfix -> frameExp $ BinOp o holeExpr holeExpr
 
 -- | Cuantificadores.
-writeQuantifier :: Quantifier -> HBox -> IRProof
+writeQuantifier :: Quantifier -> HBox -> IRG
 writeQuantifier q box = frameExp (Quant q 
                                   placeHolderVar
                                   (preExprHole "")
@@ -199,26 +213,25 @@ writeQuantifier q box = frameExp (Quant q
                         liftIO (widgetShowAll box)
 
 -- | Constantes.
-writeConstant :: Constant -> HBox -> IRProof
+writeConstant :: Constant -> HBox -> IRG
 writeConstant c box = updateExpr (Con c) >>
                       (labelStr . unpack . tRepr) c >>= \label ->
-                      setupFormEv box label >>
+                      setupFormEv box label (Con c) >>
                       liftIO (widgetShowAll box)
 
 -- | Pone una caja de texto para ingresar una expresión; cuando se
 -- activa (presionando Enter) parsea el texto de la caja como una
 -- expresión y construye el widget correspondiente.
-writeExpr :: HBox -> IRProof
+writeExpr :: HBox -> IRG
 writeExpr box = newEntry >>= \entry -> 
                 withState (onEntryActivate entry) (setExprFocus entry box) >>
                 removeAllChildren box >>
                 addToBox box entry >>
                 liftIO (widgetGrabFocus entry >>
                         widgetShowAll box)
-    
 
 class ExpWriter s where
-    writeExp :: s -> HBox -> IRProof
+    writeExp :: s -> HBox -> IRG
 
 instance ExpWriter Quantifier where
     writeExp s cont = removeAllChildren cont >> 
@@ -231,4 +244,3 @@ instance ExpWriter Operator where
 instance ExpWriter Constant where
     writeExp s cont = removeAllChildren cont >>
                       writeConstant s cont 
-

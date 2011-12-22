@@ -23,12 +23,12 @@ import Control.Monad.Trans(liftIO)
 
 -- | La lista de axiomas y teoremas; el primer elemento nos permite ingresar
 -- una expresión en una caja de texto y parsearla.
-listTruths :: IO (ListStore (String, HBox -> IRProof))
+listTruths :: IO (ListStore (String, HBox -> IRG))
 listTruths = listStoreNew $ map addItem axiomList
-    where addItem :: (Truth t, Show t) => t -> (String, HBox -> IRProof)
+    where addItem :: (Truth t, Show t) => t -> (String, HBox -> IRG)
           addItem t = (show t, writeTruth $ truthBasic t)
           
-writeTruth :: Basic -> HBox -> IRProof
+writeTruth :: Basic -> HBox -> IRG
 writeTruth basic b = do
     removeAllChildren b
     label <- liftIO (labelNew (Just $ show basic))
@@ -39,7 +39,7 @@ writeTruth basic b = do
     liftIO $ widgetShowAll b
 
 -- | La configuración de la lista de símbolos propiamente hablando.
-setupTruthList :: TreeView -> IO (ListStore (String,HBox -> IRProof))
+setupTruthList :: TreeView -> IO (ListStore (String,HBox -> IRG))
 setupTruthList tv = 
      treeViewColumnNew >>= \col ->
      listTruths >>= \list -> 
@@ -49,7 +49,7 @@ setupTruthList tv =
      cellLayoutSetAttributes col renderer list (\ind -> [cellText := fst ind]) >>
      treeViewAppendColumn tv col >> return list
 
-eventsTruthList :: TreeView -> ListStore (String,HBox -> IRProof) -> IRProof
+eventsTruthList :: TreeView -> ListStore (String,HBox -> IRG) -> IRG
 eventsTruthList tv list =
      liftIO(treeViewGetSelection tv >>= \tree -> 
      treeSelectionSetMode tree SelectionSingle >>
@@ -64,7 +64,7 @@ eventsTruthList tv list =
 -- correspondiente. Una opción es que se vaya cambiando pero que al
 -- poner Enter recién se haga el cambio real y entonces desaparezca la
 -- lista de símbolos.
-oneSelection :: ListStore (String,HBox -> IRProof) -> TreeSelection -> IRProof
+oneSelection :: ListStore (String,HBox -> IRG) -> TreeSelection -> IRG
 oneSelection list tree = liftIO (treeSelectionGetSelectedRows tree) >>= \sel ->
                            when (not (null sel)) $ return (head sel) >>= \h ->
                                when (not (null h)) $ return (head h) >>= \s ->

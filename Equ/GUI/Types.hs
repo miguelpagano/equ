@@ -2,9 +2,15 @@
 module Equ.GUI.Types where
 
 import Equ.PreExpr
+
 import Equ.Proof (Proof,PM,ProofFocus)
 
-import Graphics.UI.Gtk (WidgetClass, Statusbar, ContextId, HBox, TreeView,EventBox, Label, Button)
+import Graphics.UI.Gtk ( WidgetClass, Statusbar, ContextId, HBox, TreeView
+                       , EventBox, Label, Button, Notebook, HPaned
+                       )
+
+import Equ.Types
+
 import Control.Monad.State
 import Data.Reference
 import Data.IORef
@@ -21,47 +27,62 @@ type MGoBack = (Focus -> Maybe Focus,Focus -> Maybe Focus)
 
 type StatusPlace = (Statusbar, ContextId)
 
--- | El estado de nuestra interfaz.
-data ExprFocus = ExprFocus { expr :: Focus       -- ^ La expresión que estamos editando.
-                           --, proofPath :: ProofPath   -- ^ Path a la expresión en la prueba.
-                           , path :: GoBack
-                           , inpFocus :: HBox      -- ^ El contenedor de la expresión enfocada
+type UndoList = [URMove]
+type RedoList = [URMove]
+data URMove = URMove { urProof :: Maybe ProofFocus -- ^ Si guardamos una prueba. 
                      }
 
--- | Una referencia polimórfica (ver Data.Reference).
-type ExprRef = IORef ExprFocus
+data Accion = Undo | Redo | InvalidCheck | ValidCheck 
+ 
+type TGraph = [(Int, Int, Accion)]
+ 
+data Stadistic = Stadistic { thinkingGraph :: TGraph }
+ 
+type RecentExprList = [PreExpr]
 
-type ExprState = StateT ExprRef IO
+type TreeExpr = [ExprState]
 
-type IRExpr = ExprState ()
-
+data GState = GState { gProof :: Maybe ProofState -- ^ Prueba en progreso.
+                     , gExpr :: Maybe ExprState -- ^ Expresión seleccionada.
+                     , gTreeExpr :: TreeExpr -- ^ Árbol de una expresión.
+                     , symCtrl :: TreeView   -- ^ La lista de símbolos para construir expresiones.
+                     , axiomCtrl :: TreeView -- ^ La lista de axiomas para construir pruebas.
+                     , exprOptionPane :: HPaned -- ^ Lista de acciones para expresiones.
+                     , gFaces :: Notebook -- ^ Las distintas caras de la interfaz.
+                     , gUndo :: UndoList -- ^ Undo.
+                     , gRedo :: RedoList -- ^ Redo.
+                     , recentExprList :: RecentExprList -- ^ Lista de expresiones recientemente ingresadas.
+                     , gStadistic :: Stadistic -- ^ Conjunto de estadisticas.
+                     , status :: StatusPlace  -- ^ La barra de estado.
+                     }
+ 
+data ExprState = ExprState { fExpr :: Focus
+                           , fType :: Type
+                           , pathExpr :: GoBack
+                           , eventExpr :: HBox
+                           , eventType :: HBox
+                           }
 
 data ProofState = ProofState { proof :: ProofFocus   -- ^ La prueba que estamos construyendo
                              , validProof :: PM Proof
-                             , symCtrl :: TreeView   -- ^ La lista de símbolos para construir expresiones.
-                             , focusedExpr :: ExprFocus      -- ^ Expresion enfocada
-                             , modifExpr :: ProofFocus -> Focus -> Maybe ProofFocus  -- ^ Funcion para modificar la expresion enfocada DENTRO de la prueba. Esto sirve asi solo
-                                                                     --   para el caso prueba simple, donde esta funcion puede ser updateStart o updateEnd.
-                             , status :: StatusPlace  -- ^ La barra de estado.
-                             , axiomCtrl :: TreeView -- ^ La lista de axiomas para construir pruebas.
-                             , axiomBox :: HBox      -- ^ El contenedor para mostrar el axioma aplicado
-                            }
+                             , modifExpr :: ProofFocus -> Focus -> Maybe ProofFocus  
+                                 -- ^ Funcion para modificar la expresion 
+                                 --  enfocada DENTRO de la prueba. Esto sirve 
+                                 --  asi solo para el caso prueba simple, donde 
+                                 --  esta funcion puede ser updateStart o 
+                                 --  updateEnd.
+                             , axiomBox :: HBox -- ^ El contenedor para mostrar el axioma aplicado
+                             }
 
-type ProofRef = IORef ProofState
-
--- | El estado de nuestro programa encapsula una referencia junto con
--- una computación en IO.
-type IState = StateT ProofRef IO
-
-type IRProof = IState ()
-                            
+type GRef = IORef GState
+type IState = StateT GRef IO
+type IRG = IState () 
 
 data WExpr w = WExpr { widget :: WidgetClass w => w
                      , wexpr :: PreExpr
                      }
 
 data Boxeable w = forall w . WidgetClass w => Boxeable w
-
 
 instance Reference IORef IState where
     readRef = liftIO . readRef

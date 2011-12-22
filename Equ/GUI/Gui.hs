@@ -37,72 +37,111 @@ main = do
     -- get widgets
     window        <- xmlGetWidget xml castToWindow "mainWindow"
     quitButton    <- getMenuButton xml "QuitButton"
-    --formWidget    <- xmlGetWidget xml castToHBox "formWidget"
-    --formWidget    <- createFormWidget
     formWidgetBox       <- xmlGetWidget xml castToHBox "formBox"
-    newExprButton <- xmlGetWidget xml castToToolButton "newExprButton"
-    --clearButton   <- xmlGetWidget xml castToButton "clearButton"
-    --applyButton   <- xmlGetWidget xml castToButton "applyButton"
+
+    exprInEdit      <- xmlGetWidget xml castToToolButton "exprInEdit"
+    exprTree      <- xmlGetWidget xml castToToolButton "exprTree"
+    saveExpr      <- xmlGetWidget xml castToToolButton "saveExpr"
+    checkType      <- xmlGetWidget xml castToToolButton "checkType"
+
     statusBar     <- xmlGetWidget xml castToStatusbar "statusBar"
     ctxExpr       <- statusbarGetContextId statusBar "Expr"
     symbolList    <- xmlGetWidget xml castToTreeView "symbolList"
     axiomList     <- xmlGetWidget xml castToTreeView "axiomList"
-    --typedFormBox  <- xmlGetWidget xml castToVBox "typedFormBox"
-
-    --symPane   <- xmlGetWidget xml castToPaned "symPane"
+    
     symFrame <- xmlGetWidget xml castToFrame "symFrame"
     axiomFrame <- xmlGetWidget xml castToFrame "axiomFrame"
-    formPane  <- xmlGetWidget xml castToPaned "formPane"
-    errPane <- xmlGetWidget xml castToPaned "errPane"
-    
+    errProofPane <- xmlGetWidget xml castToPaned "errProofPane"
+    errExprPane <- xmlGetWidget xml castToPaned "errExprPane"
+
     centralBox <- xmlGetWidget xml castToVBox "centralBox"
     itemNewProof <- xmlGetWidget xml castToImageMenuItem "itemNewProof"
     itemLoadProof <- xmlGetWidget xml castToImageMenuItem "itemLoadProof"
+    
+    exprOptionPane <- xmlGetWidget xml castToHPaned "exprOptionPane"
+    faces <- xmlGetWidget xml castToNotebook "faces"
+    
+    loadProof <- xmlGetWidget xml castToToolButton "loadProof"
+    saveProof <- xmlGetWidget xml castToToolButton "saveProof"
+    
+    fieldProofFaceBox <- xmlGetWidget xml castToHBox "fieldProofFaceBox"
+    fieldExprFaceBox <- xmlGetWidget xml castToHBox "fieldExprFaceBox"
+    
+    proofFaceBox <- xmlGetWidget xml castToHBox "proofFaceBox"
+    exprFaceBox <- xmlGetWidget xml castToHBox "exprFaceBox"
+    boxGoProofFace <- xmlGetWidget xml castToHBox "boxGoProofFace"
+    boxGoExprFace <- xmlGetWidget xml castToHBox "boxGoExprFace"
 
-    --formWidget <- createFormWidget formWidgetBox
+    windowMaximize window
 
---     exprRef <- newRef $ GState emptyExpr
---                                (formBox formWidget)
---                                symbolList
---                                (id,id)
---                                (statusBar,ctxExpr)
---                                axiomList
---                                (toProofFocus (newProof relEq emptyExpr emptyExpr))
+    gRef <- newRef $ GState Nothing
+                            Nothing
+                            []
+                            symbolList
+                            axiomList
+                            exprOptionPane
+                            faces
+                            []
+                            []
+                            []
+                            (Stadistic [])
+                            (statusBar, ctxExpr)
 
     onActivateLeaf quitButton $ quitAction window
     onDestroy window mainQuit
-    sListStore <- setupSymbolList symbolList
-    aListStore <- setupTruthList axiomList
-    onActivateLeaf itemNewProof (createNewProof Nothing centralBox symbolList sListStore axiomList aListStore (statusBar,ctxExpr))
-    onActivateLeaf itemLoadProof (createNewProof test_proof centralBox symbolList sListStore axiomList aListStore (statusBar,ctxExpr))
-    
+
+    flip evalStateT gRef $ do
+        configArrowToProof faces boxGoProofFace
+        configArrowToExpr faces boxGoExprFace
+        hidePane fieldProofFaceBox errProofPane
+        hidePane fieldExprFaceBox errExprPane
+        sListStore <- liftIO $ setupSymbolList symbolList
+        aListStore <- liftIO $ setupTruthList axiomList 
+        liftIO $ onActivateLeaf itemNewProof (evalStateT (createNewProof Nothing centralBox sListStore aListStore) gRef)
+        withState (onToolButtonClicked exprTree) 
+                  (typedExprTree)
+--         hideTypedOptionPane >>
+--         hideTypedFormPane >>
+--         hidePane formBox errPane >>
+--         hidePane formBox formPane >>
+--         hideSymPane >>
+--         setupForm formBox >>
+--         setupSymbolList symbolList >>
+--         withState (onToolButtonClicked closeTEPaneButton) 
+--                   (hideTypedFormPane >> 
+--                    cleanTypedFormPane >>
+--                    cleanTypedTreeExpr >>
+--                    hideTypedOptionPane) >>
+--         withState (onToolButtonClicked exprEdit) 
+--                   (typedExprEdit formBox) >>
+--         withState (onToolButtonClicked exprInEdit) 
+--                   (typedExprInEdit) >>
+--         withState (onToolButtonClicked exprTree) 
+--                   (cleanTypedFormPane >> 
+--                    cleanTypedTreeExpr >> 
+--                    typedExprTree) >>
+--         withState (onToolButtonClicked saveExpr) 
+--                   (cleanTypedFormPane >> 
+--                    cleanTypedTreeExpr >> 
+--                    hideTypedOptionPane >>
+--                    hideTypedFormPane >>
+--                    saveTypedExpr) >>
+--         withState (onToolButtonClicked checkType) 
+--                   (typedCheckType) >>
+--         withState (onToolButtonClicked exprTop) 
+--                   (hideTypedFormPane >> cleanTypedFormPane) >>
+--         withState (onToolButtonClicked exprRemove)
+--                   (typedExprRemove >> 
+--                    hideTypedOptionPane) >>
+--         withState (onToolButtonClicked exprRemoveAll)
+--                   (typedExprRemoveAll >> 
+--                    hideTypedFormPane >> 
+--                    cleanTypedFormPane >>
+--                    hideTypedOptionPane)
     widgetShowAll window
 
---     flip evalStateT exprRef $ 
---         hideFormPane (formBox formWidget) errPane >>
---         hideFormPane (formBox formWidget) formPane >>
---         hideSymFrame >> hideAxiomFrame >>
---         setupForm (formBox formWidget) >>
---         setupSymbolList symbolList >>
---         liftIO ((clearButton formWidget) `on` buttonPressEvent $ tryEvent $ 
---                             eventWithState (hideFormPane (extBox formWidget) errPane >>
---                                             clearFocus (formBox formWidget) >> return ()) 
---                             exprRef) >>
--- --         liftIO ((applyButton formWidget) `on` buttonPressEvent $ tryEvent $ 
--- --                             eventWithState (hideFormPane (extBox formWidget) errPane >>
--- --                                             hideFormPane (extBox formWidget) formPane >> 
--- --                                             hideSymPane >>
--- --                                             updateTypedList typedFormBox) 
--- --                             exprRef) >>
---         withState (onToolButtonClicked newExprButton) 
---                     (newExpr (formBox formWidget) >> return ())
-
-    -- widgetShowAll formPane
-    
-    --widgetShowAll window
-    --flip evalStateT exprRef (newExpr (formBox formWidget) >> return ())
     mainGUI
     
-    where test_proof = Just $ newProof relEquiv (toFocus $ parser "1 + 1") (toFocus $ parser "0") 
+--     where test_proof = Just $ newProof relEquiv (toFocus $ parser "1 + 1") (toFocus $ parser "0") 
           
           

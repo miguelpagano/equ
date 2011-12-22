@@ -24,18 +24,13 @@ Se permiten comentarios?
 
 module Equ.Parser 
     (-- * Caracteres especiales comunes a todas las teorías
-      quantInit
-    , quantEnd
-    , quantSep
-    , opApp
-    , holeInfoInit
-    , holeInfoEnd
-    , opHole
+      LangDef (..)
     , equLang
     -- * Funciones principales de parseo
     , parseFromString
     , parser
     , parserVar
+    , parseTyFromString
     )
     where
 
@@ -57,7 +52,7 @@ import Equ.Types
 import Equ.Theories
 import Equ.Theories.List(listApp, listEmpty)
 import Equ.Theories.Arith(intToCon)
-import Equ.Parser.Types(listAtomTy)
+import Equ.Parser.Types(listAtomTy, parseTyFromString)
 
 data PError = UnOpNotApplied Operator 
             | BinOpNotApplied Operator
@@ -321,3 +316,4 @@ showError = error . show
 -- Imprimimos la preExpresion, usando que tenemos definido la instancia show.
 showPreExpr :: a -> a
 showPreExpr = id
+
