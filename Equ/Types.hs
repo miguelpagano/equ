@@ -21,7 +21,13 @@ data AtomTy = ATyNum  -- ^ Los reales.
             | ATyInt  -- ^ Los enteros.
             | ATyNat  -- ^ Los naturales.
             | ATyBool -- ^ Corresponde a las fórmulas proposicionales.
-     deriving (Eq,Show)
+     deriving (Eq)
+
+instance Show AtomTy where
+    show ATyNum = "Num"
+    show ATyInt = "Int"
+    show ATyNat = "Nat"
+    show ATyBool = "Bool"
 
 -- | Las variables de tipo.
 type TyVarName = Text
@@ -35,8 +41,14 @@ data Type' v = TyUnknown            -- ^ Representa falta de información.
              | TyList (Type' v)     -- ^ Listas.
              | TyAtom AtomTy        -- ^ Tipos atómicos.
              | Type' v :-> Type' v  -- ^ Espacios de funciones.
-    deriving (Eq,Show)
+    deriving (Eq)
 
+instance (Show v) => Show (Type' v) where
+    show TyUnknown = "?"
+    show (TyVar v) = show v
+    show (TyList t) = "[" ++ show t ++ "]"
+    show (TyAtom t) = show t
+    show (t :-> t') = "(" ++ show t ++ ") -> (" ++ show t' ++ ")"
 
 instance Functor Type' where
     fmap f (TyVar v) = TyVar $ f v

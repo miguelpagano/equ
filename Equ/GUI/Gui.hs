@@ -9,6 +9,7 @@ import Equ.GUI.Expr
 import Equ.GUI.SymbolList
 import Equ.GUI.TruthList
 import Equ.GUI.Proof
+import Equ.GUI.TypeTree
 import Equ.PreExpr(toFocus)
 import Equ.Proof
 import Equ.Parser
@@ -91,15 +92,16 @@ main = do
     onDestroy window mainQuit
 
     flip evalStateT gRef $ do
-        configArrowToProof faces boxGoProofFace
-        configArrowToExpr faces boxGoExprFace
+        switchToProof faces boxGoProofFace
+        switchToTypeTree faces boxGoExprFace
         hidePane fieldProofFaceBox errProofPane
         hidePane fieldExprFaceBox errExprPane
         sListStore <- liftIO $ setupSymbolList symbolList
         aListStore <- liftIO $ setupTruthList axiomList 
         liftIO $ onActivateLeaf itemNewProof (evalStateT (createNewProof Nothing centralBox sListStore aListStore) gRef)
-        withState (onToolButtonClicked exprTree) 
-                  (typedExprTree)
+        withState (onToolButtonClicked exprTree) typedExprTree
+        withState (onToolButtonClicked checkType) typedCheckType
+
 --         hideTypedOptionPane >>
 --         hideTypedFormPane >>
 --         hidePane formBox errPane >>
@@ -126,8 +128,6 @@ main = do
 --                    hideTypedOptionPane >>
 --                    hideTypedFormPane >>
 --                    saveTypedExpr) >>
---         withState (onToolButtonClicked checkType) 
---                   (typedCheckType) >>
 --         withState (onToolButtonClicked exprTop) 
 --                   (hideTypedFormPane >> cleanTypedFormPane) >>
 --         withState (onToolButtonClicked exprRemove)

@@ -11,7 +11,7 @@ import Equ.Theories
 import Equ.Proof
 import Equ.PreExpr hiding (goDownL,goDownR,goRight,goUp)
 import Equ.GUI.Widget
-import Equ.GUI.Expr
+import Equ.GUI.Expr (clearFocus)
 import Equ.Parser
 
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
@@ -92,7 +92,7 @@ createNewProof maybe_proof ret_box sListStore aListStore = do
     -- es ir hasta el tope.
     center_box  <- evalStateT (liftIO $ createCenterBox s goTop sListStore (head relationList) Nothing) s
     
-    (getAxiomCtrl >>= (flip eventsTruthList aListStore))
+    (getAxiomCtrl >>= flip eventsTruthList aListStore)
 
     case maybe_proof of
          Nothing -> do
@@ -123,14 +123,13 @@ updateFirstExpr pf f = updateStartFocus (fromJust $ goTop pf) f
 updateFinalExpr pf f = updateEndFocus (fromJust $ goTop pf) f
 
 checkProof :: Image -> IState ()
-checkProof validImage = getProof >>= 
-    \pf -> (let vp = validateProof (toProof pf) in
-                case vp of
-                     Right _ -> liftIO $ imageSetFromStock validImage stockOk IconSizeSmallToolbar
-                     Left err -> reportErrWithErrPaned (show err) >>
-                                 liftIO (putStrLn $ show err) >> 
-                                 liftIO (imageSetFromStock validImage stockCancel IconSizeSmallToolbar)
-                )
+checkProof validImage = getProof >>= \pf ->
+                          case validateProof (toProof pf) of
+                            Right _ -> liftIO $ imageSetFromStock validImage stockOk IconSizeSmallToolbar
+                            Left err -> reportErrWithErrPaned (show err) >> liftIO (
+                                       putStrLn (show err) >>
+                                       imageSetFromStock validImage stockCancel IconSizeSmallToolbar)
+               
 
 newStepProof :: GRef -> (ProofFocus -> Maybe ProofFocus) ->
                 VBox -> ListStore (String,HBox -> IRG) -> IO ()
@@ -272,7 +271,7 @@ createExprWidget expr ref fUpdateFocus fname sListStore = do
     boxExprWidget <- hBoxNew False 2
     
     label <- labelNew (Just "Expresión:")
-    widgetSetSizeRequest label 80 (-1)
+    -- widgetSetSizeRequest label 80 (-1)
     scrolled <- scrolledWindowNew Nothing Nothing
     box <- hBoxNew False 2
     scrolledWindowAddWithViewport scrolled box
@@ -284,23 +283,22 @@ createExprWidget expr ref fUpdateFocus fname sListStore = do
     --widgetSetSizeRequest button_box 20 (-1)
     --boxPackStart button_box button_apply PackNatural 2
     boxPackStart button_box button_clear PackNatural 2
-    boxPackStart boxExprWidget label PackNatural 1
+    -- boxPackStart boxExprWidget label PackNatural 1
     boxPackStart boxExprWidget scrolled PackGrow 1
     boxPackStart boxExprWidget button_box PackNatural 1
     
     widgetSetSizeRequest hbox (-1) 50
     
     exprWidget <- return $ ExprWidget { extBox = boxExprWidget -- Box externa
-                        , expLabel = label
-                        , formBox = box
-                        , clearButton = button_clear
-                        , applyButton = button_apply
-    }
+                                     , expLabel = label
+                                     , formBox = box
+                                     , clearButton = button_clear
+                                     , applyButton = button_apply
+                                     }
     
     eventsExprWidget hbox ref boxExprWidget exprWidget fUpdateFocus fname sListStore
     
-    flip evalStateT ref $
-        writeExprWidget expr box
+    --    flip evalStateT ref $ writeExprWidget expr box
     
     return hbox   
 
@@ -312,13 +310,16 @@ eventsExprWidget :: HBox -> GRef -> HBox -> ExprWidget -> (ProofFocus -> Focus -
 eventsExprWidget ext_box proofRef hb w f fname sListStore =
     
     flip evalStateT proofRef $ 
-        liftIO setupFocusEvent >>
+        --        liftIO setupFocusEvent >>
         setupForm (formBox w) >>
+        liftIO (boxPackStart ext_box hb PackGrow 0) >>
+        liftIO (widgetShowAll ext_box) >>
         getSymCtrl >>=
         (flip eventsSymbolList sListStore) >>
         liftIO ((clearButton w) `on` buttonPressEvent $ tryEvent $ 
-                            eventWithState (clearFocus (formBox w) >> return ()) 
-                            proofRef) >> return ()
+                              eventWithState (clearFocus (formBox w) >> return ())  
+                              proofRef) >>
+        return ()
     
     where setupFocusEvent = do
                 eb <- eventBoxNew
