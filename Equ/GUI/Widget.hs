@@ -112,8 +112,8 @@ cleanContainer :: (ContainerClass c) => c -> IState ()
 cleanContainer c = liftIO (containerForeach c $ containerRemove c)
 
 -- | Limpia el arbol de tipado de una expresión.
-cleanTypedFormPane :: IState ()
-cleanTypedFormPane = getBoxTypedFormTree >>= \bTree -> cleanContainer bTree
+cleanTypedExprTree :: IState ()
+cleanTypedExprTree = getTreeExprBox >>= \bTree -> cleanContainer bTree
 
 {- Las siguientes acciones muestran y ocultan el widget de fórmulas . -}
 openFormPane :: HBox -> Paned -> IState ()
@@ -129,25 +129,6 @@ hidePane p = liftIO (set p [ panedPosition := 0
                     widgetShowAll p
                     )
 
--- | Abre el menu de opciones para las expresiones ingresadas.
--- TODO: Faltaría prestar atención a los valores necesarios para hacer
--- las definiciones correctas de las posiciones.
-openTypedOptionPane :: IState ()
-openTypedOptionPane = getExprOptionPane >>= 
-                      \p ->liftIO (set p [ panedPositionSet := True 
-                                         , panedPosition := 1300
-                                         ] >>
-                                   widgetShowAll p
-                                  )
-
--- | Igual que arriba pero para cerrar el panel.
-hideTypedOptionPane :: IState ()
-hideTypedOptionPane = getExprOptionPane >>= 
-                      \p -> liftIO (set p [ panedPosition := 2000
-                                          , panedPositionSet := True ] >>
-                                    widgetShowAll p
-                                   )
-
 openProofFace :: Notebook -> IO ()
 openProofFace nt = set nt [notebookPage := 0]
 
@@ -157,20 +138,21 @@ openExprFace nt = set nt [notebookPage := 1]
 addHandler :: WidgetClass w => w -> Signal EventBox (EventM any Bool) -> EventM any () -> IState (ConnectId EventBox)
 addHandler eb event action = liftIO $ castToEventBox eb `on` event $ tryEvent action
 
-configFaceSwitch :: (Notebook -> IO ()) -> Notebook -> HBox -> IState ()
-configFaceSwitch openFace nb b = liftIO (containerGetChildren b) >>= \[eb] -> do
+configFaceSwitch :: (Notebook -> IO ()) -> Notebook -> HBox -> IRG -> IState ()
+configFaceSwitch openFace nb b f = liftIO (containerGetChildren b) >>= \[eb] -> do
                                    mapM_ (uncurry (addHandler eb)) 
                                              [ (enterNotifyEvent, highlightBox b hoverBg) 
                                              , (leaveNotifyEvent, unlightBox b genericBg)
                                              ] 
-                                   addHandler eb buttonPressEvent . liftIO $ openFace nb
+                                   s <- get
+                                   addHandler eb buttonPressEvent (liftIO (openFace nb) >> eventWithState f s)
                                    return ()
 
                            
-switchToProof :: Notebook -> HBox -> IState ()
+switchToProof :: Notebook -> HBox -> IRG -> IState ()
 switchToProof = configFaceSwitch openProofFace
 
-switchToTypeTree :: Notebook -> HBox -> IState ()
+switchToTypeTree :: Notebook -> HBox -> IRG -> IState ()
 switchToTypeTree = configFaceSwitch openExprFace
 
 {- Las siguientes acciones crean widgets como computaciones en la

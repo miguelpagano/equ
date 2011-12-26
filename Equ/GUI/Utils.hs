@@ -112,9 +112,9 @@ del estado. -}
 updateExpr e' = update (updateExpr' e') >> showExpr
 
 updateExpr' :: PreExpr -> GState -> GState
-updateExpr' _ gst@(GState Nothing _ _ _ _ _ _ _ _ _ _ _) = gst
-updateExpr' _ gst@(GState _ Nothing _ _ _ _ _ _ _ _ _ _) = gst
-updateExpr' e' gst@(GState (Just gpr) (Just gexpr)_ _ _ _ _ _ _ _ _ _) = 
+updateExpr' _ gst@(GState Nothing _ _ _ _ _ _ _ _ _ _) = gst
+updateExpr' _ gst@(GState _ Nothing _ _ _ _ _ _ _ _ _) = gst
+updateExpr' e' gst@(GState (Just gpr) (Just gexpr)_ _ _ _ _ _ _ _ _) = 
     gst { gProof = Just $ gpr {proof = fromJust $ up pr newExpr}
         , gExpr = Just $ gexpr {fExpr = newExpr}
         }
@@ -136,9 +136,9 @@ updateProof pf = update (updateProof' pf) >>
                 getProof >>= \p -> liftIO (putStrLn (show p))
 
 updateProof' :: ProofFocus -> GState -> GState
-updateProof' _ gst@(GState Nothing _ _ _ _ _ _ _ _ _ _ _) = gst
-updateProof' _ gst@(GState _ Nothing _ _ _ _ _ _ _ _ _ _) = gst
-updateProof' (p,path) gst@(GState (Just gpr) (Just gexpr) _ _ _ _ _ _ _ _ _ _) = 
+updateProof' _ gst@(GState Nothing _ _ _ _ _ _ _ _ _ _) = gst
+updateProof' _ gst@(GState _ Nothing _ _ _ _ _ _ _ _ _) = gst
+updateProof' (p,path) gst@(GState (Just gpr) (Just gexpr) _ _ _ _ _ _ _ _ _) = 
     gst { gProof = Just $ gpr { proof = (p,path)
                               , modifExpr = updateStartFocus
                               }
@@ -170,8 +170,8 @@ updateFocus e' f = update (updateFocus' e' f) >>
                    showProof
 
 updateFocus' :: Focus -> GoBack -> GState -> GState
-updateFocus' _ _ gst@(GState _ Nothing _ _ _ _ _ _ _ _ _ _) = gst
-updateFocus' (e,p) (f,g) gst@(GState _ (Just gexpr) _ _ _ _ _ _ _ _ _ _) = 
+updateFocus' _ _ gst@(GState _ Nothing _ _ _ _ _ _ _ _ _) = gst
+updateFocus' (e,p) (f,g) gst@(GState _ (Just gexpr) _ _ _ _ _ _ _ _ _) = 
                                     gst { gExpr = Just $ gexpr { fExpr = (e,p)
                                                                , pathExpr = (f,g)
                                                                }
@@ -220,14 +220,14 @@ getExpr = (liftIO $ putStrLn "getExpr") >> askRef >>= return . fExpr . fromJust 
 getFrmCtrl :: IState HBox
 getFrmCtrl = (liftIO $ putStrLn "getFrmCtrl") >> askRef >>= return . eventExpr . fromJust . gExpr
 
-getExprOptionPane :: IState HPaned
-getExprOptionPane = askRef >>= return . exprOptionPane
-
 getSelectExpr :: IState (Maybe ExprState)
 getSelectExpr = (liftIO $ putStrLn "getSelectExpr") >> askRef >>= return . gExpr
 
 getTreeExpr :: IState TreeExpr
 getTreeExpr = askRef >>= return . gTreeExpr
+
+getFaces :: IState Notebook
+getFaces = askRef >>= return . gFaces
 
 getSymCtrl :: IState TreeView
 getSymCtrl = (liftIO $ putStrLn "getSymCtrl") >> askRef >>= return . symCtrl
@@ -247,9 +247,11 @@ getAxiomBox = (liftIO $ putStrLn "getAxiomBox") >> askRef >>= return . axiomBox 
 {- Las dos funciones que siguen devuelven cada uno de los panes; toda la 
    gracia está en getParentNamed. -}
 
-getBoxTypedFormTree :: IState VBox
-getBoxTypedFormTree = getExprOptionPane >>= \p -> liftIO (panedGetChild1 p) >>= 
-                      \(Just b) -> return $ castToVBox b
+getTreeExprBox :: IState VBox
+getTreeExprBox = getFaces >>= \f -> liftIO (notebookGetNthPage f 1) >>= 
+                 \(Just w) -> liftIO (containerGetChildren (castToBox w)) >>= 
+                 \[_,w] -> liftIO (containerGetChildren (castToBox w)) >>= 
+                 \[_,m] -> return $ castToVBox m
 
 -- | Devuelve el paned que contiene la lista de símbolos.
 getSymFrame :: IState Frame
@@ -364,7 +366,7 @@ cleanTreeExpr = update (\gst -> gst { gTreeExpr = []})
 
 -- Añade una expresion y su respectivo boton a al arbol de tipado.
 addExprToTree :: Focus -> Type -> GoBack -> HBox -> HBox -> IState ExprState
-addExprToTree f t p be bt = update (\gst@(GState _ _ gte _ _ _ _ _ _ _ _ _) -> 
+addExprToTree f t p be bt = update (\gst@(GState _ _ gte _ _ _ _ _ _ _ _) -> 
                                     gst { gTreeExpr = te : gte}) >> return te
     where te :: ExprState
           te = ExprState { fExpr = f

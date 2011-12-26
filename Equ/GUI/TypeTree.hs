@@ -36,14 +36,13 @@ import qualified Data.ByteString as L
 configEventSelectExprFromTree :: HBox -> GRef -> IO ()
 configEventSelectExprFromTree b s = containerGetChildren b >>= \[eb] ->
                                     do eb `on` buttonPressEvent $ tryEvent $ 
-                                          eventWithState (selectExprFromBox b >> 
-                                                          openTypedOptionPane) s
+                                          eventWithState (selectExprFromBox b) s
                                        return ()
 
 -- Función principal que construye el arbol de tipado.
 buildTypedFormTree :: ExprState -> IState ()
 buildTypedFormTree te = get >>= \ s ->
-                        getBoxTypedFormTree >>= \ bTree -> 
+                        getTreeExprBox >>= \ bTree -> 
                         cleanContainer bTree >>
                         setupEventExpr (fExpr te) (fType te) >>= 
                         \ (eb, tb) -> newBox >>= \ bb -> 
@@ -144,7 +143,7 @@ configExprEntry eText b te = withState (onEntryActivate eText)
                                                 updateExprSelectExpr te e >>
                                                 liftIO (labelNew $ Just $ show e) >>= 
                                                 \typeL -> 
-                                                cleanTypedFormPane >>
+                                                cleanTypedExprTree >>
                                                 cleanTreeExpr >>
                                                 getSelectExpr >>= \(Just te) ->
                                                 buildTypedFormTree te >>

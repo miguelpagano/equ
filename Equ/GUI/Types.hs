@@ -47,7 +47,6 @@ data GState = GState { gProof :: Maybe ProofState -- ^ Prueba en progreso.
                      , gTreeExpr :: TreeExpr -- ^ Árbol de una expresión.
                      , symCtrl :: TreeView   -- ^ La lista de símbolos para construir expresiones.
                      , axiomCtrl :: TreeView -- ^ La lista de axiomas para construir pruebas.
-                     , exprOptionPane :: HPaned -- ^ Lista de acciones para expresiones.
                      , gFaces :: Notebook -- ^ Las distintas caras de la interfaz.
                      , gUndo :: UndoList -- ^ Undo.
                      , gRedo :: RedoList -- ^ Redo.

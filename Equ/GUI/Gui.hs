@@ -41,7 +41,6 @@ main = do
     formWidgetBox       <- xmlGetWidget xml castToHBox "formBox"
 
     exprInEdit      <- xmlGetWidget xml castToToolButton "exprInEdit"
-    exprTree      <- xmlGetWidget xml castToToolButton "exprTree"
     saveExpr      <- xmlGetWidget xml castToToolButton "saveExpr"
     checkType      <- xmlGetWidget xml castToToolButton "checkType"
 
@@ -59,14 +58,13 @@ main = do
     itemLoadProof <- xmlGetWidget xml castToImageMenuItem "itemLoadProof"
     itemSaveProof <- xmlGetWidget xml castToImageMenuItem "itemSaveProof"
     
-    exprOptionPane <- xmlGetWidget xml castToHPaned "exprOptionPane"
     faces <- xmlGetWidget xml castToNotebook "faces"
     
     loadProof <- xmlGetWidget xml castToToolButton "loadProof"
     saveProof <- xmlGetWidget xml castToToolButton "saveProof"
     
     fieldProofFaceBox <- xmlGetWidget xml castToHBox "fieldProofFaceBox"
-    fieldExprFaceBox <- xmlGetWidget xml castToHBox "fieldExprFaceBox"
+    fieldExprFaceBox <- xmlGetWidget xml castToVBox "fieldExprFaceBox"
     
     proofFaceBox <- xmlGetWidget xml castToHBox "proofFaceBox"
     exprFaceBox <- xmlGetWidget xml castToHBox "exprFaceBox"
@@ -80,7 +78,6 @@ main = do
                             []
                             symbolList
                             axiomList
-                            exprOptionPane
                             faces
                             []
                             []
@@ -99,10 +96,9 @@ main = do
     
     
     flip evalStateT gRef $ do
-        switchToProof faces boxGoProofFace
-        switchToTypeTree faces boxGoExprFace
         hidePane errPane
-        withState (onToolButtonClicked exprTree) typedExprTree
+        switchToProof faces boxGoProofFace cleanTypedExprTree
+        switchToTypeTree faces boxGoExprFace typedExprTree
         withState (onToolButtonClicked checkType) typedCheckType
 
 --         hideTypedOptionPane >>
