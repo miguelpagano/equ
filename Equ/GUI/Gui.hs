@@ -57,6 +57,7 @@ main = do
     centralBox <- xmlGetWidget xml castToVBox "centralBox"
     itemNewProof <- xmlGetWidget xml castToImageMenuItem "itemNewProof"
     itemLoadProof <- xmlGetWidget xml castToImageMenuItem "itemLoadProof"
+    itemSaveProof <- xmlGetWidget xml castToImageMenuItem "itemSaveProof"
     
     exprOptionPane <- xmlGetWidget xml castToHPaned "exprOptionPane"
     faces <- xmlGetWidget xml castToNotebook "faces"
@@ -90,13 +91,17 @@ main = do
     onActivateLeaf quitButton $ quitAction window
     onDestroy window mainQuit
 
+    sListStore <- liftIO $ setupSymbolList symbolList
+    aListStore <- liftIO $ setupTruthList axiomList 
+    onActivateLeaf itemNewProof (evalStateT (createNewProof Nothing centralBox sListStore aListStore) gRef)
+    onActivateLeaf itemLoadProof $ dialogLoadProof gRef centralBox sListStore aListStore
+    onActivateLeaf itemSaveProof (evalStateT (saveProofDialog) gRef)
+    
+    
     flip evalStateT gRef $ do
         switchToProof faces boxGoProofFace
         switchToTypeTree faces boxGoExprFace
         hidePane errPane
-        sListStore <- liftIO $ setupSymbolList symbolList
-        aListStore <- liftIO $ setupTruthList axiomList 
-        liftIO $ onActivateLeaf itemNewProof (evalStateT (createNewProof Nothing centralBox sListStore aListStore) gRef)
         withState (onToolButtonClicked exprTree) typedExprTree
         withState (onToolButtonClicked checkType) typedCheckType
 
@@ -143,3 +148,44 @@ main = do
 --     where test_proof = Just $ newProof relEquiv (toFocus $ parser "1 + 1") (toFocus $ parser "0") 
           
           
+dialogLoadProof :: GRef -> VBox -> ListStore (String,HBox -> IRG) ->
+                   ListStore (String,HBox -> IRG) -> IO ()
+dialogLoadProof ref centralBox sListStore aListStore= do
+    dialog <- fileChooserDialogNew (Just "Cargar Prueba") Nothing FileChooserActionOpen
+                                [("Cargar",ResponseAccept),("Cancelar",ResponseCancel)]
+    setFileFilter dialog "*.equ" "Prueba de Equ"
+    response <- liftIO $ dialogRun dialog
+    
+    case response of
+         ResponseAccept -> do
+             selected <- liftIO $ fileChooserGetFilename dialog
+             liftIO $ putStrLn ("aceptar clicked. Selected is " ++ show selected)
+             case selected of
+                  Just filepath -> decodeFile filepath >>= \proof ->
+                                flip evalStateT ref
+                                  (createNewProof (Just proof) centralBox sListStore aListStore) >>
+                                  widgetDestroy dialog
+                  Nothing -> widgetDestroy dialog
+         _ -> liftIO $ widgetDestroy dialog
+
+saveProofDialog :: IRG
+saveProofDialog = do
+    dialog <- liftIO $ fileChooserDialogNew (Just "Guardar Prueba") Nothing FileChooserActionSave 
+                                   [("Guardar",ResponseAccept),("Cancelar",ResponseCancel)]
+                                   
+    liftIO $ setFileFilter dialog "*.equ" "Prueba de Equ"
+                                   
+    response <- liftIO $ dialogRun dialog
+    
+    case response of
+         ResponseAccept -> do
+             selected <- liftIO $ fileChooserGetFilename dialog
+             liftIO $ putStrLn ("aceptar clicked. Selected is " ++ show selected)
+             case selected of
+                  Just filepath -> saveProof filepath >> (liftIO $ widgetDestroy dialog)
+                  Nothing -> liftIO $ widgetDestroy dialog
+         _ -> liftIO $ widgetDestroy dialog
+                         
+saveProof :: FilePath -> IRG
+saveProof filepath = do
+    getProof >>= \pf -> liftIO $ encodeFile filepath (toProof pf)

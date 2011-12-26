@@ -31,9 +31,9 @@ Source-repository this
   branch:   master
 
 
--- Executable equ
---   HS-Source-Dirs: .
---   main-is: Equ/Main.hs
+Executable equ
+  HS-Source-Dirs: .
+  main-is: Equ/Main.hs
 
 Library
   -- Modules exported by the library.
