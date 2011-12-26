@@ -265,14 +265,14 @@ getFormPane = getFrmCtrl >>=
 
 -- | Devuelve el paned que contiene al widget de errores.
 -- TODO: Queda muy fea la parte de la lista con tres elementos.
-getFormErrPane :: IState Paned
-getFormErrPane = getAxiomFrame >>= liftIO . widgetGetParent >>= \(Just w) ->
-                liftIO (containerGetChildren (castToContainer w)) >>= \[_,m,_] ->
-                return $ castToPaned m
+getErrPane :: IState Paned
+getErrPane = getStatus >>= liftIO . widgetGetParent . fst >>= \(Just w) ->
+             liftIO (containerGetChildren (castToContainer w)) >>= \[_,m,_] ->
+             return $ castToPaned m
 
 -- | Devuelve el label que reporta los errores.
 getErrPanedLabel :: IState EventBox
-getErrPanedLabel = getFormErrPane >>= \erp -> liftIO (panedGetChild1 erp) >>= 
+getErrPanedLabel = getErrPane >>= \erp -> liftIO (panedGetChild1 erp) >>= 
                    \(Just eb) -> return $ castToEventBox eb
 
 getFormBox :: IState HBox

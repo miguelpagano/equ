@@ -91,10 +91,11 @@ buildTypedFormTree' te bTree = do
                                  return nVb
 
 configEventGeneralExpr :: EventBox -> HBox -> IO ()
-configEventGeneralExpr eb b = onEvent (highlightBox b hoverBg) >>
-                              onEvent (unlightBox b genericBg) >>
-                              return ()
-    where onEvent action = eb `on` enterNotifyEvent $ tryEvent action
+configEventGeneralExpr eb b = 
+                            onEvent enterNotifyEvent (highlightBox b hoverBg) >>
+                            onEvent leaveNotifyEvent (unlightBox b genericBg) >>
+                            return ()
+    where onEvent event action = eb `on` event $ tryEvent action
 
 
 configEventSelectTypeFromTree :: HBox -> GRef -> IO (ConnectId EventBox)
@@ -150,7 +151,6 @@ configExprEntry eText b te = withState (onEntryActivate eText)
                                                 return ()) >> 
                                 return ()
 
-
 -- | Aplica el type-checker a la expresión seleccionada.
 typedCheckType :: IState ()
 typedCheckType = getSelectExpr >>= \(Just te) ->
@@ -162,8 +162,6 @@ typedCheckType = getSelectExpr >>= \(Just te) ->
                           Right _   -> reportSuccess "Los tipos coinciden."
                                       -- get >>= 
                                       -- liftIO . configEventCheckType (eventType te) checkedType
-                            
-
 
 configEventCheckType :: HBox -> Type -> GRef -> IO ()
 configEventCheckType b t s = labelNew (Just $ show t) >>= 
@@ -240,4 +238,3 @@ typedExprTree = getSelectExpr >>= \tse ->
                      Just se -> buildTypedFormTree se
                      Nothing -> reportErrWithErrPaned 
                                             "Ninguna expresion seleccionada."
-

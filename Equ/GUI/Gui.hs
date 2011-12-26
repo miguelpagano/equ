@@ -52,8 +52,7 @@ main = do
     
     symFrame <- xmlGetWidget xml castToFrame "symFrame"
     axiomFrame <- xmlGetWidget xml castToFrame "axiomFrame"
-    errProofPane <- xmlGetWidget xml castToPaned "errProofPane"
-    errExprPane <- xmlGetWidget xml castToPaned "errExprPane"
+    errPane <- xmlGetWidget xml castToPaned "errPane"
 
     centralBox <- xmlGetWidget xml castToVBox "centralBox"
     itemNewProof <- xmlGetWidget xml castToImageMenuItem "itemNewProof"
@@ -94,8 +93,7 @@ main = do
     flip evalStateT gRef $ do
         switchToProof faces boxGoProofFace
         switchToTypeTree faces boxGoExprFace
-        hidePane fieldProofFaceBox errProofPane
-        hidePane fieldExprFaceBox errExprPane
+        hidePane errPane
         sListStore <- liftIO $ setupSymbolList symbolList
         aListStore <- liftIO $ setupTruthList axiomList 
         liftIO $ onActivateLeaf itemNewProof (evalStateT (createNewProof Nothing centralBox sListStore aListStore) gRef)

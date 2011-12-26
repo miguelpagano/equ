@@ -88,13 +88,10 @@ instance Reference IORef IState where
     readRef = liftIO . readRef
     writeRef r = liftIO . writeRef r
     newRef = liftIO . newRef
-    
+
 data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , expLabel :: Label -- ^ Label con el texto "Expresión:"
                              , formBox :: HBox   -- ^ Box donde se ingresa la formula
                              , clearButton :: Button -- ^ Botón para borrar toda la expresión.
                              , applyButton :: Button -- ^ Botón para aplicar la expresión.
                              }
-                             
-    
-    

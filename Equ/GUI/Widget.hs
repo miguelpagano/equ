@@ -81,7 +81,7 @@ reportSuccess = liftIO . putStrLn
 
 -- | Abre el panel de error.
 openErrPane :: IState ()
-openErrPane = getFormErrPane >>= \erp ->
+openErrPane = getErrPane >>= \erp ->
               liftIO (set erp [ panedPositionSet := True 
                               , panedPosition := paneErrPaneHeight ] >>
                       widgetShowAll erp)
@@ -101,7 +101,7 @@ setErrMessage msg = getErrPanedLabel >>= \eb ->
                     return ()
 
 closeErrPane :: IState ()
-closeErrPane = getFormErrPane >>= \erp ->
+closeErrPane = getErrPane >>= \erp ->
                liftIO (set erp [ panedPositionSet := True 
                                , panedPosition := 0 ] >>
                        widgetShowAll erp)
@@ -123,12 +123,11 @@ openFormPane b p = liftIO (widgetShow b >>
                                  ] >>
                            widgetShowAll p)
 
-hidePane :: HBox -> Paned -> IState ()
-hidePane b p = liftIO (widgetHide b >>
-                           set p [ panedPosition := 0 
-                                 , panedPositionSet := True ] >>
-                           widgetShowAll p
-                           )
+hidePane :: Paned -> IState ()
+hidePane p = liftIO (set p [ panedPosition := 0 
+                           , panedPositionSet := True ] >>
+                    widgetShowAll p
+                    )
 
 -- | Abre el menu de opciones para las expresiones ingresadas.
 -- TODO: Faltaría prestar atención a los valores necesarios para hacer
