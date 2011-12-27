@@ -13,6 +13,7 @@ import Equ.PreExpr hiding (goDownL,goDownR,goRight,goUp)
 import Equ.GUI.Widget
 import Equ.GUI.Expr (clearFocus,writeExprWidget)
 import Equ.Parser
+import Equ.Types
 
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
 import qualified Graphics.UI.Gtk as G
@@ -48,6 +49,20 @@ newProofState Nothing axiom_box = return pr
                         , axiomBox = axiom_box
                         }
 
+newExprState :: HBox -> HBox -> IState ExprState
+newExprState hbox1 hbox2 = do
+    return eState
+    where 
+        eState = ExprState { fExpr = emptyExpr
+                           , pathExpr = (id,id)
+                           , eventExpr = hbox1
+                           , fType = TyUnknown
+                           , eventType = hbox2
+        }
+                            
+    
+                        
+                        
 -- | Carga una prueba a la interfaz
 loadProof :: Proof -> VBox -> GRef -> ListStore (String,HBox -> IRG) -> IO ()
 loadProof p ret_box ref sListStore = do
@@ -94,6 +109,11 @@ createNewProof maybe_proof ret_box sListStore aListStore = do
     empty_box1 <- liftIO $ hBoxNew False 2
     proof' <- newProofState Nothing empty_box1
     updateProofState proof'
+    
+    hbox1 <- liftIO $ hBoxNew False 2
+    hbox2 <- liftIO $ hBoxNew False 2
+    expr' <- newExprState hbox1 hbox2
+    updateExprState expr'
 
    -- Caja central para colocar la relacion y el axioma aplicado. La funcion para mover el foco
     -- es ir hasta el tope.

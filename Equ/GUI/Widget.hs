@@ -210,9 +210,7 @@ setupEvents b eb e = get >>= \s ->
                      getSymCtrl >>= \sym ->
                      addHandler eb enterNotifyEvent (highlightBox b hoverBg) >>
                      addHandler eb leaveNotifyEvent (unlightBox b genericBg) >>
-                     addHandler eb buttonPressEvent 
-                                    (newFocusToSym b p sym s >> 
-                                     eventWithState (updateExprState newExpr) s) >>
+                     addHandler eb buttonPressEvent (newFocusToSym b p sym s) >>
                      addHandler eb buttonPressEvent (removeExpr b s) >>
                      return ()
     where newExpr = ExprState (toFocus e) TyUnknown (id,id) b b
