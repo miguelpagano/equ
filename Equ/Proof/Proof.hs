@@ -76,7 +76,7 @@ data Axiom = Axiom {
 
 instance Show Axiom where
     --show ax = (show . unpack . axName) ax ++ ": " ++ (show . axExpr) ax
-    show ax = (show . unpack . axName) ax
+    show ax = (unpack . axName) ax
     
 instance Arbitrary Axiom where
     arbitrary = Axiom <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
@@ -107,7 +107,7 @@ data Theorem = Theorem {
     
 
 instance Show Theorem where
-    show th = (show . unpack . thName) th ++ ": " ++ (show . thExpr) th
+    show th = (unpack . thName) th ++ ": " ++ (show . thExpr) th
 
 instance Arbitrary Theorem where
     arbitrary = Theorem <$> arbitrary <*> arbitrary <*> 
