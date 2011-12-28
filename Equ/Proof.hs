@@ -97,7 +97,7 @@ proofFromTruth f f' r t = case partitionEithers $
                           -- podr&#237;a mejorar un poco devolviendo la lista de
                           -- errores.
                           ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
-                          ([er], []) -> Left er
+                          (er, []) -> Left (head er)
                           (_, p:ps) -> Right p
 
 notValidSimpleProof :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Proof

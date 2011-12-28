@@ -160,9 +160,9 @@ checkProof :: Image -> IState ()
 checkProof validImage = getProof >>= \pf ->
                           case validateProof (toProof pf) of
                             Right _ -> liftIO $ imageSetFromStock validImage stockOk IconSizeSmallToolbar
-                            Left err -> reportErrWithErrPaned (show err) >> liftIO (
-                                       putStrLn (show err) >>
+                            Left err -> liftIO (putStrLn (show err) >>
                                        imageSetFromStock validImage stockCancel IconSizeSmallToolbar)
+                                       >> reportErrWithErrPaned (show err)
 
 createCenterBox :: VBox -> GRef -> (ProofFocus -> Maybe ProofFocus) -> 
                    ListStore (String,HBox -> IRG) -> Relation -> Maybe Basic -> IO ()
