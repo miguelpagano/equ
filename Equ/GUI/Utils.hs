@@ -128,8 +128,7 @@ updateExpr' e' gst@(GState (Just gpr) (Just gexpr)_ _ _ _ _ _ _ _ _) =
         e :: Focus
         e = fExpr gexpr
         f,g :: Move
-        f = fst $ pathExpr gexpr
-        g = snd $ pathExpr gexpr
+        (f,g) = pathExpr gexpr
     
 updateProof pf = update (updateProof' pf) >>
                 showProof >>
@@ -142,7 +141,9 @@ updateProof' (p,path) gst@(GState (Just gpr) (Just gexpr) _ _ _ _ _ _ _ _ _) =
     gst { gProof = Just $ gpr { proof = (p,path)
                               , modifExpr = updateStartFocus
                               }
-        , gExpr = Just $ gexpr {fExpr = fromJust $ getStart p}
+        , gExpr = Just $ gexpr { fExpr = fromJust $ getStart p
+                               , pathExpr = (id,id)
+                             }
         }
     where
         pr :: ProofFocus
@@ -160,6 +161,15 @@ updateProofState ps = update (\gst -> gst {gProof = Just ps})
 
 updateExprState :: ExprState -> IState ()
 updateExprState es = update (\gst -> gst {gExpr = Just es})
+
+updateSelectedExpr :: (ProofFocus -> Focus) -> IState ()
+updateSelectedExpr f = do
+    maybe_es <- getSelectExpr
+    case maybe_es of
+         Nothing -> return ()
+         (Just es) -> do
+            pf <- getProof
+            updateExprState (es {fExpr= f pf})
 
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}

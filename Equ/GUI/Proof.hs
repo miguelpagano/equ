@@ -67,8 +67,8 @@ newExprState hbox1 hbox2 = do
 loadProof :: Proof -> VBox -> GRef -> ListStore (String,HBox -> IRG) -> IO ()
 loadProof p ret_box ref sListStore = do
     
-    hboxInit <- createExprWidget (toExpr $ fromRight $ getStart p) ref updateFirstExpr "" sListStore
-    hboxEnd  <- createExprWidget (toExpr $ fromRight $ getEnd p) ref updateFinalExpr "" sListStore
+    hboxInit <- createExprWidget (toExpr $ fromRight $ getStart p) ref updateFirstExpr getFirstExpr "" sListStore
+    hboxEnd  <- createExprWidget (toExpr $ fromRight $ getEnd p) ref updateFinalExpr getFinalExpr "" sListStore
     center_box <- vBoxNew False 2
     
     boxPackStart ret_box hboxInit PackNatural 2
@@ -124,8 +124,8 @@ createNewProof maybe_proof ret_box sListStore aListStore = do
 
     case maybe_proof of
          Nothing -> do
-            hboxInit <- liftIO $ createExprWidget holeExpr s updateFirstExpr "start" sListStore
-            hboxEnd  <- liftIO $ createExprWidget holeExpr s updateFinalExpr "end" sListStore
+            hboxInit <- liftIO $ createExprWidget holeExpr s updateFirstExpr getFirstExpr "start" sListStore
+            hboxEnd  <- liftIO $ createExprWidget holeExpr s updateFinalExpr getFinalExpr "end" sListStore
 
             liftIO $ boxPackStart ret_box hboxInit PackNatural 2
             liftIO $ boxPackStart ret_box center_box PackNatural 2
@@ -152,6 +152,9 @@ createNewProof maybe_proof ret_box sListStore aListStore = do
 -- TODO: VER DONDE METER ESTAS FUNCIONES
 updateFirstExpr pf f = updateStartFocus (fromJust $ goTop pf) f
 updateFinalExpr pf f = updateEndFocus (fromJust $ goTop pf) f
+
+getFirstExpr pf = fromJust $ getStartFocus (fromJust $ goTop pf)
+getFinalExpr pf = fromJust $ getEndFocus (fromJust $ goTop pf)
 
 checkProof :: Image -> IState ()
 checkProof validImage = getProof >>= \pf ->
@@ -251,7 +254,7 @@ newStepProof expr ref moveFocus container symbolList = do
     createCenterBox centerBoxL ref (goDownL . fromJust . moveFocus) symbolList relation Nothing
     centerBoxR <- vBoxNew False 2
     createCenterBox centerBoxR ref (goDownR . fromJust . moveFocus) symbolList relation Nothing
-    exprBox <- createExprWidget expr ref updateFocus "?" symbolList
+    exprBox <- createExprWidget expr ref updateFocus (fromJust . getFocus) "?" symbolList
     
     boxPackStart container centerBoxL PackNatural 5
     boxPackStart container exprBox PackNatural 5
@@ -269,6 +272,10 @@ newStepProof expr ref moveFocus container symbolList = do
     where updateFocus pf f = updateMiddleFocus (fromJust $ moveFocus pf) f >>= \pf' ->
                              updateEndFocus (fromJust $ goDownL pf') f >>= \pf'' ->
                              updateStartFocus (fromJust $ goRight pf'') f
+                             
+          getFocus pf = moveFocus pf >>= \pf' ->
+                        goDownR pf' >>= \pf'' ->
+                        getStartFocus pf''
 
 
             
@@ -295,9 +302,9 @@ selectRelation r combo lstore = do
 
             
 createExprWidget :: PreExpr -> GRef -> (ProofFocus -> Focus -> Maybe ProofFocus) -> 
-                    String -> ListStore (String,HBox -> IRG) -> IO HBox
+                    (ProofFocus -> Focus) -> String -> ListStore (String,HBox -> IRG) -> IO HBox
               
-createExprWidget expr ref fUpdateFocus fname sListStore = do
+createExprWidget expr ref fUpdateFocus fGetFocus fname sListStore = do
     
     
     hbox    <- hBoxNew False 2
@@ -329,7 +336,7 @@ createExprWidget expr ref fUpdateFocus fname sListStore = do
                                      , applyButton = button_apply
                                      }
     
-    eventsExprWidget hbox ref boxExprWidget exprWidget fUpdateFocus fname sListStore
+    eventsExprWidget hbox ref boxExprWidget exprWidget fUpdateFocus fGetFocus fname sListStore
     
     flip evalStateT ref $ writeExprWidget expr box
     
@@ -340,8 +347,8 @@ createExprWidget expr ref fUpdateFocus fname sListStore = do
 para actualizar la expresion dentro de la prueba
 -}
 eventsExprWidget :: HBox -> GRef -> HBox -> ExprWidget -> (ProofFocus -> Focus -> Maybe ProofFocus) 
-                    -> String -> ListStore (String,HBox -> IRG) -> IO ()
-eventsExprWidget ext_box proofRef hb w f fname sListStore =
+                    -> (ProofFocus -> Focus) -> String -> ListStore (String,HBox -> IRG) -> IO ()
+eventsExprWidget ext_box proofRef hb w fUpdate fGet fname sListStore =
     
     flip evalStateT proofRef $ 
         liftIO setupFocusEvent >>
@@ -358,7 +365,8 @@ eventsExprWidget ext_box proofRef hb w f fname sListStore =
                 boxPackStart ext_box eb PackGrow 0
                 eb `on` buttonReleaseEvent $ do
                     -- movemos el proofFocus hasta donde está esta expresión.
-                    eventWithState (updateModifExpr f) proofRef
+                    eventWithState (updateModifExpr fUpdate >>
+                                    updateSelectedExpr fGet) proofRef
                     liftIO $ putStrLn fname
                     liftIO $ widgetShowAll eb
                     return False

@@ -6,7 +6,7 @@ module Equ.Proof (newProof, newProofWithoutEnd, addStep
                  , holeProof, emptyProof, updateStart, updateEnd, updateRel
                  , validateProof, toHoleProof
                  , simpleProof, addEmptyStep, updateStartFocus, updateEndFocus
-                 , updateMiddleFocus
+                 , updateMiddleFocus, getStartFocus, getEndFocus
                  , Truth (..)
                   -- * Axiomas y teoremas
                  , Axiom(..)
@@ -25,6 +25,7 @@ module Equ.Proof (newProof, newProofWithoutEnd, addStep
                  ) where
 
 import Equ.Proof.Proof hiding (getCtx,getStart,getEnd,getRel,setCtx)
+import qualified Equ.Proof.Proof as P(getStart,getEnd)
 import Equ.Proof.Zipper
 import Equ.Proof.Monad
 import Equ.Proof.Error
@@ -312,6 +313,13 @@ updateEndFocus (p,path) f = Just (updateEnd p f,path)
 
 updateMiddleFocus :: ProofFocus -> PE.Focus -> Maybe ProofFocus
 updateMiddleFocus (p,path) f = Just (updateMiddle p f,path)
+
+getStartFocus :: ProofFocus -> Maybe PE.Focus
+getStartFocus (p,path) = P.getStart p
+
+getEndFocus :: ProofFocus -> Maybe PE.Focus
+getEndFocus (p,path) = P.getEnd p
+
 
 
 {-
