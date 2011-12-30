@@ -4,7 +4,7 @@
 module Equ.PreExpr.Zipper 
     ( Focus
     , Path
-    , toExpr, toFocus, toFocuses
+    , toExpr, toFocus, toFocuses, toFocusesWithGo
     , replace
     , goDown, goUp, goLeft, goRight, goDownR, goDownL, goTop
     ) where
@@ -17,6 +17,7 @@ import Data.Maybe(fromJust)
 
 import Control.Applicative ((<$>), (<*>),Applicative(..))
 import Test.QuickCheck(Arbitrary, arbitrary, oneof)
+import Data.Maybe(fromJust)
 
 -- | Definici&#243;n de los posibles lugares en los que podemos estar
 -- enfoc&#225;ndonos.
@@ -112,6 +113,22 @@ focusToFocuses (Just f) =
 --   forall t \in toFocuses e, toExpr t = e
 toFocuses :: PreExpr -> [Focus]
 toFocuses pe = (pe, Top) : focusToFocuses (Just (pe, Top))
+
+
+focusToFocusesWithGo :: Maybe (Focus, Focus -> Focus) -> [(Focus, Focus -> Focus)]
+focusToFocusesWithGo Nothing = []
+focusToFocusesWithGo (Just (f, go)) = 
+            case (goDownL f, goDownR f) of
+                (glf@(Just lf), grf@(Just rf)) -> ((lf, fromJust . goDownL . go) : focusToFocusesWithGo (Just (lf, fromJust . goDownL . go))) ++
+                                                    ((rf, fromJust . goDownR . go) : focusToFocusesWithGo (Just (rf, fromJust . goDownR . go)))
+                (glf@(Just lf), Nothing) -> ((lf, fromJust . goDownL . go) : focusToFocusesWithGo (Just (lf, fromJust . goDownL . go)))
+                (Nothing, _) -> []
+
+-- | Dado una preExpresion obtenemos todas las subexpresiones navegando con el
+-- zipper y ademas obtenemos la función que al aplicarla a esta preExpresion
+-- nos retorna el focus relacionado.
+toFocusesWithGo :: PreExpr -> [(Focus, Focus -> Focus)]
+toFocusesWithGo pe = ((pe, Top), id) : focusToFocusesWithGo (Just ((pe, Top), id))
 
 -- | Reemplaza la expresi&#243;n enfocada por una nueva expresi&#243;n.
 replace :: Focus -> PreExpr -> Focus

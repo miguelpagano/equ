@@ -47,7 +47,7 @@ import Control.Applicative ((<$>),(<$),(<*>))
 
 
 import Equ.Syntax
-import Equ.PreExpr
+import Equ.PreExpr hiding (setType)
 import Equ.Types
 import Equ.Theories
 import Equ.Theories.List(listApp, listEmpty)

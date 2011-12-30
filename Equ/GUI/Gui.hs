@@ -10,7 +10,7 @@ import Equ.GUI.SymbolList
 import Equ.GUI.TruthList
 import Equ.GUI.Proof
 import Equ.GUI.TypeTree
-import Equ.PreExpr(toFocus)
+import Equ.PreExpr(toFocus, toFocuses, agrupOp, agrupNotOp, opOfFocus)
 import Equ.Proof
 import Equ.Parser
 import Equ.Theories
@@ -77,7 +77,7 @@ main = do
 
     gRef <- newRef $ GState Nothing
                             Nothing
-                            []
+                            Nothing
                             symbolList
                             axiomList
                             faces
@@ -103,7 +103,7 @@ main = do
         axioms <- getAxiomCtrl
         eventsTruthList axioms aListStore
         hidePane errPane
-        switchToProof faces boxGoProofFace cleanTypedExprTree
+        switchToProof faces boxGoProofFace (cleanTypedExprTree >> cleanTreeExpr)
         switchToTypeTree faces boxGoExprFace typedExprTree
         withState (onToolButtonClicked checkType) typedCheckType
 

@@ -9,10 +9,13 @@ hoverBg = Color 0 32000 65000
 
 -- | Color del resaltado para focused.
 focusBg :: Color
-focusBg = Color 0 65000 32000
+focusBg =  Color 0 65000 32000
 
 errBg :: Color
 errBg = Color 65000 0 0
+
+successfulBg :: Color
+successfulBg = Color 0 65000 2000
 
 genericBg :: Color
 genericBg = Color 61500 61500 61500

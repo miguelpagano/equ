@@ -40,11 +40,14 @@ data Stadistic = Stadistic { thinkingGraph :: TGraph }
  
 type RecentExprList = [PreExpr]
 
-type TreeExpr = [ExprState]
+data TreeExpr = TreeExpr { mainExpr :: ExprState
+                         , opExpr :: [[(Focus, Move)]]
+                         , notOpExpr :: [ExprState]
+                         }
 
 data GState = GState { gProof :: Maybe ProofState -- ^ Prueba en progreso.
                      , gExpr :: Maybe ExprState -- ^ Expresión seleccionada.
-                     , gTreeExpr :: TreeExpr -- ^ Árbol de una expresión.
+                     , gTreeExpr :: Maybe TreeExpr -- ^ Árbol de una expresión.
                      , symCtrl :: TreeView   -- ^ La lista de símbolos para construir expresiones.
                      , axiomCtrl :: TreeView -- ^ La lista de axiomas para construir pruebas.
                      , gFaces :: Notebook -- ^ Las distintas caras de la interfaz.
