@@ -192,7 +192,7 @@ saveProof :: FilePath -> IRG
 saveProof filepath = getProof >>= \pf -> liftIO $ encodeFile filepath (toProof pf)
 
 saveTheorem :: GRef -> ListStore (String, HBox -> IRG) -> IO ()
-saveTheorem ref aListStore = evalStateT checkValidProof ref >>= \valid ->
+saveTheorem ref aListStore = evalStateT (updateValidProof >> checkValidProof) ref >>= \valid ->
                              putStrLn ("valid is " ++ show valid) >>
                              if valid then saveTheoremDialog ref aListStore
                                       else errorDialog "La prueba no es válida"
