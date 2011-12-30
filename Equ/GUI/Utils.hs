@@ -13,7 +13,7 @@ import Equ.Syntax
 import Equ.Parser
 
 import Equ.Proof.Proof
-import Equ.Proof(ProofFocus,updateStartFocus,updateEndFocus)
+import Equ.Proof(ProofFocus,updateStartFocus,updateEndFocus,PM,validateProof,toProof)
 import Equ.Rule
 
 import Equ.Types
@@ -112,9 +112,9 @@ del estado. -}
 updateExpr e' = update (updateExpr' e') >> showExpr
 
 updateExpr' :: PreExpr -> GState -> GState
-updateExpr' _ gst@(GState Nothing _ _ _ _ _ _ _ _ _ _) = gst
-updateExpr' _ gst@(GState _ Nothing _ _ _ _ _ _ _ _ _) = gst
-updateExpr' e' gst@(GState (Just gpr) (Just gexpr)_ _ _ _ _ _ _ _ _) = 
+updateExpr' _ gst@(GState Nothing _ _ _ _ _ _ _ _ _ _ _) = gst
+updateExpr' _ gst@(GState _ Nothing _ _ _ _ _ _ _ _ _ _) = gst
+updateExpr' e' gst@(GState (Just gpr) (Just gexpr)_ _ _ _ _ _ _ _ _ _) = 
     gst { gProof = Just $ gpr {proof = fromJust $ up pr newExpr}
         , gExpr = Just $ gexpr {fExpr = newExpr}
         }
@@ -135,9 +135,9 @@ updateProof pf = update (updateProof' pf) >>
                 getProof >>= \p -> liftIO (putStrLn (show p))
 
 updateProof' :: ProofFocus -> GState -> GState
-updateProof' _ gst@(GState Nothing _ _ _ _ _ _ _ _ _ _) = gst
-updateProof' _ gst@(GState _ Nothing _ _ _ _ _ _ _ _ _) = gst
-updateProof' (p,path) gst@(GState (Just gpr) (Just gexpr) _ _ _ _ _ _ _ _ _) = 
+updateProof' _ gst@(GState Nothing _ _ _ _ _ _ _ _ _ _ _) = gst
+updateProof' _ gst@(GState _ Nothing _ _ _ _ _ _ _ _ _ _) = gst
+updateProof' (p,path) gst@(GState (Just gpr) (Just gexpr) _ _ _ _ _ _ _ _ _ _) = 
     gst { gProof = Just $ gpr { proof = (p,path)
                               , modifExpr = updateStartFocus
                               }
@@ -155,6 +155,13 @@ updateProof' (p,path) gst@(GState (Just gpr) (Just gexpr) _ _ _ _ _ _ _ _ _) =
         f,g :: Move
         f = fst $ pathExpr gexpr
         g = snd $ pathExpr gexpr
+        
+-- | Valida la prueba y actualiza el campo "validProof" del ProofState
+updateValidProof :: IState ()
+updateValidProof = getValidProof >>= \vp -> update (updateValidProof' vp)
+    where updateValidProof' :: PM Proof -> GState -> GState
+          updateValidProof' vp gst@(GState (Just gpr) _ _ _ _ _ _ _ _ _ _ _) =
+              gst { gProof = Just $ gpr { validProof = validateProof (toProof $ proof gpr) } }
 
 updateProofState :: ProofState -> IState ()
 updateProofState ps = update (\gst -> gst {gProof = Just ps})
@@ -180,8 +187,8 @@ updateFocus e' f = update (updateFocus' e' f) >>
                    showProof
 
 updateFocus' :: Focus -> GoBack -> GState -> GState
-updateFocus' _ _ gst@(GState _ Nothing _ _ _ _ _ _ _ _ _) = gst
-updateFocus' (e,p) (f,g) gst@(GState _ (Just gexpr) _ _ _ _ _ _ _ _ _) = 
+updateFocus' _ _ gst@(GState _ Nothing _ _ _ _ _ _ _ _ _ _) = gst
+updateFocus' (e,p) (f,g) gst@(GState _ (Just gexpr) _ _ _ _ _ _ _ _ _ _) = 
                                     gst { gExpr = Just $ gexpr { fExpr = (e,p)
                                                                , pathExpr = (f,g)
                                                                }
@@ -211,9 +218,14 @@ updateRelation r = getProof >>= \(p,path) ->
 updateAxiomBox :: HBox -> IState ()
 updateAxiomBox b = update $ \gst -> gst {gProof = Just $ ((fromJust . gProof) gst) {axiomBox = b}}
 
+addTheorem :: Theorem -> IState Theorem
+addTheorem th = (update $ \gst -> gst { theorems = (th:theorems gst) }) >>
+                return th
+
 changeProofFocus :: (ProofFocus -> Maybe ProofFocus) -> HBox -> IState ()
 changeProofFocus moveFocus box = getProof >>= \pf -> updateProof (fromJust $ moveFocus pf) >>
                                  updateAxiomBox box
+                              
 
 {- Las nueve funciones siguientes devuelven cada uno de los
 componentes del estado. -}
@@ -221,8 +233,22 @@ componentes del estado. -}
 getProof :: IState ProofFocus
 getProof = (liftIO $ putStrLn "getProof") >> askRef >>= return . proof . fromJust . gProof
 
+getValidProof :: IState (PM Proof)
+getValidProof = askRef >>= return . validProof . fromJust . gProof
+
 getProofState :: IState (Maybe ProofState)
 getProofState = (liftIO $ putStrLn "getProofState") >> askRef >>= return . gProof
+
+getExprProof :: IState Expr
+getExprProof = getValidProof >>= \vp ->
+               case vp of
+                    Left _ -> return holeExpr
+                    Right p -> return (getExpr p)
+                    
+    where getExpr p = Expr $ BinOp (relationToOperator (fromJust $ getRel p))
+                                   (toExpr $ fromJust $ getStart p)
+                                   (toExpr $ fromJust $ getEnd p)
+                                     
 
 getExpr :: IState Focus
 getExpr = (liftIO $ putStrLn "getExpr") >> askRef >>= return . fExpr . fromJust . gExpr
@@ -303,6 +329,10 @@ getParentNamed name = go
                  then return w
                  else liftIO (widgetGetParent w) >>= go . fromJust
 
+getTheorems :: IState [Theorem]
+getTheorems = askRef >>= return .theorems
+                 
+                 
 {- Listas heterógeneas de cosas que pueden agregarse a cajas -}
 infixr 8 .*.
 
@@ -376,7 +406,7 @@ cleanTreeExpr = update (\gst -> gst { gTreeExpr = []})
 
 -- Añade una expresion y su respectivo boton a al arbol de tipado.
 addExprToTree :: Focus -> Type -> GoBack -> HBox -> HBox -> IState ExprState
-addExprToTree f t p be bt = update (\gst@(GState _ _ gte _ _ _ _ _ _ _ _) -> 
+addExprToTree f t p be bt = update (\gst@(GState _ _ gte _ _ _ _ _ _ _ _ _) -> 
                                     gst { gTreeExpr = te : gte}) >> return te
     where te :: ExprState
           te = ExprState { fExpr = f
@@ -386,6 +416,20 @@ addExprToTree f t p be bt = update (\gst@(GState _ _ gte _ _ _ _ _ _ _ _) ->
                          , eventType = bt
                          }
 
+                         
+-- Funcion que chequea si la prueba en la interfaz está validada
+checkValidProof :: IState Bool
+checkValidProof = getProof >>= \pf ->
+                  return (toProof pf) >>= \pr ->
+                  liftIO (putStrLn ("la prueba es " ++ show pr)) >>
+                  getValidProof >>= \vp ->
+                  liftIO (putStrLn ("la prueba valida es " ++ show vp))  >>
+                  case vp of
+                       Left _ -> return False
+                       Right p -> return (p==pr)
+                       
+                         
+                         
 -- | Ejecuta una acción en la mónada de estado para obtener un
 -- resultado. Es útil para los event-handlers.
 withState :: (IO a -> IO b) -> IState a -> IState b

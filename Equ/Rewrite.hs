@@ -2,6 +2,7 @@
 module Equ.Rewrite
     ( exprRewrite
     , focusedRewrite
+    , rewriteAllFocuses
     , typedRewrite
     , RewriteError
     , RM
@@ -49,6 +50,9 @@ rewriteInformative (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) =
 focusedRewrite :: Focus -> Rule -> RM Focus
 focusedRewrite f@(pe, p) r = exprRewrite (Expr pe) r >>= 
                              \(Expr pe')-> return $ replace f pe'
+                             
+rewriteAllFocuses :: PreExpr -> Rule -> [RM Focus]
+rewriteAllFocuses e r = map (flip focusedRewrite r) (toFocuses e)
 
 {- 
     Me di cuenta que no termino de entender que deber&#237;a hacer esta funci&#243;n.

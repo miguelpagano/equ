@@ -6,13 +6,14 @@ module Equ.PreExpr.Zipper
     , Path
     , toExpr, toFocus, toFocuses
     , replace
-    , goDown, goUp, goLeft, goRight, goDownR, goDownL
+    , goDown, goUp, goLeft, goRight, goDownR, goDownL, goTop
     ) where
 
 import Equ.PreExpr.Internal
 import Equ.Syntax
 
 import Data.Serialize(Serialize, get, getWord8, put, putWord8)
+import Data.Maybe(fromJust)
 
 import Control.Applicative ((<$>), (<*>),Applicative(..))
 import Test.QuickCheck(Arbitrary, arbitrary, oneof)
@@ -172,3 +173,8 @@ goRight (_, AppR _ _) = Nothing
 goRight (pe, QuantL qua v path pe0) = Just (pe0, QuantR qua v pe path)
 goRight (_, QuantR _ _ _ _) = Nothing
 goRight (_, ParenD _) = Nothing
+
+-- | Sube hasta el tope.
+goTop :: Focus -> Focus
+goTop (e,Top) = (e,Top)
+goTop f = goTop $ fromJust $ goUp f

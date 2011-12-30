@@ -618,7 +618,6 @@ updateRel (Ind c _ f1 f2 l1 l2) r = Ind c r f1 f2 l1 l2
 updateRel (Deduc c f1 f2 p) r = Deduc c f1 f2 p
 updateRel (Focus c _ f1 f2 p) r = Focus c r f1 f2 p
 
-
 {- $samples
 
 [Axiomas]

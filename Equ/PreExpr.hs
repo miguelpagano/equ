@@ -7,7 +7,7 @@ module Equ.PreExpr ( freeVars, freshVar
                    , preExprHole, isPreExprHole
                    , placeHolderVar
                    , isPlaceHolderVar
-                   , emptyExpr, holeExpr
+                   , emptyExpr, holePreExpr
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
@@ -70,8 +70,8 @@ isPlaceHolderVar (Variable "" TyUnknown) = True
 isPlaceHolderVar _ = False
 
 -- | Un hueco sin información.
-holeExpr :: PreExpr
-holeExpr = preExprHole ""
+holePreExpr :: PreExpr
+holePreExpr = preExprHole ""
 
 emptyExpr :: Focus
-emptyExpr = toFocus holeExpr
+emptyExpr = toFocus holePreExpr

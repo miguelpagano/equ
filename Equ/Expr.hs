@@ -6,7 +6,7 @@
 -- Proof), asumen que las expresiones manipuladas están bien
 -- tipadas.
 module Equ.Expr where
-import Equ.PreExpr(PreExpr)
+import Equ.PreExpr(PreExpr,holePreExpr)
 import Data.Serialize(Serialize, get, put)
 
 import Control.Applicative ((<$>))
@@ -33,3 +33,6 @@ instance Serialize Expr where
 -- | Retorna la preExpresi&#243;n que constituye la expresi&#243;n.
 getPreExpr :: Expr -> PreExpr
 getPreExpr (Expr e) = e
+
+holeExpr :: Expr
+holeExpr = Expr holePreExpr

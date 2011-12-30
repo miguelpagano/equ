@@ -3,7 +3,7 @@ module Equ.GUI.Types where
 
 import Equ.PreExpr
 
-import Equ.Proof (Proof,PM,ProofFocus)
+import Equ.Proof (Proof,PM,ProofFocus,Theorem)
 
 import Graphics.UI.Gtk ( WidgetClass, Statusbar, ContextId, HBox, TreeView
                        , EventBox, Label, Button, Notebook, HPaned
@@ -53,6 +53,7 @@ data GState = GState { gProof :: Maybe ProofState -- ^ Prueba en progreso.
                      , recentExprList :: RecentExprList -- ^ Lista de expresiones recientemente ingresadas.
                      , gStadistic :: Stadistic -- ^ Conjunto de estadisticas.
                      , status :: StatusPlace  -- ^ La barra de estado.
+                     , theorems :: [Theorem]
                      }
  
 data ExprState = ExprState { fExpr :: Focus
@@ -66,10 +67,7 @@ data ProofState = ProofState { proof :: ProofFocus   -- ^ La prueba que estamos 
                              , validProof :: PM Proof
                              , modifExpr :: ProofFocus -> Focus -> Maybe ProofFocus  
                                  -- ^ Funcion para modificar la expresion 
-                                 --  enfocada DENTRO de la prueba. Esto sirve 
-                                 --  asi solo para el caso prueba simple, donde 
-                                 --  esta funcion puede ser updateStart o 
-                                 --  updateEnd.
+                                 --  enfocada DENTRO de la prueba.
                              , axiomBox :: HBox -- ^ El contenedor para mostrar el axioma aplicado
                              }
 

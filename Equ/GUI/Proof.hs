@@ -9,7 +9,7 @@ import Equ.GUI.TruthList
 import Equ.Rule
 import Equ.Theories
 import Equ.Proof
-import Equ.PreExpr hiding (goDownL,goDownR,goRight,goUp)
+import Equ.PreExpr hiding (goDownL,goDownR,goRight,goUp,goTop)
 import Equ.GUI.Widget
 import Equ.GUI.Expr (clearFocus,writeExprWidget)
 import Equ.Parser
@@ -36,19 +36,21 @@ newProofState (Just p) axiom_box = return pr
     where
         pr :: ProofState
         pr = ProofState { proof = toProofFocus p
-                        , validProof = Right p
+                        , validProof = validateProof p
                         , modifExpr = updateStartFocus
                         , axiomBox = axiom_box
                         }
 newProofState Nothing axiom_box = return pr
     where
         pr :: ProofState
-        pr = ProofState { proof = emptyProof $ head $ relationList
-                        , validProof = Right $ holeProof $ head $ relationList
+        pr = ProofState { proof = p
+                        , validProof = validateProof (toProof p)
                         , modifExpr = updateStartFocus
                         , axiomBox = axiom_box
                         }
-
+        p = emptyProof $ head $ relationList
+                        
+                        
 newExprState :: HBox -> HBox -> IState ExprState
 newExprState hbox1 hbox2 = do
     return eState
@@ -90,8 +92,8 @@ completeProof p@(Simple _ rel f1 f2 b) center_box proofRef moveFocus ls = do
     createCenterBox center_box proofRef moveFocus ls rel (Just b)
                         
 createNewProof :: (Maybe Proof) -> VBox ->  ListStore (String,HBox -> IRG) -> 
-                                   ListStore (String,HBox -> IRG) -> IState ()
-createNewProof maybe_proof ret_box sListStore aListStore = do
+                                                                        IState ()
+createNewProof maybe_proof ret_box sListStore = do
     s <- get
     liftIO $ putStrLn "creando prueba..."
     
@@ -120,12 +122,10 @@ createNewProof maybe_proof ret_box sListStore aListStore = do
     center_box <- liftIO $ vBoxNew False 2
     liftIO $ createCenterBox center_box s goTop sListStore (head relationList) Nothing
     
-    (getAxiomCtrl >>= flip eventsTruthList aListStore)
-
     case maybe_proof of
          Nothing -> do
-            hboxInit <- liftIO $ createExprWidget holeExpr s updateFirstExpr getFirstExpr "start" sListStore
-            hboxEnd  <- liftIO $ createExprWidget holeExpr s updateFinalExpr getFinalExpr "end" sListStore
+            hboxInit <- liftIO $ createExprWidget holePreExpr s updateFirstExpr getFirstExpr "start" sListStore
+            hboxEnd  <- liftIO $ createExprWidget holePreExpr s updateFinalExpr getFinalExpr "end" sListStore
 
             liftIO $ boxPackStart ret_box hboxInit PackNatural 2
             liftIO $ boxPackStart ret_box center_box PackNatural 2
@@ -157,12 +157,12 @@ getFirstExpr pf = fromJust $ getStartFocus (fromJust $ goTop pf)
 getFinalExpr pf = fromJust $ getEndFocus (fromJust $ goTop pf)
 
 checkProof :: Image -> IState ()
-checkProof validImage = getProof >>= \pf ->
-                          case validateProof (toProof pf) of
-                            Right _ -> liftIO $ imageSetFromStock validImage stockOk IconSizeSmallToolbar
-                            Left err -> liftIO (putStrLn (show err) >>
+checkProof validImage = updateValidProof >> checkValidProof >>= \valid ->
+                        if valid then liftIO $ imageSetFromStock validImage stockOk IconSizeSmallToolbar
+                                 else getValidProof >>= \vp ->
+                                      liftIO (putStrLn (show vp) >>
                                        imageSetFromStock validImage stockCancel IconSizeSmallToolbar)
-                                       >> reportErrWithErrPaned (show err)
+                                       >> reportErrWithErrPaned (show vp)
 
 createCenterBox :: VBox -> GRef -> (ProofFocus -> Maybe ProofFocus) -> 
                    ListStore (String,HBox -> IRG) -> Relation -> Maybe Basic -> IO ()
@@ -215,7 +215,7 @@ createCenterBox center_box ref moveFocus symbolList rel maybe_basic = do
         liftIO $ widgetShowAll axiom_box
         
     addStepButton `on` buttonPressEvent $ 
-                        liftIO (newStepProof holeExpr ref moveFocus center_box symbolList) >>
+                        liftIO (newStepProof holePreExpr ref moveFocus center_box symbolList) >>
                         return False
         
         

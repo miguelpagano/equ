@@ -23,8 +23,8 @@ import Control.Monad.Trans(liftIO)
 
 -- | La lista de axiomas y teoremas; el primer elemento nos permite ingresar
 -- una expresión en una caja de texto y parsearla.
-listTruths :: IO (ListStore (String, HBox -> IRG))
-listTruths = listStoreNew $ map addItem axiomList
+listTruths :: [Theorem] -> IO (ListStore (String, HBox -> IRG))
+listTruths theoremList = listStoreNew $ (map addItem axiomList) ++ (map addItem theoremList)
     where addItem :: (Truth t, Show t) => t -> (String, HBox -> IRG)
           addItem t = (show t, writeTruth $ truthBasic t)
           
@@ -39,10 +39,10 @@ writeTruth basic b = do
     liftIO $ widgetShowAll b
 
 -- | La configuración de la lista de símbolos propiamente hablando.
-setupTruthList :: TreeView -> IO (ListStore (String,HBox -> IRG))
-setupTruthList tv = 
+setupTruthList :: [Theorem] -> TreeView -> IO (ListStore (String,HBox -> IRG))
+setupTruthList theoremList tv = 
      treeViewColumnNew >>= \col ->
-     listTruths >>= \list -> 
+     listTruths theoremList >>= \list -> 
      treeViewSetHeadersVisible tv False >>
      cellRendererTextNew >>= \renderer ->
      cellLayoutPackStart col renderer False >>

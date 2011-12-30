@@ -192,7 +192,7 @@ removeAllChildren b = liftIO $ containerForeach b $
 -- | Poné en una caja el widget que usamos para construir nuevas
 -- expresiones.
 setupForm ::  HBox -> IRG
-setupForm b = labelStr "?" >>= \l -> setupFormEv b l holeExpr
+setupForm b = labelStr "?" >>= \l -> setupFormEv b l holePreExpr
 
 -- | Asigna los manejadores de eventos para widgets de expresiones a 
 -- los controles.
@@ -221,7 +221,7 @@ setupEvents b eb e = get >>= \s ->
 -- enfocada.
 removeExpr :: HBox -> GRef -> EventM EButton ()
 removeExpr b s = do RightButton <- eventButton
-                    eventWithState (updateExpr holeExpr >>
+                    eventWithState (updateExpr holePreExpr >>
                                     removeAllChildren b >>
                                     setupForm b) s
                     liftIO $ widgetShowAll b
@@ -253,6 +253,24 @@ highlight bg w = widgetModifyBg w (toEnum 0) bg
 -- | Le quita el color especial a un control.
 unlight :: WidgetClass w => Color -> w -> IO ()
 unlight bg w = widgetModifyBg w (toEnum 0) bg
+
+
+-- | Funcion para mostrar dialogo con mensaje de error
+errorDialog :: String -> IO ()
+errorDialog message = do
+    dialog <- dialogNew
+    set dialog [windowTitle := "Error"]
+    box <- dialogGetUpper dialog
+    label <- labelNew $ Just message
+    boxPackStart box label PackNatural 2
+    
+    dialogAddButton dialog stockApply ResponseApply
+        
+    widgetShowAll box
+   
+    dialogRun dialog
+    widgetDestroy dialog
+    
 
 {- Conjunto de funciones para cargar y guardar una lista de expresiones.
     Esto es una prueba no mas de lo que podemos llegar a querer hacer con

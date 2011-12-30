@@ -198,9 +198,9 @@ writeOperator o box = expOp o >>= \(WExpr b e) ->
                       liftIO (widgetShowAll box)
 
     where expOp o = case opNotationTy o of
-                      NPrefix -> frameExp $ UnOp o holeExpr
-                      NPostfix -> frameExp $ UnOp o holeExpr
-                      NInfix -> frameExp $ BinOp o holeExpr holeExpr
+                      NPrefix -> frameExp $ UnOp o holePreExpr
+                      NPostfix -> frameExp $ UnOp o holePreExpr
+                      NInfix -> frameExp $ BinOp o holePreExpr holePreExpr
 
 -- | Cuantificadores.
 writeQuantifier :: Quantifier -> HBox -> IRG

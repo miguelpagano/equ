@@ -63,12 +63,27 @@ checkEqWithDefault def a b | a /= b = Left def
 whenEqWithDefault :: Eq a => ProofError -> a -> a -> PM ()
 whenEqWithDefault def a b = whenPM (==a) def b >> return ()
 
+-- checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Rule
+--                               -> PM ()
+-- checkSimpleStepFromRule f1 f2 rel t rule = 
+--     whenEqWithDefault errRel rel (truthRel t) >>
+--     liftRw (focusedRewrite f1 rule) >>= \f ->
+--     whenEqWithDefault err f f2 
+--     
+--     where errRel :: ProofError
+--           errRel = ClashRel rel (truthRel t)
+--           err :: ProofError
+--           err = BasicNotApplicable $ truthBasic t
+
 checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Rule
                               -> PM ()
 checkSimpleStepFromRule f1 f2 rel t rule = 
     whenEqWithDefault errRel rel (truthRel t) >>
-    liftRw (focusedRewrite f1 rule) >>= \f ->
-    whenEqWithDefault err f f2 
+    case partitionEithers $ rewriteAllFocuses (PE.toExpr f1) rule of
+         (_,[]) -> Left [err]
+         (_,ls) -> case partitionEithers $ map (flip (whenEqWithDefault err) (PE.goTop f2) . PE.goTop) ls of
+                        (errors,[]) -> Left $ head errors
+                        (_,xs) -> return ()
     
     where errRel :: ProofError
           errRel = ClashRel rel (truthRel t)
@@ -97,7 +112,7 @@ proofFromTruth f f' r t = case partitionEithers $
                           -- podr&#237;a mejorar un poco devolviendo la lista de
                           -- errores.
                           ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
-                          (er, []) -> Left (head er)
+                          (er, []) -> Left $ concat er
                           (_, p:ps) -> Right p
 
 notValidSimpleProof :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Proof
