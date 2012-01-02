@@ -28,7 +28,7 @@ import Data.Text(unpack)
 import Data.Map(empty)
 import Data.List(elemIndex)
 import Data.Either(rights)
-
+import qualified Data.Foldable as F (mapM_)
 
 -- | Crea una nueva referencia
 newProofState :: (Maybe Proof) -> HBox -> IState ProofState
@@ -213,6 +213,7 @@ createCenterBox center_box top_box ref moveFocus symbolList rel maybe_basic = do
                         liftIO (proofFocusToBox path top_box) >>=
                         flip highlightBox focusBg) ref
         
+        
     eb_axiom_box `on` buttonPressEvent $ tryEvent $ do
         RightButton <- eventButton
         liftIO $ putStrLn "axiom_box right clicked"
@@ -232,12 +233,8 @@ createCenterBox center_box top_box ref moveFocus symbolList rel maybe_basic = do
         
     boxPackStart center_box hbox PackNatural 5
     
-    case maybe_basic of 
-         Nothing -> return ()
-         Just basic -> evalStateT (writeTruth basic axiom_box) ref
-    
-    return ()
-        
+    F.mapM_ (\basic -> evalStateT (writeTruth basic axiom_box) ref) maybe_basic
+            
     where changeItem c list box = do 
             unSelectBox
             changeProofFocus moveFocus box
@@ -248,16 +245,12 @@ createCenterBox center_box top_box ref moveFocus symbolList rel maybe_basic = do
             newRel <- liftIO $ listStoreGetValue list ind
             updateRelation newRel
             
-          unSelectBox = do
-            axiom_box <- getAxiomBox
-            parent1 <- liftIO $ widgetGetParent axiom_box
-            case parent1 of
-                 Nothing -> liftIO (putStrLn "--- NO PARENT ---") >> return ()
-                 Just p -> do
-                    parent2 <- liftIO $ widgetGetParent p
-                    parent3 <- liftIO $ widgetGetParent (fromJust parent2)
-                    centralBoxParent <- return $ fromJust parent3
-                    unlightBox (castToVBox centralBoxParent) Nothing
+          unSelectBox = getAxiomBox >>= \ axiom_box ->
+                        liftIO (widgetGetParent axiom_box) >>= \ eb_box ->
+                        flip F.mapM_ eb_box 
+                                 (\ p -> liftIO (widgetGetParent p) >>= 
+                                        unlightBox Nothing . castToHBox . fromJust
+                                 )
 
 newStepProof :: PreExpr -> GRef -> (ProofFocus -> Maybe ProofFocus) ->
                 VBox -> VBox -> ListStore (String,HBox -> IRG) -> IO (VBox,VBox)
