@@ -171,7 +171,7 @@ configTypeOpEntry fs eText b tb =
 configEventGeneralExpr :: (BoxClass w) => EventBox -> w -> IO ()
 configEventGeneralExpr eb b = 
                             onEvent enterNotifyEvent (highlightBox b hoverBg) >>
-                            onEvent leaveNotifyEvent (unlightBox b genericBg) >>
+                            onEvent leaveNotifyEvent (unlightBox b Nothing) >>
                             return ()
     where onEvent event action = eb `on` event $ tryEvent action
 

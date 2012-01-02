@@ -2,12 +2,20 @@ module Equ.Proof.Error where
 
 import Equ.Rule (Relation)
 import Equ.Rewrite (RewriteError)
+import Equ.Proof.Zipper(ProofFocus)
 import Equ.Proof.Proof
 
 -- | Errores sobre las pruebas.
-data ProofError = Rewrite RewriteError                 
+-- El error contiene informacion sobre en que lugar de la prueba se produjo el error.
+-- La función navega en el ProofFocus correspondiente a la prueba, desde el tope.
+data ProofError = ProofError ProofError' (ProofFocus -> ProofFocus)
+    
+instance Show ProofError where
+    show (ProofError p m) = show p
+    
+data ProofError' = Rewrite [RewriteError]
                 | BasicNotApplicable Basic
-                | ProofError
+                | HoleProof        -- Prueba vacía.
                 | ClashCtx Ctx Ctx -- Contextos distintos.
                 | ClashRel Relation Relation -- Relaciones distintas
                 | ClashAddStep Proof Proof -- Error al intentar agregar un paso.
@@ -22,10 +30,10 @@ data ProofError = Rewrite RewriteError
                                      --no coinciden con las pruebas
     deriving Eq
     
-instance Show ProofError where
+instance Show ProofError' where
     show (Rewrite r) = "Error de reescritura: "++ show r
     show (BasicNotApplicable b) = "No se puede aplicar el paso básico: "++ show b
-    show ProofError = "Error en la prueba"
+    show HoleProof = "La prueba tiene un hueco"
     show (ClashCtx c1 c2) = "Los contextos no coinciden: "++ show c1 ++ ", " ++ show c2
     show (ClashRel r1 r2) = "Las relaciones no coinciden: "++ show r1 ++ ", "++show r2
     show (ClashAddStep p1 p2) = "No es posible agregar paso"
@@ -36,3 +44,8 @@ instance Show ProofError where
     show ReflexHasNoEnd = "Una prueba reflexiva no debe tener expresión final"
     show ReflexHasNoRel = "Una prueba reflexiva no debe tener relación"
     show (TransInconsistent p) = "La prueba transitiva es inconsistente: " ++ show p
+
+getMoveFocus :: ProofError -> (ProofFocus -> ProofFocus)
+getMoveFocus (ProofError _ move) = move
+    
+    

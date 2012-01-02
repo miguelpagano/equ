@@ -77,19 +77,19 @@ loadProof p ret_box ref sListStore = do
     boxPackStart ret_box center_box PackNatural 2
     boxPackStart ret_box hboxEnd PackNatural 2
     
-    completeProof p center_box ref goTop sListStore
+    completeProof p center_box center_box ref goTop sListStore
 
-completeProof :: Proof -> VBox -> GRef -> (ProofFocus -> Maybe ProofFocus) ->
+completeProof :: Proof -> VBox -> VBox -> GRef -> (ProofFocus -> Maybe ProofFocus) ->
                  ListStore (String,HBox -> IRG) -> IO ()
-completeProof p@(Trans _ rel f1 fm f2 p1 p2) center_box proofRef moveFocus ls = do
-    (boxL,boxR) <- newStepProof (toExpr fm) proofRef moveFocus center_box ls
+completeProof p@(Trans _ rel f1 fm f2 p1 p2) center_box top_box proofRef moveFocus ls = do
+    (boxL,boxR) <- newStepProof (toExpr fm) proofRef moveFocus center_box top_box ls
     
-    completeProof p1 boxL proofRef (goDownL . fromJust . moveFocus) ls
-    completeProof p2 boxR proofRef (goDownR . fromJust . moveFocus) ls  
-completeProof (Hole _ rel f1 f2) center_box proofRef moveFocus ls = do
-    createCenterBox center_box proofRef moveFocus ls rel Nothing
-completeProof p@(Simple _ rel f1 f2 b) center_box proofRef moveFocus ls = do
-    createCenterBox center_box proofRef moveFocus ls rel (Just b)
+    completeProof p1 boxL top_box proofRef (goDownL . fromJust . moveFocus) ls
+    completeProof p2 boxR top_box proofRef (goDownR . fromJust . moveFocus) ls  
+completeProof (Hole _ rel f1 f2) center_box top_box proofRef moveFocus ls = do
+    createCenterBox center_box top_box proofRef moveFocus ls rel Nothing
+completeProof p@(Simple _ rel f1 f2 b) center_box top_box proofRef moveFocus ls = do
+    createCenterBox center_box top_box proofRef moveFocus ls rel (Just b)
                         
 createNewProof :: (Maybe Proof) -> VBox ->  ListStore (String,HBox -> IRG) -> 
                                                                         IState ()
@@ -120,7 +120,7 @@ createNewProof maybe_proof ret_box sListStore = do
    -- Caja central para colocar la relacion y el axioma aplicado. La funcion para mover el foco
     -- es ir hasta el tope.
     center_box <- liftIO $ vBoxNew False 2
-    liftIO $ createCenterBox center_box s goTop sListStore (head relationList) Nothing
+    liftIO $ createCenterBox center_box center_box s goTop sListStore (head relationList) Nothing
     
     case maybe_proof of
          Nothing -> do
@@ -145,7 +145,7 @@ createNewProof maybe_proof ret_box sListStore = do
     liftIO $ boxPackStart ret_box validProofHBox PackNatural 20
     
     liftIO $ (valid_button `on` buttonPressEvent $ tryEvent $
-                            eventWithState (checkProof validImage) s)
+                            eventWithState (checkProof validImage center_box) s)
 
     liftIO $ widgetShowAll ret_box
 
@@ -156,17 +156,24 @@ updateFinalExpr pf f = updateEndFocus (fromJust $ goTop pf) f
 getFirstExpr pf = fromJust $ getStartFocus (fromJust $ goTop pf)
 getFinalExpr pf = fromJust $ getEndFocus (fromJust $ goTop pf)
 
-checkProof :: Image -> IState ()
-checkProof validImage = updateValidProof >> checkValidProof >>= \valid ->
+checkProof :: Image -> VBox -> IState ()
+checkProof validImage top_box = updateValidProof >> checkValidProof >>= \valid ->
                         if valid then liftIO $ imageSetFromStock validImage stockOk IconSizeSmallToolbar
-                                 else getValidProof >>= \vp ->
-                                      liftIO (putStrLn (show vp) >>
+                                 else getValidProof >>= \(Left errorProof) ->
+                                      liftIO (putStrLn (show errorProof) >>
                                        imageSetFromStock validImage stockCancel IconSizeSmallToolbar)
-                                       >> reportErrWithErrPaned (show vp)
+                                       >> reportErrWithErrPaned (show errorProof) >>
+                                       getProof >>= \pf ->
+                                       return ((getMoveFocus errorProof) pf) >>=
+                                       \(p,path) ->
+                                       liftIO (proofFocusToBox path top_box) >>=
+                                       flip highlightBox errBg
+                                       
 
-createCenterBox :: VBox -> GRef -> (ProofFocus -> Maybe ProofFocus) -> 
+createCenterBox :: VBox -> VBox -> GRef -> (ProofFocus -> Maybe ProofFocus) -> 
                    ListStore (String,HBox -> IRG) -> Relation -> Maybe Basic -> IO ()
-createCenterBox center_box ref moveFocus symbolList rel maybe_basic = do
+createCenterBox center_box top_box ref moveFocus symbolList rel maybe_basic = do
+    -- top_box es la caja central mas general, que es creada al iniciar una prueba.
     
     containerForeach center_box $ \x -> containerRemove center_box x >> widgetDestroy x
     
@@ -195,12 +202,16 @@ createCenterBox center_box ref moveFocus symbolList rel maybe_basic = do
                                                     
     eb_axiom_box `on` leaveNotifyEvent $ tryEvent $ (liftIO $ widgetGetStyle hbox) >>=
                                 \st -> (liftIO $ styleGetBackground st (toEnum 0)) >>=
-                                \bg -> unlightBox hbox bg
+                                \bg -> unlightBox hbox (Just bg)
     
     eb_axiom_box `on` buttonPressEvent $ tryEvent $ do
         LeftButton <- eventButton
         liftIO $ putStrLn "axiom_box clicked"
-        eventWithState (changeProofFocus moveFocus axiom_box) ref
+        eventWithState (unSelectBox >>
+                        changeProofFocus moveFocus axiom_box >>
+                        getProof >>= \(_,path) ->
+                        liftIO (proofFocusToBox path top_box) >>=
+                        flip highlightBox focusBg) ref
         
     eb_axiom_box `on` buttonPressEvent $ tryEvent $ do
         RightButton <- eventButton
@@ -215,7 +226,7 @@ createCenterBox center_box ref moveFocus symbolList rel maybe_basic = do
         liftIO $ widgetShowAll axiom_box
         
     addStepButton `on` buttonPressEvent $ 
-                        liftIO (newStepProof holePreExpr ref moveFocus center_box symbolList) >>
+                        liftIO (newStepProof holePreExpr ref moveFocus center_box top_box symbolList) >>
                         return False
         
         
@@ -228,14 +239,29 @@ createCenterBox center_box ref moveFocus symbolList rel maybe_basic = do
     return ()
         
     where changeItem c list box = do 
+            unSelectBox
             changeProofFocus moveFocus box
+            (getProof >>= \(_,path) ->
+                liftIO (proofFocusToBox path top_box) >>=
+                flip highlightBox focusBg)
             ind <- liftIO $ comboBoxGetActive c
             newRel <- liftIO $ listStoreGetValue list ind
             updateRelation newRel
+            
+          unSelectBox = do
+            axiom_box <- getAxiomBox
+            parent1 <- liftIO $ widgetGetParent axiom_box
+            case parent1 of
+                 Nothing -> liftIO (putStrLn "--- NO PARENT ---") >> return ()
+                 Just p -> do
+                    parent2 <- liftIO $ widgetGetParent p
+                    parent3 <- liftIO $ widgetGetParent (fromJust parent2)
+                    centralBoxParent <- return $ fromJust parent3
+                    unlightBox (castToVBox centralBoxParent) Nothing
 
 newStepProof :: PreExpr -> GRef -> (ProofFocus -> Maybe ProofFocus) ->
-                VBox -> ListStore (String,HBox -> IRG) -> IO (VBox,VBox)
-newStepProof expr ref moveFocus container symbolList = do
+                VBox -> VBox -> ListStore (String,HBox -> IRG) -> IO (VBox,VBox)
+newStepProof expr ref moveFocus container top_box symbolList = do
     containerForeach container $ \x -> containerRemove container x >> widgetDestroy x
     
     (flip evalStateT ref $ 
@@ -251,9 +277,9 @@ newStepProof expr ref moveFocus container symbolList = do
                             return (fromRight $ getRel proof)) ref
     
     centerBoxL <- vBoxNew False 2
-    createCenterBox centerBoxL ref (goDownL . fromJust . moveFocus) symbolList relation Nothing
+    createCenterBox centerBoxL top_box ref (goDownL . fromJust . moveFocus) symbolList relation Nothing
     centerBoxR <- vBoxNew False 2
-    createCenterBox centerBoxR ref (goDownR . fromJust . moveFocus) symbolList relation Nothing
+    createCenterBox centerBoxR top_box ref (goDownR . fromJust . moveFocus) symbolList relation Nothing
     exprBox <- createExprWidget expr ref updateFocus (fromJust . getFocus) "?" symbolList
     
     boxPackStart container centerBoxL PackNatural 5
@@ -373,3 +399,24 @@ eventsExprWidget ext_box proofRef hb w fUpdate fGet fname sListStore =
 
                     
 fromRight = head . rights . return          
+
+{- | Funcion para obtener la caja correspondiente al paso de la prueba en el que estamos
+   dentro de una transitividad.
+    El parámetro "box" debe ser una caja construida con "CreateCentralBox". Cada una de esas
+    cajas tendrá 3 hijos. El primero corresponde a la central box de la subprueba izquierda,
+    El segundo es una expresion y el tercero será la central box que corresponde a la subprueba
+    derecha.
+    -}
+proofFocusToBox :: ProofPath -> VBox -> IO VBox
+proofFocusToBox Top box = return box
+proofFocusToBox (TransL path _) box = do
+    box' <- proofFocusToBox path box
+    childrens <- containerGetChildren box'
+    return (castToVBox $ childrens!!0)
+proofFocusToBox (TransR _ path) box = do
+    box' <- proofFocusToBox path box
+    childrens <- containerGetChildren box'
+    return (castToVBox $ childrens!!2)
+
+
+

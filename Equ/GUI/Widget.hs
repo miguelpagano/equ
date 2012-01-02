@@ -142,7 +142,7 @@ configFaceSwitch :: (Notebook -> IO ()) -> Notebook -> HBox -> IRG -> IState ()
 configFaceSwitch openFace nb b f = liftIO (containerGetChildren b) >>= \[eb] -> do
                                    mapM_ (uncurry (addHandler eb)) 
                                              [ (enterNotifyEvent, highlightBox b hoverBg) 
-                                             , (leaveNotifyEvent, unlightBox b genericBg)
+                                             , (leaveNotifyEvent, unlightBox b Nothing)
                                              ] 
                                    s <- get
                                    addHandler eb buttonPressEvent (liftIO (openFace nb) >> eventWithState f s)
@@ -209,7 +209,7 @@ setupEvents b eb e = get >>= \s ->
                      getPath >>= \p ->
                      getSymCtrl >>= \sym ->
                      addHandler eb enterNotifyEvent (highlightBox b hoverBg) >>
-                     addHandler eb leaveNotifyEvent (unlightBox b genericBg) >>
+                     addHandler eb leaveNotifyEvent (unlightBox b Nothing) >>
                      addHandler eb buttonPressEvent (newFocusToSym b p sym s) >>
                      addHandler eb buttonPressEvent (removeExpr b s) >>
                      return ()
@@ -251,8 +251,9 @@ highlight bg w = widgetModifyBg w (toEnum 0) bg
 
 
 -- | Le quita el color especial a un control.
-unlight :: WidgetClass w => Color -> w -> IO ()
-unlight bg w = widgetModifyBg w (toEnum 0) bg
+unlight :: WidgetClass w => (Maybe Color) -> w -> IO ()
+unlight Nothing w = widgetModifyBg w (toEnum 0) genericBg
+unlight (Just bg) w = widgetModifyBg w (toEnum 0) bg
 
 
 -- | Funcion para mostrar dialogo con mensaje de error
