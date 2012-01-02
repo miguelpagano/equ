@@ -164,7 +164,7 @@ checkProof validImage top_box = updateValidProof >> checkValidProof >>= \valid -
                                        imageSetFromStock validImage stockCancel IconSizeSmallToolbar)
                                        >> reportErrWithErrPaned (show errorProof) >>
                                        getProof >>= \pf ->
-                                       return ((getMoveFocus errorProof) pf) >>=
+                                       return ((getMoveFocus errorProof) (goTop' pf)) >>=
                                        \(p,path) ->
                                        liftIO (proofFocusToBox path top_box) >>=
                                        flip highlightBox errBg
