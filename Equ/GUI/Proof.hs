@@ -249,7 +249,7 @@ createCenterBox center_box top_box ref moveFocus symbolList rel maybe_basic = do
                         liftIO (widgetGetParent axiom_box) >>= \ eb_box ->
                         flip F.mapM_ eb_box 
                                  (\ p -> liftIO (widgetGetParent p) >>= 
-                                        unlightBox Nothing . castToHBox . fromJust
+                                        flip unlightBox Nothing . castToHBox . fromJust
                                  )
 
 newStepProof :: PreExpr -> GRef -> (ProofFocus -> Maybe ProofFocus) ->
