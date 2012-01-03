@@ -75,18 +75,7 @@ main = do
 
     windowMaximize window
 
-    gRef <- newRef $ GState Nothing
-                            Nothing
-                            Nothing
-                            symbolList
-                            axiomList
-                            faces
-                            []
-                            []
-                            []
-                            (Statistic [])
-                            (statusBar, ctxExpr)
-                            [] -- lista de teoremas, TODO: que se carguen los teoremas desde disco
+    gRef <- newRef $ initialState symbolList axiomList faces statusBar ctxExpr
 
     onActivateLeaf quitButton $ quitAction window
     onDestroy window mainQuit

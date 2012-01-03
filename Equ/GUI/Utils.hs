@@ -503,6 +503,20 @@ withState f m = get >>= liftIO . f . evalStateT m
 eventWithState :: IState a -> GRef -> EventM t a
 eventWithState m = liftIO . evalStateT m
 
+-- | Estado inicial
+initialState :: TreeView -> TreeView -> Notebook -> Statusbar -> ContextId -> GState
+initialState sl al fc sb ce = GState Nothing
+                              Nothing
+                              Nothing
+                              sl
+                              al
+                              fc
+                              []
+                              []
+                              []
+                              (Statistic [])
+                              (sb,ce)
+                              [] -- lista de teoremas, TODO: que se carguen los teoremas desde disco
 
 -- DONDE VAN ESTAS FUNCIONES???
 encodeFile :: S.Serialize a => FilePath -> a -> IO ()
@@ -520,3 +534,5 @@ setFileFilter fChooser pattern title = do
     fileFilterAddPattern hsfilt pattern
     fileFilterSetName hsfilt title
     fileChooserAddFilter fChooser hsfilt
+
+
