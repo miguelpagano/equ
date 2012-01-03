@@ -84,7 +84,7 @@ main = do
                             []
                             []
                             []
-                            (Stadistic [])
+                            (Statistic [])
                             (statusBar, ctxExpr)
                             [] -- lista de teoremas, TODO: que se carguen los teoremas desde disco
 

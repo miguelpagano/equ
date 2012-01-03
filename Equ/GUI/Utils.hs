@@ -34,6 +34,11 @@ import Control.Monad.Trans(liftIO)
 
 import qualified Data.Serialize as S
 import qualified Data.ByteString as L
+import qualified Data.Foldable as F (mapM_) 
+
+-- | 
+withJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
+withJust = flip F.mapM_
 
 -- | Composición bastante usada; podría ir a Equ.PreExpr.Internal.
 repr :: Syntactic t => t -> String
@@ -112,56 +117,47 @@ del estado. -}
 updateExpr e' = update (updateExpr' e') >> showExpr
 
 updateExpr' :: PreExpr -> GState -> GState
-updateExpr' _ gst@(GState Nothing _ _ _ _ _ _ _ _ _ _ _) = gst
-updateExpr' _ gst@(GState _ Nothing _ _ _ _ _ _ _ _ _ _) = gst
-updateExpr' e' gst@(GState (Just gpr) (Just gexpr)_ _ _ _ _ _ _ _ _ _) = 
-    gst { gProof = Just $ gpr {proof = fromJust $ up pr newExpr}
-        , gExpr = Just $ gexpr {fExpr = newExpr}
-        }
-    where
-        newExpr :: Focus
-        newExpr = g . first (const e') . f $ e
-        pr :: ProofFocus
-        pr = proof gpr
-        up :: ProofFocus -> Focus -> Maybe ProofFocus
-        up = modifExpr gpr
-        e :: Focus
-        e = fExpr gexpr
-        f,g :: Move
-        (f,g) = pathExpr gexpr
+updateExpr' e' gst = case (gProof gst,gExpr gst) of
+                      (Just gpr, Just gexpr) -> upd gpr gexpr 
+                      (_,_) -> gst
+    where upd gpr gexpr = gst { gProof = Just gpr' 
+                              , gExpr = Just gexpr' 
+                              }
+              where  gpr' = gpr {proof = fromJust $ up (proof gpr) newExpr}
+                     up = modifExpr gpr
+                     gexpr' = gexpr {fExpr = newExpr}
+                     newExpr = g . first (const e') $ f e
+                     e = fExpr gexpr
+                     (f,g) = pathExpr gexpr
     
 updateProof pf = update (updateProof' pf) >>
                 showProof >>
-                getProof >>= \p -> liftIO (putStrLn (show p))
+                getProof >>= liftIO . putStrLn . show
 
 updateProof' :: ProofFocus -> GState -> GState
-updateProof' _ gst@(GState Nothing _ _ _ _ _ _ _ _ _ _ _) = gst
-updateProof' _ gst@(GState _ Nothing _ _ _ _ _ _ _ _ _ _) = gst
-updateProof' (p,path) gst@(GState (Just gpr) (Just gexpr) _ _ _ _ _ _ _ _ _ _) = 
-    gst { gProof = Just $ gpr { proof = (p,path)
-                              , modifExpr = updateStartFocus
+updateProof' (p,path) gst = case (gProof gst,gExpr gst) of
+                              (Just gpr,Just gexpr) -> upd gpr gexpr
+                              (_,_) -> gst
+    where upd gpr gexpr = gst { gProof = Just gpr { proof = (p,path)
+                                                  , modifExpr = updateStartFocus
+                                                  }
+                              , gExpr = Just $ gexpr { fExpr = fromJust $ getStart p
+                                                     , pathExpr = (id,id)
+                                                     }
                               }
-        , gExpr = Just $ gexpr { fExpr = fromJust $ getStart p
-                               , pathExpr = (id,id)
-                             }
-        }
-    where
-        pr :: ProofFocus
-        pr = proof gpr
-        up :: ProofFocus -> Focus -> Maybe ProofFocus
-        up = modifExpr gpr
-        e :: Focus
-        e = fExpr gexpr
-        f,g :: Move
-        f = fst $ pathExpr gexpr
-        g = snd $ pathExpr gexpr
+              where pr = proof gpr
+                    up = modifExpr gpr
+                    e = fExpr gexpr
+                    (f,g) = pathExpr gexpr
         
 -- | Valida la prueba y actualiza el campo "validProof" del ProofState
 updateValidProof :: IState ()
 updateValidProof = getValidProof >>= \vp -> update (updateValidProof' vp)
     where updateValidProof' :: PM Proof -> GState -> GState
-          updateValidProof' vp gst@(GState (Just gpr) _ _ _ _ _ _ _ _ _ _ _) =
-              gst { gProof = Just $ gpr { validProof = validateProof (toProof $ proof gpr) } }
+          updateValidProof' vp gst = case gProof gst of
+                                       Just gpr -> gst { gProof = Just $ updPrf gpr }
+                                       Nothing -> gst
+          updPrf gpr = gpr { validProof = validateProof (toProof $ proof gpr) }
 
 updateProofState :: ProofState -> IState ()
 updateProofState ps = update (\gst -> gst {gProof = Just ps})
@@ -170,13 +166,9 @@ updateExprState :: ExprState -> IState ()
 updateExprState es = update (\gst -> gst {gExpr = Just es})
 
 updateSelectedExpr :: (ProofFocus -> Focus) -> IState ()
-updateSelectedExpr f = do
-    maybe_es <- getSelectExpr
-    case maybe_es of
-         Nothing -> return ()
-         (Just es) -> do
-            pf <- getProof
-            updateExprState (es {fExpr= f pf})
+updateSelectedExpr f = getSelectExpr >>= F.mapM_ 
+                       (\es -> getProof >>= \ pf -> 
+                              updateExprState (es {fExpr= f pf}))
 
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}
@@ -187,12 +179,13 @@ updateFocus e' f = update (updateFocus' e' f) >>
                    showProof
 
 updateFocus' :: Focus -> GoBack -> GState -> GState
-updateFocus' _ _ gst@(GState _ Nothing _ _ _ _ _ _ _ _ _ _) = gst
-updateFocus' (e,p) (f,g) gst@(GState _ (Just gexpr) _ _ _ _ _ _ _ _ _ _) = 
-                                    gst { gExpr = Just $ gexpr { fExpr = (e,p)
-                                                               , pathExpr = (f,g)
-                                                               }
-                                        }
+updateFocus' (e,p) (f,g) gst = case gExpr gst of
+                                 Just gexpr -> gst { gExpr = Just $ upd gexpr }
+                                 Nothing -> gst
+    where upd gexpr = gexpr { fExpr = (e,p)
+                            , pathExpr = (f,g)
+                            }
+
 
 -- | Actualiza la caja donde tenemos foco de entrada.
 updateFrmCtrl :: HBox -> IState ()
@@ -230,55 +223,60 @@ changeProofFocus moveFocus box = getProof >>= \pf -> updateProof (fromJust $ mov
 {- Las nueve funciones siguientes devuelven cada uno de los
 componentes del estado. -}
 
+getStatePart :: (GState -> a) -> IState a
+getStatePart part = askRef >>= return . part
+
+
+getStatePartDbg :: String -> (GState -> a) -> IState a
+getStatePartDbg msg part = (liftIO $ putStrLn msg) >> getStatePart part
+
 getProof :: IState ProofFocus
-getProof = (liftIO $ putStrLn "getProof") >> askRef >>= return . proof . fromJust . gProof
+getProof = getStatePartDbg "getProof" (proof . fromJust . gProof)
 
 getValidProof :: IState (PM Proof)
-getValidProof = askRef >>= return . validProof . fromJust . gProof
+getValidProof = getStatePart $ validProof . fromJust . gProof
 
 getProofState :: IState (Maybe ProofState)
-getProofState = (liftIO $ putStrLn "getProofState") >> askRef >>= return . gProof
+getProofState = getStatePartDbg "getProofState" gProof
 
 getExprProof :: IState Expr
-getExprProof = getValidProof >>= \vp ->
-               case vp of
-                    Left _ -> return holeExpr
-                    Right p -> return (getExpr p)
-                    
+getExprProof = getValidProof >>= either (const (return holeExpr)) (return . getExpr)                    
     where getExpr p = Expr $ BinOp (relationToOperator (fromJust $ getRel p))
                                    (toExpr $ fromJust $ getStart p)
                                    (toExpr $ fromJust $ getEnd p)
                                      
 
 getExpr :: IState Focus
-getExpr = (liftIO $ putStrLn "getExpr") >> askRef >>= return . fExpr . fromJust . gExpr
+getExpr = getStatePartDbg "getExpr" $ fExpr . fromJust . gExpr
 
 getFrmCtrl :: IState HBox
-getFrmCtrl = (liftIO $ putStrLn "getFrmCtrl") >> askRef >>= return . eventExpr . fromJust . gExpr
+getFrmCtrl = getStatePartDbg "getFrmCtrl" $ eventExpr . fromJust . gExpr
 
 getSelectExpr :: IState (Maybe ExprState)
-getSelectExpr = (liftIO $ putStrLn "getSelectExpr") >> askRef >>= return . gExpr
+getSelectExpr = getStatePartDbg "getSelectExpr" gExpr
 
 getTreeExpr :: IState (Maybe TreeExpr)
-getTreeExpr = askRef >>= return . gTreeExpr
+getTreeExpr = getStatePart gTreeExpr
 
 getFaces :: IState Notebook
-getFaces = askRef >>= return . gFaces
+getFaces = getStatePart gFaces
 
 getSymCtrl :: IState TreeView
-getSymCtrl = (liftIO $ putStrLn "getSymCtrl") >> askRef >>= return . symCtrl
+getSymCtrl = getStatePartDbg "getSymCtrl" symCtrl
 
 getAxiomCtrl :: IState TreeView
-getAxiomCtrl = (liftIO $ putStrLn "getAxiomCtrl") >> askRef >>= return . axiomCtrl
+getAxiomCtrl = getStatePartDbg "getAxiomCtrl"  axiomCtrl
 
 getPath :: IState GoBack
-getPath  = (liftIO $ putStrLn "getPath") >> askRef >>= return . pathExpr . fromJust . gExpr
+getPath  = getStatePartDbg "getPath" $ pathExpr . fromJust . gExpr
 
 getStatus :: IState (Statusbar, ContextId)
-getStatus  = (liftIO $ putStrLn "getStatus") >> askRef >>= return . status
+getStatus  = getStatePartDbg "getStatus" status
 
 getAxiomBox :: IState HBox
-getAxiomBox = (liftIO $ putStrLn "getAxiomBox") >> askRef >>= return . axiomBox . fromJust . gProof
+getAxiomBox = getStatePartDbg "getAxiomBox" $ axiomBox . fromJust . gProof
+
+
 
 {- Las dos funciones que siguen devuelven cada uno de los panes; toda la 
    gracia está en getParentNamed. -}
@@ -339,7 +337,7 @@ getParentNamed name = go
                  else liftIO (widgetGetParent w) >>= go . fromJust
 
 getTheorems :: IState [Theorem]
-getTheorems = askRef >>= return .theorems
+getTheorems = getStatePart theorems
                  
                  
 {- Listas heterógeneas de cosas que pueden agregarse a cajas -}

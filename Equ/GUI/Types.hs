@@ -36,7 +36,7 @@ data Accion = Undo | Redo | InvalidCheck | ValidCheck
  
 type TGraph = [(Int, Int, Accion)]
  
-data Stadistic = Stadistic { thinkingGraph :: TGraph }
+data Statistic = Statistic { thinkingGraph :: TGraph }
  
 type RecentExprList = [PreExpr]
 
@@ -54,7 +54,7 @@ data GState = GState { gProof :: Maybe ProofState -- ^ Prueba en progreso.
                      , gUndo :: UndoList -- ^ Undo.
                      , gRedo :: RedoList -- ^ Redo.
                      , recentExprList :: RecentExprList -- ^ Lista de expresiones recientemente ingresadas.
-                     , gStadistic :: Stadistic -- ^ Conjunto de estadisticas.
+                     , gStatistic :: Statistic -- ^ Conjunto de estadisticas.
                      , status :: StatusPlace  -- ^ La barra de estado.
                      , theorems :: [Theorem]
                      }
