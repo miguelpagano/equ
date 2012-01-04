@@ -150,24 +150,29 @@ createNewProof maybe_proof ret_box sListStore = do
     liftIO $ widgetShowAll ret_box
 
 -- TODO: VER DONDE METER ESTAS FUNCIONES
-updateFirstExpr pf f = updateStartFocus (fromJust $ goTop pf) f
-updateFinalExpr pf f = updateEndFocus (fromJust $ goTop pf) f
+-- TODO: Comprobar que el cambio no afecta la semántica.
+updateFirstExpr pf f = goTop pf >>= flip updateStartFocus f
+updateFinalExpr pf f = goTop pf >>= flip updateEndFocus f
 
-getFirstExpr pf = fromJust $ getStartFocus (fromJust $ goTop pf)
-getFinalExpr pf = fromJust $ getEndFocus (fromJust $ goTop pf)
+-- TODO: Hacer que estas funciones devuelvan Maybes y manejar
+-- apropiadamente los casos Nothing en los lugares que se usan.
+getFirstExpr = fromJust . getStartFocus . fromJust . goTop
+getFinalExpr = fromJust . getEndFocus . fromJust . goTop
 
 checkProof :: Image -> VBox -> IState ()
 checkProof validImage top_box = updateValidProof >> checkValidProof >>= \valid ->
-                        if valid then liftIO $ imageSetFromStock validImage stockOk IconSizeSmallToolbar
-                                 else getValidProof >>= \(Left errorProof) ->
+                                if valid 
+                                then liftIO (img stockOk)
+                                else getValidProof >>= \(Left errorProof) ->
                                       liftIO (putStrLn (show errorProof) >>
-                                       imageSetFromStock validImage stockCancel IconSizeSmallToolbar)
-                                       >> reportErrWithErrPaned (show errorProof) >>
+                                              img stockCancel) >>
+                                       reportErrWithErrPaned (show errorProof) >>
                                        getProof >>= \pf ->
                                        return ((getMoveFocus errorProof) (goTop' pf)) >>=
                                        \(p,path) ->
                                        liftIO (proofFocusToBox path top_box) >>=
                                        flip highlightBox errBg
+    where img icon = imageSetFromStock validImage icon IconSizeSmallToolbar
                                        
 
 createCenterBox :: VBox -> VBox -> GRef -> (ProofFocus -> Maybe ProofFocus) -> 
@@ -401,15 +406,18 @@ fromRight = head . rights . return
     derecha.
     -}
 proofFocusToBox :: ProofPath -> VBox -> IO VBox
-proofFocusToBox Top box = return box
-proofFocusToBox (TransL path _) box = do
-    box' <- proofFocusToBox path box
-    childrens <- containerGetChildren box'
-    return (castToVBox $ childrens!!0)
-proofFocusToBox (TransR _ path) box = do
-    box' <- proofFocusToBox path box
-    childrens <- containerGetChildren box'
-    return (castToVBox $ childrens!!2)
+proofFocusToBox = go
+    where go p b = case p of
+                      Top -> return b
+                      TransL p' _ -> go p' b >>= getBox 0
+                      TransR _ p' -> go p' b >>= getBox 2
+          getBox i b  = containerGetChildren b >>= \ chd ->
+                        if length chd <= i 
+                        then return b
+                        else let b' = chd!!i in 
+                             if isVBox b'
+                             then return $ castToVBox b'
+                             else return b
 
 
 

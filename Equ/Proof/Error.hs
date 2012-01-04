@@ -45,7 +45,12 @@ instance Show ProofError' where
     show ReflexHasNoRel = "Una prueba reflexiva no debe tener relación"
     show (TransInconsistent p) = "La prueba transitiva es inconsistente: " ++ show p
 
+
+errEmptyProof :: ProofError
+errEmptyProof = ProofError HoleProof id
+
 getMoveFocus :: ProofError -> (ProofFocus -> ProofFocus)
 getMoveFocus (ProofError _ move) = move
+
     
     

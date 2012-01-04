@@ -13,6 +13,7 @@ import Equ.Syntax
 import Equ.Parser
 
 import Equ.Proof.Proof
+import Equ.Proof.Error(errEmptyProof)
 import Equ.Proof(ProofFocus,updateStartFocus,updateEndFocus,PM,validateProof,toProof)
 import Equ.Rule
 
@@ -21,6 +22,8 @@ import Equ.Types
 import Graphics.UI.Gtk hiding (eventButton, eventSent, get)
 
 import qualified Graphics.UI.Gtk as G
+import System.Glib.GType
+import System.Glib.GObject
 
 import Data.Text (unpack)
 import Data.List
@@ -216,7 +219,8 @@ addTheorem th = (update $ \gst -> gst { theorems = (th:theorems gst) }) >>
                 return th
 
 changeProofFocus :: (ProofFocus -> Maybe ProofFocus) -> HBox -> IState ()
-changeProofFocus moveFocus box = getProof >>= \pf -> updateProof (fromJust $ moveFocus pf) >>
+changeProofFocus moveFocus box = getProof >>=
+                                 updateProof . fromJust . moveFocus >>
                                  updateAxiomBox box
                               
 
@@ -234,7 +238,7 @@ getProof :: IState ProofFocus
 getProof = getStatePartDbg "getProof" (proof . fromJust . gProof)
 
 getValidProof :: IState (PM Proof)
-getValidProof = getStatePart $ validProof . fromJust . gProof
+getValidProof = getStatePart (maybe (Left errEmptyProof) validProof . gProof)
 
 getProofState :: IState (Maybe ProofState)
 getProofState = getStatePartDbg "getProofState" gProof
@@ -285,15 +289,15 @@ getAxiomBox = getStatePartDbg "getAxiomBox" $ axiomBox . fromJust . gProof
 getTreeOpBox :: IState VBox
 getTreeOpBox = getFaces >>= \f -> liftIO (notebookGetNthPage f 1) >>= 
                  \(Just w) -> liftIO (containerGetChildren (castToBox w)) >>= 
-                 \[_,w] -> liftIO (containerGetChildren (castToBox w)) >>= 
+                 \[_,w'] -> liftIO (containerGetChildren (castToBox w')) >>= 
                  \[_,m,_] -> liftIO (containerGetChildren (castToContainer m)) >>= 
-                 \[m,_] -> return $ castToVBox m
+                 \[m',_] -> return $ castToVBox m'
 
 -- | Retorna la caja contenedora del árbol de tipado de una pre-expresion.
 getTreeExprBox :: IState VBox
 getTreeExprBox = getFaces >>= \f -> liftIO (notebookGetNthPage f 1) >>= 
                  \(Just w) -> liftIO (containerGetChildren (castToBox w)) >>= 
-                 \[_,w] -> liftIO (containerGetChildren (castToBox w)) >>= 
+                 \[_,w'] -> liftIO (containerGetChildren (castToBox w')) >>= 
                  \[_,_,m] -> return $ castToVBox m
 
 -- | Devuelve el paned que contiene la lista de símbolos.
@@ -536,3 +540,6 @@ setFileFilter fChooser pattern title = do
     fileChooserAddFilter fChooser hsfilt
 
 
+
+isVBox :: WidgetClass w => w -> Bool
+isVBox w = isA w gTypeVBox 
