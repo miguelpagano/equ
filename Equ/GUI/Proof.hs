@@ -66,12 +66,11 @@ newExprState hbox1 hbox2 = do
                         
                         
 -- | Carga una prueba a la interfaz
-loadProof :: Proof -> VBox -> GRef -> ListStore (String,HBox -> IRG) -> IO ()
-loadProof p ret_box ref sListStore = do
+loadProof :: Proof -> VBox -> VBox -> GRef -> ListStore (String,HBox -> IRG) -> IO ()
+loadProof p ret_box center_box ref sListStore = do
     
     hboxInit <- createExprWidget (toExpr $ fromRight $ getStart p) ref updateFirstExpr getFirstExpr "" sListStore
     hboxEnd  <- createExprWidget (toExpr $ fromRight $ getEnd p) ref updateFinalExpr getFinalExpr "" sListStore
-    center_box <- vBoxNew False 2
     
     boxPackStart ret_box hboxInit PackNatural 2
     boxPackStart ret_box center_box PackNatural 2
@@ -134,7 +133,7 @@ createNewProof maybe_proof ret_box sListStore = do
             empty_box1 <- liftIO $ hBoxNew False 2
             ps <- newProofState (Just p) empty_box1
             updateProofState ps 
-            liftIO $ loadProof p ret_box s sListStore
+            liftIO $ loadProof p ret_box center_box s sListStore
     
     valid_button <- liftIO $ buttonNewWithLabel "Validar prueba"
     validImage <- liftIO $ imageNewFromStock stockCancel IconSizeSmallToolbar
@@ -407,17 +406,22 @@ fromRight = head . rights . return
     -}
 proofFocusToBox :: ProofPath -> VBox -> IO VBox
 proofFocusToBox = go
-    where go p b = case p of
-                      Top -> return b
-                      TransL p' _ -> go p' b >>= getBox 0
-                      TransR _ p' -> go p' b >>= getBox 2
+    where go p b = putStrLn ("proofFocusToBox: Path = " ++ show p) >>
+                   case p of
+                        Top -> return b
+                        TransL p' _ -> go p' b >>= getBox 0
+                        TransR _ p' -> go p' b >>= getBox 2
+                     
           getBox i b  = containerGetChildren b >>= \ chd ->
-                        if length chd <= i 
-                        then return b
-                        else let b' = chd!!i in 
-                             if isVBox b'
-                             then return $ castToVBox b'
-                             else return b
+                       if length chd <= i
+                       then error ("La lista tiene " ++ show (length chd)
+                                         ++ " elementos, pero se esperan al menos "
+                                         ++  show (i+1) ++ " elementos.")
+                       else let b' = chd!!i in
+                            if isVBox b'
+                            then return $ castToVBox b'
+                            else error $ "No es un VBox (index: " ++
+                                          show i ++")"
 
 
 
