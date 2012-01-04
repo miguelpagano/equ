@@ -28,7 +28,7 @@ import Data.Text(unpack)
 import Data.Map(empty)
 import Data.List(elemIndex)
 import Data.Either(rights)
-import qualified Data.Foldable as F (mapM_)
+import qualified Data.Foldable as F (forM_,mapM_)
 
 -- | Crea una nueva referencia
 newProofState :: (Maybe Proof) -> HBox -> IState ProofState
@@ -166,11 +166,10 @@ checkProof validImage top_box = updateValidProof >> checkValidProof >>= \valid -
                                       liftIO (putStrLn (show errorProof) >>
                                               img stockCancel) >>
                                        reportErrWithErrPaned (show errorProof) >>
+                                       unSelectBox >>
                                        getProof >>= \pf ->
                                        return ((getMoveFocus errorProof) (goTop' pf)) >>=
-                                       \(p,path) ->
-                                       liftIO (proofFocusToBox path top_box) >>=
-                                       flip highlightBox errBg
+                                       \pf -> selectBox pf errBg top_box
     where img icon = imageSetFromStock validImage icon IconSizeSmallToolbar
                                        
 
@@ -202,20 +201,20 @@ createCenterBox center_box top_box ref moveFocus symbolList rel maybe_basic = do
 
     combo_rel `on` changed $ evalStateT (changeItem combo_rel store_rel axiom_box) ref
 
-    eb_axiom_box `on` enterNotifyEvent $ tryEvent $ highlightBox hbox hoverBg
+    --eb_axiom_box `on` enterNotifyEvent $ tryEvent $ highlightBox hbox hoverBg
                                                     
-    eb_axiom_box `on` leaveNotifyEvent $ tryEvent $ (liftIO $ widgetGetStyle hbox) >>=
+    {-eb_axiom_box `on` leaveNotifyEvent $ tryEvent $ (liftIO $ widgetGetStyle hbox) >>=
                                 \st -> (liftIO $ styleGetBackground st (toEnum 0)) >>=
-                                \bg -> unlightBox hbox (Just bg)
+                                \bg -> unlightBox hbox (Just bg) -}
     
     eb_axiom_box `on` buttonPressEvent $ tryEvent $ do
         LeftButton <- eventButton
         liftIO $ putStrLn "axiom_box clicked"
         eventWithState (unSelectBox >>
                         changeProofFocus moveFocus axiom_box >>
-                        getProof >>= \(_,path) ->
-                        liftIO (proofFocusToBox path top_box) >>=
-                        flip highlightBox focusBg) ref
+                        getProof >>= \pf ->
+                        selectBox pf focusBg top_box
+                        ) ref
         
         
     eb_axiom_box `on` buttonPressEvent $ tryEvent $ do
@@ -242,20 +241,25 @@ createCenterBox center_box top_box ref moveFocus symbolList rel maybe_basic = do
     where changeItem c list box = do 
             unSelectBox
             changeProofFocus moveFocus box
-            (getProof >>= \(_,path) ->
-                liftIO (proofFocusToBox path top_box) >>=
-                flip highlightBox focusBg)
+            pf <- getProof
+            selectBox pf focusBg top_box
             ind <- liftIO $ comboBoxGetActive c
             newRel <- liftIO $ listStoreGetValue list ind
             updateRelation newRel
-            
-          unSelectBox = getAxiomBox >>= \ axiom_box ->
-                        liftIO (widgetGetParent axiom_box) >>= \ eb_box ->
-                        flip F.mapM_ eb_box 
-                                 (\ p -> liftIO (widgetGetParent p) >>= 
-                                        flip unlightBox Nothing . castToHBox . fromJust
-                                 )
+      
+unSelectBox :: IRG      
+unSelectBox = getAxiomBox >>= \ axiom_box ->
+            liftIO (widgetGetParent axiom_box) >>= \ eb_box ->
+            F.forM_ eb_box 
+                        (\ p -> liftIO (widgetGetParent p) >>=
+                        flip unlightBox Nothing . castToHBox . fromJust
+                        )
 
+selectBox :: ProofFocus -> Color -> VBox -> IRG
+selectBox (_,path) color top_box = liftIO (proofFocusToBox path top_box) >>= \cbox ->
+            liftIO (containerGetChildren cbox) >>= \chd ->
+                highlightBox (castToHBox $ chd!!0) color
+                                 
 newStepProof :: PreExpr -> GRef -> (ProofFocus -> Maybe ProofFocus) ->
                 VBox -> VBox -> ListStore (String,HBox -> IRG) -> IO (VBox,VBox)
 newStepProof expr ref moveFocus container top_box symbolList = do
@@ -399,7 +403,7 @@ fromRight = head . rights . return
 
 {- | Funcion para obtener la caja correspondiente al paso de la prueba en el que estamos
    dentro de una transitividad.
-    El parámetro "box" debe ser una caja construida con "CreateCentralBox". Cada una de esas
+    El parámetro "box" debe ser una caja construida con "createCenterBox". Cada una de esas
     cajas tendrá 3 hijos. El primero corresponde a la central box de la subprueba izquierda,
     El segundo es una expresion y el tercero será la central box que corresponde a la subprueba
     derecha.
@@ -422,6 +426,3 @@ proofFocusToBox = go
                             then return $ castToVBox b'
                             else error $ "No es un VBox (index: " ++
                                           show i ++")"
-
-
-
