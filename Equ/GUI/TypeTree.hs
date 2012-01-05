@@ -43,10 +43,11 @@ buildTreeExpr te =
                 getTreeQuantBox >>= \bTreeQuant ->
                 cleanContainer bTreeExpr >>
                 cleanContainer bTreeOp >>
-                setupEventExpr (fExpr te) (getTypeFocus $ fExpr te) >>= 
+                setupEventExpr (fExpr te) TyUnknown >>= 
                 \(eb, tb) -> newBox >>= \ bb -> 
                 liftIO (putStrLn $ show $ (getTypeFocus $ fExpr te)) >>
-                addMainExprToTree (fExpr te) (getTypeFocus $ fExpr te) (pathExpr te) eb tb >>= \te ->
+                addMainExprToTree (fExpr te) TyUnknown (pathExpr te) eb tb >>= 
+                \te ->
                 when ((isPreExprQuant . fExpr) te) 
                     (addQuantExprTree te) >>
                 liftIO (configEventSelectTypeFromTree tb s >>
