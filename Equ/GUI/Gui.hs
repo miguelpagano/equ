@@ -8,7 +8,7 @@ import Equ.GUI.Settings
 import Equ.GUI.Expr
 import Equ.GUI.SymbolList
 import Equ.GUI.TruthList
-import Equ.GUI.Proof
+import Equ.GUI.Proof 
 import Equ.GUI.TypeTree
 import Equ.PreExpr(toFocus, toFocuses, agrupOp, agrupNotOp, opOfFocus)
 import Equ.Proof
@@ -41,9 +41,9 @@ main = do
     quitButton    <- getMenuButton xml "QuitButton"
     formWidgetBox       <- xmlGetWidget xml castToHBox "formBox"
 
-    exprInEdit      <- xmlGetWidget xml castToToolButton "exprInEdit"
-    saveExpr      <- xmlGetWidget xml castToToolButton "saveExpr"
-    checkType      <- xmlGetWidget xml castToToolButton "checkType"
+    cleanType    <- xmlGetWidget xml castToToolButton "cleanType"
+    saveExpr     <- xmlGetWidget xml castToToolButton "saveExpr"
+    checkType    <- xmlGetWidget xml castToToolButton "checkType"
 
     statusBar     <- xmlGetWidget xml castToStatusbar "statusBar"
     ctxExpr       <- statusbarGetContextId statusBar "Expr"
@@ -95,6 +95,7 @@ main = do
         switchToProof faces boxGoProofFace (cleanTypedExprTree >> cleanTreeExpr)
         switchToTypeTree faces boxGoExprFace typedExprTree
         withState (onToolButtonClicked checkType) typedCheckType
+        withState (onToolButtonClicked cleanType) cleanTypeInTree
 
 --         hideTypedOptionPane >>
 --         hideTypedFormPane >>

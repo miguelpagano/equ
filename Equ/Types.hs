@@ -48,7 +48,7 @@ instance (Show v) => Show (Type' v) where
     show (TyVar v) = show v
     show (TyList t) = "[" ++ show t ++ "]"
     show (TyAtom t) = show t
-    show (t :-> t') = "(" ++ show t ++ ") -> (" ++ show t' ++ ")"
+    show (t :-> t') = show t ++ " :-> " ++ show t'
 
 instance Functor Type' where
     fmap f (TyVar v) = TyVar $ f v

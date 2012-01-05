@@ -521,9 +521,9 @@
                                         <property name="icon_size">1</property>
                                         <property name="icon_size_set">True</property>
                                         <child>
-                                          <widget class="GtkToolButton" id="exprInEdit">
+                                          <widget class="GtkToolButton" id="cleanType">
                                             <property name="visible">True</property>
-                                            <property name="stock_id">gtk-find-and-replace</property>
+                                            <property name="stock_id">gtk-new</property>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -587,6 +587,66 @@
                                       </packing>
                                     </child>
                                     <child>
+                                      <widget class="GtkExpander" id="expander2">
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="expanded">True</property>
+                                        <child>
+                                          <widget class="GtkVBox" id="varQTreeBox">
+                                            <property name="visible">True</property>
+                                            <child>
+                                              <placeholder/>
+                                            </child>
+                                          </widget>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkLabel" id="varQList">
+                                            <property name="visible">True</property>
+                                            <property name="xalign">0.46000000834465027</property>
+                                            <property name="label" translatable="yes">Lista de variables cuantificadas</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="type">label_item</property>
+                                          </packing>
+                                        </child>
+                                      </widget>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">False</property>
+                                        <property name="position">2</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <widget class="GtkExpander" id="expander3">
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="expanded">True</property>
+                                        <child>
+                                          <widget class="GtkVBox" id="quantTreeBox">
+                                            <property name="visible">True</property>
+                                            <child>
+                                              <placeholder/>
+                                            </child>
+                                          </widget>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkLabel" id="quantList">
+                                            <property name="visible">True</property>
+                                            <property name="xalign">0.46000000834465027</property>
+                                            <property name="label" translatable="yes">Lista de cuantificadores</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="type">label_item</property>
+                                          </packing>
+                                        </child>
+                                      </widget>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">False</property>
+                                        <property name="position">3</property>
+                                      </packing>
+                                    </child>
+                                    <child>
                                       <widget class="GtkVBox" id="exprTreeBox">
                                         <property name="visible">True</property>
                                         <child>
@@ -594,7 +654,7 @@
                                         </child>
                                       </widget>
                                       <packing>
-                                        <property name="position">2</property>
+                                        <property name="position">4</property>
                                       </packing>
                                     </child>
                                   </widget>

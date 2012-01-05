@@ -290,7 +290,23 @@ getTreeOpBox :: IState VBox
 getTreeOpBox = getFaces >>= \f -> liftIO (notebookGetNthPage f 1) >>= 
                  \(Just w) -> liftIO (containerGetChildren (castToBox w)) >>= 
                  \[_,w'] -> liftIO (containerGetChildren (castToBox w')) >>= 
-                 \[_,m,_] -> liftIO (containerGetChildren (castToContainer m)) >>= 
+                 \[_,m,_,_,_] -> liftIO (containerGetChildren (castToContainer m)) >>= 
+                 \[m',_] -> return $ castToVBox m'
+
+-- | Retorna la caja contenedora de los widget de variables de cuantificador
+--  de pre-expresion.
+getTreeVarQBox :: IState VBox
+getTreeVarQBox = getFaces >>= \f -> liftIO (notebookGetNthPage f 1) >>= 
+                 \(Just w) -> liftIO (containerGetChildren (castToBox w)) >>= 
+                 \[_,w'] -> liftIO (containerGetChildren (castToBox w')) >>= 
+                 \[_,_,m,_,_] -> liftIO (containerGetChildren (castToContainer m)) >>= 
+                 \[m',_] -> return $ castToVBox m'
+
+getTreeQuantBox :: IState VBox
+getTreeQuantBox = getFaces >>= \f -> liftIO (notebookGetNthPage f 1) >>= 
+                 \(Just w) -> liftIO (containerGetChildren (castToBox w)) >>= 
+                 \[_,w'] -> liftIO (containerGetChildren (castToBox w')) >>= 
+                 \[_,_,_,m,_] -> liftIO (containerGetChildren (castToContainer m)) >>= 
                  \[m',_] -> return $ castToVBox m'
 
 -- | Retorna la caja contenedora del árbol de tipado de una pre-expresion.
@@ -298,7 +314,7 @@ getTreeExprBox :: IState VBox
 getTreeExprBox = getFaces >>= \f -> liftIO (notebookGetNthPage f 1) >>= 
                  \(Just w) -> liftIO (containerGetChildren (castToBox w)) >>= 
                  \[_,w'] -> liftIO (containerGetChildren (castToBox w')) >>= 
-                 \[_,_,m] -> return $ castToVBox m
+                 \[_,_,_,_,m] -> return $ castToVBox m
 
 -- | Devuelve el paned que contiene la lista de símbolos.
 getSymFrame :: IState Frame
@@ -387,15 +403,33 @@ selectTypeFromBox = selectFrom (eventType)
 selectFrom :: (ExprState -> HBox) -> HBox -> IState ()
 selectFrom eventTE eb = getTreeExpr >>= \(Just tExpr) ->
                 case ( eventTE (mainExpr tExpr) == eb
-                     , find (\te -> (eventTE te) == eb) (notOpExpr tExpr)
+                     , find (\te -> (eventTE te) == eb) (atomExpr tExpr)
                      )
                 of
                     (False,Nothing) -> return ()
                     (True,_) -> update (\gst -> gst {gExpr = Just $ mainExpr tExpr})
                     (_,Just se) -> update (\gst -> gst {gExpr = Just se })
-    where 
-        find' :: Maybe ExprState
-        find' = undefined
+
+searchFocusInTree :: Focus -> IState ExprState
+searchFocusInTree f = getTreeExpr >>= \(Just tExpr) ->
+                case ( fExpr (mainExpr tExpr) == f
+                     , find (\te -> (fExpr te) == f) (atomExpr tExpr)
+                     )
+                of
+                    (True,_) -> return $ mainExpr tExpr
+                    (_,Just se) -> return $ se
+
+updateTypeAtomInExprTree :: ExprState -> Type -> IState ()
+updateTypeAtomInExprTree es t = 
+                        getTreeExpr >>= \(Just tExpr) ->
+                        getAtomExprTree >>= \aETree ->
+                        update (\gst -> gst {gTreeExpr = Just $
+                                                tExpr {atomExpr = aETree' aETree} 
+                                            })
+    where aETree' :: [ExprState] -> [ExprState]
+          aETree' les = map (\te -> if (eventType te) == (eventType es) 
+                                        then te {fType = t}
+                                        else te ) les
 
 -- | Actualiza el tipo de un operador en la expresión principal del árbol de
 -- tipado, en base a una lista de focus y moves.
@@ -428,22 +462,24 @@ updateTypeSelectType es t = update (\gst -> gst {gExpr = Just es'})
 updateMainExprTree :: ExprState -> IState ()
 updateMainExprTree es = update (\gst -> gst {gTreeExpr = Just $ tExpr (gTreeExpr gst)})
     where tExpr :: (Maybe TreeExpr) -> TreeExpr
-          tExpr Nothing = TreeExpr es [] []
-          tExpr (Just te) = TreeExpr es (opExpr te) (notOpExpr te)
+          tExpr Nothing = TreeExpr es [] [] []
+          tExpr (Just te) = TreeExpr es (opExpr te) (atomExpr te) (quantExpr te)
 
 updateOpExprTree :: [[(Focus, Move)]] -> (Maybe [(Focus,Move)]) -> (Maybe Type) -> IState ()
 updateOpExprTree fss Nothing Nothing = update (\gst -> gst {gTreeExpr = Just $ tExpr (gTreeExpr gst)})
     where tExpr :: (Maybe TreeExpr) -> TreeExpr
           tExpr (Just te) = TreeExpr (mainExpr te) 
                                      fss 
-                                     (notOpExpr te)
+                                     (atomExpr te)
+                                     (quantExpr te)
 updateOpExprTree fss (Just fs) (Just t) = (update (\gst -> gst {gTreeExpr = Just $ tExpr (gTreeExpr gst)}))
     where 
           fss' = deleteBy (\fs' -> \fs -> ((fst . unzip) fs') == ((fst . unzip) fs)) fs fss
           tExpr :: (Maybe TreeExpr) -> TreeExpr
           tExpr (Just te) = TreeExpr (mainExpr te) 
                                      fss 
-                                     (notOpExpr te)
+                                     (atomExpr te)
+                                     (quantExpr te)
 
 -- | Limpia el árbol de tipado del estado general.
 cleanTreeExpr :: IState ()
@@ -484,20 +520,31 @@ updateMainExprTreeType t =  getMainExprTree >>= \eTree ->
     where te :: ExprState -> Type ->  ExprState
           te es t = es { fType = t }
 
--- | Añade un exprState a la lista de NO-operadores del árbol de tipado.
-addNotOpExprTree :: ExprState -> IState ()
-addNotOpExprTree es =  getNotOpExprTree >>= \l ->
+-- | Añade un exprState a la lista de atomos del árbol de tipado.
+addAtomExprTree :: ExprState -> IState ()
+addAtomExprTree es =  getAtomExprTree >>= \l ->
                        update (\gst@(GState _ _ (Just gte) _ _ _ _ _ _ _ _ _) -> 
-                       gst { gTreeExpr = Just $ gte {notOpExpr =  es : l}})
+                       gst { gTreeExpr = Just $ gte {atomExpr =  es : l}})
+
+-- | Añade un exprState a la lista de cuantificadores del árbol de tipado.
+addQuantExprTree :: ExprState -> IState ()
+addQuantExprTree es =  getQuantExprTree >>= \l ->
+                       update (\gst@(GState _ _ (Just gte) _ _ _ _ _ _ _ _ _) -> 
+                       gst { gTreeExpr = Just $ gte {quantExpr =  es : l}})
 
 getMainExprTree :: IState ExprState
-getMainExprTree = askRef >>= return . mainExpr . fromJust . gTreeExpr
+getMainExprTree = getStatePartDbg "getMainExprTree" 
+                                            (mainExpr . fromJust . gTreeExpr)
 
 getOpExprTree :: IState [[(Focus, Move)]]
 getOpExprTree = askRef >>= return . opExpr . fromJust . gTreeExpr
 
-getNotOpExprTree :: IState [ExprState]
-getNotOpExprTree = askRef >>= return . notOpExpr . fromJust . gTreeExpr
+getAtomExprTree :: IState [ExprState]
+getAtomExprTree = askRef >>= return . atomExpr . fromJust . gTreeExpr
+
+getQuantExprTree :: IState [ExprState]
+getQuantExprTree = askRef >>= return . quantExpr . fromJust . gTreeExpr
+
 
 -- | Ejecuta una acción en la mónada de estado para obtener un
 -- resultado. Es útil para los event-handlers.

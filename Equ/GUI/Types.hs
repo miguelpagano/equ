@@ -42,7 +42,8 @@ type RecentExprList = [PreExpr]
 
 data TreeExpr = TreeExpr { mainExpr :: ExprState
                          , opExpr :: [[(Focus, Move)]]
-                         , notOpExpr :: [ExprState]
+                         , atomExpr :: [ExprState]
+                         , quantExpr :: [ExprState]
                          }
 
 data GState = GState { gProof :: Maybe ProofState -- ^ Prueba en progreso.

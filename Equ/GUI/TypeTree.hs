@@ -8,7 +8,7 @@ import Equ.TypeChecker
 import Equ.Types
 import Equ.Rule
 import Equ.Theories
-import Equ.Proof hiding (goDownL, goDownR)
+import Equ.Proof hiding (goDownL, goDownR, goTop)
 
 import Equ.GUI.Widget
 import Equ.GUI.Types
@@ -39,11 +39,16 @@ buildTreeExpr te =
                 get >>= \ s ->
                 getTreeExprBox >>= \ bTreeExpr -> 
                 getTreeOpBox >>= \bTreeOp ->
+                getTreeVarQBox >>= \bTreeVarQ ->
+                getTreeQuantBox >>= \bTreeQuant ->
                 cleanContainer bTreeExpr >>
                 cleanContainer bTreeOp >>
-                setupEventExpr (fExpr te) (fType te) >>= 
+                setupEventExpr (fExpr te) (getTypeFocus $ fExpr te) >>= 
                 \(eb, tb) -> newBox >>= \ bb -> 
-                addMainExprToTree (fExpr te) (fType te) (pathExpr te) eb tb >>= \te ->
+                liftIO (putStrLn $ show $ (getTypeFocus $ fExpr te)) >>
+                addMainExprToTree (fExpr te) (getTypeFocus $ fExpr te) (pathExpr te) eb tb >>= \te ->
+                when ((isPreExprQuant . fExpr) te) 
+                    (addQuantExprTree te) >>
                 liftIO (configEventSelectTypeFromTree tb s >>
                         boxPackStart bb eb PackGrow 2 >>
                         boxPackStart bb tb PackGrow 2 >>
@@ -53,7 +58,9 @@ buildTreeExpr te =
                 buildTreeExpr' te bTreeExpr >>
                 updateOpExprTree (agrupOp $ toFocusesWithGo $ fst $ fExpr te)
                                     Nothing Nothing >>
-                buildTreeOpList bTreeOp
+                buildTreeOpList bTreeOp >>
+                buildTreeVarQList bTreeVarQ >>
+                buildTreeQuantList bTreeQuant
 
 -- Función secundaria que contruye el árbol de tipado.
 buildTreeExpr' :: (BoxClass b) => ExprState -> b -> IState ()
@@ -66,18 +73,24 @@ buildTreeExpr' te bTree = do
                             liftIO (boxPackEnd bTree bTree' PackNatural 2) >>
                             fillNewBox bTree' reb rtb drte >>= \nVb ->
                             when ((checkIsAtom . fExpr) dlte) 
-                                    (addNotOpExprTree dlte) >>
+                                (addAtomExprTree dlte) >>
+                            when ((isPreExprQuant . fExpr) dlte) 
+                                (addQuantExprTree dlte) >>
                             buildTreeExpr' drte nVb >>
                             fillNewBox bTree' leb ltb dlte >>= \nVb ->
                             when ((checkIsAtom . fExpr) drte) 
-                                    (addNotOpExprTree drte) >>
+                                (addAtomExprTree drte) >>
+                            when ((isPreExprQuant . fExpr) drte) 
+                                (addQuantExprTree drte) >>
                             buildTreeExpr' dlte nVb
                         (Just (dlte, leb, ltb), Nothing) -> 
                             newBox >>= \bTree' ->
                             liftIO (boxPackEnd bTree bTree' PackNatural 2) >>
                             fillNewBox bTree' leb ltb dlte >>= \nVb ->
                             when ((checkIsAtom . fExpr) dlte) 
-                                    (addNotOpExprTree dlte) >>
+                                (addAtomExprTree dlte) >>
+                            when ((isPreExprQuant . fExpr) dlte) 
+                                (addQuantExprTree dlte) >>
                             buildTreeExpr' dlte nVb
                         (Nothing, _) -> return ()
     where
@@ -94,9 +107,78 @@ buildTreeExpr' te bTree = do
                                  ) >>
                                  return nVb
 
+buildTreeQuantList :: VBox -> IState ()
+buildTreeQuantList b = getQuantExprTree >>= \qet ->
+                      get >>= \s ->
+                      liftIO (build qet b s)
+    where
+        t :: Focus -> Type
+        t f = let (:->) _ t' = getTypeFocus f
+              in t'
+        build :: [ExprState] -> VBox -> GRef -> IO ()
+        build [] b s = widgetShowAll b
+        build (e:es) b s = 
+                        do
+                        typeL <- labelNew $ Just $ 
+                                        show $ t (fExpr e)
+                        typeEb <- eventBoxNew
+                        typeEbb <- hBoxNew False 0
+                        set typeL [miscXalign := 0.005]
+                        configEventGeneralExpr typeEb typeEbb
+                        set typeEb [ containerChild := typeL ]
+                        boxPackStart typeEbb typeEb PackGrow 0
+                        --configEventInTypeForOp (f:fs) typeEbb s
+                        exprL <- labelNew $ Just $ 
+                                    show (fromJust $ getQFromQuant (fExpr e)) ++ " : "
+                        set exprL [miscXalign := 0.005]
+                        exprEb <- eventBoxNew
+                        exprEbb <- hBoxNew False 0
+                        set exprEb [ containerChild := exprL ]
+                        boxPackStart exprEbb exprEb PackNatural 0
+                        b' <- hBoxNew False 0
+                        boxPackStart b' exprEbb PackNatural 0
+                        set b' [ containerChild := typeEbb ]
+                        set b [ containerChild := b' ]
+                        build es b s
+
+
+buildTreeVarQList :: VBox -> IState ()
+buildTreeVarQList b = getQuantExprTree >>= \qet ->
+                      get >>= \s ->
+                      liftIO (build qet b s)
+    where
+        t :: Focus -> Type
+        t f = let (:->) t' _ = getTypeFocus f
+              in t'
+        build :: [ExprState] -> VBox -> GRef -> IO ()
+        build [] b s = widgetShowAll b
+        build (e:es) b s = 
+                        do
+                        typeL <- labelNew $ Just $ 
+                                        show $ t (fExpr e)
+                        typeEb <- eventBoxNew
+                        typeEbb <- hBoxNew False 0
+                        set typeL [miscXalign := 0.005]
+                        configEventGeneralExpr typeEb typeEbb
+                        set typeEb [ containerChild := typeL ]
+                        boxPackStart typeEbb typeEb PackGrow 0
+                        --configEventInTypeForOp (f:fs) typeEbb s
+                        exprL <- labelNew $ Just $ 
+                                    show (fromJust $ getVarFromQuant (fExpr e)) ++ " : "
+                        set exprL [miscXalign := 0.005]
+                        exprEb <- eventBoxNew
+                        exprEbb <- hBoxNew False 0
+                        set exprEb [ containerChild := exprL ]
+                        boxPackStart exprEbb exprEb PackNatural 0
+                        b' <- hBoxNew False 0
+                        boxPackStart b' exprEbb PackNatural 0
+                        set b' [ containerChild := typeEbb ]
+                        set b [ containerChild := b' ]
+                        build es b s
+
 -- Construye la lista de operadores.
 buildTreeOpList :: VBox -> IState ()
-buildTreeOpList b = get >>= \s -> getOpExprTree >>= \fs -> liftIO $ build fs b s
+buildTreeOpList b = get >>= \s -> getOpExprTree >>= \fs -> (liftIO $ build fs b s)
     where 
         t :: (Focus, Move) -> Type
         t f = tType $ fromJust $ opOfFocus f
@@ -205,7 +287,9 @@ configTypedEntry eText b tb te =
                     Nothing -> return ()
                     Just t -> 
                         when ((checkIsAtom . fExpr) te) 
-                             (updateTypeAtomInMainExprTree te t) >>
+                             (updateTypeAtomInMainExprTree te t >>
+                              updateTypeAtomInExprTree te t
+                              ) >>
                         when (not $ (checkIsAtom . fExpr) te) 
                                (updateTypeSelectType te t >>
                                 updateMainExprTreeType t
@@ -239,22 +323,23 @@ configExprEntry eText b te = withState (onEntryActivate eText)
                                                 return ()) >> 
                                 return ()
 
+paintBranchErr :: Focus -> IState ()
+paintBranchErr f = searchFocusInTree f >>= \fs ->
+                   highlightBox (eventExpr fs) errBg
+
 -- | Aplica el type-checker a la expresión seleccionada.
 typedCheckType :: IState ()
 typedCheckType = getMainExprTree >>= \te ->
                  case checkPreExpr (toExpr $ fExpr te) of
-                      Left err -> (reportErrWithErrPaned $ show err)
-                      Right checkedType ->
+                    Left err -> --paintBranchErr ((fst . fst) err) >>
+                                (reportErrWithErrPaned $ show err)
+                    Right checkedType ->
                         case unify checkedType (fType te) emptySubst of
-                          Left err' -> reportErrWithErrPaned $ show err'
-                          Right _   -> getMainExprTree >>= \meTree ->
-                                       highlightBox (eventExpr meTree) 
+                        Left err' -> reportErrWithErrPaned $ show err'
+                        Right _   -> highlightBox (eventExpr te) 
                                                     successfulBg >>
-                                       highlightBox (eventType meTree) 
+                                    highlightBox (eventType te) 
                                                     successfulBg
-                                      -- reportSuccess "Los tipos coinciden."
-                                      -- get >>= 
-                                      -- liftIO . configEventCheckType (eventType te) checkedType
 
 checkInExpr :: String -> IState (Maybe PreExpr)
 checkInExpr s = case parseFromString s of
@@ -272,24 +357,14 @@ checkInType s = case parseTyFromString s of
 goTypedExpr :: (Focus -> Maybe Focus) -> ExprState -> IState (Maybe (ExprState, HBox, HBox))
 goTypedExpr go te = case (go . fExpr) te of
                 Nothing ->  return Nothing
-                Just f ->   get >>= \s -> setupEventExpr f TyUnknown >>= 
-                            \(eb,tb) -> liftIO (configEventSelectTypeFromTree tb s) >>
+                Just f ->   get >>= \s -> setupEventExpr f (getTypeFocus f) >>= 
+                            \(eb,tb) -> liftIO (putStrLn $ (show f) ++ show (getTypeFocus f))>>
+                            liftIO (configEventSelectTypeFromTree tb s) >>
                             get >>= \s ->
                             return $ Just ((te' f eb tb), eb, tb)
     where (fwd,bwd) = (fromJust . go . f, fromJust . go . g)
           (f,g) = pathExpr te
-          te' f eb tb = ExprState f TyUnknown (fwd,bwd) eb tb 
-
-typedExprInEdit :: IState ()
-typedExprInEdit = getSelectExpr >>= \(Just te) -> do
-                    b <- return $ eventExpr te
-                    [eb] <- liftIO $ containerGetChildren b
-                    eText <- liftIO $ entryNew
-                    liftIO (entrySetText eText (show (fst . fExpr $ te)) >>
-                          containerRemove (castToBox b) eb >>
-                          boxPackStart b eText PackGrow 0 >> 
-                          widgetShowAll b)
-                    configExprEntry eText b te
+          te' f eb tb = ExprState f (getTypeFocus f) (fwd,bwd) eb tb 
  
 -- Setea el par expresión, tipo para construir el árbol de tipado.
 setupEventExpr :: Focus -> Type -> IState (HBox, HBox)
@@ -313,6 +388,16 @@ setupEventExpr (e,_) t = liftIO $ do
 typedExprTree :: IState ()
 typedExprTree = getSelectExpr >>= \tse ->
                 case tse of
-                     Just se -> updateMainExprTree se >> buildTreeExpr se
+                     Just se -> 
+                        updateMainExprTree se >> 
+                        buildTreeExpr se
                      Nothing -> reportErrWithErrPaned 
                                             "Ninguna expresion seleccionada."
+
+-- | TODO: Existe un bug en resetTypeAllFocus.
+cleanTypeInTree :: IState ()
+cleanTypeInTree = getMainExprTree >>= \met ->
+                  updateMainExprTree (se' met) >> 
+                  buildTreeExpr (se' met)
+    where se' :: ExprState -> ExprState
+          se' se = se {fExpr = goTop $ fromJust $  resetTypeAllFocus (fExpr se)}
