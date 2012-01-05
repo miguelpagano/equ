@@ -111,6 +111,11 @@ frameExp e@(Con c) = newBox >>= \box ->
                      setupFormEv box lblConst e >> 
                      return (WExpr box e)
 
+frameExp e@(Fun f) = newBox >>= \box ->
+                     (labelStr . repr) f >>= \lblConst ->
+                     setupFormEv box lblConst e >> 
+                     return (WExpr box e)
+
 frameExp e@(UnOp op e') = newBox >>= \box ->
                           localPath (goDown,goUp) (frameExp e') >>= \(WExpr box' _) ->
                           (labelStr . repr) op >>= \lblOp ->
@@ -158,9 +163,8 @@ frameExp e@(Quant q v e1 e2) = newBox >>= \box ->
     where 
         quantVar :: Variable -> IState HBox
         quantVar v = if isPlaceHolderVar v
-                    then entryvar 
-                    else frameExp (Var v) >>= \(WExpr box _) ->
-                        return box
+                     then entryvar 
+                     else frameExp (Var v) >>= \(WExpr box _) -> return box
         -- TOOD: hacer que si tenemos éxito parseando la variable, entonces
         -- la caja de texto se cambie por un label.
         entryvar = newEntry >>= \entry ->
@@ -184,8 +188,6 @@ frameExp e@(Paren e') = newBox >>= \box ->
                         addToBox box box1 >>
                         setupFormEv box  lblClose e >>
                         return (WExpr box e)
-
-frameExp e = (liftIO . putStrLn . show) e >> newBox >>= \b' -> return $ WExpr b' e
 
 {- Las siguientes funciones construyen expresiones con huecos a partir de
 un constructor de la sintáxis. -}
