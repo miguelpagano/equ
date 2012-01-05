@@ -57,7 +57,8 @@ eventsSymbolList tv list =
 -- poner Enter recién se haga el cambio real y entonces desaparezca la
 -- lista de símbolos.
 oneSelection :: ListStore (String,HBox -> IRG) -> TreeSelection -> IRG
-oneSelection list tree = liftIO (treeSelectionGetSelectedRows tree) >>= \sel ->
+oneSelection list tree = 
+                        liftIO (treeSelectionGetSelectedRows tree) >>= \sel ->
                            when (not (null sel)) $ return (head sel) >>= \h ->
                                when (not (null h)) $ return (head h) >>= \s ->
                                    liftIO (listStoreGetValue list s) >>= \(repr,acc) ->

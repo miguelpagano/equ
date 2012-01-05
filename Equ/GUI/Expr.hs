@@ -238,7 +238,8 @@ writeQuantifier q box = frameExp (Quant q
 
 -- | Constantes.
 writeConstant :: Constant -> HBox -> IRG
-writeConstant c box = updateExpr (Con c) >>
+writeConstant c box = liftIO (putStrLn "writeConstant called") >>
+                      updateExpr (Con c) >>
                       (labelStr . unpack . tRepr) c >>= \label ->
                       setupFormEv box label (Con c) >>
                       liftIO (widgetShowAll box)

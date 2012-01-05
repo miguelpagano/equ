@@ -117,7 +117,7 @@ showProof = withRefValue $ uncurry putMsg . (status &&& show . proof . fromJust 
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
-updateExpr e' = update (updateExpr' e') >> showExpr
+updateExpr e' = update (updateExpr' e') >> showExpr >> addToUndoList
 
 updateExpr'' :: (PreExpr -> PreExpr) -> GState -> GState
 updateExpr'' change gst = case (gProof gst,gExpr gst) of
@@ -136,9 +136,15 @@ updateExpr'' change gst = case (gProof gst,gExpr gst) of
 updateExpr' :: PreExpr -> GState -> GState
 updateExpr' e = updateExpr'' (const e)
     
-updateProof pf = update (updateProof' pf) >>
+    
+updateProofNoUndo pf = update (updateProof' pf) >>
                 showProof >>
                 getProof >>= liftIO . putStrLn . show
+    
+updateProof pf = update (updateProof' pf) >>
+                showProof >>
+                getProof >>= liftIO . putStrLn . show >>
+                addToUndoList
 
 updateProof' :: ProofFocus -> GState -> GState
 updateProof' (p,path) gst = case (gProof gst,gExpr gst) of
@@ -166,7 +172,8 @@ updateValidProof = getValidProof >>= \vp -> update (updateValidProof' vp)
           updPrf gpr = gpr { validProof = validateProof (toProof $ proof gpr) }
 
 updateProofState :: ProofState -> IState ()
-updateProofState ps = update (\gst -> gst {gProof = Just ps})
+updateProofState ps = update (\gst -> gst {gProof = Just ps}) >>
+                      addToUndoList
 
 updateExprState :: ExprState -> IState ()
 updateExprState es = update (\gst -> gst {gExpr = Just es})
@@ -221,11 +228,25 @@ addTheorem :: Theorem -> IState Theorem
 addTheorem th = (update $ \gst -> gst { theorems = (th:theorems gst) }) >>
                 return th
 
-changeProofFocus :: (ProofFocus -> Maybe ProofFocus) -> HBox -> IState ()
+changeProofFocus :: (ProofFocus -> Maybe ProofFocus) -> Maybe HBox -> IState ()
 changeProofFocus moveFocus box = getProof >>=
-                                 updateProof . fromJust . moveFocus >>
-                                 updateAxiomBox box
-                              
+                                 updateProofNoUndo . fromJust . moveFocus >>
+                                 withJust box updateAxiomBox
+
+updateUndoList :: UndoList -> IRG
+updateUndoList ulist = update $ \gst -> gst { gUndo = ulist }
+                                 
+                                 
+addToUndoList :: IRG
+addToUndoList = getProof >>= \p ->
+                getUndoList >>= \ulist ->
+                updateUndoList ((urmove p):ulist) >>
+                getUndoList >>= \ulist' ->
+                liftIO (putStrLn $ "addToUndoList. UndoList es " ++ show ulist')
+                
+    where urmove p = URMove { urProof = Just p }          
+                                 
+                                 
 
 {- Las nueve funciones siguientes devuelven cada uno de los
 componentes del estado. -}
@@ -361,7 +382,10 @@ getParentNamed name = go
 
 getTheorems :: IState [Theorem]
 getTheorems = getStatePart theorems
-                 
+        
+        
+getUndoList :: IState UndoList
+getUndoList = getStatePart gUndo
                  
 {- Listas heterógeneas de cosas que pueden agregarse a cajas -}
 infixr 8 .*.

@@ -31,6 +31,8 @@ type UndoList = [URMove]
 type RedoList = [URMove]
 data URMove = URMove { urProof :: Maybe ProofFocus -- ^ Si guardamos una prueba. 
                      }
+instance Show URMove where
+    show u = show (urProof u)
 
 data Accion = Undo | Redo | InvalidCheck | ValidCheck 
  

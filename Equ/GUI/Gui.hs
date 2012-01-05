@@ -29,6 +29,8 @@ import Control.Monad.State (evalStateT,get)
 import Control.Monad(liftM, when)
 import Control.Monad.Trans(liftIO)
 
+import qualified Data.Foldable as F (forM_)
+
 main :: IO ()
 main = do 
     initGUI
@@ -39,7 +41,7 @@ main = do
     -- get widgets
     window        <- xmlGetWidget xml castToWindow "mainWindow"
     quitButton    <- getMenuButton xml "QuitButton"
-    formWidgetBox       <- xmlGetWidget xml castToHBox "formBox"
+    --formWidgetBox       <- xmlGetWidget xml castToHBox "formBox"
 
     cleanType    <- xmlGetWidget xml castToToolButton "cleanType"
     saveExpr     <- xmlGetWidget xml castToToolButton "saveExpr"
@@ -60,10 +62,18 @@ main = do
     itemSaveProof <- xmlGetWidget xml castToImageMenuItem "itemSaveProof"
     itemSaveAsTheorem <- xmlGetWidget xml castToImageMenuItem "itemSaveAsTheorem"
     
+    itemUndo <- xmlGetWidget xml castToImageMenuItem "undoMenuItem"
+    itemRedo <- xmlGetWidget xml castToImageMenuItem "redoMenuItem"
+    
     faces <- xmlGetWidget xml castToNotebook "faces"
     
-    loadProof <- xmlGetWidget xml castToToolButton "loadProof"
-    saveProof <- xmlGetWidget xml castToToolButton "saveProof"
+    -- toolbuttons
+    newProofTool <- xmlGetWidget xml castToToolButton "newProof"
+    loadProofTool <- xmlGetWidget xml castToToolButton "loadProof"
+    saveProofTool <- xmlGetWidget xml castToToolButton "saveProof"
+    
+    unDo <- xmlGetWidget xml castToToolButton "undoTool"
+    reDo <- xmlGetWidget xml castToToolButton "redoTool"
     
     fieldProofFaceBox <- xmlGetWidget xml castToHBox "fieldProofFaceBox"
     fieldExprFaceBox <- xmlGetWidget xml castToVBox "fieldExprFaceBox"
@@ -72,6 +82,9 @@ main = do
     exprFaceBox <- xmlGetWidget xml castToHBox "exprFaceBox"
     boxGoProofFace <- xmlGetWidget xml castToHBox "boxGoProofFace"
     boxGoExprFace <- xmlGetWidget xml castToHBox "boxGoExprFace"
+    
+    showProofItem <- xmlGetWidget xml castToImageMenuItem "showProofPanelItem"
+    showTypesItem <- xmlGetWidget xml castToImageMenuItem "showTypesPanelItem"
 
     windowMaximize window
 
@@ -83,14 +96,23 @@ main = do
     sListStore <- liftIO $ setupSymbolList symbolList
     aListStore <- liftIO $ setupTruthList [] axiomList 
 
-    onActivateLeaf itemNewProof (evalStateT (createNewProof Nothing centralBox sListStore) gRef)
-    onActivateLeaf itemLoadProof $ dialogLoadProof gRef centralBox sListStore
+    onToolButtonClicked newProofTool (evalStateT (createNewProof Nothing centralBox) gRef)
+    onActivateLeaf itemNewProof (evalStateT (createNewProof Nothing centralBox) gRef)
+    onToolButtonClicked loadProofTool $ dialogLoadProof gRef centralBox
+    onActivateLeaf itemLoadProof $ dialogLoadProof gRef centralBox
+    onToolButtonClicked saveProofTool (evalStateT (saveProofDialog) gRef)
     onActivateLeaf itemSaveProof (evalStateT (saveProofDialog) gRef)
     onActivateLeaf itemSaveAsTheorem $ saveTheorem gRef aListStore
+    
+    
+    onActivateLeaf itemUndo $ flip evalStateT gRef $ undoEvent centralBox
+    onToolButtonClicked unDo $ flip evalStateT gRef $ undoEvent centralBox
     
     flip evalStateT gRef $ do
         axioms <- getAxiomCtrl
         eventsTruthList axioms aListStore
+        symbols <- getSymCtrl
+        eventsSymbolList symbols sListStore
         hidePane errPane
         switchToProof faces boxGoProofFace (cleanTypedExprTree >> cleanTreeExpr)
         switchToTypeTree faces boxGoExprFace typedExprTree
@@ -136,13 +158,23 @@ main = do
     widgetShowAll window
 
     mainGUI
-    
---     where test_proof = Just $ newProof relEquiv (toFocus $ parser "1 + 1") (toFocus $ parser "0") 
+
+    where undoEvent centralBox = 
+                        liftIO (putStrLn "Undo event") >>
+                        getUndoList >>= \ulist ->
+                        case ulist of
+                             [] -> liftIO (putStrLn "lista undo vacia") >> return ()
+                             [p] -> liftIO (putStrLn "lista undo con un solo elemento") >> return ()
+                             p':p:ps -> (F.forM_ (urProof p) $
+                                    \pf -> createNewProof (Just $ toProof pf) centralBox) >>
+                                    updateUndoList (p:ps) 
+                                    
+                        >>
+                        getUndoList >>= \ulist' ->
+                        liftIO (putStrLn $ "UndoList es " ++ show ulist')
           
-          
-dialogLoadProof :: GRef -> VBox ->
-                   ListStore (String,HBox -> IRG) -> IO ()
-dialogLoadProof ref centralBox sListStore = do
+dialogLoadProof :: GRef -> VBox -> IO ()
+dialogLoadProof ref centralBox = do
     dialog <- fileChooserDialogNew (Just "Cargar Prueba") Nothing FileChooserActionOpen
                                 [("Cargar",ResponseAccept),("Cancelar",ResponseCancel)]
     setFileFilter dialog "*.equ" "Prueba de Equ"
@@ -155,7 +187,7 @@ dialogLoadProof ref centralBox sListStore = do
              case selected of
                   Just filepath -> decodeFile filepath >>= \proof ->
                                 flip evalStateT ref
-                                  (createNewProof (Just proof) centralBox sListStore) >>
+                                  (createNewProof (Just proof) centralBox) >>
                                   widgetDestroy dialog
                   Nothing -> widgetDestroy dialog
          _ -> liftIO $ widgetDestroy dialog
