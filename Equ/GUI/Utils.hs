@@ -119,8 +119,8 @@ del estado. -}
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
 updateExpr e' = update (updateExpr' e') >> showExpr
 
-updateExpr' :: PreExpr -> GState -> GState
-updateExpr' e' gst = case (gProof gst,gExpr gst) of
+updateExpr'' :: (PreExpr -> PreExpr) -> GState -> GState
+updateExpr'' change gst = case (gProof gst,gExpr gst) of
                       (Just gpr, Just gexpr) -> upd gpr gexpr 
                       (_,_) -> gst
     where upd gpr gexpr = gst { gProof = Just gpr' 
@@ -129,9 +129,12 @@ updateExpr' e' gst = case (gProof gst,gExpr gst) of
               where  gpr' = gpr {proof = fromJust $ up (proof gpr) newExpr}
                      up = modifExpr gpr
                      gexpr' = gexpr {fExpr = newExpr}
-                     newExpr = g . first (const e') $ f e
+                     newExpr = g . first change $ f e
                      e = fExpr gexpr
                      (f,g) = pathExpr gexpr
+
+updateExpr' :: PreExpr -> GState -> GState
+updateExpr' e = updateExpr'' (const e)
     
 updateProof pf = update (updateProof' pf) >>
                 showProof >>
@@ -372,27 +375,12 @@ infix 9 .*:
 (.*:) :: (WidgetClass w',WidgetClass w) => w' -> w -> [Boxeable w]
 w' .*: w = Boxeable w' : Boxeable w : []
 
-
--- TODO: Manejo de errores; por ejemplo mostrando un dialog con 
--- el error.
--- | Las dos funciones que siguen parsean variables y luego aplican
--- funciones si el resultado es exitoso.
-parseVar :: (Variable -> IState ()) -> String -> IState ()
-parseVar f = either (return $ return ()) f . parserVar
-
--- | Especialización para cuando queremos ver la variable como una
--- expresión.
-parseVarE :: (PreExpr -> IState ()) -> String -> IState ()
-parseVarE f = parseVar (f . Var)
-
-
 -- TODO: debemos hacer renombre si la variable está ligada?
 -- | Actualización de la variable de cuantificación.
-updateQVar :: String -> IState ()
-updateQVar v = getExpr >>= \e ->                
-               case fst e of
-                 Quant q _ r t -> parseVar (\v' -> updateExpr (Quant q v' r t)) v
-                 _ -> return ()
+--updateQVar :: String -> IState ()
+updateQVar v = updateExpr'' putVar 
+    where putVar (Quant q _ r t) = Quant q v r t
+          putVar e = e
 
 selectExprFromBox :: HBox -> IState ()
 selectExprFromBox = selectFrom (eventExpr)
