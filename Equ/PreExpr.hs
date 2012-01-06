@@ -11,7 +11,8 @@ module Equ.PreExpr ( freeVars, freshVar
                    , agrupOp, agrupNotOp, checkIsAtom, opOfFocus
                    , setType, updateOpType, setAtomType
                    , isPreExprParent, isPreExprQuant, getVarFromQuant
-                   , getQFromQuant
+                   , getQFromQuant, setQuantType, setVarQType
+                   , getVarTypeFromQuantType, getQTypeFromQuantType
                    , resetTypeAllFocus, getTypeFocus
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
@@ -128,6 +129,19 @@ setAtomType f go t = goTop $ set t (go f)
         set t (Fun f,p) = (Fun $ f {funcTy = t},p)
         set t (PrExHole h,p) = (PrExHole $ h {holeTy = t},p)
 
+setQuantType :: Focus -> (Focus -> Focus) -> Type -> Focus
+setQuantType f go t = goTop $ set t (go f)
+    where
+        set :: Type -> Focus -> Focus
+        set t (Quant q v e e',p) = (Quant (q {quantTy = t}) v e e',p)
+
+setVarQType :: Focus -> (Focus -> Focus) -> Type -> Focus
+setVarQType f go t = goTop $ set t (go f)
+    where
+        set :: Type -> Focus -> Focus
+        set t (Quant q v e e',p) = (Quant q v{varTy = t} e e',p)
+
+
 -- | Filtra todos los focus que son operadores de preExpresion.
 agrupNotOp :: [(Focus, Focus -> Focus)] -> [(Focus, Focus -> Focus)]
 agrupNotOp = filter (\f -> opOfFocus f == Nothing)
@@ -159,32 +173,28 @@ updateOpType ((f,go):fs) t = ((set t f), go) : updateOpType fs t
           set t (UnOp op e, p) = (UnOp (op{opTy = t}) e,p)
           set t (BinOp op e e', p) = (BinOp (op{opTy = t}) e e',p)
 
-resetTypeAllFocus :: Focus -> Maybe Focus
-resetTypeAllFocus f = resetTypeFocus f >>= \f' -> 
-                      case goDownL f' of
-                           Nothing -> Just f'
-                           (Just lf) -> 
-                                resetTypeFocus lf >>= 
-                                \lf' -> 
-                                case goRight lf' of
-                                    Nothing -> Just lf'
-                                    Just rf -> 
-                                        resetTypeFocus rf >>=
-                                        \rf' -> resetTypeAllFocus $ 
-                                                         fromJust $ goLeft rf'
+resetTypeAllFocus :: Focus -> Focus
+resetTypeAllFocus f = reset listReset f
+    where
+        listReset :: [(Focus, Focus -> Focus)]
+        listReset = map (\f -> (resetTypeFocus $ fst f, snd f)) $ 
+                                                    toFocusesWithGo $ fst f
+        reset :: [(Focus, Focus -> Focus)] -> Focus -> Focus
+        reset [] f = f
+        reset (fm:fms) f = reset fms $ goTop $ replace (snd fm $ f) (fst $ fst fm)
 
-resetTypeFocus :: Focus -> Maybe Focus
-resetTypeFocus (Var v, p) = Just (Var $ v {varTy = TyUnknown}, p)
-resetTypeFocus (Con c, p) = Just (Con $ c {conTy = TyUnknown}, p)
-resetTypeFocus (Fun f, p) = Just (Fun $ f {funcTy = TyUnknown}, p)
-resetTypeFocus (PrExHole h, p) = Just (PrExHole $ h {holeTy = TyUnknown}, p)
-resetTypeFocus (UnOp op e, p) = Just (UnOp (op {opTy = TyUnknown}) e, p)
-resetTypeFocus (BinOp op e e', p) = Just (BinOp (op {opTy = TyUnknown}) e e', p)
-resetTypeFocus (App e e', p) = Just (App e e', p)
-resetTypeFocus (Quant q v e e', p) = Just (Quant (q {quantTy = TyUnknown}) 
+resetTypeFocus :: Focus -> Focus
+resetTypeFocus (Var v, p) = (Var $ v {varTy = TyUnknown}, p)
+resetTypeFocus (Con c, p) = (Con $ c {conTy = TyUnknown}, p)
+resetTypeFocus (Fun f, p) = (Fun $ f {funcTy = TyUnknown}, p)
+resetTypeFocus (PrExHole h, p) = (PrExHole $ h {holeTy = TyUnknown}, p)
+resetTypeFocus (UnOp op e, p) = (UnOp (op {opTy = TyUnknown}) e, p)
+resetTypeFocus (BinOp op e e', p) = (BinOp (op {opTy = TyUnknown}) e e', p)
+resetTypeFocus (App e e', p) = (App e e', p)
+resetTypeFocus (Quant q v e e', p) = (Quant (q {quantTy = TyUnknown}) 
                                                  (v {varTy = TyUnknown}) 
                                                  e e', p)
-resetTypeFocus (Paren e, p) = Just (Paren e, p)
+resetTypeFocus (Paren e, p) = (Paren e, p)
 
 getTypeFocus :: Focus -> Type
 getTypeFocus (Var v, _) = varTy v
@@ -197,6 +207,14 @@ getTypeFocus f@(App e e', _) = (:->) (getTypeFocus $ fromJust $ goDownL f)
                                      (getTypeFocus $ fromJust $ goDownR f)
 getTypeFocus (Quant q v e e', _) = (:->) (varTy v) (quantTy q)
 getTypeFocus f@(Paren e, _) = getTypeFocus $ fromJust $ goDown f
+
+getVarTypeFromQuantType :: Type -> Type
+getVarTypeFromQuantType (t :-> _) = t
+getVarTypeFromQuantType _ = TyUnknown
+
+getQTypeFromQuantType :: Type -> Type
+getQTypeFromQuantType (_ :-> t) = t   
+getQTypeFromQuantType _ = TyUnknown
 
 getVarFromQuant :: Focus -> Maybe Variable
 getVarFromQuant (Quant _ v _ _, _) = Just v

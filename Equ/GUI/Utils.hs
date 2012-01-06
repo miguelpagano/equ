@@ -416,20 +416,35 @@ selectFrom :: (ExprState -> HBox) -> HBox -> IState ()
 selectFrom eventTE eb = getTreeExpr >>= \(Just tExpr) ->
                 case ( eventTE (mainExpr tExpr) == eb
                      , find (\te -> (eventTE te) == eb) (atomExpr tExpr)
+                     , find (\te -> (eventTE te) == eb) (quantExpr tExpr)
                      )
                 of
-                    (False,Nothing) -> return ()
-                    (True,_) -> update (\gst -> gst {gExpr = Just $ mainExpr tExpr})
-                    (_,Just se) -> update (\gst -> gst {gExpr = Just se })
+                    (True,_,_) -> update (\gst -> gst {gExpr = Just $ mainExpr tExpr})
+                    (_,Just se,_) -> update (\gst -> gst {gExpr = Just se })
+                    (_,_,Just se) -> update (\gst -> gst {gExpr = Just se })
+                    _ -> return ()
 
-searchFocusInTree :: Focus -> IState ExprState
+searchFocusInTree :: Focus -> IState [ExprState]
 searchFocusInTree f = getTreeExpr >>= \(Just tExpr) ->
                 case ( fExpr (mainExpr tExpr) == f
-                     , find (\te -> (fExpr te) == f) (atomExpr tExpr)
+                     , filter (\te -> (fExpr te) == f) (atomExpr tExpr)
                      )
                 of
-                    (True,_) -> return $ mainExpr tExpr
-                    (_,Just se) -> return $ se
+                    (False, []) -> return ([mainExpr tExpr])
+                    (True,_) -> return $ [mainExpr tExpr]
+                    (_,ses) -> return $ ses
+
+updateTypeQuantInExprTree :: ExprState -> Type -> IState ()
+updateTypeQuantInExprTree es t = 
+                        getTreeExpr >>= \(Just tExpr) ->
+                        getQuantExprTree >>= \qETree ->
+                        update (\gst -> gst {gTreeExpr = Just $
+                                                tExpr {quantExpr = qETree' qETree} 
+                                            })
+    where qETree' :: [ExprState] -> [ExprState]
+          qETree' les = map (\te -> if (eventType te) == (eventType es) 
+                                        then te {fType = t}
+                                        else te ) les
 
 updateTypeAtomInExprTree :: ExprState -> Type -> IState ()
 updateTypeAtomInExprTree es t = 
@@ -448,6 +463,23 @@ updateTypeAtomInExprTree es t =
 updateTypeOpInMainExprTree :: [(Focus, Move)] -> Type -> IState ()
 updateTypeOpInMainExprTree fs t = getMainExprTree >>= \exprT ->
                                   updateMainExprTree exprT {fExpr = (setType fs t (fExpr exprT))}
+
+updateTypeQuantInMainExprTree :: ExprState -> Type -> IState ()
+updateTypeQuantInMainExprTree es qt = getMainExprTree >>= \exprT ->
+                                      updateMainExprTree exprT 
+                                                {fExpr = setQuantType 
+                                                            (fExpr exprT)
+                                                            (fst $ pathExpr es)
+                                                            qt}
+
+updateTypeVarQInMainExprTree :: ExprState -> Type -> IState ()
+updateTypeVarQInMainExprTree es qt = getMainExprTree >>= \exprT ->
+                                      updateMainExprTree exprT 
+                                                {fExpr = setVarQType 
+                                                            (fExpr exprT)
+                                                            (fst $ pathExpr es)
+                                                            qt}
+
 
 -- | Actualiza el tipo de un atomo en la expresión principal del árbol de
 -- tipado, en base a un exprState.

@@ -35,8 +35,10 @@ data Constant = Constant {
     , conName :: ConName
     , conTy   :: Type
     }
-    deriving Eq
-    
+
+instance Eq Constant where
+    c == c' = tRepr c == tRepr c'
+
 data Operator = Operator {
       opRepr :: Text   
     , opName :: OpName
