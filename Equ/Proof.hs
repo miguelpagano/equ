@@ -182,8 +182,9 @@ proofFromTruth f f' r t fMove = case partitionEithers $
                           -- podr&#237;a mejorar un poco devolviendo la lista de
                           -- errores.
                           ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
-                          (er, []) -> Left $ head er
                           (_, p:ps) -> Right p
+                          (er, []) -> Left $ head er
+
 
 validateProof :: Proof -> PM Proof
 validateProof p = validateProof' p goTop'
