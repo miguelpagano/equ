@@ -119,9 +119,15 @@ focusToFocusesWithGo :: Maybe (Focus, Focus -> Focus) -> [(Focus, Focus -> Focus
 focusToFocusesWithGo Nothing = []
 focusToFocusesWithGo (Just (f, go)) = 
             case (goDownL f, goDownR f) of
-                (glf@(Just lf), grf@(Just rf)) -> ((lf, fromJust . goDownL . go) : focusToFocusesWithGo (Just (lf, fromJust . goDownL . go))) ++
-                                                    ((rf, fromJust . goDownR . go) : focusToFocusesWithGo (Just (rf, fromJust . goDownR . go)))
-                (glf@(Just lf), Nothing) -> ((lf, fromJust . goDownL . go) : focusToFocusesWithGo (Just (lf, fromJust . goDownL . go)))
+                (glf@(Just lf), grf@(Just rf)) -> 
+                    ((lf, fromJust . goDownL . go) : 
+                    focusToFocusesWithGo (Just (lf, fromJust . goDownL . go))) 
+                        ++
+                    ((rf, fromJust . goDownR . go) : 
+                    focusToFocusesWithGo (Just (rf, fromJust . goDownR . go)))
+                (glf@(Just lf), Nothing) -> 
+                    ((lf, fromJust . goDownL . go) : 
+                    focusToFocusesWithGo (Just (lf, fromJust . goDownL . go)))
                 (Nothing, _) -> []
 
 -- | Dado una preExpresion obtenemos todas las subexpresiones navegando con el

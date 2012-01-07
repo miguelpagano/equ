@@ -8,7 +8,7 @@ import Equ.TypeChecker
 import Equ.Types
 import Equ.Rule
 import Equ.Theories
-import Equ.Proof hiding (goDownL, goDownR, goTop)
+import Equ.Proof hiding (goDownL, goDownR, goTop, goUp)
 
 import Equ.GUI.Widget
 import Equ.GUI.Types
@@ -43,12 +43,12 @@ buildTreeExpr te =
                 getTreeQuantBox >>= \bTreeQuant ->
                 cleanContainer bTreeExpr >>
                 cleanContainer bTreeOp >>
+                cleanContainer bTreeVarQ >>
+                cleanContainer bTreeQuant >>
                 setupEventExpr (fExpr te) TyUnknown >>= 
                 \(eb, tb) -> newBox >>= \ bb -> 
-                liftIO (putStrLn $ show $ (getTypeFocus $ fExpr te)) >>
-                addMainExprToTree (fExpr te) TyUnknown (pathExpr te) eb tb >>= 
-                \te ->
-                when ((isPreExprQuant . fExpr) te) 
+                addMainExprToTree (fExpr te) t (id,id) eb tb >>= \te ->
+                when ((isPreExprQuant . fExpr) te)
                     (addQuantExprTree te) >>
                 liftIO (configEventSelectTypeFromTree tb s >>
                         boxPackStart bb eb PackGrow 2 >>
@@ -62,6 +62,13 @@ buildTreeExpr te =
                 buildTreeOpList bTreeOp >>
                 buildTreeVarQList bTreeVarQ >>
                 buildTreeQuantList bTreeQuant
+    where
+        tVar :: Type
+        tVar = getVarTypeFromQuantType (getTypeFocus $ fExpr te)
+        t :: Type
+        t = case (isPreExprQuant . fExpr) te of
+                True -> tVar :-> TyUnknown
+                False -> TyUnknown
 
 -- Función secundaria que contruye el árbol de tipado.
 buildTreeExpr' :: (BoxClass b) => ExprState -> b -> IState ()
@@ -108,27 +115,60 @@ buildTreeExpr' te bTree = do
                                  ) >>
                                  return nVb
 
-buildTreeQuantList :: VBox -> IState ()
-buildTreeQuantList b = getQuantExprTree >>= \qet ->
+buildTreeVarQList :: VBox -> IState ()
+buildTreeVarQList b = getQuantExprTree >>= \qet ->
                       get >>= \s ->
                       liftIO (build qet b s)
     where
-        t :: Focus -> Type
-        t f = let (:->) _ t' = getTypeFocus f
-              in t'
+        t :: Type -> Type
+        t ty = getVarTypeFromQuantType ty
         build :: [ExprState] -> VBox -> GRef -> IO ()
         build [] b s = widgetShowAll b
         build (e:es) b s = 
                         do
                         typeL <- labelNew $ Just $ 
-                                        show $ t (fExpr e)
+                                        show $ t (fType e)
                         typeEb <- eventBoxNew
                         typeEbb <- hBoxNew False 0
                         set typeL [miscXalign := 0.005]
-                        configEventGeneralExpr typeEb typeEbb
+                        configEventGeneralExprQuant typeEb typeEbb (eventExpr e)
                         set typeEb [ containerChild := typeL ]
                         boxPackStart typeEbb typeEb PackGrow 0
-                        --configEventInTypeForOp (f:fs) typeEbb s
+                        configEventInTypeVarQ typeEbb (eventType e) s
+                        exprL <- labelNew $ Just $ 
+                                    show (fromJust $ getVarFromQuant (fExpr e)) ++ " : "
+                        set exprL [miscXalign := 0.005]
+                        exprEb <- eventBoxNew
+                        exprEbb <- hBoxNew False 0
+                        set exprEb [ containerChild := exprL ]
+                        boxPackStart exprEbb exprEb PackNatural 0
+                        b' <- hBoxNew False 0
+                        boxPackStart b' exprEbb PackNatural 0
+                        set b' [ containerChild := typeEbb ]
+                        set b [ containerChild := b' ]
+                        build es b s
+
+
+buildTreeQuantList :: VBox -> IState ()
+buildTreeQuantList b = getQuantExprTree >>= \qet ->
+                      get >>= \s ->
+                      liftIO (build qet b s)
+    where
+        t :: Type -> Type
+        t ty = getQTypeFromQuantType ty
+        build :: [ExprState] -> VBox -> GRef -> IO ()
+        build [] b s = widgetShowAll b
+        build (e:es) b s = 
+                        do
+                        typeL <- labelNew $ Just $ 
+                                        show $ t (fType e)
+                        typeEb <- eventBoxNew
+                        typeEbb <- hBoxNew False 0
+                        set typeL [miscXalign := 0.005]
+                        configEventGeneralExprQuant typeEb typeEbb (eventExpr e)
+                        set typeEb [ containerChild := typeL ]
+                        boxPackStart typeEbb typeEb PackGrow 0
+                        configEventInTypeQuant typeEbb (eventType e) s
                         exprL <- labelNew $ Just $ 
                                     show (fromJust $ getQFromQuant (fExpr e)) ++ " : "
                         set exprL [miscXalign := 0.005]
@@ -142,40 +182,89 @@ buildTreeQuantList b = getQuantExprTree >>= \qet ->
                         set b [ containerChild := b' ]
                         build es b s
 
-
-buildTreeVarQList :: VBox -> IState ()
-buildTreeVarQList b = getQuantExprTree >>= \qet ->
-                      get >>= \s ->
-                      liftIO (build qet b s)
-    where
-        t :: Focus -> Type
-        t f = let (:->) t' _ = getTypeFocus f
-              in t'
-        build :: [ExprState] -> VBox -> GRef -> IO ()
-        build [] b s = widgetShowAll b
-        build (e:es) b s = 
+configEventInTypeQuant :: HBox -> HBox -> GRef -> IO (ConnectId EventBox)
+configEventInTypeQuant b b' s = containerGetChildren b >>= \[tb'] ->
                         do
-                        typeL <- labelNew $ Just $ 
-                                        show $ t (fExpr e)
-                        typeEb <- eventBoxNew
-                        typeEbb <- hBoxNew False 0
-                        set typeL [miscXalign := 0.005]
-                        configEventGeneralExpr typeEb typeEbb
-                        set typeEb [ containerChild := typeL ]
-                        boxPackStart typeEbb typeEb PackGrow 0
-                        --configEventInTypeForOp (f:fs) typeEbb s
-                        exprL <- labelNew $ Just $ 
-                                    show (fromJust $ getVarFromQuant (fExpr e)) ++ " : "
-                        set exprL [miscXalign := 0.005]
-                        exprEb <- eventBoxNew
-                        exprEbb <- hBoxNew False 0
-                        set exprEb [ containerChild := exprL ]
-                        boxPackStart exprEbb exprEb PackNatural 0
-                        b' <- hBoxNew False 0
-                        boxPackStart b' exprEbb PackNatural 0
-                        set b' [ containerChild := typeEbb ]
-                        set b [ containerChild := b' ]
-                        build es b s
+                        tb <- return $ castToEventBox tb'
+                        tb `on` buttonPressEvent $ tryEvent $ 
+                            eventWithState (
+                                selectTypeFromBox b' >>
+                                getSelectExpr >>= \(Just te) ->
+                                liftIO (entryNew) >>= \eText ->
+                                liftIO (entrySetText eText (show $ t (fType te)) >>
+                                        containerRemove b tb >>
+                                        boxPackStart b eText PackGrow 0 >> 
+                                        widgetShowAll b) >>
+                                        configTypeQuantEntry te eText b tb) s
+    where
+        t :: Type -> Type
+        t ty = getQTypeFromQuantType ty
+
+configTypeQuantEntry :: ExprState -> Entry -> HBox -> EventBox -> IState ()
+configTypeQuantEntry es eText b tb = 
+                withState (onEntryActivate eText) 
+                (liftIO (entryGetText eText) >>= 
+                \text -> checkInType text >>= \checkText ->
+                case checkText of
+                    Nothing -> return ()
+                    Just t -> 
+                        updateTypeQuantInMainExprTree es t >>
+                        updateTypeQuantInExprTree es ((tVar (fType es)) :-> t) >>
+                        liftIO (labelNew $ Just $ show t) >>= 
+                        \typeL -> 
+                        liftIO (set typeL [miscXalign := 0.005]) >>
+                        liftIO (containerGetChildren tb) >>= \[oldL] ->
+                        liftIO (containerRemove tb oldL) >> 
+                        liftIO (containerRemove b eText) >> 
+                        liftIO (set tb [containerChild := typeL]) >> 
+                        liftIO (set b [containerChild := tb] >> widgetShowAll b)
+                        >> return ()) >> 
+                return ()
+    where
+        tVar :: Type -> Type
+        tVar ty = getVarTypeFromQuantType ty
+
+configEventInTypeVarQ :: HBox -> HBox -> GRef -> IO (ConnectId EventBox)
+configEventInTypeVarQ b b' s = containerGetChildren b >>= \[tb'] ->
+                        do
+                        tb <- return $ castToEventBox tb'
+                        tb `on` buttonPressEvent $ tryEvent $ 
+                            eventWithState (
+                                selectTypeFromBox b' >>
+                                getSelectExpr >>= \(Just te) ->
+                                liftIO (entryNew) >>= \eText ->
+                                liftIO (entrySetText eText (show $ t (fType te)) >>
+                                        containerRemove b tb >>
+                                        boxPackStart b eText PackGrow 0 >> 
+                                        widgetShowAll b) >>
+                                        configTypeVarQEntry te eText b tb) s
+    where
+        t :: Type -> Type
+        t ty = getVarTypeFromQuantType ty
+        
+configTypeVarQEntry :: ExprState -> Entry -> HBox -> EventBox -> IState ()
+configTypeVarQEntry es eText b tb = 
+                withState (onEntryActivate eText) 
+                (liftIO (entryGetText eText) >>= 
+                \text -> checkInType text >>= \checkText ->
+                case checkText of
+                    Nothing -> return ()
+                    Just t -> 
+                        updateTypeVarQInMainExprTree es t >>
+                        updateTypeQuantInExprTree es (t :-> (tQ (fType es))) >>
+                        liftIO (labelNew $ Just $ show t) >>= 
+                        \typeL -> 
+                        liftIO (set typeL [miscXalign := 0.005]) >>
+                        liftIO (containerGetChildren tb) >>= \[oldL] ->
+                        liftIO (containerRemove tb oldL) >> 
+                        liftIO (containerRemove b eText) >> 
+                        liftIO (set tb [containerChild := typeL]) >> 
+                        liftIO (set b [containerChild := tb] >> widgetShowAll b)
+                        >> return ()) >> 
+                return ()
+    where
+        tQ :: Type -> Type
+        tQ ty = getQTypeFromQuantType ty
 
 -- Construye la lista de operadores.
 buildTreeOpList :: VBox -> IState ()
@@ -258,6 +347,15 @@ configEventGeneralExpr eb b =
                             return ()
     where onEvent event action = eb `on` event $ tryEvent action
 
+configEventGeneralExprQuant :: (BoxClass w) => EventBox -> w ->  w -> IO ()
+configEventGeneralExprQuant eb b b' = 
+                            onEvent enterNotifyEvent (highlightBox b' hoverBg >>
+                                                     highlightBox b hoverBg) >>
+                            onEvent leaveNotifyEvent (unlightBox b' Nothing >>
+                                                     unlightBox b Nothing) >>
+                            return ()
+    where onEvent event action = eb `on` event $ tryEvent action
+
 -- Configura la acción de ingresar un tipo para la expresión principal del 
 -- árbol de tipado o para sus hojas(atomos).
 configEventSelectTypeFromTree :: HBox -> GRef -> IO (ConnectId EventBox)
@@ -325,14 +423,23 @@ configExprEntry eText b te = withState (onEntryActivate eText)
                                 return ()
 
 paintBranchErr :: Focus -> IState ()
-paintBranchErr f = searchFocusInTree f >>= \fs ->
-                   highlightBox (eventExpr fs) errBg
+paintBranchErr f =  searchFocusInTree f >>= \fs ->
+                    liftIO (putStrLn $ show $ map (fExpr) fs) >>
+                    paint fs
+    where
+        paint :: [ExprState] -> IState ()
+        paint [] = return ()
+        paint (es:ess) = highlightBox (eventExpr es) errBg >>
+                        (case goUp f of
+                            Nothing -> return ()
+                            (Just f') -> paintBranchErr f') >>
+                        paint ess
 
 -- | Aplica el type-checker a la expresión seleccionada.
 typedCheckType :: IState ()
 typedCheckType = getMainExprTree >>= \te ->
                  case checkPreExpr (toExpr $ fExpr te) of
-                    Left err -> --paintBranchErr ((fst . fst) err) >>
+                    Left err -> paintBranchErr ((fst . fst) err) >>
                                 (reportErrWithErrPaned $ show err)
                     Right checkedType ->
                         case unify checkedType (fType te) emptySubst of
@@ -359,13 +466,14 @@ goTypedExpr :: (Focus -> Maybe Focus) -> ExprState -> IState (Maybe (ExprState, 
 goTypedExpr go te = case (go . fExpr) te of
                 Nothing ->  return Nothing
                 Just f ->   get >>= \s -> setupEventExpr f (getTypeFocus f) >>= 
-                            \(eb,tb) -> liftIO (putStrLn $ (show f) ++ show (getTypeFocus f))>>
+                            \(eb,tb) -> 
+                            liftIO (putStrLn $ (show f) ++ show (getTypeFocus f)) >>
                             liftIO (configEventSelectTypeFromTree tb s) >>
-                            get >>= \s ->
-                            return $ Just ((te' f eb tb), eb, tb)
-    where (fwd,bwd) = (fromJust . go . f, fromJust . go . g)
-          (f,g) = pathExpr te
-          te' f eb tb = ExprState f (getTypeFocus f) (fwd,bwd) eb tb 
+                            return (Just ((te' f eb tb), eb, tb))
+    where 
+        (f,g) = pathExpr te
+        (fwd,bwd) = (fromJust . go . f, fromJust . go . g)
+        te' f eb tb = ExprState f (getTypeFocus f) (fwd,bwd) eb tb 
  
 -- Setea el par expresión, tipo para construir el árbol de tipado.
 setupEventExpr :: Focus -> Type -> IState (HBox, HBox)
@@ -401,4 +509,4 @@ cleanTypeInTree = getMainExprTree >>= \met ->
                   updateMainExprTree (se' met) >> 
                   buildTreeExpr (se' met)
     where se' :: ExprState -> ExprState
-          se' se = se {fExpr = goTop $ fromJust $  resetTypeAllFocus (fExpr se)}
+          se' se = se {fExpr = goTop $ resetTypeAllFocus (fExpr se)}
