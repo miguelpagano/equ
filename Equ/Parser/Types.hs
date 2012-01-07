@@ -81,7 +81,9 @@ parseUnknown = TyUnknown <$ (try $ reserved lexerTy typeUnknown)
 
 -- | Parser para el tipo variable.
 parseTyVar :: Parser Type
-parseTyVar = try $ lower >>= \l -> many letter >>= \t -> return (tyVar (l:t))
+parseTyVar = try $ lower >>= \l -> many letter >>= \t -> 
+             whiteSpace lexerTy >>
+             return (tyVar (l:t))
 
 -- | Parser para el tipo lista.
 parseTyList :: Parser Type

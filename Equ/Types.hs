@@ -43,13 +43,6 @@ data Type' v = TyUnknown            -- ^ Representa falta de información.
              | Type' v :-> Type' v  -- ^ Espacios de funciones.
     deriving (Eq)
 
-instance (Show v) => Show (Type' v) where
-    show TyUnknown = "?"
-    show (TyVar v) = show v
-    show (TyList t) = "[" ++ show t ++ "]"
-    show (TyAtom t) = show t
-    show (t :-> t') = show t ++ " :-> " ++ show t'
-
 instance Functor Type' where
     fmap f (TyVar v) = TyVar $ f v
     fmap f (TyList t) = TyList $ fmap f t
@@ -130,6 +123,14 @@ instance (Serialize a) => Serialize (Type' a) where
 
 -- | El tipo concreto de nuestras expresiones.
 type Type = Type' TyVarName
+
+instance Show Type where
+    show TyUnknown = "?"
+    show (TyVar v) = unpack v
+    show (TyList t) = "[" ++ show t ++ "]"
+    show (TyAtom t) = show t
+    show (t :-> t') = show t ++ " :-> " ++ show t'
+
     
 instance Poset Type where
     (TyAtom ATyNat) `leq` (TyAtom ATyInt) = True
