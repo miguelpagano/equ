@@ -42,10 +42,10 @@ buildTreeExpr te =
                 getTreeOpBox >>= \bTreeOp ->
                 getTreeVarQBox >>= \bTreeVarQ ->
                 getTreeQuantBox >>= \bTreeQuant ->
-                cleanContainer bTreeExpr >>
-                cleanContainer bTreeOp >>
-                cleanContainer bTreeVarQ >>
-                cleanContainer bTreeQuant >>
+                removeAllChildren bTreeExpr >>
+                removeAllChildren bTreeOp >>
+                removeAllChildren bTreeVarQ >>
+                removeAllChildren bTreeQuant >>
                 setupEventExpr (fExpr te) TyUnknown >>= 
                 \(eb, tb) -> newBox >>= \ bb -> 
                 addMainExprToTree (fExpr te) t (id,id) eb tb >>= \te ->

@@ -107,13 +107,9 @@ closeErrPane = getErrPane >>= \erp ->
                        widgetShowAll erp)
 
 
--- Elimina todos los widget's de una contenedor.
-cleanContainer :: (ContainerClass c) => c -> IState ()
-cleanContainer c = liftIO (containerForeach c $ containerRemove c)
-
 -- | Limpia el arbol de tipado de una expresión.
 cleanTypedExprTree :: IState ()
-cleanTypedExprTree = getTreeExprBox >>= \bTree -> cleanContainer bTree
+cleanTypedExprTree = getTreeExprBox >>= removeAllChildren
 
 {- Las siguientes acciones muestran y ocultan el widget de fórmulas . -}
 openFormPane :: HBox -> Paned -> IState ()
@@ -185,7 +181,7 @@ addToBox b w = liftIO $ boxPackStart b w PackGrow 0
 
 -- | Elimina todos los controles contenidos en una caja (también
 -- destruye los hijos para liberar memoria -- está bien hacer esto?).
-removeAllChildren :: BoxClass b => b -> IRG
+removeAllChildren :: ContainerClass b => b -> IRG
 removeAllChildren b = liftIO $ containerForeach b $ 
                          \x -> containerRemove b x >> widgetDestroy x
 
