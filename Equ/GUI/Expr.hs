@@ -32,6 +32,7 @@ newExpr b = clearFocus b >>= \e ->
 clearFocus :: HBox -> IState PreExpr
 clearFocus b = getExpr >>= \e -> 
                updateFocus emptyExpr (id,id) >> 
+               showExpr >>
                updateFrmCtrl b >>
                clearExpr b >>
                (return . toExpr) e
@@ -254,7 +255,9 @@ writeConstant c box = liftIO (putStrLn "writeConstant called") >>
 -- expresión y construye el widget correspondiente.
 writeExpr :: HBox -> IRG
 writeExpr box = newEntry >>= \entry -> 
-                withState (onEntryActivate entry) (setExprFocus entry box) >>
+                getPath >>= \p ->
+                withState (onEntryActivate entry) 
+                              (localInPath p (setExprFocus entry box)) >>
                 removeAllChildren box >>
                 addToBox box entry >>
                 liftIO (widgetGrabFocus entry >>

@@ -31,6 +31,12 @@ import Data.Text(unpack)
 import Data.List (deleteBy)
 import qualified Data.Serialize as S
 import qualified Data.ByteString as L
+
+
+unselectAll :: TreeView -> IState ()
+unselectAll tv = liftIO (treeViewGetSelection tv >>= \tree -> 
+                         treeSelectionSetMode tree SelectionSingle >>
+                         treeSelectionUnselectAll tree)
     
 -- | Abstracción de la acción que queremos realizar al cerrar la ventana.
 quitAction :: Window -> IO ()
@@ -43,9 +49,7 @@ getMenuButton w = xmlGetWidget w castToMenuItem
 
 {- Las siguientes acciones muestran y ocultan la lista de símbolos. -}
 openSymFrame :: IState ()
-openSymFrame = do
-    f <- getSymFrame
-    liftIO (widgetShowAll f)
+openSymFrame = getSymFrame >>= liftIO . widgetShowAll
 
 hideSymFrame :: IState ()
 hideSymFrame = do
@@ -232,7 +236,9 @@ removeExpr b s = do RightButton <- eventButton
 newFocusToSym :: WidgetClass w => HBox -> GoBack -> w -> GRef -> EventM EButton ()
 newFocusToSym l f sym s = do LeftButton <- eventButton 
                              eventWithState (updateFrmCtrl l >>
-                                             updatePath f >>                                              
+                                             updatePath f >>
+                                             getSymCtrl >>= 
+                                             unselectAll >>
                                              openSymFrame) s
                              liftIO $ highlightBox l focusBg
                              -- liftIO $ widgetGrabFocus sym

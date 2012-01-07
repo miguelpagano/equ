@@ -3,7 +3,6 @@ module Equ.GUI.SymbolList where
 
 import Equ.GUI.Types
 import Equ.GUI.Utils
-import Equ.GUI.Widget
 import Equ.GUI.Expr
 
 import Equ.Theories
@@ -43,7 +42,7 @@ setupSymbolList tv =
 
 eventsSymbolList :: TreeView -> ListStore (String,HBox -> IRG) -> IRG
 eventsSymbolList tv list =
-     liftIO(treeViewGetSelection tv >>= \tree -> 
+     liftIO (treeViewGetSelection tv >>= \tree -> 
      treeSelectionSetMode tree SelectionSingle >>
      treeSelectionUnselectAll tree >>
      treeViewSetModel tv list >> widgetShowAll tv >> return tree) >>= \tree ->
