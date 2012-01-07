@@ -4,6 +4,7 @@ module Equ.GUI.Expr where
 
 import Equ.GUI.Types
 import Equ.GUI.Utils
+import Equ.GUI.State
 import Equ.GUI.Settings
 import Equ.GUI.Widget
 

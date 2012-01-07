@@ -2,7 +2,7 @@
 module Equ.GUI.SymbolList where
 
 import Equ.GUI.Types
-import Equ.GUI.Utils
+import Equ.GUI.State
 import Equ.GUI.Expr
 
 import Equ.Theories

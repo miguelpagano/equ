@@ -11,7 +11,7 @@ import Equ.Proof hiding (goDownL, goDownR)
 
 
 import Equ.GUI.Types
-import Equ.GUI.Utils
+import Equ.GUI.State  --Utils
 import Equ.GUI.Settings
 
 
@@ -62,20 +62,15 @@ hideSymFrame = do
     liftIO (widgetHideAll f)
     
 openAxiomFrame :: IState ()
-openAxiomFrame = do
-    f <- getAxiomFrame
-    liftIO (widgetShow f)
-    
+openAxiomFrame = getAxiomFrame >>= liftIO . widgetShow
+   
 hideAxiomFrame :: IState ()
-hideAxiomFrame = do
-    f <- getAxiomFrame
-    liftIO (widgetHideAll f)
+hideAxiomFrame = getAxiomFrame >>= liftIO . widgetHideAll
 
 -- | Reportar errores usando la panel de errores. Toma un mensaje de error y 
 -- lo muestra en el panel. TODO: Que pasa si el string es muuuuuy largo. 
 reportErrWithErrPaned :: String -> IState ()
-reportErrWithErrPaned s = setErrMessage s >>
-                          openErrPane
+reportErrWithErrPaned s = setErrMessage s >> openErrPane
 
 
 -- | Reportar resultados exitosos en la consola.
@@ -262,6 +257,7 @@ unlight Nothing w = widgetModifyBg w (toEnum 0) genericBg
 unlight (Just bg) w = widgetModifyBg w (toEnum 0) bg
 
 
+-- TODO: estamos usando esto?
 -- | Funcion para mostrar dialogo con mensaje de error
 errorDialog :: String -> IO ()
 errorDialog message = do
@@ -278,59 +274,3 @@ errorDialog message = do
     dialogRun dialog
     widgetDestroy dialog
     
-
-{- Conjunto de funciones para cargar y guardar una lista de expresiones.
-    Esto es una prueba no mas de lo que podemos llegar a querer hacer con
-    las pruebas.
-    ESTO ESTA SUPER MAL ACÁ, EN ESTE MODULO.
--}
--- exprListFile :: FilePath
--- exprListFile = "Saves/FormList"
--- 
--- pseudoProofFile :: FilePath
--- pseudoProofFile = "Saves/FormList"
--- 
--- saveDummyProof :: IState ()
--- saveDummyProof = getExprListFromProof >>= 
---                 \l -> liftIO $ encodeFile pseudoProofFile $ map (\(TypedExpr e t _ _ _) -> (e,t)) l
--- 
--- loadDummyProof :: VBox -> IState ()
--- loadDummyProof b = liftIO (decodeFile pseudoProofFile) >>= loadDummyProof' b
--- 
--- loadDummyProof' :: VBox -> [(Focus, Type)] -> IState ()
--- loadDummyProof' b [] = liftIO $ containerGetChildren b >>= \(e:es) -> containerRemove b e >> return ()
--- loadDummyProof' b ((f,t):es) =  get >>= \s -> setupEventExpr f t >>= \(eb, tb) ->
---                                 labelStr "≡ \t\t\t\t [AXIOMA/TEOREMA]" >>= \l ->
---                                 liftIO (boxPackStart b l PackNatural 2) >>
---                                 liftIO (boxPackStart b eb PackNatural 2) >>
---                                 liftIO (widgetShowAll b) >>
---                                 liftIO (configEventSelectExprFromProof eb s) >>
---                                 addExprToProof f eb tb >>
---                                 loadDummyProof' b es
--- 
--- saveFormList :: IState ()
--- saveFormList = getTypedFormList >>= 
---                \l -> liftIO $ encodeFile exprListFile $ map (\(TypedExpr e t _ _ _) -> (e,t)) l
--- 
--- loadFormList :: IState ()
--- loadFormList = liftIO (decodeFile exprListFile) >>= loadFormList'
--- 
--- loadFormList' :: [(Focus, Type)] -> IState ()
--- loadFormList' [] = return ()
--- loadFormList' ((f,t):es) = get >>= \s -> getTypedFormBox >>=
---                        \b -> setupEventExpr f t >>= \(eb, tb) ->
---                        liftIO (boxPackStart b eb PackNatural 2) >>
---                        liftIO (widgetShowAll eb) >>
---                        liftIO (configEventSelectExprFromList eb s) >>
---                        addExprToList f eb tb >>
---                        loadFormList' es
--- 
--- encodeFile :: S.Serialize a => FilePath -> a -> IO ()
--- encodeFile f v = L.writeFile f (S.encode v)
--- 
--- decodeFile :: S.Serialize a => FilePath -> IO a
--- decodeFile f = do s <- L.readFile f
---                   either (error) (return) $ S.runGet (do v <- S.get
---                                                          m <- S.isEmpty
---                                                          m `seq` return v) s
--- 

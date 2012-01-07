@@ -2,6 +2,7 @@
 module Equ.GUI.Gui where
 
 import Equ.GUI.Types
+import Equ.GUI.State
 import Equ.GUI.Utils
 import Equ.GUI.Widget
 import Equ.GUI.Settings
@@ -119,42 +120,6 @@ main = do
         withState (onToolButtonClicked checkType) typedCheckType
         withState (onToolButtonClicked cleanType) cleanTypeInTree
 
---         hideTypedOptionPane >>
---         hideTypedFormPane >>
---         hidePane formBox errPane >>
---         hidePane formBox formPane >>
---         hideSymPane >>
---         setupForm formBox >>
---         setupSymbolList symbolList >>
---         withState (onToolButtonClicked closeTEPaneButton) 
---                   (hideTypedFormPane >> 
---                    cleanTypedFormPane >>
---                    cleanTypedTreeExpr >>
---                    hideTypedOptionPane) >>
---         withState (onToolButtonClicked exprEdit) 
---                   (typedExprEdit formBox) >>
---         withState (onToolButtonClicked exprInEdit) 
---                   (typedExprInEdit) >>
---         withState (onToolButtonClicked exprTree) 
---                   (cleanTypedFormPane >> 
---                    cleanTypedTreeExpr >> 
---                    typedExprTree) >>
---         withState (onToolButtonClicked saveExpr) 
---                   (cleanTypedFormPane >> 
---                    cleanTypedTreeExpr >> 
---                    hideTypedOptionPane >>
---                    hideTypedFormPane >>
---                    saveTypedExpr) >>
---         withState (onToolButtonClicked exprTop) 
---                   (hideTypedFormPane >> cleanTypedFormPane) >>
---         withState (onToolButtonClicked exprRemove)
---                   (typedExprRemove >> 
---                    hideTypedOptionPane) >>
---         withState (onToolButtonClicked exprRemoveAll)
---                   (typedExprRemoveAll >> 
---                    hideTypedFormPane >> 
---                    cleanTypedFormPane >>
---                    hideTypedOptionPane)
     widgetShowAll window
 
     mainGUI
@@ -175,8 +140,12 @@ main = do
           
 dialogLoadProof :: GRef -> VBox -> IO ()
 dialogLoadProof ref centralBox = do
-    dialog <- fileChooserDialogNew (Just "Cargar Prueba") Nothing FileChooserActionOpen
-                                [("Cargar",ResponseAccept),("Cancelar",ResponseCancel)]
+    dialog <- fileChooserDialogNew (Just "Cargar Prueba") 
+                                  Nothing 
+                                  FileChooserActionOpen
+                                  [ ("Cargar",ResponseAccept)
+                                  , ("Cancelar",ResponseCancel)]
+
     setFileFilter dialog "*.equ" "Prueba de Equ"
     response <- liftIO $ dialogRun dialog
     
@@ -194,8 +163,11 @@ dialogLoadProof ref centralBox = do
 
 saveProofDialog :: IRG
 saveProofDialog = do
-    dialog <- liftIO $ fileChooserDialogNew (Just "Guardar Prueba") Nothing FileChooserActionSave 
-                                   [("Guardar",ResponseAccept),("Cancelar",ResponseCancel)]
+    dialog <- liftIO $ fileChooserDialogNew (Just "Guardar Prueba") 
+                                           Nothing 
+                                           FileChooserActionSave 
+                                           [ ("Guardar",ResponseAccept)
+                                           , ("Cancelar",ResponseCancel)]
                                    
     liftIO $ setFileFilter dialog "*.equ" "Prueba de Equ"
                                    
@@ -206,9 +178,10 @@ saveProofDialog = do
              selected <- liftIO $ fileChooserGetFilename dialog
              liftIO $ putStrLn ("aceptar clicked. Selected is " ++ show selected)
              case selected of
-                  Just filepath -> saveProof filepath >> (liftIO $ widgetDestroy dialog)
-                  Nothing -> liftIO $ widgetDestroy dialog
-         _ -> liftIO $ widgetDestroy dialog
+                  Just filepath -> saveProof filepath >> return ()
+                  Nothing -> return ()
+         _ -> return ()
+    liftIO $ widgetDestroy dialog
                          
 saveProof :: FilePath -> IRG
 saveProof filepath = getProof >>= \pf -> liftIO $ encodeFile filepath (toProof pf)
@@ -250,14 +223,14 @@ saveTheoremDialog ref aListStore = do
     widgetShowAll box
     
     response <- dialogRun dialog
-    if response==ResponseApply
-       then entryGetText entry >>= \th_name ->
-            evalStateT (getValidProof >>= return . fromRight >>= \proof ->
-                        addTheorem (createTheorem (pack th_name) proof) >>= \theo ->
-                        liftIO $ listStoreAppend aListStore (addItem theo)) ref >>
-            widgetDestroy dialog
-            
-       else widgetDestroy dialog
+    case response of
+      ResponseApply -> entryGetText entry >>= \th_name ->
+                      evalStateT (getValidProof >>= return . fromRight >>= \proof ->
+                                  addTheorem (createTheorem (pack th_name) proof) >>= \theo ->
+                                  liftIO $ listStoreAppend aListStore (addItem theo)) ref >>
+                      return ()
+      _ -> return ()
+    widgetDestroy dialog
        
     where addItem :: (Truth t, Show t) => t -> (String, HBox -> IRG)
           addItem t = (show t, writeTruth $ truthBasic t)

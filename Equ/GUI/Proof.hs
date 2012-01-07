@@ -2,7 +2,9 @@
 module Equ.GUI.Proof where
 
 import Equ.GUI.Types
+import Equ.GUI.State
 import Equ.GUI.Utils
+
 import Equ.GUI.Settings
 import Equ.GUI.SymbolList
 import Equ.GUI.TruthList
@@ -20,6 +22,7 @@ import qualified Graphics.UI.Gtk as G
 import Graphics.UI.Gtk.Gdk.EventM
 import Graphics.UI.Gtk.Glade (GladeXML,xmlGetWidget)
 import Graphics.UI.Gtk.Display.Image
+
 import Data.Reference
 import Data.Maybe(fromJust)
 import Control.Monad.Trans(lift,liftIO)
@@ -27,7 +30,7 @@ import Control.Monad.State(get,evalStateT)
 import Data.Text(unpack)
 import Data.Map(empty)
 import Data.List(elemIndex)
-import Data.Either(rights)
+
 import qualified Data.Foldable as F (forM_,mapM_)
 
 -- | Crea una nueva referencia
@@ -401,7 +404,6 @@ eventsExprWidget ext_box proofRef hb w fUpdate fGet fname =
                     return False
 
                     
-fromRight = head . rights . return          
 
 {- | Funcion para obtener la caja correspondiente al paso de la prueba en el que estamos
    dentro de una transitividad.
