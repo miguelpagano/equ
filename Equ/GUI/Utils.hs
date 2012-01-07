@@ -98,6 +98,9 @@ local' f = askRef >>= \oldState -> f oldState >>= \a ->
 localPath :: MGoBack -> IState a -> IState a
 localPath p act = local' $ \st -> (updatePath . (p .^) . (pathExpr . fromJust . gExpr)) st >> act
 
+localInPath :: GoBack -> IState a -> IState a
+localInPath p act = getPath >>= \p' -> updatePath p >> act >>= \r -> updatePath p' >> return r
+
 -- | Actualiza el mensaje que se muestra en el área de estado.
 updateStatus :: String -> IState ()
 updateStatus msg = withRefValue (\s -> putMsg (status s) msg) 
@@ -402,7 +405,7 @@ w' .*: w = Boxeable w' : Boxeable w : []
 -- TODO: debemos hacer renombre si la variable está ligada?
 -- | Actualización de la variable de cuantificación.
 --updateQVar :: String -> IState ()
-updateQVar v = updateExpr'' putVar 
+updateQVar v p = localInPath p $ update (updateExpr'' putVar) 
     where putVar (Quant q _ r t) = Quant q v r t
           putVar e = e
 

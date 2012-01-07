@@ -18,6 +18,7 @@ import Graphics.UI.Gtk.Gdk.EventM
 import Data.Text (unpack)
 import Control.Monad.Trans(lift,liftIO)
 import Control.Monad.State(get)
+import Control.Arrow((***))
 
 -- | Devuelve la expresión que se estaba construyendo y empieza
 -- una nueva construcción.
@@ -145,7 +146,8 @@ frameExp e@(App e1 e2) = newBox >>= \box ->
 -- Este caso tiene un hack medio feo; nos fijamos en el texto de
 -- variable para ver si la construimos nosotros o no.
 frameExp e@(Quant q v e1 e2) = newBox >>= \box ->
-                               quantVar v >>= \vbox ->
+                               getPath >>= \p ->
+                               quantVar v p >>= \vbox ->
                                localPath (goDown,goUp)  (frameExp e1) >>= \(WExpr box1 _) ->
                                localPath (goDownR,goUp) (frameExp e2) >>= \(WExpr box2 _) ->
                                labelStr (qInit ++ (unpack $ tRepr q)) >>= \lblQnt ->
@@ -161,41 +163,44 @@ frameExp e@(Quant q v e1 e2) = newBox >>= \box ->
                                setupFormEv box lblEnd e >>
                                return (WExpr box e)
     where 
-        quantVar :: Variable -> IState HBox
-        quantVar v = newBox >>= \box ->
-                     if isPlaceHolderVar v
-                     then entryvar box >> return box
-                     else lblVar box v >> return box
+        quantVar :: Variable -> GoBack -> IState HBox
+        quantVar v p = newBox >>= \box ->
+                       if isPlaceHolderVar v
+                       then entryvar box p >> return box
+                       else lblVar box v p >> return box
                      
-        entryvar box = newEntry >>= \entry ->
-                       liftIO (set entry [ entryEditable := True ]) >>
-                       withState (onEntryActivate entry) 
-                                     (liftIO (entryGetText entry) >>=
-                                      return . parserVar >>=
-                                      either (reportErrWithErrPaned . show) 
-                                                 (\v -> replaceEntry box v >>
-                                                       update (updateQVar v))) >>
-                       entryDim entry entryVarLength >>
-                       addToBox box entry >>
-                       liftIO (widgetShowAll box)
+        entryvar box p = newEntry >>= \entry ->
+                         liftIO (set entry [ entryEditable := True ]) >>
+                         withState (onEntryActivate entry) 
+                           (liftIO (entryGetText entry) >>=
+                                   return . parserVar >>=
+                                   either (reportErrWithErrPaned . show) 
+                                           (\v -> replaceEntry box v p >>
+                                                 updateQVar v p >>
+                                                 showExpr >>
+                                                 return ())) >>
+                         entryDim entry entryVarLength >>
+                         addToBox box entry >>
+                         liftIO (widgetShowAll box)
 
-        replaceEntry b v = removeAllChildren b >> lblVar b v        
+        replaceEntry b v p = removeAllChildren b >> lblVar b v p
 
-        lblVar b v = (labelStr . repr) v >>= \lblVar -> 
-                     liftIO eventBoxNew >>= \eb ->
-                     addToBox b eb >>
-                     liftIO (set eb [ containerChild := lblVar ]) >>                    
-                     addToBox b eb >>
-                     get >>= \s ->
-                     addHandler eb buttonPressEvent (editVar b s) >>
-                     liftIO (widgetShowAll b)                           
+        lblVar b v p = (labelStr . repr) v >>= \lblVar -> 
+                       liftIO eventBoxNew >>= \eb ->
+                       addToBox b eb >>
+                       liftIO (set eb [ containerChild := lblVar ]) >>                    
+                       addToBox b eb >>
+                       get >>= \s ->
+                       addHandler eb buttonPressEvent (editVar b s p) >>
+                       liftIO (widgetShowAll b)                           
 
-        editVar b s = do RightButton <- eventButton
-                         eventWithState (removeAllChildren b >>
-                                         quantVar placeHolderVar >>=
-                                         addToBox b >>
-                                         liftIO (widgetShowAll b)) s 
-                         return ()
+        editVar b s p = do RightButton <- eventButton
+                           eventWithState (removeAllChildren b >>
+                                           quantVar placeHolderVar p >>=
+                                           addToBox b >>
+                                           showExpr >>
+                                           liftIO (widgetShowAll b)) s 
+                           return ()
 
         qInit :: String
         qInit = quantInit equLang
