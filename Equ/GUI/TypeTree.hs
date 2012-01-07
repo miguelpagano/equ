@@ -10,6 +10,7 @@ import Equ.Rule
 import Equ.Theories
 import Equ.Proof hiding (goDownL, goDownR, goTop, goUp)
 
+import Equ.GUI.Utils
 import Equ.GUI.Widget
 import Equ.GUI.Types
 import Equ.GUI.State
@@ -424,7 +425,7 @@ configExprEntry eText b te = withState (onEntryActivate eText)
 
 paintBranchErr :: Focus -> IState ()
 paintBranchErr f =  searchFocusInTree f >>= \fs ->
-                    liftIO (putStrLn $ show $ map (fExpr) fs) >>
+                    liftIO (debug $ show $ map (fExpr) fs) >>
                     paint fs
     where
         paint :: [ExprState] -> IState ()
@@ -467,7 +468,7 @@ goTypedExpr go te = case (go . fExpr) te of
                 Nothing ->  return Nothing
                 Just f ->   get >>= \s -> setupEventExpr f (getTypeFocus f) >>= 
                             \(eb,tb) -> 
-                            liftIO (putStrLn $ (show f) ++ show (getTypeFocus f)) >>
+                            liftIO (debug $ (show f) ++ show (getTypeFocus f)) >>
                             liftIO (configEventSelectTypeFromTree tb s) >>
                             return (Just ((te' f eb tb), eb, tb))
     where 

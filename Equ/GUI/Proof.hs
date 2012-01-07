@@ -99,7 +99,7 @@ completeProof p@(Simple _ rel f1 f2 b) center_box top_box proofRef moveFocus = d
 createNewProof :: (Maybe Proof) -> VBox -> IState ()
 createNewProof maybe_proof ret_box = do
     s <- get
-    liftIO $ putStrLn "creando prueba..."
+    liftIO $ debug "creando prueba..."
     
     -- delete all children
     liftIO $ containerForeach ret_box $ \x -> containerRemove ret_box x >> widgetDestroy x
@@ -216,7 +216,7 @@ createCenterBox center_box top_box ref moveFocus rel maybe_basic = do
     
     eb_axiom_box `on` buttonPressEvent $ tryEvent $ do
         LeftButton <- eventButton
-        liftIO $ putStrLn "axiom_box clicked"
+        liftIO $ debug "axiom_box clicked"
         eventWithState (unSelectBox >>
                         changeProofFocus moveFocus (Just axiom_box) >>
                         getProof >>= \pf ->
@@ -226,7 +226,7 @@ createCenterBox center_box top_box ref moveFocus rel maybe_basic = do
         
     eb_axiom_box `on` buttonPressEvent $ tryEvent $ do
         RightButton <- eventButton
-        liftIO $ putStrLn "axiom_box right clicked"
+        liftIO $ debug "axiom_box right clicked"
         eventWithState (changeProofFocus moveFocus (Just axiom_box)) ref
         liftIO $ containerForeach axiom_box $ \x -> containerRemove axiom_box x >> widgetDestroy x
         label <- liftIO (labelNew (Just $ "?"))
@@ -399,7 +399,7 @@ eventsExprWidget ext_box proofRef hb w fUpdate fGet fname =
                     -- movemos el proofFocus hasta donde está esta expresión.
                     eventWithState (updateModifExpr fUpdate >>
                                     updateSelectedExpr fGet) proofRef
-                    liftIO $ putStrLn fname
+                    liftIO $ debug $ "fname in eventsExprWidget: " ++ fname
                     liftIO $ widgetShowAll eb
                     return False
 
@@ -414,7 +414,7 @@ eventsExprWidget ext_box proofRef hb w fUpdate fGet fname =
     -}
 proofFocusToBox :: ProofPath -> VBox -> IO VBox
 proofFocusToBox = go
-    where go p b = putStrLn ("proofFocusToBox: Path = " ++ show p) >>
+    where go p b = debug ("proofFocusToBox: Path = " ++ show p) >>
                    case p of
                         Top -> return b
                         TransL p' _ -> go p' b >>= getBox 0

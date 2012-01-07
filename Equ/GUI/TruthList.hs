@@ -2,7 +2,7 @@
 module Equ.GUI.TruthList where
 
 import Equ.GUI.Types
-import Equ.GUI.Utils
+import Equ.GUI.State
 import Equ.GUI.Widget
 import Equ.GUI.Expr
 

@@ -125,18 +125,18 @@ main = do
     mainGUI
 
     where undoEvent centralBox = 
-                        liftIO (putStrLn "Undo event") >>
+                        liftIO (debug "Undo event") >>
                         getUndoList >>= \ulist ->
                         case ulist of
-                             [] -> liftIO (putStrLn "lista undo vacia") >> return ()
-                             [p] -> liftIO (putStrLn "lista undo con un solo elemento") >> return ()
+                             [] -> liftIO (debug "lista undo vacia") >> return ()
+                             [p] -> liftIO (debug "lista undo con un solo elemento") >> return ()
                              p':p:ps -> (F.forM_ (urProof p) $
                                     \pf -> createNewProof (Just $ toProof pf) centralBox) >>
                                     updateUndoList (p:ps) 
                                     
                         >>
                         getUndoList >>= \ulist' ->
-                        liftIO (putStrLn $ "UndoList es " ++ show ulist')
+                        liftIO (debug $ "UndoList es " ++ show ulist')
           
 dialogLoadProof :: GRef -> VBox -> IO ()
 dialogLoadProof ref centralBox = do
@@ -152,7 +152,7 @@ dialogLoadProof ref centralBox = do
     case response of
          ResponseAccept -> do
              selected <- liftIO $ fileChooserGetFilename dialog
-             liftIO $ putStrLn ("aceptar clicked. Selected is " ++ show selected)
+             liftIO $ debug ("aceptar clicked. Selected is " ++ show selected)
              case selected of
                   Just filepath -> decodeFile filepath >>= \proof ->
                                 flip evalStateT ref
@@ -176,7 +176,7 @@ saveProofDialog = do
     case response of
          ResponseAccept -> do
              selected <- liftIO $ fileChooserGetFilename dialog
-             liftIO $ putStrLn ("aceptar clicked. Selected is " ++ show selected)
+             liftIO $ debug ("aceptar clicked. Selected is " ++ show selected)
              case selected of
                   Just filepath -> saveProof filepath >> return ()
                   Nothing -> return ()
@@ -188,7 +188,7 @@ saveProof filepath = getProof >>= \pf -> liftIO $ encodeFile filepath (toProof p
 
 saveTheorem :: GRef -> ListStore (String, HBox -> IRG) -> IO ()
 saveTheorem ref aListStore = evalStateT (updateValidProof >> checkValidProof) ref >>= \valid ->
-                             putStrLn ("valid is " ++ show valid) >>
+                             debug ("valid is " ++ show valid) >>
                              if valid then saveTheoremDialog ref aListStore
                                       else errorDialog "La prueba no es válida"
 

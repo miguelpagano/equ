@@ -105,3 +105,8 @@ isVBox :: WidgetClass w => w -> Bool
 isVBox w = isA w gTypeVBox 
 
 fromRight = head . rights . return          
+
+-- | Funcion para emitir mensajes de debugging.
+debug :: String -> IO ()
+debug = putStrLn
+--debug = const $ return ()

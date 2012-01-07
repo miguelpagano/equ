@@ -11,7 +11,8 @@ import Equ.Proof hiding (goDownL, goDownR)
 
 
 import Equ.GUI.Types
-import Equ.GUI.State  --Utils
+import Equ.GUI.State
+import Equ.GUI.Utils
 import Equ.GUI.Settings
 
 
@@ -55,9 +56,9 @@ hideSymFrame :: IState ()
 hideSymFrame = do
     f <- getSymFrame
     name <- liftIO $ G.get f widgetName
-    liftIO $ putStrLn "\nPROBANDO HIDESYMPANE:"
-    liftIO $ putStrLn (maybe "No name" (\n -> if null n then "Nombre vacio" else n) name)
-    liftIO $ putStrLn "END PROBANDO HIDESYMPANE\n"
+    liftIO $ debug "\nPROBANDO HIDESYMPANE:"
+    liftIO $ debug (maybe "No name" (\n -> if null n then "Nombre vacio" else n) name)
+    liftIO $ debug "END PROBANDO HIDESYMPANE\n"
     main_box <- getParentNamed "mainBox" $ toWidget f
     liftIO (widgetHideAll f)
     
@@ -75,7 +76,7 @@ reportErrWithErrPaned s = setErrMessage s >> openErrPane
 
 -- | Reportar resultados exitosos en la consola.
 reportSuccess :: String -> IState ()
-reportSuccess = liftIO . putStrLn
+reportSuccess = liftIO . debug
 
 
 -- | Abre el panel de error.

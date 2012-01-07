@@ -188,11 +188,11 @@ updateExpr' e = updateExpr'' (const e)
     
 updateProofNoUndo pf = update (updateProof' pf) >>
                        showProof >>
-                       getProof >>= liftIO . putStrLn . show
+                       getProof >>= liftIO . debug . show
     
 updateProof pf = update (updateProof' pf) >>
                  showProof >>
-                 getProof >>= liftIO . putStrLn . show >>
+                 getProof >>= liftIO . debug . show >>
                  addToUndoList
 
 updateProof' :: ProofFocus -> GState -> GState
@@ -237,7 +237,7 @@ del estado. -}
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
 updateFocus :: Focus -> GoBack -> IState ()
 updateFocus e' f = update (updateFocus' e' f) >> 
-                   liftIO (putStrLn "updateFocus") >> 
+                   liftIO (debug "updateFocus") >> 
                    showProof
 
 updateFocus' :: Focus -> GoBack -> GState -> GState
@@ -291,7 +291,7 @@ addToUndoList = getProof >>= \p ->
                 getUndoList >>= \ulist ->
                 updateUndoList ((urmove p):ulist) >>
                 getUndoList >>= \ulist' ->
-                liftIO (putStrLn $ "addToUndoList. UndoList es " ++ show ulist')
+                liftIO (debug $ "addToUndoList. UndoList es " ++ show ulist')
                 
     where urmove p = URMove { urProof = Just p }          
                                  
@@ -305,7 +305,7 @@ getStatePart part = askRef >>= return . part
 
 
 getStatePartDbg :: String -> (GState -> a) -> IState a
-getStatePartDbg msg part = (liftIO $ putStrLn msg) >> getStatePart part
+getStatePartDbg msg part = (liftIO $ debug msg) >> getStatePart part
 
 getProof :: IState ProofFocus
 getProof = getStatePartDbg "getProof" (proof . fromJust . gProof)
@@ -424,7 +424,7 @@ getFormBox = getFrmCtrl >>= getParentNamed "formulaBox" . toWidget >>=
 getParentNamed :: String -> Widget -> IState Widget
 getParentNamed name = go
     where go w = liftIO (G.get w widgetName) >>= \name' ->
-                 liftIO (putStrLn (maybe "Sin nombre" (\n -> if null n then "Nombre vacio" else n) name')) >>
+                 liftIO (debug (maybe "Sin nombre" (\n -> if null n then "Nombre vacio" else n) name')) >>
                  if maybe False (== name) name'
                  then return w
                  else liftIO (widgetGetParent w) >>= go . fromJust
@@ -585,9 +585,9 @@ addMainExprToTree f t p be bt = updateTT (\gte -> gte { mainExpr = te }) >>
 checkValidProof :: IState Bool
 checkValidProof = getProof >>= \pf ->
                   return (toProof pf) >>= \pr ->
-                  liftIO (putStrLn ("la prueba es " ++ show pr)) >>
+                  liftIO (debug ("la prueba es " ++ show pr)) >>
                   getValidProof >>= \vp ->
-                  liftIO (putStrLn ("la prueba valida es " ++ show vp))  >>
+                  liftIO (debug ("la prueba valida es " ++ show vp))  >>
                   case vp of
                        Left _ -> return False
                        Right p -> return (p==pr)
