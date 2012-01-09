@@ -22,6 +22,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , getValidProof
                      , getExprProof
                      , getProof
+                     , getRedoList
                      -- * Modificacion del estado.
                      , updateExpr
                      , updateFrmCtrl
@@ -32,6 +33,11 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , updateValidProof
                      , updateProof
                      , addTheorem
+                     , addToRedoList
+                     , addToUndoListFromRedo
+                     , updateRedoList
+                     , setUndoing
+                     , setNoUndoing
                      -- * Otras funciones
                      , showExpr
                      , withState
@@ -101,7 +107,7 @@ import Data.List
 import Data.Reference
 import Control.Arrow(first,second,(***),(&&&))
 import Data.Maybe(fromJust)
-import Control.Monad(liftM)
+import Control.Monad(liftM,when)
 import Control.Monad.State(get,put,evalStateT)
 import Control.Monad.Trans(liftIO)
 
@@ -287,16 +293,36 @@ updateUndoList ulist = update $ \gst -> gst { gUndo = ulist }
                                  
                                  
 addToUndoList :: IRG
-addToUndoList = getProof >>= \p ->
+addToUndoList = getUndoing >>= \u -> when u $
+                getProof >>= \p ->
                 getUndoList >>= \ulist ->
                 updateUndoList ((urmove p):ulist) >>
                 getUndoList >>= \ulist' ->
-                liftIO (debug $ "addToUndoList. UndoList es " ++ show ulist')
+                liftIO (debug $ "addToUndoList. UndoList es " ++ show ulist') >>
+                cleanRedoList
                 
     where urmove p = URMove { urProof = Just p }          
-                                 
-                                 
+             
+addToUndoListFromRedo :: URMove -> IRG
+addToUndoListFromRedo m = getUndoList >>= \ulist ->
+                          updateUndoList (m:ulist)
+             
+updateRedoList :: RedoList -> IRG
+updateRedoList rlist = update $ \gst -> gst { gRedo = rlist }
+             
+addToRedoList :: URMove -> IRG
+addToRedoList m = getRedoList >>= \rlist ->
+                  updateRedoList (m:rlist)
 
+cleanRedoList :: IRG
+cleanRedoList = update $ \gst -> gst { gRedo = [] }
+
+setUndoing :: IRG
+setUndoing = update $ \gst -> gst { undoing = True }
+
+setNoUndoing :: IRG
+setNoUndoing = update $ \gst -> gst { undoing = False }
+ 
 {- Las nueve funciones siguientes devuelven cada uno de los
 componentes del estado. -}
 
@@ -435,7 +461,13 @@ getTheorems = getStatePart theorems
         
 getUndoList :: IState UndoList
 getUndoList = getStatePart gUndo
-                 
+
+getRedoList :: IState RedoList
+getRedoList = getStatePart gRedo
+ 
+getUndoing :: IState Bool
+getUndoing = getStatePart undoing
+ 
 -- TODO: debemos hacer renombre si la variable está ligada?
 -- | Actualización de la variable de cuantificación.
 --updateQVar :: String -> IState ()
@@ -656,3 +688,4 @@ initialState sl al fc sb ce = GState Nothing
                               (Statistic [])
                               (sb,ce)
                               [] -- lista de teoremas, TODO: que se carguen los teoremas desde disco
+                              True -- undoing

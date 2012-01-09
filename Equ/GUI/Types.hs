@@ -60,6 +60,7 @@ data GState = GState { gProof :: Maybe ProofState -- ^ Prueba en progreso.
                      , gStatistic :: Statistic -- ^ Conjunto de estadisticas.
                      , status :: StatusPlace  -- ^ La barra de estado.
                      , theorems :: [Theorem]
+                     , undoing :: Bool
                      }
  
 data ExprState = ExprState { fExpr :: Focus
