@@ -107,6 +107,9 @@ main = do
     onActivateLeaf itemUndo $ flip evalStateT gRef $ undoEvent centralBox
     onToolButtonClicked unDo $ flip evalStateT gRef $ undoEvent centralBox
     
+    onActivateLeaf itemRedo $ flip evalStateT gRef $ redoEvent centralBox
+    onToolButtonClicked reDo $ flip evalStateT gRef $ redoEvent centralBox
+    
     flip evalStateT gRef $ do
         axioms <- getAxiomCtrl
         eventsTruthList axioms aListStore
@@ -128,13 +131,28 @@ main = do
                         case ulist of
                              [] -> liftIO (debug "lista undo vacia") >> return ()
                              [p] -> liftIO (debug "lista undo con un solo elemento") >> return ()
-                             p':p:ps -> (F.forM_ (urProof p) $
+                             p':p:ps -> setNoUndoing >>
+                                    (F.forM_ (urProof p) $
                                     \pf -> createNewProof (Just $ toProof pf) centralBox) >>
-                                    updateUndoList (p:ps) 
+                                    updateUndoList (p:ps) >>
+                                    setUndoing >>
+                                    addToRedoList p'
                                     
                         >>
                         getUndoList >>= \ulist' ->
                         liftIO (debug $ "UndoList es " ++ show ulist')
+                        
+          redoEvent centralBox =
+                        liftIO (debug "Redo event") >>
+                        getRedoList >>= \rlist ->
+                        case rlist of
+                             [] -> liftIO (debug "lista redo vacia") >> return ()
+                             p:ps -> setNoUndoing >>
+                                   (F.forM_ (urProof p) $
+                                   \pf -> createNewProof (Just $ toProof pf) centralBox) >>
+                                   updateRedoList ps >>
+                                   addToUndoListFromRedo p >>
+                                   setUndoing
           
 dialogLoadProof :: GRef -> VBox -> IO ()
 dialogLoadProof ref centralBox = do
