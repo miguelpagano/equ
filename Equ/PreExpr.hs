@@ -10,10 +10,11 @@ module Equ.PreExpr ( freeVars, freshVar
                    , emptyExpr, holePreExpr
                    , agrupOp, agrupNotOp, checkIsAtom, opOfFocus
                    , setType, updateOpType, setAtomType
-                   , isPreExprParent, isPreExprQuant, getVarFromQuant
-                   , getQFromQuant, setQuantType, setVarQType
+                   , isPreExprParent, isPreExprQuant
+                   , setQuantType, setVarQType
                    , getVarTypeFromQuantType, getQTypeFromQuantType
                    , resetTypeAllFocus, getTypeFocus
+                   , getQAndVarFromQuant 
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
@@ -216,10 +217,6 @@ getQTypeFromQuantType :: Type -> Type
 getQTypeFromQuantType (_ :-> t) = t   
 getQTypeFromQuantType _ = TyUnknown
 
-getVarFromQuant :: Focus -> Maybe Variable
-getVarFromQuant (Quant _ v _ _, _) = Just v
-getVarFromQuant _ = Nothing
-
-getQFromQuant :: Focus -> Maybe Quantifier
-getQFromQuant (Quant q _ _ _, _) = Just q
-getQFromQuant _ = Nothing
+getQAndVarFromQuant :: Focus -> Maybe (Quantifier, Variable)
+getQAndVarFromQuant (Quant q v _ _, _) = Just $ (q, v)
+getQAndVarFromQuant _ = Nothing

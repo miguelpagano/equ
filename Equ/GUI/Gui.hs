@@ -42,10 +42,8 @@ main = do
     -- get widgets
     window        <- xmlGetWidget xml castToWindow "mainWindow"
     quitButton    <- getMenuButton xml "QuitButton"
-    --formWidgetBox       <- xmlGetWidget xml castToHBox "formBox"
 
     cleanType    <- xmlGetWidget xml castToToolButton "cleanType"
-    saveExpr     <- xmlGetWidget xml castToToolButton "saveExpr"
     checkType    <- xmlGetWidget xml castToToolButton "checkType"
 
     statusBar     <- xmlGetWidget xml castToStatusbar "statusBar"
