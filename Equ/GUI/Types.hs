@@ -6,7 +6,7 @@ import Equ.PreExpr
 import Equ.Proof (Proof,PM,ProofFocus,Theorem)
 
 import Graphics.UI.Gtk ( WidgetClass, Statusbar, ContextId, HBox, TreeView
-                       , EventBox, Label, Button, Notebook, HPaned
+                       , EventBox, Label, Button, Notebook, HPaned, IconView
                        )
 
 import Equ.Types
@@ -51,7 +51,7 @@ data TreeExpr = TreeExpr { mainExpr :: ExprState
 data GState = GState { gProof :: Maybe ProofState -- ^ Prueba en progreso.
                      , gExpr :: Maybe ExprState -- ^ Expresión seleccionada.
                      , gTreeExpr :: Maybe TreeExpr -- ^ Árbol de una expresión.
-                     , symCtrl :: TreeView   -- ^ La lista de símbolos para construir expresiones.
+                     , symCtrl :: IconView   -- ^ La lista de símbolos para construir expresiones.
                      , axiomCtrl :: TreeView -- ^ La lista de axiomas para construir pruebas.
                      , gFaces :: Notebook -- ^ Las distintas caras de la interfaz.
                      , gUndo :: UndoList -- ^ Undo.

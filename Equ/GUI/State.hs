@@ -266,7 +266,7 @@ updateFrmCtrl l = update (\gst -> case gExpr gst of
                                         Just es -> gst { gExpr = Just $ es {eventExpr = l }})
 
 -- | Actualiza la lista de símbolos para construir expresiones.
-updateSymCtrl :: TreeView -> IState ()
+updateSymCtrl :: IconView -> IState ()
 updateSymCtrl t = update $ \gst -> gst { symCtrl = t }
 
 -- | Actualiza la función de ida-vuelta.
@@ -368,7 +368,7 @@ getTreeExpr = getStatePart gTreeExpr
 getFaces :: IState Notebook
 getFaces = getStatePart gFaces
 
-getSymCtrl :: IState TreeView
+getSymCtrl :: IState IconView
 getSymCtrl = getStatePartDbg "getSymCtrl" symCtrl
 
 getAxiomCtrl :: IState TreeView
@@ -679,7 +679,7 @@ eventWithState :: IState a -> GRef -> EventM t a
 eventWithState m = liftIO . evalStateT m
 
 -- | Estado inicial
-initialState :: TreeView -> TreeView -> Notebook -> Statusbar -> ContextId -> GState
+initialState :: IconView -> TreeView -> Notebook -> Statusbar -> ContextId -> GState
 initialState sl al fc sb ce = GState Nothing
                               Nothing
                               Nothing

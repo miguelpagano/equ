@@ -184,6 +184,8 @@ configTypeXEntry :: ExprState -> Entry -> HBox -> EventBox ->
                     (Type -> Type -> Type) ->
                     IState ()
 configTypeXEntry es eText b tb updateTypeXInMainExprTree getXType ft = 
+            liftIO (eText `on` keyPressEvent $ tryEvent (entryImContextFilterKeypress eText >>= \test -> 
+                                                        liftIO (debug (show test)) >> return ())) >>
             withState (onEntryActivate eText) 
                 (liftIO (entryGetText eText) >>= 
                 \text -> checkInType text >>= \checkText ->

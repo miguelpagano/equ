@@ -23,6 +23,8 @@ import Graphics.UI.Gtk.Gdk.EventM
 import Graphics.UI.Gtk.Glade (GladeXML,xmlGetWidget)
 import Graphics.UI.Gtk.Display.Image
 
+import Graphics.Rendering.Cairo
+
 import Data.Reference
 import Data.Maybe(fromJust)
 import Control.Monad.Trans(lift,liftIO)
@@ -346,6 +348,8 @@ createExprWidget :: PreExpr -> GRef -> (ProofFocus -> Maybe ProofFocus) ->
 createExprWidget expr ref moveFocus fUpdateFocus fGetFocus top_box = do
     
     
+    
+    
     hbox    <- hBoxNew False 2
     boxExprWidget <- hBoxNew False 2
     
@@ -357,13 +361,13 @@ createExprWidget expr ref moveFocus fUpdateFocus fGetFocus top_box = do
     button_apply <- buttonNewFromStock stockApply
     button_clear <- buttonNewFromStock stockClear
     expr_choices <- buttonNewWithLabel "e"
-    --widgetSetSizeRequest button_apply (-1) 30
+    widgetSetSizeRequest button_apply (-1) 30
     button_box <- hButtonBoxNew
     widgetSetSizeRequest button_box 200 (-1)
-    --widgetSetSizeRequest button_box 20 (-1)
-    --boxPackStart button_box button_apply PackNatural 2
+    
+    boxPackStart button_box button_apply PackNatural 2
     boxPackStart button_box expr_choices PackNatural 2
-    boxPackStart button_box button_clear PackNatural 2
+    --boxPackStart button_box button_clear PackNatural 2
     -- boxPackStart boxExprWidget label PackNatural 1
     boxPackStart boxExprWidget scrolled PackGrow 1
     boxPackStart boxExprWidget button_box PackNatural 1
@@ -394,13 +398,16 @@ eventsExprWidget :: HBox -> GRef -> HBox -> ExprWidget -> (ProofFocus -> Maybe P
 eventsExprWidget ext_box proofRef hb w moveFocus fUpdate fGet top_box =
     
     flip evalStateT proofRef $ 
+        liftIO setupOptionExprWidget >>
         liftIO setupFocusEvent >>
         setupForm (formBox w) >>
         liftIO ((clearButton w) `on` buttonPressEvent $ tryEvent $ 
                             eventWithState (clearFocus (formBox w) >> return ()) 
                             proofRef) >> return ()
     
-    where setupFocusEvent = do
+    where 
+        setupFocusEvent :: IO (ConnectId Button)
+        setupFocusEvent = do
                 eb <- eventBoxNew
                 set eb [ containerChild := hb ]
                 boxPackStart ext_box eb PackGrow 0
@@ -421,30 +428,108 @@ eventsExprWidget ext_box proofRef hb w moveFocus fUpdate fGet top_box =
 --                     liftIO $ widgetShowAll eb
 --                     return False
 
-          changeProofFocus' = unSelectBox >>
-                        changeProofFocus moveFocus Nothing >>
-                        getProof >>= \(p,path) ->
-                        selectBox (p,path) focusBg top_box >>
-                        liftIO (proofFocusToBox path top_box) >>= \center_box ->
-                        liftIO (axiomBoxFromCenterBox center_box) >>= \axiom_box ->
-                        changeProofFocus moveFocus (Just axiom_box)
+        changeProofFocus' = unSelectBox >>
+                            changeProofFocus moveFocus Nothing >>
+                            getProof >>= \(p,path) ->
+                            selectBox (p,path) focusBg top_box >>
+                            liftIO (proofFocusToBox path top_box) >>= \center_box ->
+                            liftIO (axiomBoxFromCenterBox center_box) >>= \axiom_box ->
+                            changeProofFocus moveFocus (Just axiom_box)
                         
-          showChoices = do
-              menu <- liftIO menuNew
-              pf <- getProof
-              exp1 <- return (fromJust $ getStartFocus pf)
-              m_axiom <- return (getBasicFocus pf)
-              case m_axiom of
-                   Nothing -> return ()
-                   Just axiom -> do
-                        choices <- return (possibleExpr (toExpr exp1) axiom)
-                        liftIO $ addToMenu menu choices
-                        liftIO $ widgetShowAll menu
-                        liftIO $ menuPopup menu Nothing
-              
-          addToMenu m [] = return ()
-          addToMenu m (x:xs) = menuItemNewWithLabel (show x) >>=
-                               menuShellAppend m
+        showChoices = do
+            menu <- liftIO menuNew
+            pf <- getProof
+            exp1 <- return (fromJust $ getStartFocus pf)
+            m_axiom <- return (getBasicFocus pf)
+            case m_axiom of
+                Nothing -> return ()
+                Just axiom -> do
+                    choices <- return (possibleExpr (toExpr exp1) axiom)
+                    liftIO $ addToMenu menu choices
+                    liftIO $ widgetShowAll menu
+                    liftIO $ menuPopup menu Nothing
+            
+        addToMenu m [] = return ()
+        addToMenu m (x:xs) = menuItemNewWithLabel (show x) >>=
+                            menuShellAppend m
+
+        setupOptionExprWidget :: IO ()
+        setupOptionExprWidget = do
+            bAnot <- makeOptionEvent "Anot"
+            set bAnot [widgetWidthRequest := 80, widgetHeightRequest := 10]
+            
+            bT <- makeOptionEvent "T"
+            set bT [widgetWidthRequest := 50, widgetHeightRequest := 10]
+            
+            da <- forShow drawX
+            eb <- eventBoxNew
+            set eb [ containerChild :=  da]
+            bInfo <- hBoxNew False 0
+            set bInfo [ containerChild :=  eb]
+            
+            boxPackStart ext_box bAnot PackNatural 10
+            boxPackStart ext_box bT PackNatural 10
+            boxPackStart ext_box bInfo PackNatural 10
+            widgetShowAll ext_box
+        
+        drawX :: Double -> Double -> Render ()
+        drawX w h = do
+                    moveTo 2 2
+                    lineTo (w-2) (h/3 - 2)
+                    moveTo w 0
+                    lineTo 0 (h/3)
+                    setLineWidth 2
+                    setSourceRGBA 1 0 0 1
+                    stroke
+                
+        drawTilde :: Double -> Double -> Render ()
+        drawTilde w h = do 
+                        moveTo 0 7
+                        lineTo 0 (h/3)
+                        moveTo w 0
+                        lineTo 0 (h/3)
+                        setLineWidth 2
+                        setSourceRGBA 0 1 0 0.6
+                        stroke
+        drawShout :: Double -> Double -> Render ()
+        drawShout w h = do 
+                        moveTo (w/2) 0
+                        lineTo (w/2) (h - h/2)
+                        moveTo (w/2) (h - h/2 + 4)
+                        lineTo (w/2) (h - h/2 + 8)
+                        setLineWidth 4
+                        setSourceRGBA 1 0.9 0 1
+                        stroke
+
+        makeOptionEvent :: String -> IO HBox
+        makeOptionEvent s = do
+            l <- labelNew $ Just s
+            eb <- eventBoxNew
+            b <- hBoxNew False 0
+            set eb [ containerChild := l ]
+            boxPackStart b eb PackGrow 10
+            generalSetupOptionEvent eb b
+            return b
+        
+        forShow :: (Double -> Double -> Render ()) -> IO DrawingArea
+        forShow draw = do
+                    da <- drawingAreaNew
+                    set da [widgetWidthRequest := 10, widgetHeightRequest := 5]
+                    onExpose da (\_ ->  do 
+                                        (w,h) <- widgetGetSize da
+                                        drawin <- widgetGetDrawWindow da
+                                        renderWithDrawable drawin 
+                                            (draw (fromIntegral w)(fromIntegral h))
+                                        return True)
+                    return da
+        
+        generalSetupOptionEvent :: EventBox -> HBox -> IO (ConnectId EventBox)
+        generalSetupOptionEvent eb b = do
+            onEvent eb enterNotifyEvent (highlightBox b hoverBg)
+            onEvent eb leaveNotifyEvent (unlightBox b Nothing)
+        
+        onEvent eb event action = eb `on` event $ tryEvent action
+
 
 {- | Funcion para obtener la caja correspondiente al paso de la prueba en el que estamos
    dentro de una transitividad.

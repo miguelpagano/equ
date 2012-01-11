@@ -32,6 +32,8 @@ import Control.Monad.Trans(liftIO)
 
 import qualified Data.Foldable as F (forM_)
 
+import Data.Map (fromList)
+
 main :: IO ()
 main = do 
     initGUI
@@ -43,12 +45,12 @@ main = do
     window        <- xmlGetWidget xml castToWindow "mainWindow"
     quitButton    <- getMenuButton xml "QuitButton"
 
-    cleanType    <- xmlGetWidget xml castToToolButton "cleanType"
-    checkType    <- xmlGetWidget xml castToToolButton "checkType"
+--     cleanType    <- xmlGetWidget xml castToToolButton "cleanType"
+--     checkType    <- xmlGetWidget xml castToToolButton "checkType"
 
     statusBar     <- xmlGetWidget xml castToStatusbar "statusBar"
     ctxExpr       <- statusbarGetContextId statusBar "Expr"
-    symbolList    <- xmlGetWidget xml castToTreeView "symbolList"
+    symbolList    <- xmlGetWidget xml castToIconView "symbolList"
     axiomList     <- xmlGetWidget xml castToTreeView "axiomList"
     
     symFrame <- xmlGetWidget xml castToFrame "symFrame"
@@ -64,8 +66,8 @@ main = do
     itemUndo <- xmlGetWidget xml castToImageMenuItem "undoMenuItem"
     itemRedo <- xmlGetWidget xml castToImageMenuItem "redoMenuItem"
     
-    faces <- xmlGetWidget xml castToNotebook "faces"
-    
+    --faces <- xmlGetWidget xml castToNotebook "faces"
+    faces <- notebookNew
     -- toolbuttons
     newProofTool <- xmlGetWidget xml castToToolButton "newProof"
     loadProofTool <- xmlGetWidget xml castToToolButton "loadProof"
@@ -75,12 +77,12 @@ main = do
     reDo <- xmlGetWidget xml castToToolButton "redoTool"
     
     fieldProofFaceBox <- xmlGetWidget xml castToHBox "fieldProofFaceBox"
-    fieldExprFaceBox <- xmlGetWidget xml castToVBox "fieldExprFaceBox"
+    --fieldExprFaceBox <- xmlGetWidget xml castToVBox "fieldExprFaceBox"
     
     proofFaceBox <- xmlGetWidget xml castToHBox "proofFaceBox"
-    exprFaceBox <- xmlGetWidget xml castToHBox "exprFaceBox"
-    boxGoProofFace <- xmlGetWidget xml castToHBox "boxGoProofFace"
-    boxGoExprFace <- xmlGetWidget xml castToHBox "boxGoExprFace"
+    --exprFaceBox <- xmlGetWidget xml castToHBox "exprFaceBox"
+--     boxGoProofFace <- xmlGetWidget xml castToHBox "boxGoProofFace"
+--     boxGoExprFace <- xmlGetWidget xml castToHBox "boxGoExprFace"
     
     showProofItem <- xmlGetWidget xml castToImageMenuItem "showProofPanelItem"
     showTypesItem <- xmlGetWidget xml castToImageMenuItem "showTypesPanelItem"
@@ -92,7 +94,7 @@ main = do
     onActivateLeaf quitButton $ quitAction window
     onDestroy window mainQuit
 
-    sListStore <- liftIO $ setupSymbolList symbolList
+    sListStore <- liftIO $ setupSymbolListBeta symbolList
     aListStore <- liftIO $ setupTruthList [] axiomList 
 
     onToolButtonClicked newProofTool (evalStateT (createNewProof Nothing centralBox) gRef)
@@ -110,16 +112,19 @@ main = do
     onActivateLeaf itemRedo $ flip evalStateT gRef $ redoEvent centralBox
     onToolButtonClicked reDo $ flip evalStateT gRef $ redoEvent centralBox
     
+    ims <- imContextSimpleNew
+    imContextSimpleAddTable ims (fromList [("ale", "ela")]) 4 4
+    
+    
     flip evalStateT gRef $ do
         axioms <- getAxiomCtrl
         eventsTruthList axioms aListStore
         symbols <- getSymCtrl
-        eventsSymbolList symbols sListStore
+        --eventsSymbolList symbols sListStore
         hidePane errPane
-        switchToProof faces boxGoProofFace (cleanTypedExprTree >> cleanTreeExpr)
-        switchToTypeTree faces boxGoExprFace typedExprTree
-        withState (onToolButtonClicked checkType) typedCheckType
-        withState (onToolButtonClicked cleanType) cleanTypeInTree
+        --switchToProof faces boxGoProofFace (cleanTypedExprTree >> cleanTreeExpr)
+        --switchToTypeTree faces boxGoExprFace typedExprTree
+
 
     widgetShowAll window
 

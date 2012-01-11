@@ -29,6 +29,27 @@ listSymbols = listStoreNew $ ("Expresión", writeExpr):
     where addItem :: (Syntactic s,ExpWriter s) => s -> (String, HBox -> IRG)
           addItem syn = (unpack $ tRepr syn, writeExp syn)
 
+setupSymbolListBeta :: IconView -> IO (ListStore (String,HBox -> IRG))
+setupSymbolListBeta iv = listSymbols >>= \list ->
+                         listStoreGetSize list >>= \sizeList ->
+                         iconViewSetColumns iv sizeList >>
+                         iconViewSetSelectionMode iv SelectionSingle >>
+                         iconViewSetModel iv (Just list) >>
+                         return list
+                         --setupSymbolListBeta' iv 0
+{-
+setupSymbolListBeta' :: IconView -> Int -> IO (ListStore (String,HBox -> IRG))
+setupSymbolListBeta' _ 0 = listSymbols >>= return
+setupSymbolListBeta' tv i = treeViewColumnNew >>= \col ->
+                            listSymbols >>= \list -> 
+                            treeViewSetHeadersVisible tv False >>
+                            cellRendererTextNew >>= \renderer ->
+                            listStoreGetValue list i >>= \val ->
+                            set renderer [cellText := fst val] >>
+                            treeViewColumnPackStart col renderer False >>
+                            treeViewAppendColumn tv col >>
+                            setupSymbolListBeta' tv (i-1)-}
+
 -- | La configuración de la lista de símbolos propiamente hablando.
 setupSymbolList :: TreeView -> IO (ListStore (String,HBox -> IRG))
 setupSymbolList tv = 

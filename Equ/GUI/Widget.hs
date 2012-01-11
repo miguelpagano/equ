@@ -34,11 +34,11 @@ import qualified Data.Serialize as S
 import qualified Data.ByteString as L
 
 
-unselectAll :: TreeView -> IState ()
-unselectAll tv = liftIO (treeViewGetSelection tv >>= \tree -> 
-                         treeSelectionSetMode tree SelectionSingle >>
-                         treeSelectionUnselectAll tree)
-    
+-- unselectAll :: IconView -> IState ()
+-- unselectAll tv = liftIO (treeViewGetSelection tv >>= \tree -> 
+--                          treeSelectionSetMode tree SelectionSingle >>
+--                          treeSelectionUnselectAll tree)
+--     
 -- | Abstracción de la acción que queremos realizar al cerrar la ventana.
 quitAction :: Window -> IO ()
 quitAction w = widgetDestroy w
@@ -229,8 +229,6 @@ newFocusToSym :: WidgetClass w => HBox -> GoBack -> w -> GRef -> EventM EButton 
 newFocusToSym l f sym s = do LeftButton <- eventButton 
                              eventWithState (updateFrmCtrl l >>
                                              updatePath f >>
-                                             getSymCtrl >>= 
-                                             unselectAll >>
                                              openSymFrame) s
                              liftIO $ highlightBox l focusBg
                              -- liftIO $ widgetGrabFocus sym
