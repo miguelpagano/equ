@@ -89,3 +89,4 @@ typedRewrite e@(Expr pe) ru@(Rule{lhs=Expr l,rhs=Expr r}) =
     in case unify te tr emptySubst of
             Left er -> Left $ Type er
             Right _ -> exprRewrite e ru
+            

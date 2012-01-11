@@ -15,7 +15,7 @@ module Equ.Proof.Proof (
                  -- $samples
                  , isHole
                  -- Proyecciones
-                 , getCtx, getStart, getEnd, getRel
+                 , getCtx, getStart, getEnd, getRel, getBasic
                  , updateStart, updateEnd, updateRel, updateMiddle
                  , encode, decode
                  , setCtx, beginCtx, freshName, ctxFromList
@@ -583,6 +583,9 @@ getRel (Ind _ r _ _ _ _) = Just r
 getRel (Deduc _ _ _ _) = Just relImpl
 getRel (Focus _ r _ _ _) = Just r
 
+getBasic:: Proof -> Maybe Basic
+getBasic (Simple _ _ _ _ b) = Just b
+getBasic _ = Nothing
 
 updateStart :: Proof -> Focus -> Proof
 updateStart Reflex _ = Reflex

@@ -104,6 +104,9 @@ setFileFilter fChooser pattern title = do
 isVBox :: WidgetClass w => w -> Bool
 isVBox w = isA w gTypeVBox 
 
+isHBox :: WidgetClass w => w -> Bool
+isHBox w = isA w gTypeHBox 
+
 fromRight = head . rights . return          
 
 -- | Funcion para emitir mensajes de debugging.

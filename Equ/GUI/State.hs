@@ -76,6 +76,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , updateRelation
                      , updateModifExpr
                      , updateSelectedExpr
+                     , showProof' -- SACAR ESTO
                      )
     where
 
@@ -168,6 +169,9 @@ showExpr = withRefValue $ uncurry putMsg . (status &&& show . toExpr . (fExpr . 
 
 showProof :: IState ()
 showProof = withRefValue $ uncurry putMsg . (status &&& show . proof . fromJust . gProof )
+
+
+showProof' = getProof >>= liftIO . debug . show
 
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}

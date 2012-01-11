@@ -5,7 +5,7 @@ module Equ.Proof.Zipper
     , replace
     , goDown, goUp, goLeft, goRight, goDownR, goDownL, goTop
     -- las siguientes funcionas navegan el zipper y siempre devuelven algo
-    , goDown', goUp', goLeft', goRight', goDownR', goDownL', goTop'
+    , goDown', goUp', goLeft', goRight', goDownR', goDownL', goTop', goEnd
     ) where
 
 import Equ.Proof.Proof
@@ -77,6 +77,12 @@ goTop pf = goTop $ fromJust $ goUp pf
 goTop' :: ProofFocus -> ProofFocus
 goTop' (p,Top) = (p,Top)
 goTop' pf = goTop' $ goUp' pf
+
+-- | Se mueve a la derecha todo lo q pueda.
+goEnd :: ProofFocus -> ProofFocus
+goEnd pf = case (goDownR pf) of
+                Nothing -> pf
+                Just pf' -> goEnd pf'
 
 -- | Ir a la izquierda en un focus, sin cambiar de nivel.
 goLeft :: ProofFocus -> Maybe ProofFocus

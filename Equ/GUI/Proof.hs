@@ -75,8 +75,8 @@ loadProof p ret_box center_box ref = do
     empty_box1 <- hBoxNew False 2
     evalStateT (newProofState (Just p) empty_box1 >>= updateProofState) ref
     
-    hboxInit <- createExprWidget (toExpr $ fromRight $ getStart p) ref updateFirstExpr getFirstExpr
-    hboxEnd  <- createExprWidget (toExpr $ fromRight $ getEnd p) ref updateFinalExpr getFinalExpr
+    hboxInit <- createExprWidget (toExpr $ fromRight $ getStart p) ref goTop updateFirstExpr getFirstExpr center_box
+    hboxEnd  <- createExprWidget (toExpr $ fromRight $ getEnd p) ref moveToEnd updateFinalExpr getFinalExpr center_box
     
     boxPackStart ret_box hboxInit PackNatural 2
     boxPackStart ret_box center_box PackNatural 2
@@ -84,6 +84,10 @@ loadProof p ret_box center_box ref = do
     
     completeProof p center_box center_box ref goTop
 
+moveToEnd :: ProofFocus -> Maybe ProofFocus
+moveToEnd pf = Just $ goEnd (goTop' pf)
+    
+    
 completeProof :: Proof -> VBox -> VBox -> GRef -> (ProofFocus -> Maybe ProofFocus)
                  -> IO ()
 completeProof p@(Trans _ rel f1 fm f2 p1 p2) center_box top_box proofRef moveFocus = do
@@ -113,8 +117,8 @@ createNewProof maybe_proof ret_box = do
     
     case maybe_proof of
          Nothing -> do
-            hboxInit <- liftIO $ createExprWidget holePreExpr s updateFirstExpr getFirstExpr
-            hboxEnd  <- liftIO $ createExprWidget holePreExpr s updateFinalExpr getFinalExpr
+            hboxInit <- liftIO $ createExprWidget holePreExpr s goTop updateFirstExpr getFirstExpr center_box
+            hboxEnd  <- liftIO $ createExprWidget holePreExpr s moveToEnd updateFinalExpr getFinalExpr center_box
 
             liftIO $ boxPackStart ret_box hboxInit PackNatural 2
             liftIO $ boxPackStart ret_box center_box PackNatural 2
@@ -288,7 +292,7 @@ newStepProof expr ref moveFocus container top_box = do
     createCenterBox centerBoxL top_box ref (goDownL . fromJust . moveFocus) relation Nothing
     centerBoxR <- vBoxNew False 2
     createCenterBox centerBoxR top_box ref (goDownR . fromJust . moveFocus) relation Nothing
-    exprBox <- createExprWidget expr ref updateFocus (fromJust . getFocus)
+    exprBox <- createExprWidget expr ref moveFocus' updateFocus (fromJust . getFocus) top_box
     
     boxPackStart container centerBoxL PackNatural 5
     boxPackStart container exprBox PackNatural 5
@@ -311,7 +315,7 @@ newStepProof expr ref moveFocus container top_box = do
                         goDownR pf' >>= \pf'' ->
                         getStartFocus pf''
 
-
+          moveFocus' = (Just . goEnd . fromJust . goDownL . fromJust . moveFocus)
             
 relationListStore :: IO (ListStore Relation)
 relationListStore = listStoreNew relationList 
@@ -335,10 +339,11 @@ selectRelation r combo lstore = do
     where getIndexFromList ls rel = fromJust $ elemIndex rel ls
 
             
-createExprWidget :: PreExpr -> GRef -> (ProofFocus -> Focus -> Maybe ProofFocus) -> 
-                    (ProofFocus -> Focus) -> IO HBox
+createExprWidget :: PreExpr -> GRef -> (ProofFocus -> Maybe ProofFocus) ->
+                    (ProofFocus -> Focus -> Maybe ProofFocus) -> 
+                    (ProofFocus -> Focus) -> VBox -> IO HBox
               
-createExprWidget expr ref fUpdateFocus fGetFocus = do
+createExprWidget expr ref moveFocus fUpdateFocus fGetFocus top_box = do
     
     
     hbox    <- hBoxNew False 2
@@ -351,11 +356,13 @@ createExprWidget expr ref fUpdateFocus fGetFocus = do
     scrolledWindowAddWithViewport scrolled box
     button_apply <- buttonNewFromStock stockApply
     button_clear <- buttonNewFromStock stockClear
+    expr_choices <- buttonNewWithLabel "e"
     --widgetSetSizeRequest button_apply (-1) 30
     button_box <- hButtonBoxNew
     widgetSetSizeRequest button_box 200 (-1)
     --widgetSetSizeRequest button_box 20 (-1)
     --boxPackStart button_box button_apply PackNatural 2
+    boxPackStart button_box expr_choices PackNatural 2
     boxPackStart button_box button_clear PackNatural 2
     -- boxPackStart boxExprWidget label PackNatural 1
     boxPackStart boxExprWidget scrolled PackGrow 1
@@ -368,9 +375,10 @@ createExprWidget expr ref fUpdateFocus fGetFocus = do
                                      , formBox = box
                                      , clearButton = button_clear
                                      , applyButton = button_apply
+                                     , choicesButton = expr_choices
                                      }
     
-    eventsExprWidget hbox ref boxExprWidget exprWidget fUpdateFocus fGetFocus 
+    eventsExprWidget hbox ref boxExprWidget exprWidget moveFocus fUpdateFocus fGetFocus top_box
     
     flip evalStateT ref $ writeExprWidget expr box
     
@@ -380,9 +388,10 @@ createExprWidget expr ref fUpdateFocus fGetFocus = do
 {- Setea los eventos de un widget de expresion. La funcion f es la que se utiliza
 para actualizar la expresion dentro de la prueba
 -}
-eventsExprWidget :: HBox -> GRef -> HBox -> ExprWidget -> (ProofFocus -> Focus -> Maybe ProofFocus) 
-                    -> (ProofFocus -> Focus) -> IO ()
-eventsExprWidget ext_box proofRef hb w fUpdate fGet  =
+eventsExprWidget :: HBox -> GRef -> HBox -> ExprWidget -> (ProofFocus -> Maybe ProofFocus) ->
+                    (ProofFocus -> Focus -> Maybe ProofFocus) ->
+                    (ProofFocus -> Focus) -> VBox -> IO ()
+eventsExprWidget ext_box proofRef hb w moveFocus fUpdate fGet top_box =
     
     flip evalStateT proofRef $ 
         liftIO setupFocusEvent >>
@@ -401,8 +410,41 @@ eventsExprWidget ext_box proofRef hb w fUpdate fGet  =
                                     updateSelectedExpr fGet) proofRef
                     liftIO $ widgetShowAll eb
                     return False
-
                     
+                (choicesButton w) `on` buttonPressEvent $ tryEvent $
+                            eventWithState (changeProofFocus' >>
+                                            showChoices) proofRef
+--                 eb `on` buttonPressEvent $ do
+--                     LeftButton <- eventButton
+--                     liftIO $ debug "funcking evento"
+--                     eventWithState changeProofFocus' proofRef
+--                     liftIO $ widgetShowAll eb
+--                     return False
+
+          changeProofFocus' = unSelectBox >>
+                        changeProofFocus moveFocus Nothing >>
+                        getProof >>= \(p,path) ->
+                        selectBox (p,path) focusBg top_box >>
+                        liftIO (proofFocusToBox path top_box) >>= \center_box ->
+                        liftIO (axiomBoxFromCenterBox center_box) >>= \axiom_box ->
+                        changeProofFocus moveFocus (Just axiom_box)
+                        
+          showChoices = do
+              menu <- liftIO menuNew
+              pf <- getProof
+              exp1 <- return (fromJust $ getStartFocus pf)
+              m_axiom <- return (getBasicFocus pf)
+              case m_axiom of
+                   Nothing -> return ()
+                   Just axiom -> do
+                        choices <- return (possibleExpr (toExpr exp1) axiom)
+                        liftIO $ addToMenu menu choices
+                        liftIO $ widgetShowAll menu
+                        liftIO $ menuPopup menu Nothing
+              
+          addToMenu m [] = return ()
+          addToMenu m (x:xs) = menuItemNewWithLabel (show x) >>=
+                               menuShellAppend m
 
 {- | Funcion para obtener la caja correspondiente al paso de la prueba en el que estamos
    dentro de una transitividad.
@@ -429,3 +471,28 @@ proofFocusToBox = go
                             then return $ castToVBox b'
                             else error $ "No es un VBox (index: " ++
                                           show i ++")"
+                     
+{- | Funcion que obtiene la caja de axioma desde una caja creada por "createCenterBox"
+     PRE: center_box tiene la estructura que se crea en "createCenterBox", con un solo hijo
+          que contiene el comboBox de relación, la caja de axioma.
+          La prueba a la que corresponde la center_box debe encontrarse en una hoja del arbol
+          del zipper de la prueba general.
+     -}
+axiomBoxFromCenterBox :: VBox -> IO HBox
+axiomBoxFromCenterBox center_box = containerGetChildren center_box >>= \chd ->
+                            if length chd /= 1
+                            then error "axiomBoxFromCenterBox: La caja no tiene exactamente un hijo"
+                            else let b = chd!!0 in
+                                containerGetChildren (castToContainer b) >>= \chd' ->
+                                if length chd' /= 3
+                                then error "axiomBoxFromCenterBox: El hijo del center_box no tiene 3 hijos"
+                                else let ev_box = chd'!!1 in
+                                    containerGetChildren (castToContainer ev_box) >>= \chd'' ->
+                                    if length chd'' /= 1
+                                    then error "axiomBoxFromCenterBox: El event_box no tiene un solo hijo"
+                                    else let axiom_box = chd''!!0 in
+                                        if isHBox axiom_box
+                                        then return $ castToHBox axiom_box
+                                        else error $ "axiomBoxFromCenterBox: El axiom_box no es HBox"
+                                
+                                          

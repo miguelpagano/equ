@@ -6,7 +6,8 @@ module Equ.Proof (newProof, newProofWithoutEnd, addStep
                  , holeProof, emptyProof, updateStart, updateEnd, updateRel
                  , validateProof, toHoleProof
                  , simpleProof, addEmptyStep, updateStartFocus, updateEndFocus
-                 , updateMiddleFocus, getStartFocus, getEndFocus
+                 , updateMiddleFocus, getStartFocus, getEndFocus, getBasicFocus
+                 , possibleExpr
                  , Truth (..)
                   -- * Axiomas y teoremas
                  , Axiom(..)
@@ -25,7 +26,7 @@ module Equ.Proof (newProof, newProofWithoutEnd, addStep
                  ) where
 
 import Equ.Proof.Proof hiding (getCtx,getStart,getEnd,getRel,setCtx)
-import qualified Equ.Proof.Proof as P(getStart,getEnd)
+import qualified Equ.Proof.Proof as P(getStart,getEnd,getBasic)
 import Equ.Proof.Zipper
 import Equ.Proof.Monad
 import Equ.Proof.Error
@@ -38,7 +39,7 @@ import Data.Monoid(mappend)
 
 import Data.Map (empty, singleton)
 import Data.Maybe
-import Data.Either (partitionEithers)
+import Data.Either (partitionEithers,rights)
 
 import Control.Monad
 
@@ -206,6 +207,12 @@ validateProof' proof@(Trans ctx rel f1 f f2 p1 p2) moveFocus =
           err = ProofError (TransInconsistent proof) moveFocus
     
 validateProof' _ _ = undefined
+
+
+possibleExpr :: Truth t => PE.PreExpr -> t -> [PE.PreExpr]
+possibleExpr p t = map PE.toExpr $ rights $ concat $ map (rewriteAllFocuses p) (truthRules t)
+          
+
 
 
 -- | Igual que proofFromTruth, pero ahora cambiamos el contexto.
@@ -404,6 +411,10 @@ getStartFocus (p,path) = P.getStart p
 
 getEndFocus :: ProofFocus -> Maybe PE.Focus
 getEndFocus (p,path) = P.getEnd p
+
+getBasicFocus :: ProofFocus -> Maybe Basic
+getBasicFocus (p,path) = P.getBasic p
+
 
 
 

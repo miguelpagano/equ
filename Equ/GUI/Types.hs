@@ -98,4 +98,5 @@ data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , formBox :: HBox   -- ^ Box donde se ingresa la formula
                              , clearButton :: Button -- ^ Botón para borrar toda la expresión.
                              , applyButton :: Button -- ^ Botón para aplicar la expresión.
+                             , choicesButton :: Button -- ^ Botón para ver las expresiones que matchean en la prueba
                              }
