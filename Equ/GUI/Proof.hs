@@ -33,6 +33,7 @@ import Data.Text(unpack)
 import Data.Map(empty)
 import Data.List(elemIndex)
 
+import Control.Monad((=<<))
 import qualified Data.Foldable as F (forM_,mapM_)
 
 -- | Crea una nueva referencia
@@ -360,12 +361,12 @@ createExprWidget expr ref moveFocus fUpdateFocus fGetFocus top_box = do
     scrolledWindowAddWithViewport scrolled box
     button_apply <- buttonNewFromStock stockApply
     button_clear <- buttonNewFromStock stockClear
-    expr_choices <- buttonNewWithLabel "e"
+    expr_choices <- buttonNewWithLabel "▼"
     widgetSetSizeRequest button_apply (-1) 30
     button_box <- hButtonBoxNew
     widgetSetSizeRequest button_box 200 (-1)
     
-    boxPackStart button_box button_apply PackNatural 2
+    -- boxPackStart button_box button_apply PackNatural 2
     boxPackStart button_box expr_choices PackNatural 2
     --boxPackStart button_box button_clear PackNatural 2
     -- boxPackStart boxExprWidget label PackNatural 1
@@ -449,9 +450,8 @@ eventsExprWidget ext_box proofRef hb w moveFocus fUpdate fGet top_box =
                     liftIO $ widgetShowAll menu
                     liftIO $ menuPopup menu Nothing
             
-        addToMenu m [] = return ()
-        addToMenu m (x:xs) = menuItemNewWithLabel (show x) >>=
-                            menuShellAppend m
+        addToMenu m = mapM_ (addItem . show)
+            where addItem x = menuItemNewWithLabel x >>= menuShellAppend m
 
         setupOptionExprWidget :: IO ()
         setupOptionExprWidget = do

@@ -94,7 +94,7 @@ main = do
     onActivateLeaf quitButton $ quitAction window
     onDestroy window mainQuit
 
-    sListStore <- liftIO $ setupSymbolListBeta symbolList
+    sListStore <- liftIO $ setupSymbolList symbolList
     aListStore <- liftIO $ setupTruthList [] axiomList 
 
     onToolButtonClicked newProofTool (evalStateT (createNewProof Nothing centralBox) gRef)
@@ -120,7 +120,7 @@ main = do
         axioms <- getAxiomCtrl
         eventsTruthList axioms aListStore
         symbols <- getSymCtrl
-        --eventsSymbolList symbols sListStore
+        eventsSymbolList symbols sListStore
         hidePane errPane
         --switchToProof faces boxGoProofFace (cleanTypedExprTree >> cleanTreeExpr)
         --switchToTypeTree faces boxGoExprFace typedExprTree
