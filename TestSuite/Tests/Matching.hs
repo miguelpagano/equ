@@ -16,6 +16,10 @@ import Test.Framework.Providers.HUnit (testCase)
 
 import Control.Monad (unless)
 
+infixl 5 ./
+s ./ p = M.insert (fst p) (snd p) s
+
+emp = M.empty
 
 -- | True v False -m-> p v p : No existe match.
 testCase0 :: Assertion
@@ -29,12 +33,12 @@ testCase0 = testMatch lhs rhs res
 -- | True v False -m-> p v q : [p->True, q->False]
 testCase1 :: Assertion
 testCase1 = testMatch pVq trueVfalse (Right s)
-    where s = M.insert p true (M.insert q false M.empty)
+    where s = emp ./ (p,true) ./ (q,false)
 
 -- | Sy + S(x+S0) + z -m-> x + Sy + z : [x->Sy, y->x+S0]
 testCase2 :: Assertion
 testCase2 = testMatch xPlusSyPlusZ sAppyPlusSomePlusz  (Right s)
-    where s = M.insert x sAppy (M.insert y xPlussApp0 M.empty)
+    where s = emp ./ (x,sAppy) ./ (y,xPlussApp0)
 
 -- | #([0] ++ [1]) + 1 -m-> #([x,y]) + z : [x->0, y->1, z->1]
 testCase3 :: Assertion

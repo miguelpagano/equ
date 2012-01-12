@@ -9,7 +9,10 @@ import Equ.Proof.Proof
 -- El error contiene informacion sobre en que lugar de la prueba se produjo el error.
 -- La función navega en el ProofFocus correspondiente a la prueba, desde el tope.
 data ProofError = ProofError ProofError' (ProofFocus -> ProofFocus)
-    
+
+instance Eq ProofError where
+    (==) (ProofError er _) (ProofError er' _) = er == er'
+                
 instance Show ProofError where
     show (ProofError p m) = show p
     

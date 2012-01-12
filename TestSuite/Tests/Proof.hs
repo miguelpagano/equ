@@ -161,7 +161,7 @@ newP = newProof relEquiv fpip0 ftrue
 
 -- Generamos una prueba simple de que, (p ⇒ p) ≡ (p ∨ p ≡ p)
 pft :: Proof
-Right pft = proofFromTruth fpip0 fpip1 relEquiv axImpl
+Right pft = proofFromTruth fpip0 fpip1 relEquiv axImpl id
 
 -- Añadimos un paso a la prueba, usando lo probado anteriormente.
 newStepP :: Proof
@@ -254,7 +254,7 @@ testCaseProofFromAxiom2 = testCaseProofFromTruth fequivNeg0 fq relEquiv
 -- Verificar casos de tests para pruebas con axiomas y teoremas.
 testCaseProofFromTruth :: (Truth t) => Focus -> Focus -> Relation -> t
                           -> PM Proof -> Assertion
-testCaseProofFromTruth f f' r t res = let p = proofFromTruth f f' r t
+testCaseProofFromTruth f f' r t res = let p = proofFromTruth f f' r t id
                                     in unless (p == res) $
                                         assertFailure $ 
                                         "\n Resultado esperado: " ++ show res ++
@@ -385,7 +385,7 @@ Res: ClashRelation eq impl
 -}
 testCaseAddStep2 :: Assertion
 testCaseAddStep2 = testCaseAddStep pFxEqY pFxImplZ 
-                   (Left $ [ClashRel relEq relImpl])
+                   (Left $ ProofError (ClashRel relEq relImpl) id)
 
 {- Intentamos agregar un paso en el que no coinciden los focus de las pruebas,
     luego entonces deberiamos devolver ClashAddStep.
@@ -403,7 +403,7 @@ Res: ClashAddStep pFxEqY pFyEqZ
 -}
 testCaseAddStep3 :: Assertion
 testCaseAddStep3 = testCaseAddStep pFxEqY pFyEqZ 
-                   (Left $ [ClashAddStep pFxEqY pFyEqZ])
+                   (Left $ ProofError (ClashAddStep pFxEqY pFyEqZ) id)
 
 -- Verifica los casos de test para, dada una prueba, agregar un paso, es decir
 -- otra prueba y generar una nueva prueba por transitividad.

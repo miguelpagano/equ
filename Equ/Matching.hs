@@ -67,9 +67,9 @@ mapa de sustituciones se encuentra la variable. Si no, entonces podemos matchear
 v por e'. Si v est&#225; en el mapa, entonces para que haya matching tiene que estar 
 asociada con la expresi&#243;n e'.
 -}
-match' bvs e@(Var v) e' s | e == e' = return s
-                           | v `elem` bvs = matcherr $ BindingVar v
-                           | otherwise = 
+match' bvs e@(Var v) e' s | e == e' = return $ M.insert v e' s
+                          | v `elem` bvs = matcherr $ BindingVar v
+                          | otherwise = 
                               maybe (return $ M.insert v e' s)
                                     (\f -> whenML (e' == f) (DoubleMatch v f e') s)
                                     $ M.lookup v s
@@ -169,4 +169,5 @@ simult&#225;neamente para llegar desde la expresi&#243;n patr&#243;n a la expres
 -}
 match :: PreExpr -> PreExpr -> Either (MatchMErr,Log) ExprSubst
 match e e' = case runRWS (runEitherT (match' [] e e' M.empty)) (toFocus e') M.empty of
-                   (res, _, l) -> either (\err -> Left (err,l)) Right res
+                   (res, _, l) -> either (\err -> Left (err,l)) (Right . prune) res
+    where prune = M.filterWithKey (\v e -> Var v /= e) 
