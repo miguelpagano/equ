@@ -72,18 +72,18 @@ setupEvents b eb e = get >>= \s ->
                      addHandler eb enterNotifyEvent (highlightBox b hoverBg) >>
                      addHandler eb leaveNotifyEvent (unlightBox b Nothing) >>
                      addHandler eb buttonPressEvent (newFocusToSym b p sym s) >>
-                     addHandler eb buttonPressEvent (editExpr b s) >>
+                     addHandler eb buttonPressEvent (editExpr p b s) >>
                      return ()
     where newExpr = ExprState (toFocus e) TyUnknown (id,id) b b
 
 
 -- | Si apretamos el botón derecho, entonces editamos la expresión
 -- enfocada.
-editExpr :: HBox -> GRef -> EventM EButton ()
-editExpr b s = do RightButton <- eventButton                    
-                  eventWithState (getExpr >>= flip writeExpr b . Just . fst) s
-                  liftIO $ widgetShowAll b
-                  return ()
+editExpr :: GoBack -> HBox -> GRef -> EventM EButton ()
+editExpr p b s = do RightButton <- eventButton                   
+                    eventWithState (updatePath p >> getFocusedExpr >>= flip writeExpr b . Just . fst) s
+                    liftIO $ widgetShowAll b
+                    return ()
 
 
 

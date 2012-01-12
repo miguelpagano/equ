@@ -15,6 +15,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , getSymCtrl
                      , getFormPane
                      , getExpr
+                     , getFocusedExpr
                      , getAxiomCtrl
                      , getAxiomBox
                      , getSelectExpr
@@ -355,6 +356,9 @@ getExprProof = getValidProof >>= either (const (return holeExpr)) (return . getE
 
 getExpr :: IState Focus
 getExpr = getStatePartDbg "getExpr" $ fExpr . fromJust . gExpr
+
+getFocusedExpr :: IState Focus
+getFocusedExpr = getPath >>= \p -> getExpr >>= return . fst p 
 
 getFrmCtrl :: IState HBox
 getFrmCtrl = getStatePartDbg "getFrmCtrl" $ eventExpr . fromJust . gExpr
