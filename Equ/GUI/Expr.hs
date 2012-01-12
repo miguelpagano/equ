@@ -21,6 +21,8 @@ import Control.Monad.Trans(lift,liftIO)
 import Control.Monad.State(get)
 import Control.Arrow((***))
 
+import qualified Data.Foldable as F
+
 -- | Devuelve la expresión que se estaba construyendo y empieza
 -- una nueva construcción.
 newExpr :: HBox -> IState PreExpr
@@ -46,12 +48,66 @@ clearExpr b = removeAllChildren b >>
               setupForm b >> 
               liftIO (widgetShowAll b)
 
+
+
+-- | Poné en una caja el widget que usamos para construir nuevas
+-- expresiones.
+setupForm ::  HBox -> IRG
+setupForm b = labelStr "?" >>= \l -> setupFormEv b l holePreExpr
+
+-- | Asigna los manejadores de eventos para widgets de expresiones a 
+-- los controles.
+setupFormEv :: WidgetClass w => HBox -> w -> PreExpr -> IRG
+setupFormEv b c e = liftIO eventBoxNew >>= \eb ->
+                    addToBox b eb >>
+                    liftIO (set eb [ containerChild := c ]) >>
+                    setupEvents b eb e
+
+-- | Define los manejadores de eventos para una caja que tiene el
+-- widget para construir expresiones.
+setupEvents :: WidgetClass w => HBox -> w -> PreExpr -> IRG
+setupEvents b eb e = get >>= \s ->
+                     getPath >>= \p ->
+                     getSymCtrl >>= \sym ->
+                     addHandler eb enterNotifyEvent (highlightBox b hoverBg) >>
+                     addHandler eb leaveNotifyEvent (unlightBox b Nothing) >>
+                     addHandler eb buttonPressEvent (newFocusToSym b p sym s) >>
+                     addHandler eb buttonPressEvent (editExpr b s) >>
+                     return ()
+    where newExpr = ExprState (toFocus e) TyUnknown (id,id) b b
+
+
+-- | Si apretamos el botón derecho, entonces editamos la expresión
+-- enfocada.
+editExpr :: HBox -> GRef -> EventM EButton ()
+editExpr b s = do RightButton <- eventButton                    
+                  eventWithState (getExpr >>= flip writeExpr b . Just . fst) s
+                  liftIO $ widgetShowAll b
+                  return ()
+
+
+
+-- | Pone una caja de texto para ingresar una expresión; cuando se
+-- activa (presionando Enter) parsea el texto de la caja como una
+-- expresión y construye el widget correspondiente.
+writeExpr :: Maybe PreExpr -> HBox -> IRG
+writeExpr pre box = newEntry >>= \entry -> 
+                    F.mapM_ (exprInEntry entry) pre >>
+                    getPath >>= \p ->
+                    withState (onEntryActivate entry) 
+                                  (localInPath p (setExprFocus entry box)) >>
+                    removeAllChildren box >>
+                    addToBox box entry >>
+                    liftIO (widgetGrabFocus entry >>
+                            widgetShowAll box)
+
+
 -- | Poné la representación de una expresión en una caja de texto.
 -- Podría ser útil si queremos que se pueda transformar la expresión
 -- que está siendo construida en algo que el usuario pueda editar 
 -- como una string.
-exprInEntry :: Syntactic t => Entry -> t -> IState ()
-exprInEntry entry = liftIO . entrySetText entry . repr
+exprInEntry :: Show t => Entry -> t -> IState ()
+exprInEntry entry = liftIO . entrySetText entry . show
 
 
 -- TODO: manejar errores del parser.
@@ -249,19 +305,6 @@ writeConstant c box = updateExpr (Con c) >>
                       (labelStr . unpack . tRepr) c >>= \label ->
                       setupFormEv box label (Con c) >>
                       liftIO (widgetShowAll box)
-
--- | Pone una caja de texto para ingresar una expresión; cuando se
--- activa (presionando Enter) parsea el texto de la caja como una
--- expresión y construye el widget correspondiente.
-writeExpr :: HBox -> IRG
-writeExpr box = newEntry >>= \entry -> 
-                getPath >>= \p ->
-                withState (onEntryActivate entry) 
-                              (localInPath p (setExprFocus entry box)) >>
-                removeAllChildren box >>
-                addToBox box entry >>
-                liftIO (widgetGrabFocus entry >>
-                        widgetShowAll box)
 
 class ExpWriter s where
     writeExp :: s -> HBox -> IRG

@@ -186,43 +186,10 @@ removeAllChildren :: ContainerClass b => b -> IRG
 removeAllChildren b = liftIO $ containerForeach b $ 
                          \x -> containerRemove b x >> widgetDestroy x
 
--- | Poné en una caja el widget que usamos para construir nuevas
--- expresiones.
-setupForm ::  HBox -> IRG
-setupForm b = labelStr "?" >>= \l -> setupFormEv b l holePreExpr
-
--- | Asigna los manejadores de eventos para widgets de expresiones a 
--- los controles.
-setupFormEv :: WidgetClass w => HBox -> w -> PreExpr -> IRG
-setupFormEv b c e = liftIO eventBoxNew >>= \eb ->
-                    addToBox b eb >>
-                    liftIO (set eb [ containerChild := c ]) >>
-                    setupEvents b eb e
-
--- | Define los manejadores de eventos para una caja que tiene el
--- widget para construir expresiones.
-setupEvents :: WidgetClass w => HBox -> w -> PreExpr -> IRG
-setupEvents b eb e = get >>= \s ->
-                     getPath >>= \p ->
-                     getSymCtrl >>= \sym ->
-                     addHandler eb enterNotifyEvent (highlightBox b hoverBg) >>
-                     addHandler eb leaveNotifyEvent (unlightBox b Nothing) >>
-                     addHandler eb buttonPressEvent (newFocusToSym b p sym s) >>
-                     addHandler eb buttonPressEvent (removeExpr b s) >>
-                     return ()
-    where newExpr = ExprState (toFocus e) TyUnknown (id,id) b b
-
 {- Las siguientes funciones son los manejadores de eventos. -}
 
--- | Si apretamos el botón derecho, entonces borramos la expresión
--- enfocada.
-removeExpr :: HBox -> GRef -> EventM EButton ()
-removeExpr b s = do RightButton <- eventButton
-                    eventWithState (updateExpr holePreExpr >>
-                                    removeAllChildren b >>
-                                    setupForm b) s
-                    liftIO $ widgetShowAll b
-                    return ()
+
+
 
 -- | Si se aprieta el botón izquierdo, empezamos a trabajar en este
 -- control y luego pasamos el control a la lista de símbolos.

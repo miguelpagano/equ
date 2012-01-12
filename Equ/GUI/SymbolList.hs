@@ -24,8 +24,7 @@ type SynItem = (String, HBox -> IRG)
 -- | La lista de símbolos; el primer elemento nos permite ingresar
 -- una expresión en una caja de texto y parsearla.
 listSymbols :: IO (ListStore SynItem)
-listSymbols = listStoreNew $ ("Expresión", writeExpr):
-                             map (addItem) quantifiersList
+listSymbols = listStoreNew $ map (addItem) quantifiersList
                           ++ map (addItem) operatorsList
                           ++ map (addItem) constantsList
 

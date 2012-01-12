@@ -13,7 +13,7 @@ import Equ.Theories
 import Equ.Proof
 import Equ.PreExpr hiding (goDownL,goDownR,goRight,goUp,goTop)
 import Equ.GUI.Widget
-import Equ.GUI.Expr (clearFocus,writeExprWidget)
+import Equ.GUI.Expr (clearFocus,writeExprWidget,setupForm)
 import Equ.Parser
 import Equ.Types
 
