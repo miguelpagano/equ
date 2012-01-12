@@ -87,18 +87,19 @@ openErrPane = getErrPane >>= \erp ->
                       widgetShowAll erp)
                       
 setErrMessage :: String -> IState ()
-setErrMessage msg = getErrPanedLabel >>= \eb ->
-                    liftIO (containerGetChildren eb) >>=
-                    \[l] -> liftIO (labelSetMarkup (castToLabel l) 
-                                    (markSpan 
-                                    [ FontBackground "#FF0000"
-                                    , FontForeground "#000000"
-                                    ] 
-                                    msg)) >>
-                    get >>= \s' ->
-                    liftIO (eb `on` buttonPressEvent $ tryEvent $ 
-                                    eventWithState (closeErrPane) s') >> 
-                    return ()
+setErrMessage = liftIO . putStrLn
+-- setErrMessage msg = getErrPanedLabel >>= \eb ->
+--                     liftIO (containerGetChildren eb) >>=
+--                     \[l] -> liftIO (labelSetMarkup (castToLabel l) 
+--                                     (markSpan 
+--                                     [ FontBackground "#FF0000"
+--                                     , FontForeground "#000000"
+--                                     ] 
+--                                     msg)) >>
+--                     get >>= \s' ->
+--                     liftIO (eb `on` buttonPressEvent $ tryEvent $ 
+--                                     eventWithState (closeErrPane) s') >> 
+--                     return ()
 
 closeErrPane :: IState ()
 closeErrPane = getErrPane >>= \erp ->
