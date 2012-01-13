@@ -177,7 +177,7 @@ entryDim entry l = liftIO $ widgetSetSizeRequest entry l (-1)
 
 -- | Pone un widget dentro de una caja.
 addToBox :: (BoxClass b,WidgetClass w) => b -> w -> IRG
-addToBox b w = liftIO $ boxPackStart b w PackGrow 0
+addToBox b w = liftIO $ boxPackStart b w PackNatural 3
 
 -- | Elimina todos los controles contenidos en una caja (también
 -- destruye los hijos para liberar memoria -- está bien hacer esto?).

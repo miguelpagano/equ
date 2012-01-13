@@ -351,9 +351,9 @@ createExprWidget expr ref moveFocus fUpdateFocus fGetFocus top_box = do
     
     label <- labelNew (Just "Expresión:")
     -- widgetSetSizeRequest label 80 (-1)
-    scrolled <- scrolledWindowNew Nothing Nothing
+    --scrolled <- scrolledWindowNew Nothing Nothing
     box <- hBoxNew False 2
-    scrolledWindowAddWithViewport scrolled box
+    --scrolledWindowAddWithViewport scrolled box
     button_apply <- buttonNewFromStock stockApply
     button_clear <- buttonNewFromStock stockClear
     expr_choices <- buttonNewWithLabel "▼"
@@ -365,7 +365,7 @@ createExprWidget expr ref moveFocus fUpdateFocus fGetFocus top_box = do
     boxPackStart button_box expr_choices PackNatural 2
     --boxPackStart button_box button_clear PackNatural 2
     -- boxPackStart boxExprWidget label PackNatural 1
-    boxPackStart boxExprWidget scrolled PackGrow 1
+    boxPackStart boxExprWidget box PackGrow 1
     boxPackStart boxExprWidget button_box PackNatural 1
     
     widgetSetSizeRequest hbox (-1) 50
