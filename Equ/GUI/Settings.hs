@@ -14,6 +14,9 @@ focusBg =  Color 0 65000 32000
 whiteBg :: Color
 whiteBg = Color 65000 65000 65000
 
+grayBg :: Color
+grayBg = Color 62000 61430 61180
+
 errBg :: Color
 errBg = Color 65000 0 0
 

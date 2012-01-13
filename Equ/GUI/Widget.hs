@@ -163,7 +163,9 @@ newVBox = liftIO (vBoxNew False 0)
 
 -- | Una nueva caja de texto.
 newEntry :: IState Entry
-newEntry = liftIO entryNew
+newEntry = liftIO $ entryNew >>= \entry ->
+           widgetModifyBase entry StateNormal grayBg >>
+           return entry
 
 -- | Una nueva etiqueta.
 labelStr :: String -> IState Label
