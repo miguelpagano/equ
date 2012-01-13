@@ -345,10 +345,7 @@ createExprWidget :: PreExpr -> GRef -> (ProofFocus -> Maybe ProofFocus) ->
                     (ProofFocus -> Focus) -> VBox -> IO HBox
               
 createExprWidget expr ref moveFocus fUpdateFocus fGetFocus top_box = do
-    
-    
-    
-    
+
     hbox    <- hBoxNew False 2
     boxExprWidget <- hBoxNew False 2
     
@@ -408,14 +405,16 @@ eventsExprWidget expr ext_box proofRef hb w moveFocus fUpdate fGet top_box =
     where 
         setupFocusEvent :: IO (ConnectId Button)
         setupFocusEvent = do
-                eb <- eventBoxNew
-                set eb [ containerChild := hb ]
-                boxPackStart ext_box eb PackGrow 0
-                eb `on` buttonReleaseEvent $ do
+                --eb <- eventBoxNew
+                --set eb [ containerChild := hb ]
+                --boxPackStart ext_box eb PackGrow 0
+                boxPackStart ext_box hb PackGrow 0
+                hb `on` buttonReleaseEvent $ do
                     -- movemos el proofFocus hasta donde está esta expresión.
                     eventWithState (updateModifExpr fUpdate >>
                                     updateSelectedExpr fGet) proofRef
-                    liftIO $ widgetShowAll eb
+                    --liftIO $ widgetShowAll eb
+                    liftIO $ widgetShowAll hb
                     return False
                     
                 (choicesButton w) `on` buttonPressEvent $ tryEvent $
@@ -445,12 +444,22 @@ eventsExprWidget expr ext_box proofRef hb w moveFocus fUpdate fGet top_box =
                 Nothing -> return ()
                 Just axiom -> do
                     choices <- return (possibleExpr (toExpr exp1) axiom)
-                    liftIO $ addToMenu menu choices
+                    addToMenu menu choices
                     liftIO $ widgetShowAll menu
                     liftIO $ menuPopup menu Nothing
             
-        addToMenu m = mapM_ (addItem . show)
-            where addItem x = menuItemNewWithLabel x >>= menuShellAppend m
+        addToMenu m = mapM_ addItem
+            where addItem e = do
+                                item <- liftIO $ menuItemNewWithLabel (show e)
+                                liftIO $ menuShellAppend m item
+                                ref <- get
+                                liftIO (item `on` buttonPressEvent $ tryEvent $
+                                        flip eventWithState ref $ 
+                                            -- Actualizamos la expresion
+                                            updateModifExpr fUpdate >>
+                                            updateSelectedExpr fGet >>
+                                            writeExprWidget e (formBox w) >>
+                                            updateExpr e)
 
         setupOptionExprWidget :: Window -> PreExpr-> IState ()
         setupOptionExprWidget win e = do

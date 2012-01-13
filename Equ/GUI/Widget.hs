@@ -192,14 +192,11 @@ removeAllChildren b = liftIO $ containerForeach b $
 
 -- | Si se aprieta el botón izquierdo, empezamos a trabajar en este
 -- control y luego pasamos el control a la lista de símbolos.
-newFocusToSym :: WidgetClass w => HBox -> GoBack -> w -> GRef -> EventM EButton ()
-newFocusToSym l f sym s = do LeftButton <- eventButton 
-                             eventWithState (updateFrmCtrl l >>
-                                             updatePath f >>
-                                             openSymFrame) s
-                             liftIO $ highlightBox l focusBg
-                             -- liftIO $ widgetGrabFocus sym
-                             return ()
+newFocusToSym :: WidgetClass w => HBox -> GoBack -> w  -> IRG
+newFocusToSym l f sym = updateFrmCtrl l >>
+                          updatePath f >>
+                          openSymFrame >>
+                          highlightBox l focusBg
 
 -- | Resalta todos los controles que están dentro de una caja.
 highlightBox b bg = liftIO $ containerForeach b (highlight bg)

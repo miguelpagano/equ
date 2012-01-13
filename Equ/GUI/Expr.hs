@@ -72,20 +72,23 @@ setupEvents b eb e = get >>= \s ->
                      getSymCtrl >>= \sym ->
                      addHandler eb enterNotifyEvent (highlightBox b hoverBg) >>
                      addHandler eb leaveNotifyEvent (unlightBox b Nothing) >>
-                     addHandler eb buttonPressEvent (newFocusToSym b p sym s) >>
-                     addHandler eb buttonPressEvent (editExpr p b s) >>
+                     addHandler eb buttonPressEvent (editExpr p b s sym) >>
+                     --addHandler eb buttonPressEvent (newFocusToSym b p sym s) >>
                      return ()
     where newExpr = ExprState (toFocus e) TyUnknown (id,id) b b
 
 
 -- | Si apretamos el botón derecho, entonces editamos la expresión
 -- enfocada.
-editExpr :: GoBack -> HBox -> GRef -> EventM EButton ()
-editExpr p b s = do RightButton <- eventButton                   
-                    eventWithState (updatePath p >> getFocusedExpr >>= flip writeExpr b . Just . fst) s
-                    liftIO $ widgetShowAll b
-                    return ()
-
+editExpr :: GoBack -> HBox -> GRef -> IconView -> EventM EButton ()
+editExpr p b s sym = do LeftButton <- eventButton
+                        DoubleClick <- eventClick
+                        eventWithState (newFocusToSym b p sym >> 
+                                        updatePath p >> 
+                                        getFocusedExpr >>= 
+                                        flip writeExpr b . Just . fst) s
+                        liftIO $ widgetShowAll b
+                        return ()
 
 
 -- | Pone una caja de texto para ingresar una expresión; cuando se
