@@ -89,7 +89,7 @@ main = do
 
     windowMaximize window
 
-    gRef <- newRef $ initialState symbolList axiomList faces statusBar ctxExpr
+    gRef <- newRef $ initialState window symbolList axiomList faces statusBar ctxExpr
 
     onActivateLeaf quitButton $ quitAction window
     onDestroy window mainQuit
@@ -111,10 +111,6 @@ main = do
     
     onActivateLeaf itemRedo $ flip evalStateT gRef $ redoEvent centralBox
     onToolButtonClicked reDo $ flip evalStateT gRef $ redoEvent centralBox
-    
-    ims <- imContextSimpleNew
-    imContextSimpleAddTable ims (fromList [("ale", "ela")]) 4 4
-    
     
     flip evalStateT gRef $ do
         axioms <- getAxiomCtrl

@@ -7,6 +7,7 @@ import Equ.Proof (Proof,PM,ProofFocus,Theorem)
 
 import Graphics.UI.Gtk ( WidgetClass, Statusbar, ContextId, HBox, TreeView
                        , EventBox, Label, Button, Notebook, HPaned, IconView
+                       , Window
                        )
 
 import Equ.Types
@@ -48,7 +49,8 @@ data TreeExpr = TreeExpr { mainExpr :: ExprState
                          , quantExpr :: [ExprState]
                          }
 
-data GState = GState { gProof :: Maybe ProofState -- ^ Prueba en progreso.
+data GState = GState { gWindow :: Window
+                     , gProof :: Maybe ProofState -- ^ Prueba en progreso.
                      , gExpr :: Maybe ExprState -- ^ Expresión seleccionada.
                      , gTreeExpr :: Maybe TreeExpr -- ^ Árbol de una expresión.
                      , symCtrl :: IconView   -- ^ La lista de símbolos para construir expresiones.

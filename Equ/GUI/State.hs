@@ -5,6 +5,7 @@
 module Equ.GUI.State (-- * Proyeccion de componentes del estado
                        getSymFrame
                      , getParentNamed
+                     , getWindow
                      , getAxiomFrame
                      , getErrPane
                      , getErrPanedLabel
@@ -366,6 +367,9 @@ getFrmCtrl = getStatePartDbg "getFrmCtrl" $ eventExpr . fromJust . gExpr
 getSelectExpr :: IState (Maybe ExprState)
 getSelectExpr = getStatePartDbg "getSelectExpr" gExpr
 
+getWindow :: IState Window
+getWindow = getStatePart gWindow
+
 getTreeExpr :: IState (Maybe TreeExpr)
 getTreeExpr = getStatePart gTreeExpr
 
@@ -441,7 +445,7 @@ getFormPane = getFrmCtrl >>=
 -- | Devuelve el paned que contiene al widget de errores.
 -- TODO: Queda muy fea la parte de la lista con tres elementos.
 getErrPane :: IState Paned
-getErrPane = getStatus >>= liftIO . widgetGetParent . fst >>= \(Just w) ->
+getErrPane = getSymFrame >>= liftIO . widgetGetParent >>= \(Just w) ->
              liftIO (containerGetChildren (castToContainer w)) >>= \[_,m,_] ->
              return $ castToPaned m
 
@@ -683,17 +687,19 @@ eventWithState :: IState a -> GRef -> EventM t a
 eventWithState m = liftIO . evalStateT m
 
 -- | Estado inicial
-initialState :: IconView -> TreeView -> Notebook -> Statusbar -> ContextId -> GState
-initialState sl al fc sb ce = GState Nothing
-                              Nothing
-                              Nothing
-                              sl
-                              al
-                              fc
-                              []
-                              []
-                              []
-                              (Statistic [])
-                              (sb,ce)
-                              [] -- lista de teoremas, TODO: que se carguen los teoremas desde disco
-                              True -- undoing
+initialState :: Window -> IconView -> TreeView -> Notebook -> Statusbar -> ContextId -> GState
+initialState win sl al fc sb ce = GState 
+                                    win
+                                    Nothing
+                                    Nothing
+                                    Nothing
+                                    sl
+                                    al
+                                    fc
+                                    []
+                                    []
+                                    []
+                                    (Statistic [])
+                                    (sb,ce)
+                                    [] -- lista de teoremas, TODO: que se carguen los teoremas desde disco
+                                    True -- undoing

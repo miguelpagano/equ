@@ -87,19 +87,18 @@ openErrPane = getErrPane >>= \erp ->
                       widgetShowAll erp)
                       
 setErrMessage :: String -> IState ()
-setErrMessage = liftIO . putStrLn
--- setErrMessage msg = getErrPanedLabel >>= \eb ->
---                     liftIO (containerGetChildren eb) >>=
---                     \[l] -> liftIO (labelSetMarkup (castToLabel l) 
---                                     (markSpan 
---                                     [ FontBackground "#FF0000"
---                                     , FontForeground "#000000"
---                                     ] 
---                                     msg)) >>
---                     get >>= \s' ->
---                     liftIO (eb `on` buttonPressEvent $ tryEvent $ 
---                                     eventWithState (closeErrPane) s') >> 
---                     return ()
+setErrMessage msg = getErrPanedLabel >>= \eb ->
+                    liftIO (containerGetChildren eb) >>=
+                    \[l] -> liftIO (labelSetMarkup (castToLabel l) 
+                                    (markSpan 
+                                    [ FontBackground "#FF0000"
+                                    , FontForeground "#000000"
+                                    ] 
+                                    msg)) >>
+                    get >>= \s' ->
+                    liftIO (eb `on` buttonPressEvent $ tryEvent $ 
+                                    eventWithState (closeErrPane) s') >> 
+                    return ()
 
 closeErrPane :: IState ()
 closeErrPane = getErrPane >>= \erp ->
@@ -236,4 +235,24 @@ errorDialog message = do
    
     dialogRun dialog
     widgetDestroy dialog
-    
+
+popupText :: Window -> String -> IO Window
+popupText w str = windowNewPopup >>= \pop ->
+                 set pop [ windowDecorated := False
+                         , windowHasFrame := False
+                         , windowTypeHint := WindowTypeHintPopupMenu
+                         , windowTransientFor := w
+                         , windowGravity := GravityCenter
+                         ] >>
+                 windowGetScreen w >>= \screen ->
+                 windowSetScreen pop screen >>
+                 entryNew >>= \entry ->
+                 widgetAddEvents entry [FocusChangeMask] >>
+                 entrySetText entry str >>
+                 containerAdd pop entry >>
+                 (entry `on` focusOutEvent) (tryEvent (hide pop)) >>
+                 widgetGrabFocus entry >>
+                 widgetShowAll pop >>
+                 windowPresent pop >>
+                 return pop
+    where hide p = eventFocusIn >>= \inF -> liftIO (putStrLn "jeje" >> widgetDestroy p)

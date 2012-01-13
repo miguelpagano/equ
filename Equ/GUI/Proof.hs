@@ -399,7 +399,8 @@ eventsExprWidget :: HBox -> GRef -> HBox -> ExprWidget -> (ProofFocus -> Maybe P
 eventsExprWidget ext_box proofRef hb w moveFocus fUpdate fGet top_box =
     
     flip evalStateT proofRef $ 
-        liftIO setupOptionExprWidget >>
+        getWindow >>= \win ->
+        liftIO (setupOptionExprWidget win) >>
         liftIO setupFocusEvent >>
         setupForm (formBox w) >>
         liftIO ((clearButton w) `on` buttonPressEvent $ tryEvent $ 
@@ -453,75 +454,37 @@ eventsExprWidget ext_box proofRef hb w moveFocus fUpdate fGet top_box =
         addToMenu m = mapM_ (addItem . show)
             where addItem x = menuItemNewWithLabel x >>= menuShellAppend m
 
-        setupOptionExprWidget :: IO ()
-        setupOptionExprWidget = do
-            bAnot <- makeOptionEvent "Anot"
-            set bAnot [widgetWidthRequest := 80, widgetHeightRequest := 10]
+        setupOptionExprWidget :: Window -> IO ()
+        setupOptionExprWidget win = do
+            bAnot <- makeOptionEvent win "✐"
             
-            bT <- makeOptionEvent "T"
-            set bT [widgetWidthRequest := 50, widgetHeightRequest := 10]
+            bT <- makeOptionEvent win "⑂"
             
-            da <- forShow drawX
-            eb <- eventBoxNew
-            set eb [ containerChild :=  da]
-            bInfo <- hBoxNew False 0
-            set bInfo [ containerChild :=  eb]
+            bInfo <- makeLayoutTypeCheckStatus
             
             boxPackStart ext_box bAnot PackNatural 10
             boxPackStart ext_box bT PackNatural 10
             boxPackStart ext_box bInfo PackNatural 10
             widgetShowAll ext_box
-        
-        drawX :: Double -> Double -> Render ()
-        drawX w h = do
-                    moveTo 2 2
-                    lineTo (w-2) (h/3 - 2)
-                    moveTo w 0
-                    lineTo 0 (h/3)
-                    setLineWidth 2
-                    setSourceRGBA 1 0 0 1
-                    stroke
-                
-        drawTilde :: Double -> Double -> Render ()
-        drawTilde w h = do 
-                        moveTo 0 7
-                        lineTo 0 (h/3)
-                        moveTo w 0
-                        lineTo 0 (h/3)
-                        setLineWidth 2
-                        setSourceRGBA 0 1 0 0.6
-                        stroke
-        drawShout :: Double -> Double -> Render ()
-        drawShout w h = do 
-                        moveTo (w/2) 0
-                        lineTo (w/2) (h - h/2)
-                        moveTo (w/2) (h - h/2 + 4)
-                        lineTo (w/2) (h - h/2 + 8)
-                        setLineWidth 4
-                        setSourceRGBA 1 0.9 0 1
-                        stroke
 
-        makeOptionEvent :: String -> IO HBox
-        makeOptionEvent s = do
-            l <- labelNew $ Just s
-            eb <- eventBoxNew
-            b <- hBoxNew False 0
-            set eb [ containerChild := l ]
-            boxPackStart b eb PackGrow 10
-            generalSetupOptionEvent eb b
-            return b
+        makeLayoutTypeCheckStatus :: IO Fixed
+        makeLayoutTypeCheckStatus = do
+            l <- layoutNew Nothing Nothing
+            set l [widgetWidthRequest := 25, widgetHeightRequest := 25]
+            widgetModifyBg l (toEnum 0) whiteBg
+            f <- fixedNew
+            fixedPut f l (0,12)
+            return f
         
-        forShow :: (Double -> Double -> Render ()) -> IO DrawingArea
-        forShow draw = do
-                    da <- drawingAreaNew
-                    set da [widgetWidthRequest := 10, widgetHeightRequest := 5]
-                    onExpose da (\_ ->  do 
-                                        (w,h) <- widgetGetSize da
-                                        drawin <- widgetGetDrawWindow da
-                                        renderWithDrawable drawin 
-                                            (draw (fromIntegral w)(fromIntegral h))
-                                        return True)
-                    return da
+        makeOptionEvent :: Window -> String -> IO HButtonBox
+        makeOptionEvent win s = do
+            l <- labelNew $ Just s
+            tb <- toggleButtonNew
+            buttonBox <- hButtonBoxNew
+            --onToggled tb (popupText win "Hola" >> return ())
+            set tb [containerChild := l]
+            set buttonBox [containerChild := tb]
+            return buttonBox
         
         generalSetupOptionEvent :: EventBox -> HBox -> IO (ConnectId EventBox)
         generalSetupOptionEvent eb b = do

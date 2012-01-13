@@ -11,6 +11,9 @@ hoverBg = Color 0 32000 65000
 focusBg :: Color
 focusBg =  Color 0 65000 32000
 
+whiteBg :: Color
+whiteBg = Color 65000 65000 65000
+
 errBg :: Color
 errBg = Color 65000 0 0
 
