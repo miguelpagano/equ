@@ -35,86 +35,209 @@ import qualified Data.Serialize as S
 import qualified Data.ByteString as L
 
 -- Función principal que construye el arbol de tipado.
-buildTreeExpr :: ExprState -> IState ()
-buildTreeExpr te = 
-                get >>= \ s ->
-                getTreeExprBox >>= \ bTreeExpr -> 
-                getTreeOpBox >>= \bTreeOp ->
-                getTreeVarQBox >>= \bTreeVarQ ->
-                getTreeQuantBox >>= \bTreeQuant ->
-                removeAllChildren bTreeExpr >>
-                removeAllChildren bTreeOp >>
-                removeAllChildren bTreeVarQ >>
-                removeAllChildren bTreeQuant >>
-                setupEventExpr (fExpr te) TyUnknown >>= 
-                \(eb, tb) -> newBox >>= \ bb -> 
-                addMainExprToTree (fExpr te) t (id,id) eb tb >>= \te ->
-                when ((isPreExprQuant . fExpr) te)
-                    (addQuantExprTree te) >>
-                liftIO (configEventSelectTypeFromTree tb s >>
-                        boxPackStart bb eb PackGrow 2 >>
-                        boxPackStart bb tb PackGrow 2 >>
-                        boxPackEnd bTreeExpr bb PackNatural 2 >>
-                        widgetShowAll bb
-                        ) >>
-                buildTreeExpr' te bTreeExpr >>
-                updateOpExprTree (agrupOp $ toFocusesWithGo $ fst $ fExpr te)
-                                    Nothing Nothing >>
-                buildTreeOpList bTreeOp >>
-                buildTreeVarQList bTreeVarQ >>
-                buildTreeQuantList bTreeQuant
+buildTreeExpr :: Focus -> IO VBox
+buildTreeExpr f = do
+                bTreeExpr <- vBoxNew False 0
+                mes <- makeMainExprState
+                bb <- hBoxNew False 0
+                boxPackStart bb (eventExpr mes) PackGrow 2
+                boxPackStart bb (eventType mes) PackGrow 2
+                boxPackEnd bTreeExpr bb PackNatural 2
+                widgetShowAll bb
+                buildTreeExpr' mes bTreeExpr
+                return bTreeExpr
     where
-        tVar :: Type
-        tVar = getVarTypeFromQuantType (getTypeFocus $ fExpr te)
-        t :: Type
-        t = case (isPreExprQuant . fExpr) te of
-                True -> tVar :-> TyUnknown
-                False -> TyUnknown
+        makeMainExprState :: IO ExprState
+        makeMainExprState = do
+                    (eb, tb) <- setupEventExpr f TyUnknown
+                    return $ ExprState f TyUnknown (id,id) eb tb
 
 -- Función secundaria que contruye el árbol de tipado.
-buildTreeExpr' :: (BoxClass b) => ExprState -> b -> IState ()
+buildTreeExpr' :: ExprState -> VBox -> IO ()
 buildTreeExpr' te bTree = do
                     leftBranch <- goTypedExpr goDownL te
                     rightBranch <- goTypedExpr goDownR te
                     case (leftBranch, rightBranch) of
                         (Just (dlte, leb, ltb), Just (drte, reb, rtb)) -> 
-                            newBox >>= \bTree' ->
-                            liftIO (boxPackEnd bTree bTree' PackNatural 2) >>
+                            hBoxNew False 0 >>= \bTree' ->
+                            boxPackEnd bTree bTree' PackNatural 2 >>
                             fillNewBox bTree' reb rtb drte >>= \nVb ->
-                            when ((checkIsAtom . fExpr) dlte) 
-                                (addAtomExprTree dlte) >>
-                            when ((isPreExprQuant . fExpr) dlte) 
-                                (addQuantExprTree dlte) >>
                             buildTreeExpr' drte nVb >>
                             fillNewBox bTree' leb ltb dlte >>= \nVb ->
-                            when ((checkIsAtom . fExpr) drte) 
-                                (addAtomExprTree drte) >>
-                            when ((isPreExprQuant . fExpr) drte) 
-                                (addQuantExprTree drte) >>
                             buildTreeExpr' dlte nVb
                         (Just (dlte, leb, ltb), Nothing) -> 
-                            newBox >>= \bTree' ->
-                            liftIO (boxPackEnd bTree bTree' PackNatural 2) >>
+                            hBoxNew False 0 >>= \bTree' ->
+                            boxPackEnd bTree bTree' PackNatural 2 >>
                             fillNewBox bTree' leb ltb dlte >>= \nVb ->
-                            when ((checkIsAtom . fExpr) dlte) 
-                                (addAtomExprTree dlte) >>
-                            when ((isPreExprQuant . fExpr) dlte) 
-                                (addQuantExprTree dlte) >>
                             buildTreeExpr' dlte nVb
                         (Nothing, _) -> return ()
     where
-        fillNewBox :: (BoxClass b) => b -> HBox -> HBox -> ExprState -> IState VBox
-        fillNewBox bTree eb tb te = get >>= \s -> newVBox >>= \nVb ->
-                                 newBox >>= \nb -> 
-                                 liftIO (
-                                     boxPackStart nb eb PackGrow 2 >> 
-                                     when ((checkIsAtom . fExpr) te) 
-                                           (boxPackStart nb tb PackGrow 2) >> 
-                                     boxPackEnd nVb nb PackGrow 2 >> 
-                                     boxPackEnd bTree nVb PackGrow 2 >> 
-                                     widgetShowAll bTree
-                                 ) >>
-                                 return nVb
+        fillNewBox :: (BoxClass b) => b -> HBox -> HBox -> ExprState -> IO VBox
+        fillNewBox bTree eb tb te = 
+                                vBoxNew False 0 >>= \nVb ->
+                                hBoxNew False 0 >>= \nb -> 
+                                boxPackStart nb eb PackGrow 2 >> 
+                                when ((checkIsAtom . fExpr) te) 
+                                    (boxPackStart nb tb PackGrow 2) >> 
+                                boxPackEnd nVb nb PackGrow 2 >> 
+                                boxPackEnd bTree nVb PackGrow 2 >> 
+                                widgetShowAll bTree >>
+                                return nVb
+
+-- Configuración general para los botones. 
+-- (Coloreo y desColoreo al pasar por encima)
+configEventGeneralExpr :: (BoxClass w) => EventBox -> w -> IO ()
+configEventGeneralExpr eb b = 
+                            onEvent enterNotifyEvent (highlightBox b hoverBg) >>
+                            onEvent leaveNotifyEvent (unlightBox b Nothing) >>
+                            return ()
+    where onEvent event action = eb `on` event $ tryEvent action
+
+-- | Navega una expresión (la seleccionada) y devuelve, si se puede
+-- hacer la navegación, una caja de tipado correspondiente con el nodo
+-- al que llegamos.
+goTypedExpr :: (Focus -> Maybe Focus) -> ExprState -> 
+                    IO (Maybe (ExprState, HBox, HBox))
+goTypedExpr go te = case (go . fExpr) te of
+                Nothing ->  return Nothing
+                Just f ->   setupEventExpr f (getTypeFocus f) >>= 
+                            \(eb,tb) -> 
+                            return (Just ((te' f eb tb), eb, tb))
+    where 
+        (f,g) = pathExpr te
+        (fwd,bwd) = (fromJust . go . f, fromJust . go . g)
+        te' f eb tb = ExprState f (getTypeFocus f) (fwd,bwd) eb tb 
+
+-- Setea el par expresión, tipo para construir el árbol de tipado.
+setupEventExpr :: Focus -> Type -> IO (HBox, HBox)
+setupEventExpr (e,_) t = do
+                            exprL <- labelNew $ Just $ show e
+                            typeL <- labelNew $ Just $ show t
+                            exprEb <- eventBoxNew
+                            typeEb <- eventBoxNew
+                            exprEbb <- hBoxNew False 0
+                            typeEbb <- hBoxNew False 0
+                            configEventGeneralExpr exprEb exprEbb
+                            configEventGeneralExpr typeEb typeEbb
+                            set exprEb [ containerChild := exprL ]
+                            set typeEb [ containerChild := typeL ]
+                            set exprEbb [ containerChild := exprEb ]
+                            set typeEbb [ containerChild := typeEb ]
+                            return (exprEbb, typeEbb)
+
+-- ////////////// Funciones de la version vieja del arbol de tipado //////////
+
+-- | En base a una expresion seleccionada genera el arbol de tipado y abre
+-- el respectivo panel.
+-- typedExprTree :: IState ()
+-- typedExprTree = getSelectExpr >>= \tse ->
+--                 case tse of
+--                      Just se -> 
+--                         updateMainExprTree se >> 
+--                         buildTreeExpr se >> return ()
+--                      Nothing -> reportErrWithErrPaned 
+--                                             "Ninguna expresion seleccionada."
+
+-- | Limpia todos los tipos asociados a una preExpresion.
+-- cleanTypeInTree :: IState ()
+-- cleanTypeInTree = getMainExprTree >>= \met ->
+--                   updateMainExprTree (se' met) >> 
+--                   buildTreeExpr (se' met) >> return ()
+--     where se' :: ExprState -> ExprState
+--           se' se = se {fExpr = goTop $ resetTypeAllFocus (fExpr se)}
+
+-- Configuración para los botones de expresiones cuantificador.
+configEventGeneralExprQuant :: (BoxClass w) => EventBox -> w ->  w -> IO ()
+configEventGeneralExprQuant eb b b' = 
+                            onEvent enterNotifyEvent (highlightBox b' hoverBg >>
+                                                     highlightBox b hoverBg) >>
+                            onEvent leaveNotifyEvent (unlightBox b' Nothing >>
+                                                     unlightBox b Nothing) >>
+                            return ()
+    where onEvent event action = eb `on` event $ tryEvent action
+
+-- Configura la acción de ingresar un tipo para la expresión principal del 
+-- árbol de tipado o para sus hojas(atomos).
+configEventSelectTypeFromTree :: HBox -> GRef -> IO (ConnectId EventBox)
+configEventSelectTypeFromTree b s = 
+                        containerGetChildren b >>= \[tb'] ->
+                        do
+                        tb <- return $ castToEventBox tb'
+                        tb `on` buttonPressEvent $ tryEvent $ 
+                            eventWithState (
+                                selectTypeFromBox b >>
+                                getSelectExpr >>= \(Just te) ->
+                                liftIO (entryNew) >>= \eText ->
+                                liftIO (entrySetText eText (show (fType te)) >>
+                                        containerRemove b tb >>
+                                        boxPackStart b eText PackGrow 0 >> 
+                                        widgetShowAll b) >>
+                                configTypedEntry eText b tb te
+                                        ) s
+
+-- Configura la acción de checkeo del tipo ingresado para la expresión principal
+-- del árbol de tipado o para sus hojas.
+configTypedEntry :: Entry -> HBox -> EventBox -> ExprState -> IState ()
+configTypedEntry eText b tb te = 
+                withState (onEntryActivate eText) 
+                (liftIO (entryGetText eText) >>= 
+                \text -> checkInType text >>= \checkText ->
+                case checkText of
+                    Nothing -> return ()
+                    Just t -> 
+                        when ((checkIsAtom . fExpr) te) 
+                             (updateTypeAtomInMainExprTree te t >>
+                              updateTypeAtomInExprTree te t
+                              ) >>
+                        when (not $ (checkIsAtom . fExpr) te) 
+                               (updateTypeSelectType te t >>
+                                updateMainExprTreeType t
+                               ) >>
+                        liftIO (labelNew $ Just $ show t) >>= 
+                        \typeL -> 
+                        liftIO (containerGetChildren tb) >>= \[oldL] ->
+                        liftIO (containerRemove tb oldL) >> 
+                        liftIO (containerRemove b eText) >> 
+                        liftIO (set tb [containerChild := typeL]) >> 
+                        liftIO (set b [containerChild := tb] >> widgetShowAll b)
+                        >> return ()) >> 
+                return ()
+
+-- Propagación de coloreo de error de las sub-expresiones.
+paintBranchErr :: Focus -> IState ()
+paintBranchErr f =  searchFocusInTree f >>= \fs ->
+                    liftIO (debug $ show $ map (fExpr) fs) >>
+                    paint fs
+    where
+        paint :: [ExprState] -> IState ()
+        paint [] = return ()
+        paint (es:ess) = highlightBox (eventExpr es) errBg >>
+                        (case goUp f of
+                            Nothing -> return ()
+                            (Just f') -> paintBranchErr f') >>
+                        paint ess
+
+-- | Aplica el type-checker a la expresión seleccionada.
+typedCheckType :: IState ()
+typedCheckType = getMainExprTree >>= \te ->
+                 case checkPreExpr (toExpr $ fExpr te) of
+                    Left err -> paintBranchErr ((fst . fst) err) >>
+                                (reportErrWithErrPaned $ show err)
+                    Right checkedType ->
+                        case unify checkedType (fType te) emptySubst of
+                        Left err' -> reportErrWithErrPaned $ show err'
+                        Right _   -> highlightBox (eventExpr te) 
+                                                    successfulBg >>
+                                    highlightBox (eventType te) 
+                                                    successfulBg
+
+-- | Checkeo del tipo ingresado para la expresión.
+checkInType :: String -> IState (Maybe Type)
+checkInType s = case parseTyFromString s of
+                     Left err -> reportErrWithErrPaned (show err) >> 
+                                 return Nothing
+                     Right t -> return $ Just t
+-- 
 
 -- Versión general para la construcción del árbol de tipado de cuantificadores.
 buildTreeXList ::   VBox ->
@@ -314,156 +437,3 @@ configTypeOpEntry fs eText b tb =
                         >> return ()) >> 
                 return ()
 
--- Configuración general para los botones. 
--- (Coloreo y desColoreo al pasar por encima)
-configEventGeneralExpr :: (BoxClass w) => EventBox -> w -> IO ()
-configEventGeneralExpr eb b = 
-                            onEvent enterNotifyEvent (highlightBox b hoverBg) >>
-                            onEvent leaveNotifyEvent (unlightBox b Nothing) >>
-                            return ()
-    where onEvent event action = eb `on` event $ tryEvent action
-
--- Configuración para los botones de expresiones cuantificador.
-configEventGeneralExprQuant :: (BoxClass w) => EventBox -> w ->  w -> IO ()
-configEventGeneralExprQuant eb b b' = 
-                            onEvent enterNotifyEvent (highlightBox b' hoverBg >>
-                                                     highlightBox b hoverBg) >>
-                            onEvent leaveNotifyEvent (unlightBox b' Nothing >>
-                                                     unlightBox b Nothing) >>
-                            return ()
-    where onEvent event action = eb `on` event $ tryEvent action
-
--- Configura la acción de ingresar un tipo para la expresión principal del 
--- árbol de tipado o para sus hojas(atomos).
-configEventSelectTypeFromTree :: HBox -> GRef -> IO (ConnectId EventBox)
-configEventSelectTypeFromTree b s = 
-                        containerGetChildren b >>= \[tb'] ->
-                        do
-                        tb <- return $ castToEventBox tb'
-                        tb `on` buttonPressEvent $ tryEvent $ 
-                            eventWithState (
-                                selectTypeFromBox b >>
-                                getSelectExpr >>= \(Just te) ->
-                                liftIO (entryNew) >>= \eText ->
-                                liftIO (entrySetText eText (show (fType te)) >>
-                                        containerRemove b tb >>
-                                        boxPackStart b eText PackGrow 0 >> 
-                                        widgetShowAll b) >>
-                                configTypedEntry eText b tb te
-                                        ) s
-
--- Configura la acción de checkeo del tipo ingresado para la expresión principal
--- del árbol de tipado o para sus hojas.
-configTypedEntry :: Entry -> HBox -> EventBox -> ExprState -> IState ()
-configTypedEntry eText b tb te = 
-                withState (onEntryActivate eText) 
-                (liftIO (entryGetText eText) >>= 
-                \text -> checkInType text >>= \checkText ->
-                case checkText of
-                    Nothing -> return ()
-                    Just t -> 
-                        when ((checkIsAtom . fExpr) te) 
-                             (updateTypeAtomInMainExprTree te t >>
-                              updateTypeAtomInExprTree te t
-                              ) >>
-                        when (not $ (checkIsAtom . fExpr) te) 
-                               (updateTypeSelectType te t >>
-                                updateMainExprTreeType t
-                               ) >>
-                        liftIO (labelNew $ Just $ show t) >>= 
-                        \typeL -> 
-                        liftIO (containerGetChildren tb) >>= \[oldL] ->
-                        liftIO (containerRemove tb oldL) >> 
-                        liftIO (containerRemove b eText) >> 
-                        liftIO (set tb [containerChild := typeL]) >> 
-                        liftIO (set b [containerChild := tb] >> widgetShowAll b)
-                        >> return ()) >> 
-                return ()
-
--- Propagación de coloreo de error de las sub-expresiones.
-paintBranchErr :: Focus -> IState ()
-paintBranchErr f =  searchFocusInTree f >>= \fs ->
-                    liftIO (debug $ show $ map (fExpr) fs) >>
-                    paint fs
-    where
-        paint :: [ExprState] -> IState ()
-        paint [] = return ()
-        paint (es:ess) = highlightBox (eventExpr es) errBg >>
-                        (case goUp f of
-                            Nothing -> return ()
-                            (Just f') -> paintBranchErr f') >>
-                        paint ess
-
--- | Aplica el type-checker a la expresión seleccionada.
-typedCheckType :: IState ()
-typedCheckType = getMainExprTree >>= \te ->
-                 case checkPreExpr (toExpr $ fExpr te) of
-                    Left err -> paintBranchErr ((fst . fst) err) >>
-                                (reportErrWithErrPaned $ show err)
-                    Right checkedType ->
-                        case unify checkedType (fType te) emptySubst of
-                        Left err' -> reportErrWithErrPaned $ show err'
-                        Right _   -> highlightBox (eventExpr te) 
-                                                    successfulBg >>
-                                    highlightBox (eventType te) 
-                                                    successfulBg
-
--- | Checkeo del tipo ingresado para la expresión.
-checkInType :: String -> IState (Maybe Type)
-checkInType s = case parseTyFromString s of
-                     Left err -> reportErrWithErrPaned (show err) >> 
-                                 return Nothing
-                     Right t -> return $ Just t
--- 
--- | Navega una expresión (la seleccionada) y devuelve, si se puede
--- hacer la navegación, una caja de tipado correspondiente con el nodo
--- al que llegamos.
-goTypedExpr :: (Focus -> Maybe Focus) -> ExprState -> 
-               IState (Maybe (ExprState, HBox, HBox))
-goTypedExpr go te = case (go . fExpr) te of
-                Nothing ->  return Nothing
-                Just f ->   get >>= \s -> setupEventExpr f (getTypeFocus f) >>= 
-                            \(eb,tb) -> 
-                            liftIO (debug $ (show f) ++ show (getTypeFocus f)) >>
-                            liftIO (configEventSelectTypeFromTree tb s) >>
-                            return (Just ((te' f eb tb), eb, tb))
-    where 
-        (f,g) = pathExpr te
-        (fwd,bwd) = (fromJust . go . f, fromJust . go . g)
-        te' f eb tb = ExprState f (getTypeFocus f) (fwd,bwd) eb tb 
- 
--- Setea el par expresión, tipo para construir el árbol de tipado.
-setupEventExpr :: Focus -> Type -> IState (HBox, HBox)
-setupEventExpr (e,_) t = liftIO $ do
-                                exprL <- labelNew $ Just $ show e
-                                typeL <- labelNew $ Just $ show t
-                                exprEb <- eventBoxNew
-                                typeEb <- eventBoxNew
-                                exprEbb <- hBoxNew False 0
-                                typeEbb <- hBoxNew False 0
-                                configEventGeneralExpr exprEb exprEbb
-                                configEventGeneralExpr typeEb typeEbb
-                                set exprEb [ containerChild := exprL ]
-                                set typeEb [ containerChild := typeL ]
-                                set exprEbb [ containerChild := exprEb ]
-                                set typeEbb [ containerChild := typeEb ]
-                                return (exprEbb, typeEbb)
-
--- | En base a una expresion seleccionada genera el arbol de tipado y abre
--- el respectivo panel.
-typedExprTree :: IState ()
-typedExprTree = getSelectExpr >>= \tse ->
-                case tse of
-                     Just se -> 
-                        updateMainExprTree se >> 
-                        buildTreeExpr se
-                     Nothing -> reportErrWithErrPaned 
-                                            "Ninguna expresion seleccionada."
-
--- | Limpia todos los tipos asociados a una preExpresion.
-cleanTypeInTree :: IState ()
-cleanTypeInTree = getMainExprTree >>= \met ->
-                  updateMainExprTree (se' met) >> 
-                  buildTreeExpr (se' met)
-    where se' :: ExprState -> ExprState
-          se' se = se {fExpr = goTop $ resetTypeAllFocus (fExpr se)}

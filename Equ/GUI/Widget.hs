@@ -235,24 +235,3 @@ errorDialog message = do
    
     dialogRun dialog
     widgetDestroy dialog
-
-popupText :: Window -> String -> IO Window
-popupText w str = windowNewPopup >>= \pop ->
-                 set pop [ windowDecorated := False
-                         , windowHasFrame := False
-                         , windowTypeHint := WindowTypeHintPopupMenu
-                         , windowTransientFor := w
-                         , windowGravity := GravityCenter
-                         ] >>
-                 windowGetScreen w >>= \screen ->
-                 windowSetScreen pop screen >>
-                 entryNew >>= \entry ->
-                 widgetAddEvents entry [FocusChangeMask] >>
-                 entrySetText entry str >>
-                 containerAdd pop entry >>
-                 (entry `on` focusOutEvent) (tryEvent (hide pop)) >>
-                 widgetGrabFocus entry >>
-                 widgetShowAll pop >>
-                 windowPresent pop >>
-                 return pop
-    where hide p = eventFocusIn >>= \inF -> liftIO (putStrLn "jeje" >> widgetDestroy p)

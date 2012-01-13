@@ -13,7 +13,7 @@ import Equ.Theories
 import Equ.Proof
 import Equ.PreExpr hiding (goDownL,goDownR,goRight,goUp,goTop)
 import Equ.GUI.Widget
-import Equ.GUI.Expr (clearFocus,writeExprWidget,setupForm)
+import Equ.GUI.Expr (clearFocus,writeExprWidget,setupForm,makeOptionEvent)
 import Equ.Parser
 import Equ.Types
 
@@ -22,8 +22,6 @@ import qualified Graphics.UI.Gtk as G
 import Graphics.UI.Gtk.Gdk.EventM
 import Graphics.UI.Gtk.Glade (GladeXML,xmlGetWidget)
 import Graphics.UI.Gtk.Display.Image
-
-import Graphics.Rendering.Cairo
 
 import Data.Reference
 import Data.Maybe(fromJust)
@@ -376,31 +374,31 @@ createExprWidget expr ref moveFocus fUpdateFocus fGetFocus top_box = do
     widgetSetSizeRequest hbox (-1) 50
     
     exprWidget <- return $ ExprWidget { extBox = boxExprWidget -- Box externa
-                                     , expLabel = label
-                                     , formBox = box
-                                     , clearButton = button_clear
-                                     , applyButton = button_apply
-                                     , choicesButton = expr_choices
-                                     }
+                                      , expLabel = label
+                                      , formBox = box
+                                      , clearButton = button_clear
+                                      , applyButton = button_apply
+                                      , choicesButton = expr_choices
+                                      }
     
-    eventsExprWidget hbox ref boxExprWidget exprWidget moveFocus fUpdateFocus fGetFocus top_box
+    eventsExprWidget expr hbox ref boxExprWidget exprWidget moveFocus fUpdateFocus fGetFocus top_box
     
     flip evalStateT ref $ writeExprWidget expr box
     
-    return hbox   
-
+    return hbox
     
 {- Setea los eventos de un widget de expresion. La funcion f es la que se utiliza
 para actualizar la expresion dentro de la prueba
 -}
-eventsExprWidget :: HBox -> GRef -> HBox -> ExprWidget -> (ProofFocus -> Maybe ProofFocus) ->
+eventsExprWidget :: PreExpr -> HBox -> GRef -> HBox -> ExprWidget -> 
+                    (ProofFocus -> Maybe ProofFocus) ->
                     (ProofFocus -> Focus -> Maybe ProofFocus) ->
                     (ProofFocus -> Focus) -> VBox -> IO ()
-eventsExprWidget ext_box proofRef hb w moveFocus fUpdate fGet top_box =
+eventsExprWidget expr ext_box proofRef hb w moveFocus fUpdate fGet top_box =
     
     flip evalStateT proofRef $ 
         getWindow >>= \win ->
-        liftIO (setupOptionExprWidget win) >>
+        setupOptionExprWidget win expr >>
         liftIO setupFocusEvent >>
         setupForm (formBox w) >>
         liftIO ((clearButton w) `on` buttonPressEvent $ tryEvent $ 
@@ -454,21 +452,22 @@ eventsExprWidget ext_box proofRef hb w moveFocus fUpdate fGet top_box =
         addToMenu m = mapM_ (addItem . show)
             where addItem x = menuItemNewWithLabel x >>= menuShellAppend m
 
-        setupOptionExprWidget :: Window -> IO ()
-        setupOptionExprWidget win = do
-            bAnot <- makeOptionEvent win "✐"
+        setupOptionExprWidget :: Window -> PreExpr-> IState ()
+        setupOptionExprWidget win e = do
+            bAnot <- makeOptionEvent win "✐" Nothing
             
-            bT <- makeOptionEvent win "⑂"
+            bT <- makeOptionEvent win "⑂" (Just $ getProof >>= \pf -> return $ fGet pf)
             
             bInfo <- makeLayoutTypeCheckStatus
             
-            boxPackStart ext_box bAnot PackNatural 10
-            boxPackStart ext_box bT PackNatural 10
-            boxPackStart ext_box bInfo PackNatural 10
-            widgetShowAll ext_box
+            liftIO (boxPackStart ext_box bAnot PackNatural 10 >>
+                    boxPackStart ext_box bT PackNatural 10 >>
+                    boxPackStart ext_box bInfo PackNatural 10 >>
+                    widgetShowAll ext_box)
 
-        makeLayoutTypeCheckStatus :: IO Fixed
-        makeLayoutTypeCheckStatus = do
+        makeLayoutTypeCheckStatus :: IState Fixed
+        makeLayoutTypeCheckStatus = liftIO $ 
+            do
             l <- layoutNew Nothing Nothing
             set l [widgetWidthRequest := 25, widgetHeightRequest := 25]
             widgetModifyBg l (toEnum 0) whiteBg
@@ -476,23 +475,6 @@ eventsExprWidget ext_box proofRef hb w moveFocus fUpdate fGet top_box =
             fixedPut f l (0,12)
             return f
         
-        makeOptionEvent :: Window -> String -> IO HButtonBox
-        makeOptionEvent win s = do
-            l <- labelNew $ Just s
-            tb <- toggleButtonNew
-            buttonBox <- hButtonBoxNew
-            --onToggled tb (popupText win "Hola" >> return ())
-            set tb [containerChild := l]
-            set buttonBox [containerChild := tb]
-            return buttonBox
-        
-        generalSetupOptionEvent :: EventBox -> HBox -> IO (ConnectId EventBox)
-        generalSetupOptionEvent eb b = do
-            onEvent eb enterNotifyEvent (highlightBox b hoverBg)
-            onEvent eb leaveNotifyEvent (unlightBox b Nothing)
-        
-        onEvent eb event action = eb `on` event $ tryEvent action
-
 
 {- | Funcion para obtener la caja correspondiente al paso de la prueba en el que estamos
    dentro de una transitividad.
