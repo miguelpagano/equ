@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings #-}
+{-# Language OverloadedStrings, DoRec #-}
 -- | Aspectos de la interfaz relacionados con expresiones.
 module Equ.GUI.Expr where
 
@@ -15,6 +15,7 @@ import Equ.Syntax
 import Equ.Parser
 import Equ.Types
 
+import qualified Graphics.UI.Gtk as G (get)
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
 import Graphics.UI.Gtk.Gdk.EventM
 import Data.Text (unpack)
@@ -326,100 +327,77 @@ instance ExpWriter Constant where
     writeExp s cont = removeAllChildren cont >>
                       writeConstant s cont 
 
-createAnotationWidget :: Window -> IO Window
-createAnotationWidget w = windowNewPopup >>= \pop ->
-            set pop [ windowDecorated := False
-                    , windowHasFrame := False
-                    , windowTypeHint := WindowTypeHintPopupMenu
-                    , windowTransientFor := w
-                    , windowGravity := GravityCenter
-                    ] >>
-            windowSetPosition pop WinPosMouse >>
-            set pop [windowOpacity := 0.8] >>
-            expanderNew "" >>= \expdr ->
-            hBoxNew False 1 >>= \b ->
-            entryNew >>= \entry ->
-            entrySetText entry "" >>
-            set entry [widgetWidthRequest := 500, widgetHeightRequest := 500] >>
-            boxPackStart b entry PackNatural 0 >>
-            containerAdd expdr b >>
-            onActivate expdr (expanderGetExpanded expdr >>= \isExpand ->
-                            case isExpand of
-                            True -> windowResize pop 1 1 >> widgetHideAll b
-                            False -> widgetShowAll b
-                            ) >>
-            containerAdd pop expdr >>
-            widgetShowAll pop >>
-            windowPresent pop >>
-            return pop
 
-createExprTreeWidget :: Window -> (IState Focus) -> IState Window
-createExprTreeWidget w iSf = 
-            iSf >>= \f ->
-            liftIO (
-            windowNewPopup >>= \pop ->
-            set pop [ windowDecorated := False
-                    , windowHasFrame := False
-                    , windowTypeHint := WindowTypeHintDialog
-                    , windowTransientFor := w
-                    , windowGravity := GravityCenter
-                    ] >>
-            windowSetPosition pop WinPosMouse >>
-            set pop [windowOpacity := 0.8] >>
-            expanderNew "" >>= \expdr ->
-            buildTreeExpr f >>= \bTree ->
-            hBoxNew False 1 >>= \b ->
-            boxPackStart b bTree PackNatural 0 >>
-            containerAdd expdr b >>
-            onActivate expdr (expanderGetExpanded expdr >>= \isExpand ->
-                            case isExpand of
-                            True -> windowResize pop 1 1 >> widgetHideAll b
-                            False -> widgetShowAll b
-                            ) >>
-            containerAdd pop expdr >>
-            widgetShowAll pop >>
-            windowPresent pop >>
-            return pop) >>= return
+popupWin :: Window -> IO Window
+popupWin w = windowNewPopup >>= \pop ->
+             set pop  [ windowDecorated := False
+                      , windowHasFrame := False
+                      , windowTypeHint := WindowTypeHintDialog
+                      , windowTransientFor := w
+                      , windowGravity := GravityCenter
+                      , windowOpacity := 0.8
+                      ] >>
+             windowSetPosition pop WinPosMouse >>
+             return pop
 
-makeOptionEvent :: Window -> String -> Maybe (IState Focus) -> IState ToggleButton
-makeOptionEvent win s mISf = do
-                    tb <- liftIO $ makeButtonBox
-                    case mISf of
-                        Nothing -> configOptionAnotToggleButton tb win
-                        Just iSf -> configOptionExprTreeToggleButton tb win iSf
-                    return tb
+moveWin w = windowGetPosition w >>= \(x,y) ->
+            windowMove w (x+64) (y+64)
+
+
+typeTreeWindow :: IState Focus -> Window -> IState Window
+typeTreeWindow isf w = isf >>= \f -> 
+                       io (popupWin w) >>= \pop -> 
+                       io (buildTreeExpr f) >>= \bTree ->
+                       io (containerAdd pop bTree) >>
+                       return pop
+
+makeOptionEvent :: Window -> String -> (ToggleButton -> Window -> IState ()) -> IState ToggleButton
+makeOptionEvent win s f = io makeButtonBox >>= \tb -> f tb win >> return tb
     where
         makeButtonBox :: IO ToggleButton
-        makeButtonBox = do  tb <- toggleButtonNew
-                            img <- imageNewFromStock s IconSizeMenu
-                            containerAdd tb img
-                            return tb
+        makeButtonBox = toggleButtonNew >>= \tb ->
+                        imageNewFromStock s IconSizeMenu >>=
+                        containerAdd tb >>
+                        return tb
 
-configOptionAnotToggleButton :: ToggleButton -> Window -> IState ()
-configOptionAnotToggleButton tb w = liftIO $
-    onToggled tb (toggleButtonGetActive tb >>= \act ->
-            case act of
-                True -> (createAnotationWidget w >>= \pop ->
-                         onToggled tb (toggleButtonGetActive tb >>= \act ->
-                             case act of
-                                False -> widgetDestroy pop >> return ()
-                                True -> return ()
-                        )) >> return ()
-                False -> return ()
-            ) >> return ()
+anotWindow w = popupWin w >>= \pop ->
+               hBoxNew False 1 >>= \b ->
+               entryNew >>= \entry ->
+               entrySetText entry "" >>
+               set entry [widgetWidthRequest := 500, widgetHeightRequest := 500] >>
+               boxPackStart b entry PackNatural 0 >>
+               containerAdd pop b >>
+               return pop
 
-configOptionExprTreeToggleButton :: ToggleButton -> Window -> (IState Focus) -> 
-                                    IState ()
-configOptionExprTreeToggleButton tb w iSf = 
-    withState (onToggled tb) 
-        (liftIO (toggleButtonGetActive tb) >>= \act ->
-            case act of
-                True -> (createExprTreeWidget w iSf >>= \pop ->
-                         withState (onToggled tb) 
-                         (liftIO (toggleButtonGetActive tb) >>= \act ->
-                             case act of
-                                False -> liftIO (widgetDestroy pop) >> return ()
-                                True -> return ()
-                        )) >> return ()
-                False -> return ()
-            ) >> return ()
+configAnotTB :: ToggleButton -> Window -> IState ()
+configAnotTB tb w = io $ actTBOn tb w (io . anotWindow)
+               
+configTypeTreeTB :: IState Focus -> ToggleButton ->  Window -> IState ()
+configTypeTreeTB isf tb w = get >>= \s ->
+                            io (actTBOn tb w $ \w' -> evalStateT (typeTreeWindow isf w') s) >>
+                            return ()
+                            
+
+
+-- | Define la acción para cuando no está activado.
+actTBOn :: ToggleButton -> Window -> (Window -> IO Window) -> IO ()
+actTBOn tb w f = do rec {
+                       cid <- tb `on` toggled $ io 
+                             (f w >>= \pop ->
+                              widgetShowAll pop >> 
+                              moveWin pop >>
+                              windowPresent pop >>
+                              signalDisconnect cid >>
+                              actTBOff tb w f pop)
+                    } ;
+                    return ()
+
+actTBOff :: ToggleButton -> Window -> (Window -> IO Window) -> Window -> IO ()
+actTBOff tb w f pop = do rec {
+                          cid <- tb `on` toggled $ io ( widgetDestroy pop >>
+                                                       signalDisconnect cid >>
+                                                       actTBOn tb w f)
+                         }
+                         return ()
+
+
