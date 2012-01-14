@@ -34,6 +34,8 @@ import qualified Data.Serialize as S
 import qualified Data.ByteString as L
 
 
+
+
 -- unselectAll :: IconView -> IState ()
 -- unselectAll tv = liftIO (treeViewGetSelection tv >>= \tree -> 
 --                          treeSelectionSetMode tree SelectionSingle >>
@@ -184,7 +186,12 @@ addToBox b w = liftIO $ boxPackStart b w PackNatural 3
 -- | Elimina todos los controles contenidos en una caja (también
 -- destruye los hijos para liberar memoria -- está bien hacer esto?).
 removeAllChildren :: ContainerClass b => b -> IRG
-removeAllChildren b = liftIO $ containerForeach b $ 
+removeAllChildren = liftIO . removeAllChildren'
+
+-- | Elimina todos los controles contenidos en una caja (también
+-- destruye los hijos para liberar memoria -- está bien hacer esto?).
+removeAllChildren' :: ContainerClass b => b -> IO ()
+removeAllChildren' b = containerForeach b $ 
                          \x -> containerRemove b x >> widgetDestroy x
 
 {- Las siguientes funciones son los manejadores de eventos. -}

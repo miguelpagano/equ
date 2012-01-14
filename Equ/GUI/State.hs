@@ -25,6 +25,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , getExprProof
                      , getProof
                      , getRedoList
+                     , getRelPF
                      -- * Modificacion del estado.
                      , updateExpr
                      , updateFrmCtrl
@@ -196,7 +197,7 @@ updateExpr'' change gst = case (gProof gst,gExpr gst) of
 
 updateExpr' :: PreExpr -> GState -> GState
 updateExpr' e = updateExpr'' (const e)
-    
+
     
 updateProofNoUndo pf = update (updateProof' pf) >>
                        showProof >>
@@ -231,6 +232,7 @@ updateValidProof = getValidProof >>= \vp -> update (updateValidProof' vp)
                                        Just gpr -> gst { gProof = Just $ updPrf gpr }
                                        Nothing -> gst
           updPrf gpr = gpr { validProof = validateProof (toProof $ proof gpr) }
+
 
 updateProofState :: ProofState -> IState ()
 updateProofState ps = update (\gst -> gst {gProof = Just ps}) >>
@@ -354,6 +356,10 @@ getExprProof = getValidProof >>= either (const (return holeExpr)) (return . getE
                                    (toExpr $ fromJust $ getStart p)
                                    (toExpr $ fromJust $ getEnd p)
                                      
+
+getRelPF :: IState Relation
+getRelPF = getStatePart $ fromJust . getRel . fst . proof . fromJust . gProof
+
 
 getExpr :: IState Focus
 getExpr = getStatePartDbg "getExpr" $ fExpr . fromJust . gExpr

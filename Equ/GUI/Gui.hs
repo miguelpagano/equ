@@ -80,9 +80,6 @@ main = do
     --fieldExprFaceBox <- xmlGetWidget xml castToVBox "fieldExprFaceBox"
     
     proofFaceBox <- xmlGetWidget xml castToHBox "proofFaceBox"
-    --exprFaceBox <- xmlGetWidget xml castToHBox "exprFaceBox"
---     boxGoProofFace <- xmlGetWidget xml castToHBox "boxGoProofFace"
---     boxGoExprFace <- xmlGetWidget xml castToHBox "boxGoExprFace"
     
     showProofItem <- xmlGetWidget xml castToImageMenuItem "showProofPanelItem"
     showTypesItem <- xmlGetWidget xml castToImageMenuItem "showTypesPanelItem"
@@ -118,9 +115,6 @@ main = do
         symbols <- getSymCtrl
         eventsSymbolList symbols sListStore
         hidePane errPane
-        --switchToProof faces boxGoProofFace (cleanTypedExprTree >> cleanTreeExpr)
-        --switchToTypeTree faces boxGoExprFace typedExprTree
-
 
     widgetShowAll window
 

@@ -41,3 +41,7 @@ paneFormHeight = 30
 -- | Alto del sector que informa sobre errores.
 paneErrPaneHeight :: Int
 paneErrPaneHeight = 100
+
+-- | Símbolo para label donde todavía no hay nada ingresado.
+emptyLabel :: String
+emptyLabel = "..."

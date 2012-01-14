@@ -96,9 +96,6 @@ instance Reference IORef IState where
     newRef = liftIO . newRef
 
 data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
-                             , expLabel :: Label -- ^ Label con el texto "Expresión:"
-                             , formBox :: HBox   -- ^ Box donde se ingresa la formula
-                             , clearButton :: Button -- ^ Botón para borrar toda la expresión.
-                             , applyButton :: Button -- ^ Botón para aplicar la expresión.
+                             , formBox :: HBox      -- ^ Box donde se ingresa la formula
                              , choicesButton :: Button -- ^ Botón para ver las expresiones que matchean en la prueba
                              }

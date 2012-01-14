@@ -9,7 +9,7 @@
         <child>
           <widget class="GtkMenuBar" id="menubar1">
             <property name="visible">True</property>
-            <property name="ubuntu_local">True</property>
+
             <child>
               <widget class="GtkMenuItem" id="menuitem1">
                 <property name="visible">True</property>
@@ -18,8 +18,7 @@
                 <child>
                   <widget class="GtkMenu" id="menu1">
                     <property name="visible">True</property>
-                    <property name="ubuntu_local">True</property>
-                    <child>
+                   <child>
                       <widget class="GtkImageMenuItem" id="imagemenuitem1">
                         <property name="label">gtk-new</property>
                         <property name="visible">True</property>
@@ -76,8 +75,7 @@
                 <child>
                   <widget class="GtkMenu" id="menu2">
                     <property name="visible">True</property>
-                    <property name="ubuntu_local">True</property>
-                    <child>
+                   <child>
                       <widget class="GtkImageMenuItem" id="undoMenuItem">
                         <property name="label">gtk-undo</property>
                         <property name="visible">True</property>
@@ -138,8 +136,7 @@
                 <child>
                   <widget class="GtkMenu" id="menu5">
                     <property name="visible">True</property>
-                    <property name="ubuntu_local">True</property>
-                    <child>
+                   <child>
                       <widget class="GtkImageMenuItem" id="showProofPanelItem">
                         <property name="label">Panel de Pruebas</property>
                         <property name="visible">True</property>
@@ -179,8 +176,7 @@
                 <child>
                   <widget class="GtkMenu" id="menu4">
                     <property name="visible">True</property>
-                    <property name="ubuntu_local">True</property>
-                    <child>
+                   <child>
                       <widget class="GtkImageMenuItem" id="itemNewProof">
                         <property name="label">Crear Prueba</property>
                         <property name="visible">True</property>
@@ -246,8 +242,7 @@
                 <child>
                   <widget class="GtkMenu" id="menu3">
                     <property name="visible">True</property>
-                    <property name="ubuntu_local">True</property>
-                    <child>
+                   <child>
                       <widget class="GtkImageMenuItem" id="imagemenuitem10">
                         <property name="label">gtk-about</property>
                         <property name="visible">True</property>

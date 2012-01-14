@@ -54,7 +54,7 @@ clearExpr b = removeAllChildren b >>
 -- | Poné en una caja el widget que usamos para construir nuevas
 -- expresiones.
 setupForm ::  HBox -> IRG
-setupForm b = labelStr "?" >>= \l -> setupFormEv b l holePreExpr
+setupForm b = labelStr emptyLabel >>= \l -> setupFormEv b l holePreExpr
 
 -- | Asigna los manejadores de eventos para widgets de expresiones a 
 -- los controles.
@@ -73,9 +73,7 @@ setupEvents b eb e = get >>= \s ->
                      addHandler eb enterNotifyEvent (highlightBox b hoverBg) >>
                      addHandler eb leaveNotifyEvent (unlightBox b Nothing) >>
                      addHandler eb buttonPressEvent (editExpr p b s sym) >>
-                     --addHandler eb buttonPressEvent (newFocusToSym b p sym s) >>
                      return ()
-    where newExpr = ExprState (toFocus e) TyUnknown (id,id) b b
 
 
 -- | Si apretamos el botón derecho, entonces editamos la expresión
@@ -380,23 +378,19 @@ createExprTreeWidget w iSf =
             windowPresent pop >>
             return pop) >>= return
 
-makeOptionEvent :: Window -> String -> Maybe (IState Focus) -> IState HButtonBox
-makeOptionEvent win s mISf = 
-                    do
-                    (tb,buttonBox) <- liftIO $ makeButtonBox
+makeOptionEvent :: Window -> String -> Maybe (IState Focus) -> IState ToggleButton
+makeOptionEvent win s mISf = do
+                    tb <- liftIO $ makeButtonBox
                     case mISf of
                         Nothing -> configOptionAnotToggleButton tb win
                         Just iSf -> configOptionExprTreeToggleButton tb win iSf
-                    return buttonBox
+                    return tb
     where
-        makeButtonBox :: IO (ToggleButton, HButtonBox)
-        makeButtonBox = do
-                            l <- labelNew $ Just s
-                            tb <- toggleButtonNew
-                            buttonBox <- hButtonBoxNew
-                            set tb [containerChild := l]
-                            set buttonBox [containerChild := tb]
-                            return (tb,buttonBox)
+        makeButtonBox :: IO ToggleButton
+        makeButtonBox = do  tb <- toggleButtonNew
+                            img <- imageNewFromStock s IconSizeMenu
+                            containerAdd tb img
+                            return tb
 
 configOptionAnotToggleButton :: ToggleButton -> Window -> IState ()
 configOptionAnotToggleButton tb w = liftIO $

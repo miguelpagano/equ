@@ -34,7 +34,7 @@ import Control.Arrow(first,second,(***),(&&&))
 import Data.Maybe(fromJust)
 import Control.Monad(liftM)
 import Control.Monad.State(get,put,evalStateT)
-import Control.Monad.Trans(liftIO)
+import Control.Monad.Trans(MonadIO,liftIO)
 
 
 import qualified Data.Serialize as S
@@ -112,4 +112,8 @@ fromRight = head . rights . return
 -- | Funcion para emitir mensajes de debugging.
 debug :: String -> IO ()
 debug = putStrLn
+
+io :: MonadIO m => IO a -> m a
+io = liftIO
+
 --debug = const $ return ()
