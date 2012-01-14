@@ -119,13 +119,16 @@ exprInEntry entry = liftIO . entrySetText entry . show
 -- y construye un widget con toda la expresión.
 setExprFocus :: Entry -> HBox -> IRG
 setExprFocus entry box = liftIO (entryGetText entry) >>= \s ->
-                         case parseFromString s of
-                            Right expr -> (updateExpr expr >>
-                                            writeExprWidget expr box)
-                            Left err -> 
-                                   setErrMessage (show err) >>
+                         if null s 
+                         then updateExpr hole >> writeExprWidget hole box
+                         else case parseFromString s of
+                                Right expr -> (updateExpr expr >>
+                                              writeExprWidget expr box)
+                                Left err -> 
+                                    setErrMessage (show err) >>
                                     liftIO (widgetShowAll box) >>
                                     return ()
+    where hole = preExprHole ""
                                     
 writeExprWidget :: PreExpr -> HBox -> IRG
 writeExprWidget expr box =  frameExp expr >>= \(WExpr box' _) ->
