@@ -197,7 +197,8 @@ saveProofDialog = do
 saveProof :: FilePath -> IRG
 saveProof filepath = getProof >>= \pf -> liftIO $ encodeFile filepath (toProof pf)
 
-saveTheorem :: GRef -> ListStore (String, HBox -> IRG) -> IO ()
+
+saveTheorem :: GRef -> TreeStore (String, HBox -> IRG) -> IO ()
 saveTheorem ref aListStore = evalStateT (updateValidProof >> checkValidProof) ref >>= \valid ->
                              debug ("valid is " ++ show valid) >>
                              if valid then saveTheoremDialog ref aListStore
@@ -205,7 +206,7 @@ saveTheorem ref aListStore = evalStateT (updateValidProof >> checkValidProof) re
 
 -- | Dialogo para guardar una prueba como teorema de Equ. Asume que la prueba es válida.
 
-saveTheoremDialog :: GRef -> ListStore (String, HBox -> IRG) -> IO ()
+saveTheoremDialog :: GRef -> TreeStore (String, HBox -> IRG) -> IO ()
 saveTheoremDialog ref aListStore = do
     dialog <- dialogNew
     set dialog [windowTitle := "Guardar Teorema"]
@@ -238,13 +239,16 @@ saveTheoremDialog ref aListStore = do
       ResponseApply -> entryGetText entry >>= \th_name ->
                       evalStateT (getValidProof >>= return . fromRight >>= \proof ->
                                   addTheorem (createTheorem (pack th_name) proof) >>= \theo ->
-                                  liftIO $ listStoreAppend aListStore (addItem theo)) ref >>
+                                  io idxTheorem >>= \idx ->
+                                  liftIO $ treeStoreInsert aListStore [idx] 0 (addItem theo)) ref >>
                       return ()
       _ -> return ()
     widgetDestroy dialog
        
     where addItem :: (Truth t, Show t) => t -> (String, HBox -> IRG)
           addItem t = (show t, writeTruth $ truthBasic t)
+          idxTheorem = treeModelIterNChildren aListStore Nothing >>= \len ->
+                       return (len-1)
     
           
           

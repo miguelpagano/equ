@@ -1,17 +1,20 @@
 -- | En este m&#243;dulo se re-exportan las definiciones sintácticas
 -- de cada teoría y las reglas de reescritura de expresiones que
 -- incluyen elementos sintácticos definidos en esa teoría.
-
+{-# Language OverloadedStrings #-}
 module Equ.Theories 
     ( -- * Teor&#237;as.
       operatorsList
     , constantsList
     , quantifiersList
     , axiomList
+    , axiomGroup
     , L.listRules
     , relationList
     , relationToOperator
     , createTheorem
+    , toForest
+    , Grouped
     )
     where
 
@@ -24,14 +27,51 @@ import Equ.Proof
 import Equ.Expr
 import Equ.PreExpr
 
-import Data.Text hiding (head)
+import Data.Text hiding (head,zip,concatMap,map)
 import Data.Either(rights)
+import Data.Tree
+
+type TheoryName = Text
+type Grouped a = [(TheoryName,[a])]
+
+folTheory :: TheoryName
+folTheory = "Proposicional"
+
+arithTheory :: TheoryName
+arithTheory = "Aritmética"
+
+listTheory :: TheoryName
+listTheory = "Listas"
+
+theories = [folTheory,arithTheory,listTheory]
+
+mkGrouped :: [TheoryName] -> [[a]] -> Grouped a
+mkGrouped = zip
+
+ungroup :: Grouped a -> [a]
+ungroup = concatMap snd
+
+toForest :: (TheoryName -> b) -> (a -> b) -> Grouped a -> Forest b
+toForest fn fa = map (\(t,as) -> Node (fn t) (map (\x -> Node (fa x) []) as))
+
+opGroup :: Grouped Operator
+opGroup = mkGrouped theories [F.theoryOperatorsList, A.theoryOperatorsList, L.theoryOperatorsList]
+
+constGroup :: Grouped Constant
+constGroup = mkGrouped theories [F.theoryConstantsList, A.theoryConstantsList, L.theoryConstantsList]
+
+axiomGroup :: Grouped Axiom
+axiomGroup = mkGrouped theories [F.theoryAxiomList, A.theoryAxiomList, L.theoryAxiomList]
 
 operatorsList :: [Operator]
-operatorsList = A.theoryOperatorsList ++ L.theoryOperatorsList ++ F.theoryOperatorsList
+operatorsList = ungroup opGroup
 
 constantsList :: [Constant]
-constantsList = A.theoryConstantsList ++ L.theoryConstantsList ++ F.theoryConstantsList
+constantsList = ungroup constGroup
+
+
+axiomList :: [Axiom]
+axiomList = ungroup axiomGroup
 
 quantifiersList :: [Quantifier]
 quantifiersList = A.theoryQuantifiersList ++ L.theoryQuantifiersList ++ F.theoryQuantifiersList
@@ -39,8 +79,7 @@ quantifiersList = A.theoryQuantifiersList ++ L.theoryQuantifiersList ++ F.theory
 relationList :: [Relation]
 relationList = [relEq,relEquiv,relImpl,relCons]
 
-axiomList :: [Axiom]
-axiomList = F.theoryAxiomList
+
 
 relationToOperator :: Relation -> Operator
 relationToOperator relation | relation == relEq = F.folEqual
@@ -99,4 +138,4 @@ createRules pe1 pe2 relation = [r1,r2,r3]
                                    pe1
                                    pe2
 
-fromRight = head . rights . return      
+fromRight = head . rights . return

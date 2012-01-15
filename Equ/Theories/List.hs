@@ -14,6 +14,8 @@ module Equ.Theories.List
     , theoryConstantsList
     , theoryOperatorsList
     , theoryQuantifiersList
+    -- ** Lista de axiomas de la teoria
+    , theoryAxiomList
     -- * Versión tipada de operadores.
     , emptyList
     , append
@@ -50,6 +52,7 @@ import Equ.Types
 import Equ.Expr
 import Equ.PreExpr
 import Equ.Rule
+import Equ.Proof
 import Equ.Theories.AbsName
 
 import Data.Text (Text)
@@ -406,3 +409,6 @@ listRules = [ emptyConcat
             , zeroIndex
             , consIndex
             ]
+
+theoryAxiomList :: [Axiom]
+theoryAxiomList = []

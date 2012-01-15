@@ -14,19 +14,25 @@ import qualified Equ.Proof.Proof as P
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
 import Graphics.UI.Gtk.Gdk.Events 
 
-import Data.Text(unpack)
+import Data.Text(unpack,pack)
 import Data.Maybe
 import Data.Map (empty)
+import Data.Tree
 
 import Control.Monad(liftM, when)
 import Control.Monad.Trans(liftIO)
 
 -- | La lista de axiomas y teoremas; el primer elemento nos permite ingresar
 -- una expresión en una caja de texto y parsearla.
-listTruths :: [Theorem] -> IO (ListStore (String, HBox -> IRG))
-listTruths theoremList = listStoreNew $ (map addItem axiomList) ++ (map addItem theoremList)
-    where addItem :: (Truth t, Show t) => t -> (String, HBox -> IRG)
+listTruths :: [Theorem] -> IO (TreeStore (String, HBox -> IRG))
+listTruths theoremList = treeStoreNew $ forest axiomGroup ++ forest theorems
+    where theorems = [(pack "Teoremas", theoremList)]
+          addItem :: (Truth t, Show t) => t -> (String, HBox -> IRG)
           addItem t = (show t, writeTruth $ truthBasic t)
+
+          forest ::  (Truth t, Show t) => Grouped t -> Forest (String, HBox -> IRG)
+          forest = toForest (\x -> (unpack x, const $ return ())) addItem
+
           
 writeTruth :: Basic -> HBox -> IRG
 writeTruth basic b = do
@@ -39,7 +45,7 @@ writeTruth basic b = do
     liftIO $ widgetShowAll b
 
 -- | La configuración de la lista de símbolos propiamente hablando.
-setupTruthList :: [Theorem] -> TreeView -> IO (ListStore (String,HBox -> IRG))
+setupTruthList :: [Theorem] -> TreeView -> IO (TreeStore (String,HBox -> IRG))
 setupTruthList theoremList tv = 
      treeViewColumnNew >>= \col ->
      listTruths theoremList >>= \list -> 
@@ -49,7 +55,7 @@ setupTruthList theoremList tv =
      cellLayoutSetAttributes col renderer list (\ind -> [cellText := fst ind]) >>
      treeViewAppendColumn tv col >> return list
 
-eventsTruthList :: TreeView -> ListStore (String,HBox -> IRG) -> IRG
+eventsTruthList :: TreeView -> TreeStore (String,HBox -> IRG) -> IRG
 eventsTruthList tv list =
      liftIO(treeViewGetSelection tv >>= \tree -> 
      treeSelectionSetMode tree SelectionSingle >>
@@ -64,9 +70,10 @@ eventsTruthList tv list =
 -- correspondiente. Una opción es que se vaya cambiando pero que al
 -- poner Enter recién se haga el cambio real y entonces desaparezca la
 -- lista de símbolos.
-oneSelection :: ListStore (String,HBox -> IRG) -> TreeSelection -> IRG
+oneSelection :: TreeStore (String,HBox -> IRG) -> TreeSelection -> IRG
 oneSelection list tree = liftIO (treeSelectionGetSelectedRows tree) >>= \sel ->
                            when (not (null sel)) $ return (head sel) >>= \h ->
-                               when (not (null h)) $ return (head h) >>= \s ->
-                                   liftIO (listStoreGetValue list s) >>= \(repr,acc) ->
+--                               when (not (null h)) $ return (head h) >>= \s ->
+                                   liftIO (treeStoreGetValue list h) >>= \(repr,acc) ->
                                    getAxiomBox >>= acc
+

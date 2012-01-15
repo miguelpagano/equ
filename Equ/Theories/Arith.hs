@@ -7,6 +7,8 @@ module Equ.Theories.Arith
     , theoryConstantsList
     , theoryOperatorsList
     , theoryQuantifiersList
+    -- ** Lista de axiomas de la teoria
+    , theoryAxiomList
     -- * Versión tipada de operadores.
     , varNat, zero, successor, prod
     , intToCon
@@ -21,7 +23,8 @@ import Equ.Types
 import Equ.Expr
 import Equ.PreExpr
 -- TODO: Agregar reglas para este módulo.
--- import Equ.Rule 
+import Equ.Rule 
+import Equ.Proof
 import Equ.Theories.AbsName
 
 -- Estos módulos definen los símbolos de función
@@ -100,3 +103,6 @@ prod (Expr n) (Expr m) = Expr $ BinOp natProd n m
 intToCon :: Int -> PreExpr
 intToCon 0 = Con $ natZero { conTy = TyUnknown }
 intToCon n = UnOp (natSucc { opTy = TyUnknown }) $ intToCon (n-1)
+
+theoryAxiomList :: [Axiom]
+theoryAxiomList = []
