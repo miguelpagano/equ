@@ -14,7 +14,7 @@ import Equ.Proof
 import Equ.PreExpr hiding (goDownL,goDownR,goRight,goUp,goTop)
 import Equ.GUI.Widget
 import Equ.GUI.Expr (clearFocus,writeExprWidget,setupForm
-                    ,makeOptionEvent, configAnotTB, configTypeTreeTB)
+                    ,makeOptionEvent, configAnnotTB, configTypeTreeTB)
 import Equ.Parser
 import Equ.Types
 
@@ -432,7 +432,7 @@ eventsExprWidget expr ext_box w moveFocus fUpdate fGet top_box =
 
             exprButtons <- io hButtonBoxNew
 
-            bAnot <- makeOptionEvent win stockIndex configAnotTB
+            bAnot <- makeOptionEvent win stockIndex (configAnnotTB putStrLn)
             bT    <- makeOptionEvent win stockEdit (configTypeTreeTB (getProof >>= return . fGet))
 
             bInfo <- makeLayoutTypeCheckStatus

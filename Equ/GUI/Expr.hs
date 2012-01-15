@@ -360,17 +360,21 @@ makeOptionEvent win s f = io makeButtonBox >>= \tb -> f tb win >> return tb
                         containerAdd tb >>
                         return tb
 
-anotWindow w = popupWin w >>= \pop ->
-               hBoxNew False 1 >>= \b ->
-               entryNew >>= \entry ->
-               entrySetText entry "" >>
-               set entry [widgetWidthRequest := 500, widgetHeightRequest := 500] >>
-               boxPackStart b entry PackNatural 0 >>
-               containerAdd pop b >>
-               return pop
+-- | El primer argumento indica la acción a realizar con el contenido del 
+-- buffer al momento de cerrar el popup.
+annotWindow :: (String -> IO ()) -> Window -> IO Window
+annotWindow act w = popupWin w >>= \pop ->
+                    hBoxNew False 1 >>= \b ->
+                    annotBuffer >>= \entry ->
+                    boxPackStart b entry PackNatural 0 >>
+                    containerAdd pop b >>
+                    (pop `on` unrealize $ (G.get entry textViewBuffer >>= \buf ->
+                                           G.get buf textBufferText >>=
+                                           act)) >>
+                    return pop
 
-configAnotTB :: ToggleButton -> Window -> IState ()
-configAnotTB tb w = io $ actTBOn tb w (io . anotWindow)
+configAnnotTB :: (String -> IO ()) -> ToggleButton -> Window -> IState ()
+configAnnotTB act tb w = io $ actTBOn tb w (io . annotWindow act)
                
 configTypeTreeTB :: IState Focus -> ToggleButton ->  Window -> IState ()
 configTypeTreeTB isf tb w = get >>= \s ->
@@ -401,3 +405,9 @@ actTBOff tb w f pop = do rec {
                          return ()
 
 
+
+annotBuffer :: IO TextView
+annotBuffer = textViewNew >>= \v ->
+             textViewSetWrapMode v WrapWord >>
+             set v [widgetWidthRequest := 500, widgetHeightRequest := 300] >>
+             return v
