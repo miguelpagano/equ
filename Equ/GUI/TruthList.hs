@@ -5,6 +5,9 @@ import Equ.GUI.Types
 import Equ.GUI.State
 import Equ.GUI.Widget
 import Equ.GUI.Expr
+import Equ.GUI.Utils
+import Equ.GUI.Settings
+
 
 import Equ.Theories
 import Equ.Syntax
@@ -38,7 +41,9 @@ writeTruth :: Basic -> HBox -> IRG
 writeTruth basic b = do
     removeAllChildren b
     label <- liftIO (labelNew (Just $ show basic))
-    liftIO $ boxPackStart b label PackGrow 0
+    styleFont <- io $ fontItalic
+    io $ widgetModifyFont label (Just styleFont)
+    liftIO $ boxPackStart b label PackNatural 0
     (old_proof,path) <- getProof
     --liftIO (putStrLn $ "PRUEBA EN FOCO ES: " ++ show old_proof)
     updateProof (simpleProof (old_proof,path) basic)

@@ -33,6 +33,8 @@ import Data.List (deleteBy)
 import qualified Data.Serialize as S
 import qualified Data.ByteString as L
 
+import Graphics.Rendering.Pango.Font
+
 
 
 
@@ -241,3 +243,16 @@ errorDialog message = do
    
     dialogRun dialog
     widgetDestroy dialog
+    
+    
+fontItalic :: IO FontDescription
+fontItalic = fontDescriptionNew >>= \fd ->
+             fontDescriptionSetStyle fd StyleItalic >>
+             return fd
+
+-- | Setea un texto de ayuda para un widget
+setToolTip :: WidgetClass w => w -> String -> IO ()
+setToolTip w s = tooltipsNew >>= \t -> tooltipsSetTip t w s ""
+
+
+

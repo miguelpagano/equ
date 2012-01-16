@@ -207,15 +207,20 @@ addStepProof center_box top_box moveFocus maybe_basic = do
     io (widgetSetSizeRequest axiom_box 450 (-1) >>
             boxPackStart axiom_box label PackGrow 0)
 
-
-    addStepProofButton <- io $ buttonNewWithLabel "Agregar Paso ↓"
+    button_box <- io $ hButtonBoxNew
+    addStepProofButton <- io $ buttonNewWithLabel "↓"
+    io $ setToolTip addStepProofButton "Agregar Paso"
+    io $ widgetSetSizeRequest button_box 200 (-1)
+    
     eb_axiom_box <- io $ eventBoxNew 
 
     io (widgetSetSizeRequest combo_rel 80 (-1) >>
+            boxPackStart button_box addStepProofButton PackNatural 2 >>
             boxPackStart hbox combo_rel PackNatural 5 >>
             set eb_axiom_box [ containerChild := axiom_box ] >>
-            boxPackStart hbox eb_axiom_box PackNatural 5 >> 
-            boxPackStart hbox addStepProofButton PackNatural 5)
+            boxPackStart hbox eb_axiom_box PackGrow 5 >> 
+            boxPackStart hbox button_box PackNatural 1 >>
+            highlightBox hbox axiomBg)
 
     s <- get
     io (combo_rel `on` changed $ evalStateT (changeItem combo_rel store_rel axiom_box) s)
@@ -264,7 +269,7 @@ unSelectBox = getAxiomBox >>= \ axiom_box ->
             io (widgetGetParent axiom_box) >>= \ eb_box ->
             F.forM_ eb_box 
                         (\ p -> io (widgetGetParent p) >>=
-                        flip unlightBox Nothing . castToHBox . fromJust
+                        flip unlightBox (Just axiomBg) . castToHBox . fromJust
                         )
 
 selectBox :: ProofFocus -> Color -> VBox -> IRG
@@ -348,6 +353,7 @@ createExprWidget expr moveFocus fUpdateFocus fGetFocus top_box = do
     
     box <- io $ hBoxNew False 2
     expr_choices <- io $ buttonNewWithLabel "▼"
+    io $ setToolTip expr_choices "Expresiones posibles"
     button_box <- io $ hButtonBoxNew
     io (widgetSetSizeRequest button_box 200 (-1) >>
         widgetSetSizeRequest hbox (-1) 50 >>
@@ -432,9 +438,10 @@ eventsExprWidget expr ext_box w moveFocus fUpdate fGet top_box =
 
             exprButtons <- io hButtonBoxNew
 
-            bAnot <- makeOptionEvent win stockIndex (configAnnotTB putStrLn)
-            bT    <- makeOptionEvent win stockEdit (configTypeTreeTB (getProof >>= return . fGet))
-
+            bAnot <- makeOptionEvent win stockEdit (configAnnotTB putStrLn)
+            io $ setToolTip bAnot "Anotaciones"
+            bT    <- makeOptionEvent win stockIndex (configTypeTreeTB (getProof >>= return . fGet))
+            io $ setToolTip bT "Árbol de tipado"
             bInfo <- makeLayoutTypeCheckStatus
 
             io (containerAdd exprButtons bAnot  >>
