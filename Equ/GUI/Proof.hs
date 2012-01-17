@@ -204,8 +204,9 @@ addStepProof center_box top_box moveFocus maybe_basic = do
     io (widgetSetSizeRequest axiom_box 450 (-1) >>
             boxPackStart axiom_box label PackGrow 0)
 
-    button_box <- io $ hButtonBoxNew
-    addStepProofButton <- io $ buttonNewFromStock stockAdd
+    button_box <- io $ hButtonBoxNew    
+    addStepProofButton <- io $ makeButtonWithImage stockGoDown
+    
     io $ setToolTip addStepProofButton "Agregar Paso"
     io $ widgetSetSizeRequest button_box 200 (-1)
     
@@ -349,7 +350,7 @@ createExprWidget expr moveFocus fUpdateFocus fGetFocus top_box = do
     boxExprWidget <- io $ hBoxNew False 2
     
     box <- io $ hBoxNew False 2
-    expr_choices <- io $ buttonNewFromStock stockIndex
+    expr_choices <- io $ makeButtonWithImage stockIndex
     io $ setToolTip expr_choices "Expresiones posibles"
     button_box <- io $ hButtonBoxNew
     io (widgetSetSizeRequest button_box 200 (-1) >>

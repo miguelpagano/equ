@@ -254,3 +254,8 @@ fontItalic = fontDescriptionNew >>= \fd ->
 setToolTip :: WidgetClass w => w -> String -> IO ()
 setToolTip w s = tooltipsNew >>= \t -> tooltipsSetTip t w s ""
 
+makeButtonWithImage :: StockId -> IO Button
+makeButtonWithImage s = buttonNew >>= \b ->
+                        imageNewFromStock s IconSizeMenu >>=
+                        containerAdd b >>
+                        return b
