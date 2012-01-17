@@ -354,6 +354,7 @@
                   <widget class="GtkToolbar" id="toolbar2">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="show_arrow">False</property>
                     <child>
                       <widget class="GtkToolButton" id="newProof">
                         <property name="visible">True</property>
@@ -361,7 +362,7 @@
                         <property name="has_tooltip">True</property>
                         <property name="tooltip" translatable="yes">Crear Prueba</property>
                         <property name="use_action_appearance">False</property>
-                        <property name="label" translatable="yes">toolbutton</property>
+                        <property name="label" translatable="yes">Crear Prueba</property>
                         <property name="use_underline">True</property>
                         <property name="stock_id">gtk-new</property>
                       </widget>
@@ -377,7 +378,7 @@
                         <property name="has_tooltip">True</property>
                         <property name="tooltip" translatable="yes">Cargar Prueba</property>
                         <property name="use_action_appearance">False</property>
-                        <property name="label" translatable="yes">toolbutton</property>
+                        <property name="label" translatable="yes">Cargar Prueba</property>
                         <property name="use_underline">True</property>
                         <property name="stock_id">gtk-open</property>
                       </widget>
@@ -393,7 +394,7 @@
                         <property name="has_tooltip">True</property>
                         <property name="tooltip" translatable="yes">Guardar Prueba</property>
                         <property name="use_action_appearance">False</property>
-                        <property name="label" translatable="yes">toolbutton</property>
+                        <property name="label" translatable="yes">Guardar Prueba</property>
                         <property name="use_underline">True</property>
                         <property name="stock_id">gtk-save-as</property>
                       </widget>
@@ -436,15 +437,28 @@
                     </child>
                   </widget>
                   <packing>
-                    <property name="expand">True</property>
+                    <property name="expand">False</property>
                     <property name="fill">True</property>
+                    <property name="padding">8</property>
                     <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <widget class="GtkVSeparator" id="vseparator1">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                  </widget>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
                   </packing>
                 </child>
                 <child>
                   <widget class="GtkToolbar" id="toolbar1">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="show_arrow">False</property>
                     <child>
                       <widget class="GtkToolButton" id="validateTool">
                         <property name="visible">True</property>
@@ -479,9 +493,10 @@
                     </child>
                   </widget>
                   <packing>
-                    <property name="expand">True</property>
+                    <property name="expand">False</property>
                     <property name="fill">True</property>
-                    <property name="position">1</property>
+                    <property name="padding">13</property>
+                    <property name="position">2</property>
                   </packing>
                 </child>
               </widget>
