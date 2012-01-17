@@ -79,7 +79,8 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , updateRelation
                      , updateModifExpr
                      , updateSelectedExpr
-                     , showProof' -- SACAR ESTO
+                     , restoreValidProofImage
+                     , updateImageValid
                      )
     where
 
@@ -179,7 +180,7 @@ showProof' = getProof >>= liftIO . debug . show
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
-updateExpr e' = update (updateExpr' e') >> showExpr >> addToUndoList
+updateExpr e' = update (updateExpr' e') >> showExpr >> addToUndoList >> restoreValidProofImage
 
 updateExpr'' :: (PreExpr -> PreExpr) -> GState -> GState
 updateExpr'' change gst = case (gProof gst,gExpr gst) of
@@ -206,7 +207,7 @@ updateProofNoUndo pf = update (updateProof' pf) >>
 updateProof pf = update (updateProof' pf) >>
                  showProof >>
                  getProof >>= liftIO . debug . show >>
-                 addToUndoList
+                 addToUndoList >> restoreValidProofImage
 
 updateProof' :: ProofFocus -> GState -> GState
 updateProof' (p,path) gst = case (gProof gst,gExpr gst) of
@@ -236,7 +237,7 @@ updateValidProof = getValidProof >>= \vp -> update (updateValidProof' vp)
 
 updateProofState :: ProofState -> IState ()
 updateProofState ps = update (\gst -> gst {gProof = Just ps}) >>
-                      addToUndoList
+                      addToUndoList >> restoreValidProofImage
 
 updateExprState :: ExprState -> IState ()
 updateExprState es = update (\gst -> gst {gExpr = Just es})
@@ -321,6 +322,14 @@ updateRedoList rlist = update $ \gst -> gst { gRedo = rlist }
 addToRedoList :: URMove -> IRG
 addToRedoList m = getRedoList >>= \rlist ->
                   updateRedoList (m:rlist)
+                  
+updateImageValid :: StockId -> IRG
+updateImageValid icon = getStatePart imageValid >>= \validImage ->
+                        io (imageSetFromStock validImage icon IconSizeSmallToolbar)
+                    
+
+restoreValidProofImage :: IRG
+restoreValidProofImage = updateImageValid iconUnknownProof
 
 cleanRedoList :: IRG
 cleanRedoList = update $ \gst -> gst { gRedo = [] }
@@ -693,8 +702,8 @@ eventWithState :: IState a -> GRef -> EventM t a
 eventWithState m = liftIO . evalStateT m
 
 -- | Estado inicial
-initialState :: Window -> IconView -> TreeView -> Notebook -> Statusbar -> ContextId -> GState
-initialState win sl al fc sb ce = GState 
+initialState :: Window -> IconView -> TreeView -> Notebook -> Statusbar -> ContextId -> Image -> GState
+initialState win sl al fc sb ce valid = GState 
                                     win
                                     Nothing
                                     Nothing
@@ -709,3 +718,4 @@ initialState win sl al fc sb ce = GState
                                     (sb,ce)
                                     [] -- lista de teoremas, TODO: que se carguen los teoremas desde disco
                                     True -- undoing
+                                    valid -- image

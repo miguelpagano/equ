@@ -116,4 +116,14 @@ debug = putStrLn
 io :: MonadIO m => IO a -> m a
 io = liftIO
 
+iconValidProof :: StockId
+iconValidProof = stockOk
+
+iconErrorProof :: StockId
+iconErrorProof = stockCancel
+
+iconUnknownProof :: StockId
+iconUnknownProof = stockDialogQuestion
+
+
 --debug = const $ return ()

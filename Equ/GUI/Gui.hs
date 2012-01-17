@@ -83,10 +83,19 @@ main = do
     
     showProofItem <- xmlGetWidget xml castToImageMenuItem "showProofPanelItem"
     showTypesItem <- xmlGetWidget xml castToImageMenuItem "showTypesPanelItem"
+    
+    -- Validar Prueba
+    validTool <- xmlGetWidget xml castToToolButton "validateTool"
+    itemValidateProof <- xmlGetWidget xml castToImageMenuItem "itemValidateProof"
+    boxValidIcon <- xmlGetWidget xml castToHBox "boxValidIcon"
+    imageValidProof <- imageNewFromStock iconUnknownProof IconSizeSmallToolbar
+    boxPackStart boxValidIcon  imageValidProof PackNatural 2
+    
+    truthBox <- io $ vBoxNew False 2
 
     windowMaximize window
 
-    gRef <- newRef $ initialState window symbolList axiomList faces statusBar ctxExpr
+    gRef <- newRef $ initialState window symbolList axiomList faces statusBar ctxExpr imageValidProof
 
     onActivateLeaf quitButton $ quitAction window
     onDestroy window mainQuit
@@ -94,20 +103,23 @@ main = do
     sListStore <- liftIO $ setupSymbolList symbolList
     aListStore <- liftIO $ setupTruthList [] axiomList 
 
-    onToolButtonClicked newProofTool (evalStateT (createNewProof Nothing centralBox) gRef)
-    onActivateLeaf itemNewProof (evalStateT (createNewProof Nothing centralBox) gRef)
-    onToolButtonClicked loadProofTool $ dialogLoadProof gRef centralBox
-    onActivateLeaf itemLoadProof $ dialogLoadProof gRef centralBox
+    onToolButtonClicked newProofTool (evalStateT (createNewProof Nothing centralBox truthBox) gRef)
+    onActivateLeaf itemNewProof (evalStateT (createNewProof Nothing centralBox truthBox) gRef)
+    onToolButtonClicked loadProofTool $ dialogLoadProof gRef centralBox truthBox
+    onActivateLeaf itemLoadProof $ dialogLoadProof gRef centralBox truthBox 
     onToolButtonClicked saveProofTool (evalStateT (saveProofDialog) gRef)
     onActivateLeaf itemSaveProof (evalStateT (saveProofDialog) gRef)
     onActivateLeaf itemSaveAsTheorem $ saveTheorem gRef aListStore
     
     
-    onActivateLeaf itemUndo $ flip evalStateT gRef $ undoEvent centralBox
-    onToolButtonClicked unDo $ flip evalStateT gRef $ undoEvent centralBox
+    onActivateLeaf itemUndo $ flip evalStateT gRef $ undoEvent centralBox truthBox
+    onToolButtonClicked unDo $ flip evalStateT gRef $ undoEvent centralBox truthBox
     
-    onActivateLeaf itemRedo $ flip evalStateT gRef $ redoEvent centralBox
-    onToolButtonClicked reDo $ flip evalStateT gRef $ redoEvent centralBox
+    onActivateLeaf itemRedo $ flip evalStateT gRef $ redoEvent centralBox truthBox
+    onToolButtonClicked reDo $ flip evalStateT gRef $ redoEvent centralBox truthBox
+    
+    onToolButtonClicked validTool (evalStateT (checkProof imageValidProof truthBox) gRef)
+    onActivateLeaf itemValidateProof $ flip evalStateT gRef $ checkProof imageValidProof truthBox
     
     flip evalStateT gRef $ do
         axioms <- getAxiomCtrl
@@ -120,7 +132,7 @@ main = do
 
     mainGUI
 
-    where undoEvent centralBox = 
+    where undoEvent centralBox truthBox = 
                         liftIO (debug "Undo event") >>
                         getUndoList >>= \ulist ->
                         case ulist of
@@ -128,7 +140,7 @@ main = do
                              [p] -> liftIO (debug "lista undo con un solo elemento") >> return ()
                              p':p:ps -> setNoUndoing >>
                                     (F.forM_ (urProof p) $
-                                    \pf -> createNewProof (Just $ toProof pf) centralBox) >>
+                                    \pf -> createNewProof (Just $ toProof pf) centralBox truthBox) >>
                                     updateUndoList (p:ps) >>
                                     setUndoing >>
                                     addToRedoList p'
@@ -137,20 +149,20 @@ main = do
                         getUndoList >>= \ulist' ->
                         liftIO (debug $ "UndoList es " ++ show ulist')
                         
-          redoEvent centralBox =
+          redoEvent centralBox truthBox =
                         liftIO (debug "Redo event") >>
                         getRedoList >>= \rlist ->
                         case rlist of
                              [] -> liftIO (debug "lista redo vacia") >> return ()
                              p:ps -> setNoUndoing >>
                                    (F.forM_ (urProof p) $
-                                   \pf -> createNewProof (Just $ toProof pf) centralBox) >>
+                                   \pf -> createNewProof (Just $ toProof pf) centralBox truthBox) >>
                                    updateRedoList ps >>
                                    addToUndoListFromRedo p >>
                                    setUndoing
           
-dialogLoadProof :: GRef -> VBox -> IO ()
-dialogLoadProof ref centralBox = do
+dialogLoadProof :: GRef -> VBox -> VBox -> IO ()
+dialogLoadProof ref centralBox truthBox = do
     dialog <- fileChooserDialogNew (Just "Cargar Prueba") 
                                   Nothing 
                                   FileChooserActionOpen
@@ -167,7 +179,7 @@ dialogLoadProof ref centralBox = do
              case selected of
                   Just filepath -> decodeFile filepath >>= \proof ->
                                 flip evalStateT ref
-                                  (createNewProof (Just proof) centralBox) >>
+                                  (createNewProof (Just proof) centralBox truthBox) >>
                                   widgetDestroy dialog
                   Nothing -> widgetDestroy dialog
          _ -> liftIO $ widgetDestroy dialog

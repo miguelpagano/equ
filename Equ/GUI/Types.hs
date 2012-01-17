@@ -7,7 +7,7 @@ import Equ.Proof (Proof,PM,ProofFocus,Theorem)
 
 import Graphics.UI.Gtk ( WidgetClass, Statusbar, ContextId, HBox, TreeView
                        , EventBox, Label, Button, Notebook, HPaned, IconView
-                       , Window
+                       , Window, Image
                        )
 
 import Equ.Types
@@ -63,6 +63,7 @@ data GState = GState { gWindow :: Window
                      , status :: StatusPlace  -- ^ La barra de estado.
                      , theorems :: [Theorem]
                      , undoing :: Bool
+                     , imageValid :: Image
                      }
  
 data ExprState = ExprState { fExpr :: Focus

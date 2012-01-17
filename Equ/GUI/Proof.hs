@@ -103,8 +103,8 @@ completeProof p@(Simple _ rel f1 f2 b) center_box top_box moveFocus =
 -- | Crea toda la estructura necesaria para una nueva prueba.  Si el
 -- primer argumento es @Nothing@, entonces se crea la estructura para
 -- una prueba vacía; si es @Just p@, entonces se crea para la prueba @p@.
-createNewProof :: (Maybe Proof) -> VBox -> IState ()
-createNewProof proof ret_box = do
+createNewProof :: (Maybe Proof) -> VBox -> VBox -> IState ()
+createNewProof proof ret_box truthBox = do
     io $ debug "creando prueba..."
     
     -- delete all children
@@ -112,25 +112,23 @@ createNewProof proof ret_box = do
     
     initState
 
-   -- Caja central para colocar la relacion y el axioma aplicado. La
-   -- funcion para mover el foco es ir hasta el tope.
-    truthBox <- io $ vBoxNew False 2
-
+    -- truthBox es la caja central para colocar la relacion y el axioma aplicado. La
+    -- funcion para mover el foco es ir hasta el tope.
     addStepProof truthBox truthBox goTop  Nothing
     
     maybe (emptyProof truthBox) (\p -> loadProof p ret_box truthBox) proof
     
-    valid_button <- io $ buttonNewWithLabel "Validar prueba"
-    validImage <- io $ imageNewFromStock stockCancel IconSizeSmallToolbar
-    validProofHBox <- io $ hBoxNew False 2
-    io (boxPackStart validProofHBox valid_button PackGrow 5 >>
-        boxPackStart validProofHBox validImage PackNatural 5 >>
-        boxPackStart ret_box validProofHBox PackNatural 20
-       )
+--     valid_button <- io $ buttonNewWithLabel "Validar prueba"
+--     validImage <- io $ imageNewFromStock stockCancel IconSizeSmallToolbar
+--     validProofHBox <- io $ hBoxNew False 2
+--     io (boxPackStart validProofHBox valid_button PackGrow 5 >>
+--         boxPackStart validProofHBox validImage PackNatural 5 >>
+--         boxPackStart ret_box validProofHBox PackNatural 20
+--        )
 
     s <- get    
-    io $ (valid_button `on` buttonPressEvent $ tryEvent $
-                            eventWithState (checkProof validImage truthBox) s)
+--     io $ (valid_button `on` buttonPressEvent $ tryEvent $
+--                             eventWithState (checkProof validImage truthBox) s)
     io $ widgetShowAll ret_box
 
     where emptyProof box = do
@@ -176,16 +174,15 @@ getFinalExpr = fromJust . getEndFocus . fromJust . goTop
 checkProof :: Image -> VBox -> IState ()
 checkProof validImage top_box = updateValidProof >> checkValidProof >>= \valid ->
                                 if valid 
-                                then io (img stockOk)
+                                then updateImageValid iconValidProof
                                 else getValidProof >>= \(Left errorProof) ->
-                                      io (putStrLn (show errorProof) >>
-                                              img stockCancel) >>
+                                      io (putStrLn (show errorProof)) >>
+                                       updateImageValid iconErrorProof >>
                                        reportErrWithErrPaned (show errorProof) >>
                                        unSelectBox >>
                                        getProof >>= \pf ->
                                        return ((getMoveFocus errorProof) (goTop' pf)) >>=
                                        \pf -> selectBox pf errBg top_box
-    where img icon = imageSetFromStock validImage icon IconSizeSmallToolbar
                                        
 
 -- | Creación de línea de justificación de paso en una prueba.

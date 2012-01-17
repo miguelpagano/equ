@@ -254,5 +254,3 @@ fontItalic = fontDescriptionNew >>= \fd ->
 setToolTip :: WidgetClass w => w -> String -> IO ()
 setToolTip w s = tooltipsNew >>= \t -> tooltipsSetTip t w s ""
 
-
-
