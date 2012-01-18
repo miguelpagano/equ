@@ -215,17 +215,14 @@ highlightBox b bg = liftIO $ containerForeach b (highlight bg)
 -- | Quita el resaltado a los controles que están dentro de una caja.
 unlightBox b bg = liftIO $ containerForeach b (unlight bg) 
 
-
 -- | Cambia el color de fondo de un control.
 highlight :: WidgetClass w => Color -> w -> IO ()
 highlight bg w = widgetModifyBg w (toEnum 0) bg
-
 
 -- | Le quita el color especial a un control.
 unlight :: WidgetClass w => (Maybe Color) -> w -> IO ()
 unlight Nothing w = widgetModifyBg w (toEnum 0) genericBg
 unlight (Just bg) w = widgetModifyBg w (toEnum 0) bg
-
 
 -- TODO: estamos usando esto?
 -- | Funcion para mostrar dialogo con mensaje de error

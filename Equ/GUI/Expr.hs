@@ -327,9 +327,8 @@ instance ExpWriter Constant where
     writeExp s cont = removeAllChildren cont >>
                       writeConstant s cont 
 
-
 popupWin :: Window -> IO Window
-popupWin w = windowNewPopup >>= \pop ->
+popupWin w = windowNew >>= \pop ->
              set pop  [ windowDecorated := False
                       , windowHasFrame := False
                       , windowTypeHint := WindowTypeHintDialog
@@ -337,17 +336,19 @@ popupWin w = windowNewPopup >>= \pop ->
                       , windowGravity := GravityCenter
                       , windowOpacity := 0.8
                       ] >>
-             windowSetPosition pop WinPosMouse >>
+             windowSetPosition pop WinPosCenterAlways >>
              return pop
 
 moveWin w = windowGetPosition w >>= \(x,y) ->
             windowMove w (x+64) (y+64)
 
-
-typeTreeWindow :: IState Focus -> Window -> IState Window
-typeTreeWindow isf w = isf >>= \f -> 
-                       io (popupWin w) >>= \pop -> 
-                       io (buildTreeExpr f) >>= \bTree ->
+typeTreeWindow :: IState Focus -> (Focus -> IState ()) -> Window -> IState Window
+typeTreeWindow isf fmp w = io (popupWin w) >>= \pop -> 
+                       io (vBoxNew False 0) >>= \bTree -> 
+                       io (hBoxNew False 0) >>= \we -> 
+                       isf >>= \f ->
+                       writeExprWidget (fst f) we >>
+                       buildTreeExpr isf fmp bTree we >>
                        io (containerAdd pop bTree) >>
                        return pop
 
@@ -376,12 +377,10 @@ annotWindow act w = popupWin w >>= \pop ->
 configAnnotTB :: (String -> IO ()) -> ToggleButton -> Window -> IState ()
 configAnnotTB act tb w = io $ actTBOn tb w (io . annotWindow act)
                
-configTypeTreeTB :: IState Focus -> ToggleButton ->  Window -> IState ()
-configTypeTreeTB isf tb w = get >>= \s ->
-                            io (actTBOn tb w $ \w' -> evalStateT (typeTreeWindow isf w') s) >>
+configTypeTreeTB :: IState Focus -> (Focus -> IState ()) -> ToggleButton ->  Window -> IState ()
+configTypeTreeTB isf fmp tb w = get >>= \s ->
+                            io (actTBOn tb w $ \w' -> evalStateT (typeTreeWindow isf fmp w') s) >>
                             return ()
-                            
-
 
 -- | Define la acción para cuando no está activado.
 actTBOn :: ToggleButton -> Window -> (Window -> IO Window) -> IO ()
@@ -403,8 +402,6 @@ actTBOff tb w f pop = do rec {
                                                        actTBOn tb w f)
                          }
                          return ()
-
-
 
 annotBuffer :: IO TextView
 annotBuffer = textViewNew >>= \v ->

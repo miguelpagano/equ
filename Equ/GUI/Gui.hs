@@ -45,9 +45,6 @@ main = do
     window        <- xmlGetWidget xml castToWindow "mainWindow"
     quitButton    <- getMenuButton xml "QuitButton"
 
---     cleanType    <- xmlGetWidget xml castToToolButton "cleanType"
---     checkType    <- xmlGetWidget xml castToToolButton "checkType"
-
     statusBar     <- xmlGetWidget xml castToStatusbar "statusBar"
     ctxExpr       <- statusbarGetContextId statusBar "Expr"
     symbolList    <- xmlGetWidget xml castToIconView "symbolList"
@@ -66,7 +63,6 @@ main = do
     itemUndo <- xmlGetWidget xml castToImageMenuItem "undoMenuItem"
     itemRedo <- xmlGetWidget xml castToImageMenuItem "redoMenuItem"
     
-    --faces <- xmlGetWidget xml castToNotebook "faces"
     faces <- notebookNew
     -- toolbuttons
     newProofTool <- xmlGetWidget xml castToToolButton "newProof"
@@ -77,7 +73,6 @@ main = do
     reDo <- xmlGetWidget xml castToToolButton "redoTool"
     
     fieldProofFaceBox <- xmlGetWidget xml castToHBox "fieldProofFaceBox"
-    --fieldExprFaceBox <- xmlGetWidget xml castToVBox "fieldExprFaceBox"
     
     proofFaceBox <- xmlGetWidget xml castToHBox "proofFaceBox"
     

@@ -438,7 +438,8 @@ eventsExprWidget expr ext_box w moveFocus fUpdate fGet top_box =
 
             bAnot <- makeOptionEvent win stockEdit (configAnnotTB putStrLn)
             io $ setToolTip bAnot "Anotaciones"
-            bT    <- makeOptionEvent win stockIndex (configTypeTreeTB (getProof >>= return . fGet))
+            bT    <- makeOptionEvent win stockIndex (configTypeTreeTB (getProof >>= return . fGet) 
+                                                    (\(e,_) -> updateModifExpr fUpdate >> updateExpr e))
             io $ setToolTip bT "Árbol de tipado"
             bInfo <- makeLayoutTypeCheckStatus
 
@@ -500,5 +501,3 @@ axiomBoxFromCenterBox center_box = containerGetChildren center_box >>= \chd ->
                                         if isHBox axiom_box
                                         then return $ castToHBox axiom_box
                                         else error $ "axiomBoxFromCenterBox: El axiom_box no es HBox"
-                                
-                                          
