@@ -57,11 +57,11 @@ newProofState Nothing axiom_box = return pr
         p = emptyProof $ head $ relationList
                         
                         
-newExprState :: HBox -> HBox -> IState ExprState
-newExprState hbox1 hbox2 = do
+newExprState :: Focus -> HBox -> HBox -> IState ExprState
+newExprState expr hbox1 hbox2 = do
     return eState
     where 
-        eState = ExprState { fExpr = emptyExpr
+        eState = ExprState { fExpr = expr
                            , pathExpr = (id,id)
                            , eventExpr = hbox1
                            , fType = TyUnknown
@@ -70,17 +70,26 @@ newExprState hbox1 hbox2 = do
                             
                         
 -- | Carga una prueba a la interfaz. 
-loadProof :: Proof -> VBox -> VBox -> IState ()
-loadProof p ret_box truthBox = do
+loadProof :: Proof -> VBox -> VBox -> HBox -> IState ()
+loadProof p ret_box truthBox initExprBox = do
     
     empty_box1 <- io $ hBoxNew False 2
     proof <- newProofState (Just p) empty_box1
     updateProofState proof
     
-    hboxInit <- createExprWidget (toExpr $ fromRight $ getStart p) goTop updateFirstExpr getFirstExpr truthBox
+    --hboxInit <- createExprWidget (toExpr $ fromRight $ getStart p) goTop updateFirstExpr getFirstExpr truthBox
+    
+    -- Expresión inicial:
+    removeAllChildren initExprBox
+    initExpr <- return . fromRight $ getStart p
+    
+    labelInitExpr <- io $ labelNew (Just $ show $ toExpr initExpr)
+    io $ boxPackStart initExprBox labelInitExpr PackNatural 2
+    io $ widgetShowAll initExprBox
+    
     hboxEnd  <- createExprWidget (toExpr $ fromRight $ getEnd p) moveToEnd updateFinalExpr getFinalExpr truthBox
     
-    io (boxPackStart ret_box hboxInit PackNatural 2 >>
+    io (--boxPackStart ret_box hboxInit PackNatural 2 >>
         boxPackStart ret_box truthBox PackNatural 2 >>
         boxPackStart ret_box hboxEnd PackNatural 2)
     
@@ -103,12 +112,19 @@ completeProof p@(Simple _ rel f1 f2 b) center_box top_box moveFocus =
 -- | Crea toda la estructura necesaria para una nueva prueba.  Si el
 -- primer argumento es @Nothing@, entonces se crea la estructura para
 -- una prueba vacía; si es @Just p@, entonces se crea para la prueba @p@.
-createNewProof :: (Maybe Proof) -> VBox -> VBox -> IState ()
-createNewProof proof ret_box truthBox = do
+createNewProof :: (Maybe Proof) -> VBox -> VBox -> HBox -> IState ()
+createNewProof proof ret_box truthBox initExprBox = do
     io $ debug "creando prueba..."
     
     -- delete all children
     removeAllChildren ret_box
+    
+    removeAllChildren initExprBox
+    initExpr <- getExpr
+    
+    labelInitExpr <- io $ labelNew (Just $ show $ toExpr initExpr)
+    io $ boxPackStart initExprBox labelInitExpr PackNatural 2
+    io $ widgetShowAll initExprBox
     
     initState
 
@@ -116,7 +132,7 @@ createNewProof proof ret_box truthBox = do
     -- funcion para mover el foco es ir hasta el tope.
     addStepProof truthBox truthBox goTop  Nothing
     
-    maybe (emptyProof truthBox) (\p -> loadProof p ret_box truthBox) proof
+    maybe (emptyProof truthBox) (\p -> loadProof p ret_box truthBox initExprBox) proof
     
 --     valid_button <- io $ buttonNewWithLabel "Validar prueba"
 --     validImage <- io $ imageNewFromStock stockCancel IconSizeSmallToolbar
@@ -135,7 +151,7 @@ createNewProof proof ret_box truthBox = do
             hboxInit <- createExprWidget holePreExpr goTop updateFirstExpr getFirstExpr box
             hboxEnd  <- createExprWidget holePreExpr moveToEnd updateFinalExpr getFinalExpr box
 
-            io (boxPackStart ret_box hboxInit PackNatural 2 >>
+            io (--boxPackStart ret_box hboxInit PackNatural 2 >>
                 boxPackStart ret_box box PackNatural 2 >>
                 boxPackStart ret_box hboxEnd PackNatural 2
                )
@@ -152,14 +168,16 @@ initState = do
     -- inicialmente ponemos una caja vacia en el foco, asumiendo que no hay ninguna
     -- expresión enfocada.
     empty_box1 <- io $ hBoxNew False 2
-    proof' <- newProofState Nothing empty_box1
+    initExpr <- getExpr
+    proof' <- newProofState (Just $ pr initExpr) empty_box1
     updateProofState proof'
     
     hbox1 <- io $ hBoxNew False 2
     hbox2 <- io $ hBoxNew False 2
-    expr' <- newExprState hbox1 hbox2
+    expr' <- newExprState emptyExpr hbox1 hbox2
     updateExprState expr'    
     
+    where pr e= flip newProofWithStart e $ head $ relationList
     
 -- TODO: VER DONDE METER ESTAS FUNCIONES
 -- TODO: Comprobar que el cambio no afecta la semántica.
@@ -172,7 +190,8 @@ getFirstExpr = fromJust . getStartFocus . fromJust . goTop
 getFinalExpr = fromJust . getEndFocus . fromJust . goTop
 
 checkProof :: Image -> VBox -> IState ()
-checkProof validImage top_box = updateValidProof >> checkValidProof >>= \valid ->
+checkProof validImage top_box = getProofState >>= (F.mapM_ $ \ps ->
+                                updateValidProof >> checkValidProof >>= \valid ->
                                 if valid 
                                 then updateImageValid iconValidProof
                                 else getValidProof >>= \(Left errorProof) ->
@@ -182,7 +201,7 @@ checkProof validImage top_box = updateValidProof >> checkValidProof >>= \valid -
                                        unSelectBox >>
                                        getProof >>= \pf ->
                                        return ((getMoveFocus errorProof) (goTop' pf)) >>=
-                                       \pf -> selectBox pf errBg top_box
+                                       \pf -> selectBox pf errBg top_box)
                                        
 
 -- | Creación de línea de justificación de paso en una prueba.

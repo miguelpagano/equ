@@ -26,6 +26,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , getProof
                      , getRedoList
                      , getRelPF
+                     , getProofState
                      -- * Modificacion del estado.
                      , updateExpr
                      , updateFrmCtrl
@@ -74,6 +75,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , updateTypeVarQInMainExprTree
                      -- * Funciones relacionadas con pruebas
                      , updateProofState 
+                     , unsetProofState
                      , updateExprState
                      , changeProofFocus
                      , updateRelation
@@ -118,7 +120,7 @@ import Control.Monad.Trans(liftIO)
 
 import qualified Data.Serialize as S
 import qualified Data.ByteString as L
-import qualified Data.Foldable as F (mapM_) 
+import qualified Data.Foldable as F (mapM_,forM_) 
 
 {- Funciones que tienen que ver con el estado -} 
 -- | Devuelve el estado.
@@ -185,16 +187,18 @@ updateExpr e' = update (updateExpr' e') >> showExpr >> addToUndoList >> restoreV
 updateExpr'' :: (PreExpr -> PreExpr) -> GState -> GState
 updateExpr'' change gst = case (gProof gst,gExpr gst) of
                       (Just gpr, Just gexpr) -> upd gpr gexpr 
+                      (Nothing, Just gexpr) ->  gst {gExpr = Just gexpr {fExpr = newExpr gexpr}} 
                       (_,_) -> gst
     where upd gpr gexpr = gst { gProof = Just gpr' 
                               , gExpr = Just gexpr' 
                               }
-              where  gpr' = gpr {proof = fromJust $ up (proof gpr) newExpr}
-                     up = modifExpr gpr
-                     gexpr' = gexpr {fExpr = newExpr}
-                     newExpr = g . first change $ f e
-                     e = fExpr gexpr
-                     (f,g) = pathExpr gexpr
+                where  gpr' = gpr {proof = fromJust $ up (proof gpr) (newExpr gexpr)}
+                       up = modifExpr gpr
+                       gexpr' = gexpr {fExpr = newExpr gexpr}
+                     
+          newExpr gexpr = g . first change $ f e
+              where (f,g) = pathExpr gexpr
+                    e = fExpr gexpr
 
 updateExpr' :: PreExpr -> GState -> GState
 updateExpr' e = updateExpr'' (const e)
@@ -238,9 +242,13 @@ updateValidProof = getValidProof >>= \vp -> update (updateValidProof' vp)
 updateProofState :: ProofState -> IState ()
 updateProofState ps = update (\gst -> gst {gProof = Just ps}) >>
                       addToUndoList >> restoreValidProofImage
+                      
+unsetProofState :: IState ()
+unsetProofState = update (\gst -> gst {gProof = Nothing}) >>
+                  addToUndoList >> restoreValidProofImage
 
 updateExprState :: ExprState -> IState ()
-updateExprState es = update (\gst -> gst {gExpr = Just es})
+updateExprState es = update (\gst -> gst {gExpr = Just es}) >> showExpr
 
 updateSelectedExpr :: (ProofFocus -> Focus) -> IState ()
 updateSelectedExpr f = getSelectExpr >>= F.mapM_ 
@@ -302,15 +310,24 @@ updateUndoList ulist = update $ \gst -> gst { gUndo = ulist }
                                  
                                  
 addToUndoList :: IRG
-addToUndoList = getUndoing >>= \u -> when u $
-                getProof >>= \p ->
-                getUndoList >>= \ulist ->
-                updateUndoList ((urmove p):ulist) >>
-                getUndoList >>= \ulist' ->
-                liftIO (debug $ "addToUndoList. UndoList es " ++ show ulist') >>
-                cleanRedoList
+addToUndoList = getProofState >>= \ps ->
+                    case ps of
+                         Nothing -> getExprState >>= \es ->
+                            F.forM_ es $ \es ->
+                                getExpr >>= \e ->
+                                addURMove (urmove (Nothing,Just e))
+                         Just ps -> getProof >>= \p ->
+                                    addURMove (urmove (Just p,Nothing))
                 
-    where urmove p = URMove { urProof = Just p }          
+    where addURMove urm= getUndoing >>= \u -> when u $
+                            getProof >>= \p ->
+                            getUndoList >>= \ulist ->
+                            updateUndoList (urm:ulist) >>
+                            getUndoList >>= \ulist' ->
+                            liftIO (debug $ "addToUndoList. UndoList es " ++ show ulist') >>
+                            cleanRedoList
+          urmove (proof,expr) = URMove { urProof = proof
+                                       , urExpr = expr}          
              
 addToUndoListFromRedo :: URMove -> IRG
 addToUndoListFromRedo m = getUndoList >>= \ulist ->
@@ -358,6 +375,9 @@ getValidProof = getStatePart (maybe (Left errEmptyProof) validProof . gProof)
 
 getProofState :: IState (Maybe ProofState)
 getProofState = getStatePartDbg "getProofState" gProof
+
+getExprState :: IState (Maybe ExprState)
+getExprState = getStatePartDbg "getExprState" gExpr
 
 getExprProof :: IState Expr
 getExprProof = getValidProof >>= either (const (return holeExpr)) (return . getExpr)                    

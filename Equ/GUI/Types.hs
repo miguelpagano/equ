@@ -31,6 +31,7 @@ type StatusPlace = (Statusbar, ContextId)
 type UndoList = [URMove]
 type RedoList = [URMove]
 data URMove = URMove { urProof :: Maybe ProofFocus -- ^ Si guardamos una prueba. 
+                     , urExpr :: Maybe Focus
                      }
 instance Show URMove where
     show u = show (urProof u)

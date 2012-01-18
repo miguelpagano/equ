@@ -1,7 +1,7 @@
 {-# Language GADTs #-}
 
 {-| Este m&#243;dulo define la noci&#243;n de una prueba. -}
-module Equ.Proof (newProof, newProofWithoutEnd, addStep
+module Equ.Proof (newProof, newProofWithoutEnd, addStep, newProofWithStart
                  , proofFromTruth, fillHole
                  , holeProof, emptyProof, updateStart, updateEnd, updateRel
                  , validateProof, toHoleProof
@@ -235,6 +235,11 @@ rel {?}
 -}
 newProof :: Relation -> PE.Focus -> PE.Focus -> Proof
 newProof = Hole empty
+
+
+-- | Comenzamos una prueba dada la expresion inicial y la relacion.
+newProofWithStart :: Relation -> PE.Focus -> Proof
+newProofWithStart rel f = Hole empty rel f PE.emptyExpr
 
 {- | Comenzamos una prueba dada una relación. No tenemos ni las expresiones
      ni la prueba.

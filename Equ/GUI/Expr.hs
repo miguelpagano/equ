@@ -55,7 +55,8 @@ clearExpr b = removeAllChildren b >>
 -- | Poné en una caja el widget que usamos para construir nuevas
 -- expresiones.
 setupForm ::  HBox -> IRG
-setupForm b = labelStr emptyLabel >>= \l -> setupFormEv b l holePreExpr
+setupForm b = io (setToolTip b "Doble click para ingresar una expresión") >>
+                   labelStr emptyLabel >>= \l -> setupFormEv b l holePreExpr
 
 -- | Asigna los manejadores de eventos para widgets de expresiones a 
 -- los controles.

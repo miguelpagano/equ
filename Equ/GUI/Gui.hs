@@ -11,7 +11,8 @@ import Equ.GUI.SymbolList
 import Equ.GUI.TruthList
 import Equ.GUI.Proof 
 import Equ.GUI.TypeTree
-import Equ.PreExpr(toFocus, toFocuses, agrupOp, agrupNotOp, opOfFocus)
+import Equ.PreExpr(toFocus, toFocuses, agrupOp, agrupNotOp, opOfFocus, 
+                   holePreExpr,PreExpr, toExpr, emptyExpr)
 import Equ.Proof
 import Equ.Parser
 import Equ.Theories
@@ -58,6 +59,7 @@ main = do
     itemNewProof <- xmlGetWidget xml castToImageMenuItem "itemNewProof"
     itemLoadProof <- xmlGetWidget xml castToImageMenuItem "itemLoadProof"
     itemSaveProof <- xmlGetWidget xml castToImageMenuItem "itemSaveProof"
+    itemDiscardProof <- xmlGetWidget xml castToImageMenuItem "itemDiscardProof"
     itemSaveAsTheorem <- xmlGetWidget xml castToImageMenuItem "itemSaveAsTheorem"
     
     itemUndo <- xmlGetWidget xml castToImageMenuItem "undoMenuItem"
@@ -68,6 +70,8 @@ main = do
     newProofTool <- xmlGetWidget xml castToToolButton "newProof"
     loadProofTool <- xmlGetWidget xml castToToolButton "loadProof"
     saveProofTool <- xmlGetWidget xml castToToolButton "saveProof"
+    discardProofTool <- xmlGetWidget xml castToToolButton "discardProof"
+    saveTheoremTool <- xmlGetWidget xml castToToolButton "saveTheoremTool"
     
     unDo <- xmlGetWidget xml castToToolButton "undoTool"
     reDo <- xmlGetWidget xml castToToolButton "redoTool"
@@ -78,6 +82,9 @@ main = do
     
     showProofItem <- xmlGetWidget xml castToImageMenuItem "showProofPanelItem"
     showTypesItem <- xmlGetWidget xml castToImageMenuItem "showTypesPanelItem"
+    
+    -- Expresión inicial
+    initExprBox <- xmlGetWidget xml castToHBox "initExprBox"
     
     -- Validar Prueba
     validTool <- xmlGetWidget xml castToToolButton "validateTool"
@@ -98,23 +105,34 @@ main = do
     sListStore <- liftIO $ setupSymbolList symbolList
     aListStore <- liftIO $ setupTruthList [] axiomList 
 
-    onToolButtonClicked newProofTool (evalStateT (createNewProof Nothing centralBox truthBox) gRef)
-    onActivateLeaf itemNewProof (evalStateT (createNewProof Nothing centralBox truthBox) gRef)
-    onToolButtonClicked loadProofTool $ dialogLoadProof gRef centralBox truthBox
-    onActivateLeaf itemLoadProof $ dialogLoadProof gRef centralBox truthBox 
+            -- expresion inicial
+    evalStateT (initExprState emptyExpr) gRef
+    formBox <- evalStateT (loadExpr initExprBox holePreExpr) gRef
+    
+    
+    onToolButtonClicked newProofTool (evalStateT (createNewProof Nothing centralBox truthBox formBox) gRef)
+    onActivateLeaf itemNewProof (evalStateT (createNewProof Nothing centralBox truthBox formBox) gRef)
+    onToolButtonClicked loadProofTool $ dialogLoadProof gRef centralBox truthBox formBox
+    onActivateLeaf itemLoadProof $ dialogLoadProof gRef centralBox truthBox formBox
+    
     onToolButtonClicked saveProofTool (evalStateT (saveProofDialog) gRef)
     onActivateLeaf itemSaveProof (evalStateT (saveProofDialog) gRef)
     onActivateLeaf itemSaveAsTheorem $ saveTheorem gRef aListStore
+    onToolButtonClicked saveTheoremTool $ saveTheorem gRef aListStore
     
+    onActivateLeaf itemDiscardProof (evalStateT (discardProof centralBox formBox) gRef)
+    onToolButtonClicked discardProofTool (evalStateT (discardProof centralBox formBox) gRef)
     
-    onActivateLeaf itemUndo $ flip evalStateT gRef $ undoEvent centralBox truthBox
-    onToolButtonClicked unDo $ flip evalStateT gRef $ undoEvent centralBox truthBox
+    onActivateLeaf itemUndo $ flip evalStateT gRef $ undoEvent centralBox truthBox formBox
+    onToolButtonClicked unDo $ flip evalStateT gRef $ undoEvent centralBox truthBox formBox
     
-    onActivateLeaf itemRedo $ flip evalStateT gRef $ redoEvent centralBox truthBox
-    onToolButtonClicked reDo $ flip evalStateT gRef $ redoEvent centralBox truthBox
+    onActivateLeaf itemRedo $ flip evalStateT gRef $ redoEvent centralBox truthBox formBox
+    onToolButtonClicked reDo $ flip evalStateT gRef $ redoEvent centralBox truthBox formBox
     
     onToolButtonClicked validTool (evalStateT (checkProof imageValidProof truthBox) gRef)
     onActivateLeaf itemValidateProof $ flip evalStateT gRef $ checkProof imageValidProof truthBox
+    
+    
     
     flip evalStateT gRef $ do
         axioms <- getAxiomCtrl
@@ -127,37 +145,74 @@ main = do
 
     mainGUI
 
-    where undoEvent centralBox truthBox = 
+    where undoEvent centralBox truthBox exprBox = 
                         liftIO (debug "Undo event") >>
                         getUndoList >>= \ulist ->
                         case ulist of
                              [] -> liftIO (debug "lista undo vacia") >> return ()
                              [p] -> liftIO (debug "lista undo con un solo elemento") >> return ()
-                             p':p:ps -> setNoUndoing >>
-                                    (F.forM_ (urProof p) $
-                                    \pf -> createNewProof (Just $ toProof pf) centralBox truthBox) >>
-                                    updateUndoList (p:ps) >>
-                                    setUndoing >>
-                                    addToRedoList p'
-                                    
+                             p':p:ps -> case (urProof p) of
+                                            Nothing -> F.forM_ (urExpr p) (\f_expr -> 
+                                                        undoAction (removeAllChildren centralBox >>
+                                                                    initExprState f_expr >>
+                                                                    reloadExpr exprBox (toExpr f_expr)) p' p ps)
+                                            Just pf -> undoAction (createNewProof (Just $ toProof pf) centralBox truthBox exprBox) p' p ps
+                                                        
                         >>
                         getUndoList >>= \ulist' ->
                         liftIO (debug $ "UndoList es " ++ show ulist')
                         
-          redoEvent centralBox truthBox =
+          undoAction action p' p ps= setNoUndoing >>
+                                     action >>
+                                     updateUndoList (p:ps) >>
+                                     setUndoing >>
+                                     addToRedoList p'
+                        
+          redoEvent centralBox truthBox exprBox =
                         liftIO (debug "Redo event") >>
                         getRedoList >>= \rlist ->
                         case rlist of
                              [] -> liftIO (debug "lista redo vacia") >> return ()
-                             p:ps -> setNoUndoing >>
-                                   (F.forM_ (urProof p) $
-                                   \pf -> createNewProof (Just $ toProof pf) centralBox truthBox) >>
+                             p:ps -> case (urProof p) of
+                                        Nothing -> F.forM_ (urExpr p) $ \f_expr ->
+                                            redoAction (removeAllChildren centralBox >>
+                                                        initExprState f_expr >>
+                                                        reloadExpr exprBox (toExpr f_expr)) p ps
+                                        Just pf -> redoAction (createNewProof (Just $ toProof pf) centralBox truthBox exprBox)
+                                                              p ps
+                                                   
+          redoAction action p ps = setNoUndoing >>
+                                   action >>
                                    updateRedoList ps >>
                                    addToUndoListFromRedo p >>
                                    setUndoing
-          
-dialogLoadProof :: GRef -> VBox -> VBox -> IO ()
-dialogLoadProof ref centralBox truthBox = do
+                                   
+          initExprState expr = do 
+              hbox1 <- io $ hBoxNew False 2
+              hbox2 <- io $ hBoxNew False 2
+              expr' <- newExprState expr hbox1 hbox2
+              updateExprState expr' 
+              
+          discardProof centralBox formBox = 
+              unsetProofState >>
+              removeAllChildren centralBox >>
+              getExpr >>= \e ->
+              reloadExpr formBox (toExpr e)
+
+loadExpr :: HBox -> PreExpr -> IState HBox
+loadExpr box expr = do
+    removeAllChildren box
+    (exprBox,formBox) <- createInitExprWidget expr
+    io $ boxPackStart box exprBox PackNatural 2
+    return formBox
+            
+reloadExpr :: HBox -> PreExpr -> IState ()
+reloadExpr formBox expr = removeAllChildren formBox >>
+                          setupForm formBox >>
+                          writeExprWidget expr formBox  
+            
+dialogLoadProof :: GRef -> VBox -> VBox -> HBox -> IO ()
+dialogLoadProof ref centralBox truthBox exprBox = do
     dialog <- fileChooserDialogNew (Just "Cargar Prueba") 
                                   Nothing 
                                   FileChooserActionOpen
@@ -174,7 +229,7 @@ dialogLoadProof ref centralBox truthBox = do
              case selected of
                   Just filepath -> decodeFile filepath >>= \proof ->
                                 flip evalStateT ref
-                                  (createNewProof (Just proof) centralBox truthBox) >>
+                                  (createNewProof (Just proof) centralBox truthBox exprBox) >>
                                   widgetDestroy dialog
                   Nothing -> widgetDestroy dialog
          _ -> liftIO $ widgetDestroy dialog
@@ -258,6 +313,54 @@ saveTheoremDialog ref aListStore = do
                        return (len-1)
     
           
+          
+createInitExprWidget :: PreExpr -> IState (HBox,HBox)
+createInitExprWidget expr  = do
+  
+    boxExprWidget <- io $ hBoxNew False 2
+    
+    formBox <- io $ hBoxNew False 2
+    --expr_choices <- io $ makeButtonWithImage stockIndex
+    --io $ setToolTip expr_choices "Expresiones posibles"
+    --button_box <- io $ hButtonBoxNew
+    io (widgetSetSizeRequest boxExprWidget (-1) 50)
+    
+    eventsInitExprWidget expr boxExprWidget formBox
+    
+    writeExprWidget expr formBox
+    
+    return (boxExprWidget,formBox)
+--     
+-- | Setea los eventos de un widget de expresion. La funcion f es la
+-- que se utiliza para actualizar la expresion dentro de la prueba
+eventsInitExprWidget :: PreExpr -> HBox -> HBox -> IState ()
+eventsInitExprWidget expr ext_box formBox =
+    get >>= \s ->
+    getWindow >>= \win ->
+    setupOptionExprWidget win expr >>
+    setupForm formBox
+    
+    where setupOptionExprWidget :: Window -> PreExpr-> IState ()
+          setupOptionExprWidget win e = do
+
+            exprButtons <- io hButtonBoxNew
+
+            bAnot <- makeOptionEvent win stockEdit (configAnnotTB putStrLn)
+            io $ setToolTip bAnot "Anotaciones"
+            bT    <- makeOptionEvent win stockIndex (configTypeTreeTB (getExpr)
+                                            (\(e,_) -> updateExpr e))
+            io $ setToolTip bT "Árbol de tipado"
+            bInfo <- makeLayoutTypeCheckStatus
+
+            io (containerAdd exprButtons bAnot  >>
+                containerAdd exprButtons bT >>
+                containerAdd exprButtons bInfo >>
+                boxPackStart ext_box exprButtons PackNatural 10 >>
+                boxPackStart ext_box formBox PackGrow 1 >>
+                widgetShowAll ext_box)
+
+          makeLayoutTypeCheckStatus :: IState Image
+          makeLayoutTypeCheckStatus = io $ imageNewFromStock stockInfo IconSizeMenu
           
 -- reloadAxioms :: IState ()
 -- reloadAxioms = do
