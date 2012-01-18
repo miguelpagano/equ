@@ -172,7 +172,7 @@ configTypeEntry isf fmp extBTree (es:ess) l =
                                 io (set b [containerChild := tb] >> 
                                     widgetShowAll b) >>
                                 isf >>= \f ->
-                                fmp (setAtomType f (fst $ pathExpr es) t) >> 
+                                fmp (setAtomType (goTop f) (fst $ pathExpr es) t) >> 
                                 io (containerGetChildren extBTree) >>= \wl ->
                                 io (containerRemove extBTree (head wl)) >>
                                 removeAllChildren extBTree >>
