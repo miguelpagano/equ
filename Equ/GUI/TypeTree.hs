@@ -43,8 +43,12 @@ buildTreeExpr isf fmp bTreeExpr we = do
                             [we'] <- io (containerGetChildren we)
                             mes <- io $ makeMainExprState f (castToHBox we')
                             io $ do 
+                                sep <- hSeparatorNew 
+                                vb <- vBoxNew False 0
                                 bb <- hBoxNew False 0
-                                boxPackStart bb (eventType mes) PackGrow 2
+                                boxPackStart vb sep PackNatural 2
+                                boxPackStart vb (eventType mes) PackGrow 2
+                                boxPackEnd bb vb PackGrow 2
                                 boxPackEnd bTreeExpr bb PackNatural 2
                                 widgetShowAll bb
                             l <- buildTreeExpr' isf (castToHBox we') mes 
@@ -73,32 +77,42 @@ buildTreeExpr' isf we te bTree l = do
                     io (containerGetChildren we) >>= \[leb, _, reb] ->
                     makeExprState lf lt lp (castToHBox leb) >>= \dlte ->
                     makeExprState rf rt rp (castToHBox reb) >>= \drte ->
+                    
                     io (hBoxNew False 0) >>= \bTree' ->
                     io (boxPackEnd bTree bTree' PackNatural 2) >>
-                    io (fillNewBox bTree' (eventType drte)) >>= \nVb ->
+                    io (fillNewBox bTree' rf (eventType drte)) >>= \nVb ->
+                    
                     buildTreeExpr' isf (castToHBox reb) drte nVb 
                                         (dlte : drte : l) >>= \l' ->
-                    io (fillNewBox bTree' (eventType dlte)) >>= \nVb ->
+                    
+                    io (fillNewBox bTree' lf (eventType dlte)) >>= \nVb ->
+                    
                     buildTreeExpr' isf (castToHBox leb) dlte nVb l'
                 (Just (lf, lt, lp), Nothing) -> 
                     io (containerGetChildren we) >>= \[_, eb] ->
                     io (containerGetChildren (castToEventBox eb)) >>= \[leb] ->
+                    
                     makeExprState lf lt lp (castToHBox leb) >>= \dlte ->
+                    
                     io (hBoxNew False 0) >>= \bTree' ->
                     io (boxPackEnd bTree bTree' PackNatural 2) >>
-                    io (fillNewBox bTree' (eventType dlte)) >>= \nVb ->
+                    io (fillNewBox bTree' lf (eventType dlte)) >>= \nVb ->
+                    
                     buildTreeExpr' isf (castToHBox leb) dlte nVb (dlte : l)
                 (Nothing, _) -> return l
     where
         makeExprState :: Focus -> Type -> GoBack -> HBox -> IState ExprState
         makeExprState f t p eb = io (setupEventExpr f t eb) >>= \tb ->
                                  return $ ExprState f t p eb tb
-        fillNewBox :: (BoxClass b) => b -> HBox -> IO VBox
-        fillNewBox bTree tb = 
+        fillNewBox :: (BoxClass b) => b -> Focus -> HBox -> IO VBox
+        fillNewBox bTree f tb = 
                             vBoxNew False 0 >>= \nVb ->
                             hBoxNew False 0 >>= \nb -> 
-                            boxPackStart nb tb PackGrow 2 >> 
-                            boxPackEnd nVb nb PackGrow 2 >> 
+                            boxPackStart nb tb PackGrow 2 >>
+                            boxPackEnd nVb nb PackNatural 2 >> 
+                            when (not $ checkIsAtom f)
+                                 (io hSeparatorNew >>= \sep ->
+                                  boxPackEnd nVb sep PackNatural 2) >>
                             boxPackEnd bTree nVb PackGrow 2 >> 
                             widgetShowAll bTree >>
                             return nVb
@@ -185,11 +199,17 @@ configTypeEntry isf fmp extBTree (es:ess) l =
 
 -- Configuración general para los botones. 
 -- (Coloreo y desColoreo al pasar por encima)
-configEventGeneralExpr :: (BoxClass w) => EventBox -> w -> IO ()
-configEventGeneralExpr eb b = 
-                            onEvent enterNotifyEvent (highlightBox b hoverBg) >>
-                            onEvent leaveNotifyEvent (unlightBox b Nothing) >>
-                            return ()
+configEventGeneralExpr :: (BoxClass w) => EventBox -> w -> w -> IO ()
+configEventGeneralExpr eb exprB typeB = 
+                        onEvent enterNotifyEvent (do
+                                                    highlightBox exprB hoverBg
+                                                    --highlightBox typeB hoverBg
+                                                 ) >>
+                        onEvent leaveNotifyEvent (do
+                                                  unlightBox exprB Nothing
+                                                  --unlightBox typeB Nothing
+                                                 ) >>
+                        return ()
     where onEvent event action = eb `on` event $ tryEvent action
 
 -- | Navega una expresión (la seleccionada) y devuelve, si se puede
@@ -209,22 +229,13 @@ goTypedExpr go te =
         (f,g) = pathExpr te
         (fwd,bwd) = (fromJust . go . f, fromJust . go . g)
 
-configEventGeneralExprBeta :: (BoxClass w) => EventBox -> w -> IO ()
-configEventGeneralExprBeta eb b = 
-                            onEvent enterNotifyEvent (highlightBox b hoverBg) >>
-                            onEvent leaveNotifyEvent (unlightBox b Nothing) >>
-                            return ()
-    where onEvent event action = eb `on` event $ tryEvent action
-
-
 -- Setea el par expresión, tipo para construir el árbol de tipado.
 setupEventExpr :: Focus -> Type -> HBox -> IO HBox
 setupEventExpr (e,_) t exprEbb = do
                                 typeL <- labelNew $ Just $ show t
                                 typeEb <- eventBoxNew
                                 typeEbb <- hBoxNew False 0
-                                configEventGeneralExprBeta typeEb exprEbb
-                                configEventGeneralExpr typeEb typeEbb
+                                configEventGeneralExpr typeEb exprEbb typeEbb
                                 set typeEb [ containerChild := typeL ]
                                 set typeEbb [ containerChild := typeEb ]
                                 return typeEbb
