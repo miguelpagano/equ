@@ -402,7 +402,7 @@ eventsExprWidget expr ext_box w moveFocus fUpdate fGet top_box =
     getWindow >>= \win ->
     setupOptionExprWidget win expr >>
     io (setupFocusEvent s) >>
-    setupForm (formBox w) 
+    setupForm (formBox w) Editable
     
     where hb = extBox w
           setupFocusEvent :: GRef -> IO (ConnectId Button)

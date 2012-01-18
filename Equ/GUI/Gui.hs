@@ -208,7 +208,7 @@ loadExpr box expr = do
             
 reloadExpr :: HBox -> PreExpr -> IState ()
 reloadExpr formBox expr = removeAllChildren formBox >>
-                          setupForm formBox >>
+                          setupForm formBox Editable >>
                           writeExprWidget expr formBox  
             
 dialogLoadProof :: GRef -> VBox -> VBox -> HBox -> IO ()
@@ -338,7 +338,7 @@ eventsInitExprWidget expr ext_box formBox =
     get >>= \s ->
     getWindow >>= \win ->
     setupOptionExprWidget win expr >>
-    setupForm formBox
+    setupForm formBox Editable
     
     where setupOptionExprWidget :: Window -> PreExpr-> IState ()
           setupOptionExprWidget win e = do

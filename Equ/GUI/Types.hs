@@ -25,6 +25,7 @@ type GoBack = (Move,Move)
 -- | Si @(f,g) :: GoBack@, entonces @f . g = id = g . f@.
 type MGoBack = (Focus -> Maybe Focus,Focus -> Maybe Focus)
 
+data EditMask = Editable | NotEditable
 
 type StatusPlace = (Statusbar, ContextId)
 
