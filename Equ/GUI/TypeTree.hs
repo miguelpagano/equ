@@ -4,7 +4,7 @@ module Equ.GUI.TypeTree where
 import Equ.PreExpr
 import Equ.Syntax
 import Equ.Parser
-import Equ.TypeChecker
+import Equ.TypeChecker (checkPreExpr)
 import Equ.Types
 import Equ.Rule
 import Equ.Theories
@@ -16,23 +16,13 @@ import Equ.GUI.Types
 import Equ.GUI.State
 import Equ.GUI.Settings
 
+import Graphics.UI.Gtk hiding (get)
 
-import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
-import qualified Graphics.UI.Gtk as G
-import Graphics.UI.Gtk.Gdk.EventM
-import Graphics.UI.Gtk.Glade (GladeXML,xmlGetWidget)
-import Data.Reference
+import Control.Monad.State (get)
+import Control.Monad (when, unless) 
+
 import Data.Maybe(fromJust)
-
-import Control.Monad.Trans(lift,liftIO)
-import Control.Monad.State(get,evalStateT)
-import Control.Monad(filterM, when, unless) 
-import Control.Arrow
-import Data.Text(unpack)
-
-import Data.List (deleteBy, find)
-import qualified Data.Serialize as S
-import qualified Data.ByteString as L
+import Data.List (find)
 
 -- Función principal que construye el arbol de tipado.
 buildTreeExpr :: IState Focus -> (Focus -> IState ()) -> VBox -> 
@@ -89,9 +79,15 @@ buildTreeExpr' isf we te bTree l = do
                     
                     buildTreeExpr' isf (castToHBox leb) dlte nVb l'
                 (Just (lf, lt, lp), Nothing) -> 
-                    io (containerGetChildren we) >>= \[_, eb] ->
-                    io (containerGetChildren (castToEventBox eb)) >>= \[leb] ->
-                    
+                    io (putStrLn $ show $ lf) >>
+                    (case isPreExprParent $ fExpr te of
+                         True -> io (containerGetChildren we) >>= \[_, eb, _] ->
+                                 return eb
+                         False -> io (containerGetChildren we) >>= \[_, eb] ->
+                                  io (containerGetChildren (castToEventBox eb)) 
+                                  >>= \[leb] -> return leb
+                    ) >>= \leb ->
+            
                     makeExprState lf lt lp (castToHBox leb) >>= \dlte ->
                     
                     io (hBoxNew False 0) >>= \bTree' ->
@@ -172,7 +168,7 @@ configTypeEntry isf fmp extBTree (es:ess) l =
                             Entry -> HBox -> EventBox -> ExprState -> IState ()
         configTypeEntry' isf fmp eText b tb es = 
                         withState (onEntryActivate eText) 
-                        (liftIO (entryGetText eText) >>= 
+                        (io (entryGetText eText) >>= 
                         \text -> checkInType text >>= \checkText ->
                         case checkText of
                             Nothing -> return ()
