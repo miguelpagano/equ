@@ -98,8 +98,8 @@ buildTreeExpr' isf we te bTree l = do
                 (Nothing, _) -> return l
     where
         makeExprState :: Focus -> Type -> GoBack -> HBox -> IState ExprState
-        makeExprState f t p eb = io (setupEventExpr f t eb) >>= \tb ->
-                                 return $ ExprState f t p eb tb
+        makeExprState f t p eb = io (setupEventExpr f t eb) >>=
+                                 return . ExprState f t p eb 
         fillNewBox :: (BoxClass b) => b -> Focus -> HBox -> IO VBox
         fillNewBox bTree f tb = 
                             vBoxNew False 0 >>= \nVb ->

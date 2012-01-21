@@ -194,7 +194,7 @@ setType :: (Either VarName FuncName) -> PState -> (PState,Type)
 setType name (n,st) = if name `M.member` st
                       then ((n,st), st ! name)
                       else ((n+1, insert name newvar st), newvar)
-    where newvar = tyVar $ "VInt" ++ show n
+    where newvar = tyVarInternal n
 
 -- Esta funcion parsea una variable. Nos fijamos que empiece con
 -- minuscula para distinguirla de las funciones (que empiezan con

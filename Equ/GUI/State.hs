@@ -386,7 +386,7 @@ getExprState = getStatePartDbg "getExprState" gExpr
 
 getExprProof :: IState Expr
 getExprProof = getValidProof >>= either (const (return holeExpr)) (return . getExpr)                    
-    where getExpr p = Expr $ BinOp (relationToOperator (fromJust $ getRel p))
+    where getExpr p = Expr $ BinOp (relToOp (fromJust $ getRel p))
                                    (toExpr $ fromJust $ getStart p)
                                    (toExpr $ fromJust $ getEnd p)
                                      

@@ -1,10 +1,10 @@
 -- | Este módulo define el tipo de las reglas de re-escritura.
-
+{-# Language OverloadedStrings #-}
 module Equ.Rule (
                   Relation (..)
                 , Rule (..)
                 -- * Constructores de las diferentes relaciones.
-                , relEq, relEquiv, relImpl, relCons
+                , relEq, relEquiv, relImpl, relCons, mkrule
                 )
     where
     
@@ -83,6 +83,10 @@ data Rule = Rule {
     }
     deriving (Show, Eq)
 
+
+mkrule e e' rel = Rule e e' rel "" ""
+
+
 instance Arbitrary Rule where
     arbitrary = Rule <$> arbitrary <*> arbitrary <*> 
                          arbitrary <*> arbitrary <*> arbitrary
@@ -100,5 +104,4 @@ instance Serialize RelName where
 instance Serialize Relation where
     put (Relation r n t) = put r >> put n >> put t
     get = Relation <$> get <*> get <*> get
-
 

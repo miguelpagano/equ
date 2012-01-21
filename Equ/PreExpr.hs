@@ -15,6 +15,7 @@ module Equ.PreExpr ( freeVars, freshVar
                    , getVarTypeFromQuantType, getQTypeFromQuantType
                    , resetTypeAllFocus, getTypeFocus
                    , getQAndVarFromQuant 
+                   , createPairs
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
@@ -25,7 +26,7 @@ module Equ.PreExpr ( freeVars, freshVar
 
 
 import Equ.Syntax(Variable(..), Operator(..), Constant(..), holeTy
-                 , Quantifier (..), Func (..), var, HoleInfo, hole)
+                 , Quantifier (..), Func (..), var, HoleInfo, hole, Assoc(None))
 import Data.Set (Set,union,delete,empty,insert,member)
 import Equ.Types
 import Equ.PreExpr.Internal
@@ -37,7 +38,7 @@ import Data.Text(pack)
 import Data.Serialize(encode, decode)
 
 import Data.Maybe (fromJust)
-
+import Control.Arrow ((***))
 
 -- | Dado un focus de una preExpresion, nos dice si esta es un hueco.
 -- import Equ.Parser
@@ -220,3 +221,33 @@ getQTypeFromQuantType _ = TyUnknown
 getQAndVarFromQuant :: Focus -> Maybe (Quantifier, Variable)
 getQAndVarFromQuant (Quant q v _ _, _) = Just $ (q, v)
 getQAndVarFromQuant _ = Nothing
+
+
+-- | Dada una expresión @BinOp op e e'@ devuelve todas los
+-- pares @(p,q)@ tal que @BinOp op e e' ~ BinOp op p q@, donde
+-- @~@ significa igualdad modulo asociatividad. Si @op@ no es
+-- asociativo, entonces devuelve el singleton @(e,e')@.
+createPairs :: PreExpr -> [(PreExpr,PreExpr)]
+createPairs e@(BinOp op l r) = case opAssoc op of
+                               None -> []
+                               _ -> map split . glue op $ flatten e
+    where split e' = case e' of
+                       BinOp op l r -> (l,r)
+                       _ -> error "impossible"
+
+-- | Lista de todos los nodos asociables.
+flatten :: PreExpr -> [PreExpr]
+flatten e@(BinOp op _ _) = go op e
+    where go o (BinOp o' l r) = if o == o' then go o l ++ go o r
+                                else [l,r]
+          go o e' = [e']
+flatten e = [e]
+
+-- | Reconstrucción de todas las formas de parsear una expresión con
+-- un conectivo asociativo a partir de una lista de sus
+-- subexpresiones asociables
+glue :: Operator -> [PreExpr] -> [PreExpr]
+glue _ [e]    = return e
+glue op [e,e'] = return $ BinOp op e e'
+glue op es = concat [(uncurry (zipWith (BinOp op)) . (glue op *** glue op)) ps 
+                    | ps <- [splitAt i es | i <- [1..length es-1]]]                   

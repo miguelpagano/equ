@@ -11,7 +11,7 @@ module Equ.Theories
     , axiomGroup
     , L.listRules
     , relationList
-    , relationToOperator
+    , relToOp
     , createTheorem
     , toForest
     , Grouped
@@ -19,6 +19,7 @@ module Equ.Theories
     )
     where
 
+import Equ.Theories.AbsName
 import qualified Equ.Theories.Arith as A
 import qualified Equ.Theories.List as L
 import qualified Equ.Theories.FOL as F
@@ -30,7 +31,10 @@ import Equ.PreExpr
 
 import Data.Text hiding (head,zip,concatMap,map)
 import Data.Either(rights)
+import Data.Maybe(isJust)
 import Data.Tree
+import qualified Data.Foldable as DF  (mapM_) 
+import Control.Monad
 
 type TheoryName = Text
 type Grouped a = [(TheoryName,[a])]
@@ -62,7 +66,7 @@ constGroup :: Grouped Constant
 constGroup = mkGrouped theories [F.theoryConstantsList, A.theoryConstantsList, L.theoryConstantsList]
 
 axiomGroup :: Grouped Axiom
-axiomGroup = mkGrouped theories [F.theoryAxiomList, A.theoryAxiomList, L.theoryAxiomList]
+axiomGroup = mkGrouped theories [map createAxiom F.theoryAxiomList, A.theoryAxiomList, L.theoryAxiomList]
 
 operatorsList :: [Operator]
 operatorsList = ungroup opGroup
@@ -82,12 +86,24 @@ relationList = [relEq,relEquiv,relImpl,relCons]
 
 
 
-relationToOperator :: Relation -> Operator
-relationToOperator relation | relation == relEq = F.folEqual
+relToOp :: Relation -> Operator
+relToOp relation | relation == relEq = F.folEqual
                             | relation == relEquiv = F.folEquiv
                             | relation == relImpl = F.folImpl
                             | relation == relCons = F.folConseq
 
+opToRel :: Operator -> Maybe Relation
+opToRel op = case opName op of 
+               Equival -> Just relEquiv
+               Implic -> Just relImpl
+               Conseq -> Just relCons
+               Equal  -> Just relEq
+               _ -> Nothing
+
+
+getRelExp :: PreExpr -> Maybe Relation
+getRelExp (BinOp op _ _) = opToRel op
+getRelExp _ = Nothing
 
 
 -- DUDA: VER SI ESTAS FUNCIONES QUE SIGUEN DEBEN IR EN ESTE MODULO O EN OTRO.
@@ -100,43 +116,38 @@ relationToOperator relation | relation == relEq = F.folEqual
 createTheorem :: Text -> Proof -> Theorem
 createTheorem th_name proof = Theorem {
       thName = th_name
-    , thExpr = Expr $ BinOp (relationToOperator (fromRight $ getRel proof))
-                                   exp1
-                                   exp2
+    , thExpr = Expr $ BinOp (relToOp rel) exp1 exp2
     , thRel = fromRight $ getRel proof
     , thProof = proof
-    , thRules = createRules exp1 exp2 (fromRight $ getRel proof)
+    , thRules = createRules exp1 exp2 rel
     }
     
     where exp1 = (toExpr $ fromRight $ getStart proof)
-          exp2 = (toExpr $ fromRight $ getEnd proof)
+          exp2 = (toExpr $ fromRight $ getEnd proof)          
+          fromRight = head . rights . return
+          rel = fromRight $ getRel proof
      
 createRules :: PreExpr -> PreExpr -> Relation -> [Rule]
-createRules pe1 pe2 relation = [r1,r2,r3]
-    where r1= Rule {
-              lhs = Expr pe1
-            , rhs = Expr pe2
-            , rel = relation
-            , name = pack ""
-            , desc = pack ""
-          }
-          r2= Rule {
-              lhs = expr
-            , rhs = F.true
-            , rel = relEquiv
-            , name = pack ""
-            , desc = pack ""
-          }
-          r3= Rule {
-              lhs = F.true
-            , rhs = expr
-            , rel = relEquiv
-            , name = pack ""
-            , desc = pack ""
-          }
-          
-          expr = Expr $ BinOp (relationToOperator relation)
-                                   pe1
-                                   pe2
+createRules pe1 pe2 rel = (mkrule (Expr pe1) (Expr pe2) rel):metaRules expr
+    where expr = Expr $ BinOp (relToOp rel) pe1 pe2
 
-fromRight = head . rights . return
+-- | Siempre que tenemos un axioma, tenemos dos reglas: @e ≡ True@ y @True ≡ e@.
+metaRules :: Expr -> [Rule]
+metaRules e = [ mkrule e F.true relEquiv, mkrule F.true e relEquiv]
+
+-- | Dada una expresión, genera todas las reglas posibles de partir
+-- esa expresión. 
+createRulesAssoc :: PreExpr -> [Rule]
+createRulesAssoc expr = whenZ isJust rules (getRelExp expr) ++ metaRules (Expr expr)
+    where rules (Just rel) = createPairs expr >>=
+                             (\(p,q) -> return (mkrule (Expr p) (Expr q) rel))                              
+          rules _ = []
+
+-- | Dado un axioma reconstruye las reglas a partir de su expresión.
+createAxiom :: Axiom -> Axiom
+createAxiom ax = ax { axRules = createRulesAssoc expr} 
+    where (Expr expr) = axExpr ax
+
+whenZ :: MonadPlus m => (a -> Bool) -> (a -> m b) -> a -> m b
+whenZ p act a = if p a then act a else mzero
+

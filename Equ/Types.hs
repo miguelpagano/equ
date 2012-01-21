@@ -7,7 +7,9 @@ funciones e idiomas estándares de Haskell.  -}
 module Equ.Types where
 
 import Data.Text (Text, pack, unpack)
+import qualified Data.Text as T (head)
 import Data.Poset
+import Data.Char
 
 import Control.Applicative
 import Test.QuickCheck(Arbitrary, arbitrary, elements, oneof)
@@ -126,7 +128,9 @@ type Type = Type' TyVarName
 
 instance Show Type where
     show TyUnknown = "?"
-    show (TyVar v) = unpack v
+    show (TyVar v) = if isTyVarInternal v
+                     then "..."
+                     else unpack v
     show (TyList t) = "[" ++ show t ++ "]"
     show (TyAtom t) = show t
     show (t :-> t') = show t ++ " :-> " ++ show t'
@@ -156,6 +160,12 @@ occurs v = F.elem v
 -- s t', replaces the occurences of 'v' in 's' for 't'.
 tyreplace :: TyVarName -> Type -> Type -> Type
 tyreplace v t t' = t' >>= (\w -> if v == w then t else TyVar w) 
+
+tyVarInternal :: Int -> Type
+tyVarInternal n = tyVar $ "V" ++ show n
+
+isTyVarInternal :: TyVarName -> Bool
+isTyVarInternal = isUpper . T.head 
 
 -- | Instancia arbitrary para el tipo nombre de variable. 
 instance Arbitrary TyVarName where
