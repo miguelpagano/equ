@@ -416,3 +416,66 @@ annotBuffer = textViewNew >>= \v ->
              textViewSetWrapMode v WrapWord >>
              set v [widgetWidthRequest := 500, widgetHeightRequest := 300] >>
              return v
+
+
+-- Funciones para la expresiones inicial.
+createInitExprWidget :: PreExpr -> IState (HBox,HBox)
+createInitExprWidget expr  = do
+  
+    boxExprWidget <- io $ hBoxNew False 2
+    
+    formBox <- io $ hBoxNew False 2
+    --expr_choices <- io $ makeButtonWithImage stockIndex
+    --io $ setToolTip expr_choices "Expresiones posibles"
+    --button_box <- io $ hButtonBoxNew
+    io (widgetSetSizeRequest boxExprWidget (-1) 50)
+    
+    eventsInitExprWidget expr boxExprWidget formBox
+    
+    writeExprWidget expr formBox
+    
+    return (boxExprWidget,formBox)
+--     
+-- | Setea los eventos de un widget de expresion. La funcion f es la
+-- que se utiliza para actualizar la expresion dentro de la prueba
+eventsInitExprWidget :: PreExpr -> HBox -> HBox -> IState ()
+eventsInitExprWidget expr ext_box formBox =
+    get >>= \s ->
+    getWindow >>= \win ->
+    setupOptionExprWidget win expr >>
+    setupForm formBox Editable
+    
+    where setupOptionExprWidget :: Window -> PreExpr-> IState ()
+          setupOptionExprWidget win e = do
+
+            exprButtons <- io hButtonBoxNew
+
+            bAnot <- makeOptionEvent win stockEdit (configAnnotTB putStrLn)
+            io $ setToolTip bAnot "Anotaciones"
+            bT    <- makeOptionEvent win stockIndex (configTypeTreeTB (getExpr)
+                                            (\(e,_) -> updateExpr e))
+            io $ setToolTip bT "Árbol de tipado"
+            bInfo <- makeLayoutTypeCheckStatus
+
+            io (containerAdd exprButtons bAnot  >>
+                containerAdd exprButtons bT >>
+                containerAdd exprButtons bInfo >>
+                boxPackStart ext_box exprButtons PackNatural 10 >>
+                boxPackStart ext_box formBox PackGrow 1 >>
+                widgetShowAll ext_box)
+
+          makeLayoutTypeCheckStatus :: IState Image
+          makeLayoutTypeCheckStatus = io $ imageNewFromStock stockInfo IconSizeMenu
+
+
+loadExpr :: HBox -> PreExpr -> IState HBox
+loadExpr box expr = do
+    removeAllChildren box
+    (exprBox,formBox) <- createInitExprWidget expr
+    io $ boxPackStart box exprBox PackNatural 2
+    return formBox
+            
+reloadExpr :: HBox -> PreExpr -> IState ()
+reloadExpr formBox expr = removeAllChildren formBox >>
+                          setupForm formBox Editable >>
+                          writeExprWidget expr formBox  
