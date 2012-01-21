@@ -1,4 +1,4 @@
-{-# Language GADTs #-}
+{-# Language GADTs,OverloadedStrings #-}
 
 {-| Este m&#243;dulo define la noci&#243;n de una prueba. -}
 module Equ.Proof (newProof, newProofWithoutEnd, addStep, newProofWithStart
@@ -13,6 +13,7 @@ module Equ.Proof (newProof, newProofWithoutEnd, addStep, newProofWithStart
                  , Axiom(..)
                  , Theorem(..)
                  , Basic(..)
+                 , Hypothesis
                  -- * Pruebas
                  -- $proofs
                  , Proof(..)
@@ -23,6 +24,11 @@ module Equ.Proof (newProof, newProofWithoutEnd, addStep, newProofWithStart
                  , module Equ.Proof.Monad
                  , module Equ.Proof.Error
                  , module Equ.Rewrite
+                 -- * Funciones auxiliares
+                 , addHypothesis
+                 , getHypothesis
+                 , Name
+                 , Ctx
                  ) where
 
 import Equ.Proof.Proof hiding (getCtx,getStart,getEnd,getRel,setCtx)
@@ -31,13 +37,13 @@ import Equ.Proof.Zipper
 import Equ.Proof.Monad
 import Equ.Proof.Error
 
+
 import qualified Equ.PreExpr as PE hiding (replace)
 import Equ.Rule
 import Equ.Rewrite
 
 import Data.Monoid(mappend)
 
-import Data.Map (empty, singleton)
 import Data.Maybe
 import Data.Either (partitionEithers,rights)
 
@@ -117,7 +123,7 @@ whenEqWithDefault def a b = whenPM (==a) def b >> return ()
 --                           (_, p:ps) -> Right p
 
 notValidSimpleProof :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Proof
-notValidSimpleProof f1 f2 r t = Simple empty r f1 f2 $ truthBasic t
+notValidSimpleProof f1 f2 r t = Simple beginCtx r f1 f2 $ truthBasic t
           
 -- proofFromAxiom :: PE.Focus -> PE.Focus -> Relation -> Axiom -> PM Proof
 -- proofFromAxiom = proofFromTruth
@@ -168,7 +174,7 @@ necesarias para desarrollar pruebas en equ.
 proofFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> 
                             Rule -> (ProofFocus -> ProofFocus) -> PM Proof
 proofFromRule f1 f2 rel t r fMove = checkSimpleStepFromRule f1 f2 rel t r fMove >>
-                                      (return $ Simple empty rel f1 f2 $ truthBasic t)
+                                      (return $ Simple beginCtx rel f1 f2 $ truthBasic t)
 
 -- | Dados dos focuses f1 y f2, una relacion rel y un axioma o
 -- teorema, intenta crear una prueba para f1 rel f2, utilizando el
@@ -233,13 +239,13 @@ rel {?}
     f'
 @
 -}
-newProof :: Relation -> PE.Focus -> PE.Focus -> Proof
-newProof = Hole empty
+newProof :: Maybe Ctx -> Relation -> PE.Focus -> PE.Focus -> Proof
+newProof = Hole . maybe beginCtx id
 
 
 -- | Comenzamos una prueba dada la expresion inicial y la relacion.
 newProofWithStart :: Relation -> PE.Focus -> Proof
-newProofWithStart rel f = Hole empty rel f PE.emptyExpr
+newProofWithStart rel f = Hole beginCtx rel f PE.emptyExpr
 
 {- | Comenzamos una prueba dada una relación. No tenemos ni las expresiones
      ni la prueba.
@@ -252,12 +258,12 @@ rel {?}
     Hole
 @
 -}
-holeProof :: Relation -> Proof
-holeProof r = newProof r PE.emptyExpr PE.emptyExpr
+holeProof :: Maybe Ctx -> Relation -> Proof
+holeProof c r = newProof c r PE.emptyExpr PE.emptyExpr
 
 -- | ProofFocus vacio
-emptyProof :: Relation -> ProofFocus
-emptyProof r = toProofFocus $ holeProof r
+emptyProof :: Maybe Ctx -> Relation -> ProofFocus
+emptyProof c r = toProofFocus $ holeProof c r
 
 {- | Comenzamos una prueba dado unfocus y una relacion.
     {POS: El contexto de la prueba es vacio.}
@@ -270,7 +276,7 @@ rel {?}
 @
 -}
 newProofWithoutEnd :: Relation -> PE.Focus -> PE.HoleInfo -> Proof
-newProofWithoutEnd r f hi = Hole empty r f h
+newProofWithoutEnd r f hi = Hole beginCtx r f h
     where h = PE.toFocus $ PE.preExprHole hi
 
 {- | Comenzamos una prueba con el meta-teorema de deducción.
@@ -287,7 +293,7 @@ Donde en el contexto de la prueba tenemos a hip.
 newProofWithHip :: PE.Focus -> PE.Focus -> Proof
 newProofWithHip hip@(e,_) f = Deduc ctx hip f $ Hole ctx relImpl hip f
     where ctx :: Ctx
-          ctx = beginCtx e
+          ctx = beginCtx 
 
 {- | Comenzamos una prueba por casos. -}
 
@@ -296,7 +302,7 @@ newProofWithCases r f f' c lc = Cases ctx r f f' c lp
     where ctx :: Ctx
           ctx = ctxFromList lc
           lp :: [(PE.Focus, Proof)]
-          lp = map (\fi@(ei,_) -> (fi, Hole (beginCtx ei) r f f')) lc
+          lp = [] -- map (\fi@(ei,_) -> (fi, Hole (beginCtx ei) r f f')) lc
 
 {- | Dado un proofFocus (p, path) y una prueba p', agregamos un paso.
 
@@ -458,3 +464,6 @@ isCompleteProofFocus p =
                 (Nothing, _) -> case p of
                                      (Hole _ _ _ _, _) -> Left p
                                      _ -> return True
+
+
+

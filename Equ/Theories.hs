@@ -15,6 +15,7 @@ module Equ.Theories
     , createTheorem
     , toForest
     , Grouped
+    , F.addBoolHypothesis
     )
     where
 

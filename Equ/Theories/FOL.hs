@@ -53,6 +53,7 @@ module Equ.Theories.FOL
     -- ** Cuantificador \"Existe\"
     -- *** Definicion
     , existRule
+    , addBoolHypothesis
     )
     where
 
@@ -861,3 +862,7 @@ folRules = [ conmEquiv_Rule1, conmEquiv_Rule2, conmEquiv_Rule3 -- Conmutatividad
            , intercForall_Rule
            , existRule
            ]
+
+
+addBoolHypothesis :: PreExpr -> Ctx -> (Ctx,Maybe Name)
+addBoolHypothesis e = addHypothesis e relEquiv [Con folTrue]

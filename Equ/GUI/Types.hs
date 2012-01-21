@@ -3,7 +3,8 @@ module Equ.GUI.Types where
 
 import Equ.PreExpr
 
-import Equ.Proof (Proof,PM,ProofFocus,Theorem)
+import Equ.Proof (Proof,PM,ProofFocus,Theorem,Hypothesis)
+import Equ.Proof.Proof (Ctx)
 
 import Graphics.UI.Gtk ( WidgetClass, Statusbar, ContextId, HBox, TreeView
                        , EventBox, Label, Button, Notebook, HPaned, IconView
@@ -42,7 +43,8 @@ data Accion = Undo | Redo | InvalidCheck | ValidCheck
 type TGraph = [(Int, Int, Accion)]
  
 data Statistic = Statistic { thinkingGraph :: TGraph }
- 
+
+-- TODO: hace falta? Eliminé el campo de GState y todo funciona bien. 
 type RecentExprList = [PreExpr]
 
 data TreeExpr = TreeExpr { mainExpr :: ExprState
@@ -60,10 +62,10 @@ data GState = GState { gWindow :: Window
                      , gFaces :: Notebook -- ^ Las distintas caras de la interfaz.
                      , gUndo :: UndoList -- ^ Undo.
                      , gRedo :: RedoList -- ^ Redo.
-                     , recentExprList :: RecentExprList -- ^ Lista de expresiones recientemente ingresadas.
                      , gStatistic :: Statistic -- ^ Conjunto de estadisticas.
                      , status :: StatusPlace  -- ^ La barra de estado.
                      , theorems :: [Theorem]
+                     , hypothesis :: Ctx -- ^ Hipotesis globales. Cuando se crea una prueba se copian al contexto.
                      , undoing :: Bool
                      , imageValid :: Image
                      }

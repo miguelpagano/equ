@@ -19,6 +19,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , getFocusedExpr
                      , getAxiomCtrl
                      , getAxiomBox
+                     , getAxiomBox'
                      , getSelectExpr
                      , getUndoList
                      , getValidProof
@@ -83,6 +84,10 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , updateSelectedExpr
                      , restoreValidProofImage
                      , updateImageValid
+                     -- * Manipulación del contexto global
+                     , getGlobalCtx
+                     , getGlobalHypothesis
+                     , addGlobalHypothesis
                      )
     where
 
@@ -426,7 +431,8 @@ getStatus  = getStatePartDbg "getStatus" status
 getAxiomBox :: IState HBox
 getAxiomBox = getStatePartDbg "getAxiomBox" $ axiomBox . fromJust . gProof
 
-
+getAxiomBox' :: IState (Maybe HBox)
+getAxiomBox' = getStatePartDbg "getAxiomBox" $ \s -> gProof s >>= (return . axiomBox)
 
 {- Las dos funciones que siguen devuelven cada uno de los panes; toda la 
    gracia está en getParentNamed. -}
@@ -733,9 +739,23 @@ initialState win sl al fc sb ce valid = GState
                                     fc
                                     []
                                     []
-                                    []
                                     (Statistic [])
                                     (sb,ce)
                                     [] -- lista de teoremas, TODO: que se carguen los teoremas desde disco
+                                    beginCtx -- Contexto de hipótesis.
                                     True -- undoing
                                     valid -- image
+
+-- Funciones para manipular y obtener la lista de hipótesis
+getGlobalCtx :: IState Ctx
+getGlobalCtx = getStatePart hypothesis
+
+-- | Intenta agregar una hipotesis al contexto global.
+addGlobalHypothesis :: PreExpr -> IState (Maybe Name)
+addGlobalHypothesis e = askRef >>= addHyp
+    where addHyp st = case addBoolHypothesis e (hypothesis st) of
+                        (ctx,Nothing) -> return Nothing
+                        (ctx',Just n) -> update (\st -> st { hypothesis = ctx' }) >> (return $ Just n)
+
+getGlobalHypothesis :: Name -> IState (Maybe Hypothesis)
+getGlobalHypothesis n = getGlobalCtx >>= return . getHypothesis n

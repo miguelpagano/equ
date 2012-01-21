@@ -290,6 +290,24 @@
                       </widget>
                     </child>
                     <child>
+                      <widget class="GtkImageMenuItem" id="saveHypothesisItem">
+                        <property name="label">Guardar como hipótesis</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="use_stock">False</property>
+                        <accelerator key="h" signal="activate" modifiers="GDK_CONTROL_MASK"/>
+                        <child internal-child="image">
+                          <widget class="GtkImage" id="image4">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="ypad">5</property>
+                            <property name="stock">gtk-missing-image</property>
+                          </widget>
+                        </child>
+                      </widget>
+                    </child>
+                    <child>
                       <widget class="GtkImageMenuItem" id="itemSaveAsTheorem">
                         <property name="label">Guardar como teorema</property>
                         <property name="visible">True</property>
@@ -517,6 +535,22 @@
                         <property name="tooltip" translatable="yes">Guardar Teorema</property>
                         <property name="use_action_appearance">False</property>
                         <property name="label" translatable="yes">Guardar como Teorema</property>
+                        <property name="use_underline">True</property>
+                        <property name="stock_id">gtk-save</property>
+                      </widget>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="homogeneous">True</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkToolButton" id="saveHypothesisTool">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="has_tooltip">True</property>
+                        <property name="tooltip" translatable="yes">Guarda la expresión inicial como hipótesis</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="label" translatable="yes">Guardar Hipótesis</property>
                         <property name="use_underline">True</property>
                         <property name="stock_id">gtk-save</property>
                       </widget>

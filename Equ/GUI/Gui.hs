@@ -11,6 +11,7 @@ import Equ.GUI.SymbolList
 import Equ.GUI.TruthList
 import Equ.GUI.Proof 
 import Equ.GUI.TypeTree
+import Equ.GUI.Truth
 import Equ.PreExpr(toFocus, toFocuses, agrupOp, agrupNotOp, opOfFocus, 
                    holePreExpr,PreExpr, toExpr, emptyExpr)
 import Equ.Proof
@@ -56,6 +57,8 @@ main = do
     errPane <- xmlGetWidget xml castToPaned "errPane"
 
     centralBox <- xmlGetWidget xml castToVBox "centralBox"
+
+
     itemNewProof <- xmlGetWidget xml castToImageMenuItem "itemNewProof"
     itemLoadProof <- xmlGetWidget xml castToImageMenuItem "itemLoadProof"
     itemSaveProof <- xmlGetWidget xml castToImageMenuItem "itemSaveProof"
@@ -72,7 +75,8 @@ main = do
     saveProofTool <- xmlGetWidget xml castToToolButton "saveProof"
     discardProofTool <- xmlGetWidget xml castToToolButton "discardProof"
     saveTheoremTool <- xmlGetWidget xml castToToolButton "saveTheoremTool"
-    
+    saveHypothesisTool <- xmlGetWidget xml castToToolButton "saveHypothesisTool"
+
     unDo <- xmlGetWidget xml castToToolButton "undoTool"
     reDo <- xmlGetWidget xml castToToolButton "redoTool"
     
@@ -105,34 +109,32 @@ main = do
     sListStore <- liftIO $ setupSymbolList symbolList
     aListStore <- liftIO $ setupTruthList [] axiomList 
 
-            -- expresion inicial
+    -- expresion inicial
     evalStateT (initExprState emptyExpr) gRef
     formBox <- evalStateT (loadExpr initExprBox holePreExpr) gRef
     
+
+    -- Define la misma acción para el boton que para el menu
+    -- convención: "nombreItem" (para item de menu) y "nombreTool" (para botón)
+    getAndSetAction xml "saveHypothesis" (addHypothesisUI aListStore) gRef
+
+    setActionMenuTool itemNewProof newProofTool (createNewProof Nothing centralBox truthBox formBox) gRef    
+
+    setActionMenuTool itemSaveProof saveProofTool saveProofDialog gRef    
+    setActionMenuTool itemDiscardProof discardProofTool (discardProof centralBox formBox) gRef
+    setActionMenuTool itemValidateProof validTool (checkProof imageValidProof truthBox) gRef
     
-    onToolButtonClicked newProofTool (evalStateT (createNewProof Nothing centralBox truthBox formBox) gRef)
-    onActivateLeaf itemNewProof (evalStateT (createNewProof Nothing centralBox truthBox formBox) gRef)
-    onToolButtonClicked loadProofTool $ dialogLoadProof gRef centralBox truthBox formBox
-    onActivateLeaf itemLoadProof $ dialogLoadProof gRef centralBox truthBox formBox
-    
-    onToolButtonClicked saveProofTool (evalStateT (saveProofDialog) gRef)
-    onActivateLeaf itemSaveProof (evalStateT (saveProofDialog) gRef)
+    setActionMenuTool itemUndo unDo (undoEvent centralBox truthBox formBox) gRef
+    setActionMenuTool itemRedo reDo (redoEvent centralBox truthBox formBox) gRef
+        
     onActivateLeaf itemSaveAsTheorem $ saveTheorem gRef aListStore
     onToolButtonClicked saveTheoremTool $ saveTheorem gRef aListStore
-    
-    onActivateLeaf itemDiscardProof (evalStateT (discardProof centralBox formBox) gRef)
-    onToolButtonClicked discardProofTool (evalStateT (discardProof centralBox formBox) gRef)
-    
-    onActivateLeaf itemUndo $ flip evalStateT gRef $ undoEvent centralBox truthBox formBox
-    onToolButtonClicked unDo $ flip evalStateT gRef $ undoEvent centralBox truthBox formBox
-    
-    onActivateLeaf itemRedo $ flip evalStateT gRef $ redoEvent centralBox truthBox formBox
-    onToolButtonClicked reDo $ flip evalStateT gRef $ redoEvent centralBox truthBox formBox
-    
-    onToolButtonClicked validTool (evalStateT (checkProof imageValidProof truthBox) gRef)
-    onActivateLeaf itemValidateProof $ flip evalStateT gRef $ checkProof imageValidProof truthBox
-    
-    
+
+    onToolButtonClicked loadProofTool $ dialogLoadProof gRef centralBox truthBox formBox
+
+
+    onActivateLeaf itemLoadProof $ dialogLoadProof gRef centralBox truthBox formBox
+
     
     flip evalStateT gRef $ do
         axioms <- getAxiomCtrl
@@ -299,19 +301,9 @@ saveTheoremDialog ref aListStore = do
     response <- dialogRun dialog
     case response of
       ResponseApply -> entryGetText entry >>= \th_name ->
-                      evalStateT (getValidProof >>= return . fromRight >>= \proof ->
-                                  addTheorem (createTheorem (pack th_name) proof) >>= \theo ->
-                                  io idxTheorem >>= \idx ->
-                                  liftIO $ treeStoreInsert aListStore [idx] 0 (addItem theo)) ref >>
-                      return ()
+                      evalStateT (addTheoremUI aListStore th_name) ref
       _ -> return ()
-    widgetDestroy dialog
-       
-    where addItem :: (Truth t, Show t) => t -> (String, HBox -> IRG)
-          addItem t = (show t, writeTruth $ truthBasic t)
-          idxTheorem = treeModelIterNChildren aListStore Nothing >>= \len ->
-                       return (len-1)
-    
+    widgetDestroy dialog           
           
           
 createInitExprWidget :: PreExpr -> IState (HBox,HBox)
@@ -377,3 +369,16 @@ eventsInitExprWidget expr ext_box formBox =
 --     eventsTruthList axioms aListStore
 --     return ()
     
+-- | Funcion que define el mismo evento para un menuItem y un toolButton.
+setActionMenuTool item tool act ref = onToolButtonClicked tool action >>
+                                      onActivateLeaf item action
+    where action = evalStateT act ref 
+
+-- TODO: unificar nombres de botones y menú de items de manera que se pueda
+-- usar la funcion getAndSetAction
+-- | Funcion que dado el nombre de un control que está en el menu y en la barra
+-- configura la misma acción para ambos.
+getAndSetAction xml name action ref = do
+  item <- xmlGetWidget xml castToImageMenuItem $ name ++ "Item"
+  tool <- xmlGetWidget xml castToToolButton $ name ++ "Tool"
+  setActionMenuTool item tool action ref

@@ -100,3 +100,5 @@ instance Serialize RelName where
 instance Serialize Relation where
     put (Relation r n t) = put r >> put n >> put t
     get = Relation <$> get <*> get <*> get
+
+

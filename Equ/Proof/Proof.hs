@@ -1,4 +1,4 @@
-{-# Language GADTs, TypeSynonymInstances #-}
+{-# Language GADTs, TypeSynonymInstances,OverloadedStrings #-}
 
 {-| Este m&#243;dulo define la noci&#243;n de una prueba. -}
 module Equ.Proof.Proof (
@@ -7,6 +7,8 @@ module Equ.Proof.Proof (
                  , Axiom(..)
                  , Theorem(..)
                  , Truth(..)
+                 , Hypothesis
+                 , Name
                  -- * Pruebas
                  -- $proofs
                  , Proof(..)
@@ -19,15 +21,19 @@ module Equ.Proof.Proof (
                  , updateStart, updateEnd, updateRel, updateMiddle
                  , encode, decode
                  , setCtx, beginCtx, freshName, ctxFromList
+                 , addHypothesis
+                 , getHypothesis
                  ) where
 
 import Equ.Expr
 import Equ.PreExpr
 import Equ.Rule
+import Equ.TypeChecker
+import Equ.Types
 
 import Data.Text (Text, unpack)
 
-import qualified Data.Map as M (Map (..), fromList, findMax, null)
+import qualified Data.Map as M (Map (..), fromList, findMax, null, insert, lookup)
 
 import Data.Monoid
 import Data.Maybe
@@ -42,15 +48,17 @@ data Name = Index Int
     deriving (Show,Ord,Eq)
 
 -- | Comienza un contexto en base a una preExpresion.
--- beginCtx :: PreExpr -> Ctx
--- beginCtx e = M.fromList [(Index 0, Expr e)]
-beginCtx = undefined
+beginCtx :: Ctx
+beginCtx = M.fromList []
 
 -- | Retorna un nombre fresco sobre un contexto.
 freshName :: Ctx -> Name
 freshName c = if M.null c then Index 0 else Index $ 1 + max
     where max :: Int
           Index max = (fst . M.findMax) c
+
+getHypothesis :: Name -> Ctx -> Maybe Hypothesis
+getHypothesis = M.lookup
 
 instance Arbitrary Name where
     arbitrary = Index <$> arbitrary
@@ -129,15 +137,18 @@ data Hypothesis = Hypothesis {
      hypName :: Text
    , hypExpr :: Expr
    , hypRel  :: Relation
-   , hypRule :: Rule
+   , hypRule :: [Rule]
 }
-    deriving (Eq,Show)
+    deriving (Eq)
+
+instance Show Hypothesis where
+    show = show . hypExpr
 
 instance Truth Hypothesis where
     truthName = hypName
     truthExpr = hypExpr
     truthRel  = hypRel
-    truthRules = (\r -> r:[]) . hypRule
+    truthRules = hypRule
     truthBasic = Hyp
 
 instance Arbitrary Hypothesis where
@@ -190,7 +201,7 @@ instance Truth Basic where
     truthRel (Hyp h) = hypRel h
     truthRules (Ax a) = axRules a
     truthRules (Theo t) = thRules t
-    truthRules (Hyp h) = [hypRule h]
+    truthRules (Hyp h) = hypRule h
     truthBasic b = b
     
 -- 
@@ -678,3 +689,28 @@ updateRel (Focus c _ f1 f2 p) r = Focus c r f1 f2 p
 --           foc' = toFocus true'
 --           hole = Hole empty relEquiv foc' foc'
 --           step = Trans empty relEquiv foc' foc' foc hole trivialBack
+
+
+-- | Dada una expresión; chequeamos que el tipo sea bool y la agregamos
+-- al contexto como una hipótesis. Esto genera dos reglas: @e ≡ True@ y
+-- @True ≡ e@. Si su tipo no es bool se devuelve el mismo contexto.
+addHypothesis :: PreExpr -> Relation -> [PreExpr] -> Ctx -> (Ctx,Maybe Name)
+addHypothesis expr rel exprs c = case checkPreExpr expr of
+                                   Left _ -> (c, Nothing)
+                                   Right ty -> if and . map (either (const False) (==ty) . checkPreExpr) $ exprs 
+                                              then  (M.insert n hyp c,Just n)
+                                              else  (c, Nothing)
+    where n = freshName c
+          hyp = Hypothesis {
+                  hypName = ""
+                , hypExpr = Expr expr
+                , hypRel  = rel
+                , hypRule = map (rule . Expr) exprs
+                }
+          rule ex' = Rule {
+                       lhs = Expr expr
+                     , rhs = ex'
+                     , rel = rel
+                     , name = ""
+                     , desc = ""
+                     }

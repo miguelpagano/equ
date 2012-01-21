@@ -157,7 +157,7 @@ ftrue = toFocus $ parser "True"
 
 -- Comienzo una prueba de que, p ⇒ p ≡ True
 newP :: Proof
-newP = newProof relEquiv fpip0 ftrue
+newP = newProof Nothing relEquiv fpip0 ftrue
 
 -- Generamos una prueba simple de que, (p ⇒ p) ≡ (p ∨ p ≡ p)
 pft :: Proof
@@ -289,7 +289,7 @@ testCaseNewProof2 = testCaseNewProof relEquiv fstar0 fstar1
 
 -- Verificar casos de tests para el comienzo de pruebas sin huecos de preExpr.
 testCaseNewProof :: Relation -> Focus -> Focus -> Proof -> Assertion
-testCaseNewProof r f f' res = let p = newProof r f f'
+testCaseNewProof r f f' res = let p = newProof Nothing r f f'
                               in unless (p == res) $
                                   assertFailure $ 
                                   "\n Resultado esperado: " ++ show res ++

@@ -46,15 +46,16 @@ newProofState (Just p) axiom_box = return pr
                         , modifExpr = updateStartFocus
                         , axiomBox = axiom_box
                         }
-newProofState Nothing axiom_box = return pr
+newProofState Nothing axiom_box = getGlobalCtx >>=
+                                  return . pr . Just
     where
-        pr :: ProofState
-        pr = ProofState { proof = p
-                        , validProof = validateProof (toProof p)
-                        , modifExpr = updateStartFocus
-                        , axiomBox = axiom_box
+        pr :: Maybe Ctx -> ProofState
+        pr c = ProofState { proof = p c
+                          , validProof = validateProof $ toProof (p c)
+                          , modifExpr = updateStartFocus
+                          , axiomBox = axiom_box
                         }
-        p = emptyProof $ head $ relationList
+        p c = emptyProof c $ head $ relationList
                         
                         
 newExprState :: Focus -> HBox -> HBox -> IState ExprState
