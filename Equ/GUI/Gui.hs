@@ -15,13 +15,7 @@ import Equ.GUI.Truth
 import Equ.GUI.Undo
 import Equ.GUI.Proof.Dialogs
 
-import Equ.PreExpr(toFocus, toFocuses, agrupOp, agrupNotOp, opOfFocus, 
-                   holePreExpr,PreExpr, toExpr, emptyExpr)
-import Equ.Proof
-import Equ.Parser
-import Equ.Theories
-
-import Equ.Rule (relEq,relEquiv)
+import Equ.PreExpr(holePreExpr, emptyExpr)
 
 import qualified Graphics.UI.Gtk as G
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
