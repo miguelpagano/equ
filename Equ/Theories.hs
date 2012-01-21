@@ -31,7 +31,7 @@ import Equ.PreExpr
 
 import Data.Text hiding (head,zip,concatMap,map)
 import Data.Either(rights)
-import Data.Maybe(isJust)
+import Data.Maybe(isJust,fromJust)
 import Data.Tree
 import qualified Data.Foldable as DF  (mapM_) 
 import Control.Monad
@@ -66,7 +66,9 @@ constGroup :: Grouped Constant
 constGroup = mkGrouped theories [F.theoryConstantsList, A.theoryConstantsList, L.theoryConstantsList]
 
 axiomGroup :: Grouped Axiom
-axiomGroup = mkGrouped theories [map createAxiom F.theoryAxiomList, A.theoryAxiomList, L.theoryAxiomList]
+axiomGroup = mkGrouped theories [ map createAxiom' F.theoryAxiomList
+                                , map (uncurry createAxiom) A.theoryAxiomList
+                                , L.theoryAxiomList]
 
 operatorsList :: [Operator]
 operatorsList = ungroup opGroup
@@ -144,9 +146,16 @@ createRulesAssoc expr = whenZ isJust rules (getRelExp expr) ++ metaRules (Expr e
           rules _ = []
 
 -- | Dado un axioma reconstruye las reglas a partir de su expresión.
-createAxiom :: Axiom -> Axiom
-createAxiom ax = ax { axRules = createRulesAssoc expr} 
-    where (Expr expr) = axExpr ax
+createAxiom :: Text -> Expr -> Axiom
+createAxiom name ex = Axiom { 
+                        axName = name
+                      , axExpr = ex
+                      , axRel = fromJust $ getRelExp expr
+                      , axRules = createRulesAssoc expr} 
+    where (Expr expr) = ex
+
+createAxiom' :: Axiom -> Axiom
+createAxiom' ax = createAxiom (axName ax) (axExpr ax)
 
 whenZ :: MonadPlus m => (a -> Bool) -> (a -> m b) -> a -> m b
 whenZ p act a = if p a then act a else mzero

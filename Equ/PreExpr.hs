@@ -230,18 +230,16 @@ getQAndVarFromQuant _ = Nothing
 createPairs :: PreExpr -> [(PreExpr,PreExpr)]
 createPairs e@(BinOp op l r) = case opAssoc op of
                                None -> []
-                               _ -> map split . glue op $ flatten e
+                               _ -> map split . glue op $ flatten op e
     where split e' = case e' of
                        BinOp op l r -> (l,r)
                        _ -> error "impossible"
 
 -- | Lista de todos los nodos asociables.
-flatten :: PreExpr -> [PreExpr]
-flatten e@(BinOp op _ _) = go op e
-    where go o (BinOp o' l r) = if o == o' then go o l ++ go o r
-                                else [l,r]
-          go o e' = [e']
-flatten e = [e]
+flatten :: Operator -> PreExpr -> [PreExpr]
+flatten o' e@(BinOp op l r) = if op == o' then flatten op l ++ flatten op r
+                              else [e]
+flatten _ e = [e]
 
 -- | Reconstrucción de todas las formas de parsear una expresión con
 -- un conectivo asociativo a partir de una lista de sus
@@ -250,4 +248,4 @@ glue :: Operator -> [PreExpr] -> [PreExpr]
 glue _ [e]    = return e
 glue op [e,e'] = return $ BinOp op e e'
 glue op es = concat [(uncurry (zipWith (BinOp op)) . (glue op *** glue op)) ps 
-                    | ps <- [splitAt i es | i <- [1..length es-1]]]                   
+                    | ps <- [splitAt i es | i <- [2..length es-1]]]                   

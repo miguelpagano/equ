@@ -26,6 +26,7 @@ import Equ.PreExpr
 import Equ.Rule 
 import Equ.Proof
 import Equ.Theories.AbsName
+import Equ.Theories.FOL(equal)
 
 -- Estos módulos definen los símbolos de función
 -- que devuelven expresiones de tipo Num.
@@ -90,6 +91,9 @@ zero = Expr $ Con $ natZero
 successor :: Expr -> Expr
 successor (Expr n) = Expr $ UnOp natSucc n
 
+one :: Expr
+one = successor zero
+
 -- | Constructor de suma
 -- PRE: Las expresiones deben ser del tipo correcto
 sum :: Expr -> Expr-> Expr
@@ -104,5 +108,65 @@ intToCon :: Int -> PreExpr
 intToCon 0 = Con $ natZero { conTy = TyUnknown }
 intToCon n = UnOp (natSucc { opTy = TyUnknown }) $ intToCon (n-1)
 
-theoryAxiomList :: [Axiom]
-theoryAxiomList = []
+-- Combinadores para axiomas usuales.
+-- | Simetria: @e op e' = e' op e@.
+symmetry :: (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr
+symmetry op e e' = (e `op` e') `equal` (e' `op` e)
+
+-- | Asociatividad: @(e op e') op e'' = e op (e' op e'')@.
+associativity :: (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr -> Expr 
+associativity op e e' e'' = ((e `op` e') `op` e'') `equal` (e `op` (e' `op` e''))
+
+
+-- | Neutro a izquierda: @n op e = e@.
+leftNeutral :: (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr
+leftNeutral op n e = (n `op` e) `equal` e
+
+-- | Neutro a derecha: @n op e = e@.
+rightNeutral :: (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr
+rightNeutral op n e = (e `op` n) `equal` e
+
+-- | Variables de tipo Nat
+varI,varJ,varK :: Expr
+varI= Expr $ Var $ var "i" $ TyAtom ATyNat 
+varJ= Expr $ Var $ var "j" $ TyAtom ATyNat 
+varK= Expr $ Var $ var "k" $ TyAtom ATyNat 
+
+zeroLNeutralSum :: Expr
+zeroLNeutralSum = leftNeutral sum zero varI
+
+zeroRNeutralSum :: Expr
+zeroRNeutralSum = rightNeutral sum zero varI
+
+symSum :: Expr
+symSum = symmetry sum varI varJ
+
+assocSum :: Expr
+assocSum = associativity sum varI varJ varK
+
+oneLNeutralProd :: Expr
+oneLNeutralProd = leftNeutral prod one varI
+
+oneRNeutralProd :: Expr
+oneRNeutralProd = rightNeutral prod one varI
+
+symProd :: Expr
+symProd = symmetry prod varI varJ
+
+
+assocProd :: Expr
+assocProd = associativity prod varI varJ varK
+
+
+-- | Axiomas: los construimos automáticamente.
+theoryAxiomList :: [(Text,Expr)]
+theoryAxiomList = [ ("Neutro a izquierda de la suma",zeroLNeutralSum)
+                  , ("Neutro a derecha de la suma", zeroRNeutralSum)
+                  , ("Simetría de la suma", symSum)
+                  , ("Asociatividad de la suma", assocSum)
+                  -- Producto
+                  , ("Neutro a izquierda del producto",oneLNeutralProd)
+                  , ("Neutro a derecha del producto", oneRNeutralProd)
+                  , ("Simetría del producto", symProd)
+                  , ("Asociatividad del producto", assocProd)
+                  ]
