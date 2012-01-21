@@ -11,6 +11,8 @@ import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
 
 import Control.Monad.State (evalStateT,get)
 
+import Data.Maybe(isJust)
+import Control.Monad(when)
 import qualified Data.Foldable as F (mapM_)
 
 
@@ -38,22 +40,21 @@ dialogLoadProof ref centralBox truthBox exprBox = do
 
 saveProofDialog :: IRG
 saveProofDialog = do
-    dialog <- io $ fileChooserDialogNew (Just "Guardar Prueba") 
-                                       Nothing 
-                                       FileChooserActionSave 
-                                       [ ("Guardar",ResponseAccept)
-                                       , ("Cancelar",ResponseCancel)]
+    pf <- getProofState
+    when (isJust pf) $ do 
+      dialog <- io $ fileChooserDialogNew (Just "Guardar Prueba") 
+                                         Nothing 
+                                         FileChooserActionSave 
+                                         [ ("Guardar",ResponseAccept)
+                                         , ("Cancelar",ResponseCancel)]
                                    
-    equFileFilter dialog                                   
-    response <- io $ dialogRun dialog
+      equFileFilter dialog                                   
+      response <- io $ dialogRun dialog
     
-    case response of
-         ResponseAccept -> do
-             selected <- io $ fileChooserGetFilename dialog
-             io $ debug ("aceptar clicked. Selected is " ++ show selected)
-             F.mapM_ saveProof selected
-         _ -> return ()
-    io $ widgetDestroy dialog
+      case response of
+        ResponseAccept -> io (fileChooserGetFilename dialog) >>= F.mapM_ saveProof
+        _ -> return ()
+      io $ widgetDestroy dialog
                          
 saveProof :: FilePath -> IRG
 saveProof filepath = getProof >>= io . encodeFile filepath . toProof
