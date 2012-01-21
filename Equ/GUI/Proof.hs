@@ -14,7 +14,8 @@ import Equ.Proof
 import Equ.PreExpr hiding (goDownL,goDownR,goRight,goUp,goTop)
 import Equ.GUI.Widget
 import Equ.GUI.Expr (clearFocus,writeExprWidget,setupForm
-                    ,makeOptionEvent, configAnnotTB, configTypeTreeTB)
+                    , makeOptionEvent, configAnnotTB, configTypeTreeTB
+                    , newExprState, reloadExpr)
 import Equ.Parser
 import Equ.Types
 
@@ -57,18 +58,6 @@ newProofState Nothing axiom_box = getGlobalCtx >>=
                         }
         p c = emptyProof c $ head $ relationList
                         
-                        
-newExprState :: Focus -> HBox -> HBox -> IState ExprState
-newExprState expr hbox1 hbox2 = do
-    return eState
-    where 
-        eState = ExprState { fExpr = expr
-                           , pathExpr = (id,id)
-                           , eventExpr = hbox1
-                           , fType = TyUnknown
-                           , eventType = hbox2
-        }
-                            
                         
 -- | Carga una prueba a la interfaz. 
 loadProof :: Proof -> VBox -> VBox -> HBox -> IState ()
@@ -478,6 +467,14 @@ eventsExprWidget expr ext_box w moveFocus fUpdate fGet top_box =
           makeLayoutTypeCheckStatus = io $ imageNewFromStock stockInfo IconSizeMenu
         
 
+
+-- | Descarta la prueba actual.
+discardProof centralBox formBox = unsetProofState >>
+                                  removeAllChildren centralBox >>
+                                  getExpr >>= \e ->
+                                  reloadExpr formBox (toExpr e)
+
+
 {- | Funcion para obtener la caja correspondiente al paso de la prueba en el que estamos
    dentro de una transitividad.
     El parámetro "box" debe ser una caja construida con "addStepProof". Cada una de esas
@@ -526,3 +523,4 @@ axiomBoxFromCenterBox center_box = containerGetChildren center_box >>= \chd ->
                                         if isHBox axiom_box
                                         then return $ castToHBox axiom_box
                                         else error $ "axiomBoxFromCenterBox: El axiom_box no es HBox"
+

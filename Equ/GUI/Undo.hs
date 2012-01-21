@@ -37,7 +37,7 @@ import qualified Data.Foldable as F (forM_)
 import Data.Map (fromList)
 
 
-undoEvent centralBox truthBox exprBox ieState = 
+undoEvent centralBox truthBox exprBox = 
     io (debug "Undo event") >>
     getUndoList >>= \ulist ->
         case ulist of
@@ -45,7 +45,7 @@ undoEvent centralBox truthBox exprBox ieState =
           [p] -> io (debug "No hay pasos previos.") >> return ()
           p':p:ps -> case urProof p of
                       Nothing -> F.forM_ (urExpr p) $ \f_expr -> 
-                                undoAction (recreateExpr centralBox exprBox f_expr ieState) p' p ps
+                                undoAction (recreateExpr centralBox exprBox f_expr) p' p ps
                       Just pf -> undoAction (recreateProof pf centralBox truthBox exprBox) p' p ps
                                                         
           >>
@@ -58,14 +58,14 @@ undoAction action p' p ps = setNoUndoing >>
                             addToRedoList p'
                     
 
-redoEvent centralBox truthBox exprBox ieState = 
+redoEvent centralBox truthBox exprBox = 
     io (debug "Redo event") >>
     getRedoList >>= \rlist ->
     case rlist of
       [] -> liftIO (debug "lista redo vacia") >> return ()
       p:ps -> case (urProof p) of
                Nothing -> F.forM_ (urExpr p) $ \f_expr ->
-                         redoAction (recreateExpr centralBox exprBox f_expr ieState) p ps
+                         redoAction (recreateExpr centralBox exprBox f_expr) p ps
                Just pf -> redoAction (recreateProof pf centralBox truthBox exprBox) p ps
                                                    
 redoAction action p ps = setNoUndoing >>
@@ -76,6 +76,6 @@ redoAction action p ps = setNoUndoing >>
 
 recreateProof pf cbox tbox ebox = createNewProof (Just $ toProof pf) cbox tbox ebox
 
-recreateExpr cbox ebox expr ieState = removeAllChildren cbox >>
-                                      ieState expr >>
+recreateExpr cbox ebox expr = removeAllChildren cbox >>
+                                      initExprState expr >>
                                       reloadExpr ebox (toExpr expr)

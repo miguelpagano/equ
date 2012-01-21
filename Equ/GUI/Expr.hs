@@ -479,3 +479,22 @@ reloadExpr :: HBox -> PreExpr -> IState ()
 reloadExpr formBox expr = removeAllChildren formBox >>
                           setupForm formBox Editable >>
                           writeExprWidget expr formBox  
+
+                        
+newExprState :: Focus -> HBox -> HBox -> IState ExprState
+newExprState expr hbox1 hbox2 = do
+    return eState
+    where 
+        eState = ExprState { fExpr = expr
+                           , pathExpr = (id,id)
+                           , eventExpr = hbox1
+                           , fType = TyUnknown
+                           , eventType = hbox2
+        }
+                            
+
+initExprState expr = do 
+  hbox1 <- io $ hBoxNew False 2
+  hbox2 <- io $ hBoxNew False 2
+  expr' <- newExprState expr hbox1 hbox2
+  updateExprState expr' 

@@ -13,6 +13,8 @@ import Equ.GUI.Proof
 import Equ.GUI.TypeTree
 import Equ.GUI.Truth
 import Equ.GUI.Undo
+import Equ.GUI.Proof.Dialogs
+
 import Equ.PreExpr(toFocus, toFocuses, agrupOp, agrupNotOp, opOfFocus, 
                    holePreExpr,PreExpr, toExpr, emptyExpr)
 import Equ.Proof
@@ -125,8 +127,8 @@ main = do
     setActionMenuTool itemDiscardProof discardProofTool (discardProof centralBox formBox) gRef
     setActionMenuTool itemValidateProof validTool (checkProof imageValidProof truthBox) gRef
     
-    setActionMenuTool itemUndo unDo (undoEvent centralBox truthBox formBox initExprState) gRef
-    setActionMenuTool itemRedo reDo (redoEvent centralBox truthBox formBox initExprState) gRef
+    setActionMenuTool itemUndo unDo (undoEvent centralBox truthBox formBox) gRef
+    setActionMenuTool itemRedo reDo (redoEvent centralBox truthBox formBox) gRef
         
     onActivateLeaf itemSaveAsTheorem $ saveTheorem gRef aListStore
     onToolButtonClicked saveTheoremTool $ saveTheorem gRef aListStore
@@ -147,115 +149,6 @@ main = do
     widgetShowAll window
 
     mainGUI
-
-    where                                   
-              
-          discardProof centralBox formBox = 
-              unsetProofState >>
-              removeAllChildren centralBox >>
-              getExpr >>= \e ->
-              reloadExpr formBox (toExpr e)
-
-
-initExprState expr = do 
-  hbox1 <- io $ hBoxNew False 2
-  hbox2 <- io $ hBoxNew False 2
-  expr' <- newExprState expr hbox1 hbox2
-  updateExprState expr' 
-
-            
-dialogLoadProof :: GRef -> VBox -> VBox -> HBox -> IO ()
-dialogLoadProof ref centralBox truthBox exprBox = do
-    dialog <- fileChooserDialogNew (Just "Cargar Prueba") 
-                                  Nothing 
-                                  FileChooserActionOpen
-                                  [ ("Cargar",ResponseAccept)
-                                  , ("Cancelar",ResponseCancel)]
-
-    setFileFilter dialog "*.equ" "Prueba de Equ"
-    response <- liftIO $ dialogRun dialog
-    
-    case response of
-         ResponseAccept -> do
-             selected <- liftIO $ fileChooserGetFilename dialog
-             liftIO $ debug ("aceptar clicked. Selected is " ++ show selected)
-             case selected of
-                  Just filepath -> decodeFile filepath >>= \proof ->
-                                flip evalStateT ref
-                                  (createNewProof (Just proof) centralBox truthBox exprBox) >>
-                                  widgetDestroy dialog
-                  Nothing -> widgetDestroy dialog
-         _ -> liftIO $ widgetDestroy dialog
-
-saveProofDialog :: IRG
-saveProofDialog = do
-    dialog <- liftIO $ fileChooserDialogNew (Just "Guardar Prueba") 
-                                           Nothing 
-                                           FileChooserActionSave 
-                                           [ ("Guardar",ResponseAccept)
-                                           , ("Cancelar",ResponseCancel)]
-                                   
-    liftIO $ setFileFilter dialog "*.equ" "Prueba de Equ"
-                                   
-    response <- liftIO $ dialogRun dialog
-    
-    case response of
-         ResponseAccept -> do
-             selected <- liftIO $ fileChooserGetFilename dialog
-             liftIO $ debug ("aceptar clicked. Selected is " ++ show selected)
-             case selected of
-                  Just filepath -> saveProof filepath >> return ()
-                  Nothing -> return ()
-         _ -> return ()
-    liftIO $ widgetDestroy dialog
-                         
-saveProof :: FilePath -> IRG
-saveProof filepath = getProof >>= \pf -> liftIO $ encodeFile filepath (toProof pf)
-
-
-saveTheorem :: GRef -> TreeStore (String, HBox -> IRG) -> IO ()
-saveTheorem ref aListStore = evalStateT (updateValidProof >> checkValidProof) ref >>= \valid ->
-                             debug ("valid is " ++ show valid) >>
-                             if valid then saveTheoremDialog ref aListStore
-                                      else errorDialog "La prueba no es válida"
-
--- | Dialogo para guardar una prueba como teorema de Equ. Asume que la prueba es válida.
-
-saveTheoremDialog :: GRef -> TreeStore (String, HBox -> IRG) -> IO ()
-saveTheoremDialog ref aListStore = do
-    dialog <- dialogNew
-    set dialog [windowTitle := "Guardar Teorema"]
-    dialogAddButton dialog stockApply ResponseApply
-    dialogAddButton dialog stockCancel ResponseCancel
-    box <- dialogGetUpper dialog
-    
-    hbox1 <- hBoxNew False 2
-    labelName <- labelNew $ Just "Nombre del teorema:"
-    entry <- liftIO entryNew
-    boxPackStart hbox1 labelName PackNatural 2
-    boxPackStart hbox1 entry PackNatural 2
-    
-    hbox2 <- hBoxNew False 2
-    labelExprTitle <- labelNew $ Just "Expresión:"
-    labelExpr <- labelNew Nothing
-    boxPackStart hbox2 labelExprTitle PackNatural 2
-    boxPackStart hbox2 labelExpr PackNatural 2
-    
-    boxPackStart box hbox1 PackNatural 2
-    boxPackStart box hbox2 PackNatural 2
-    
-    evalStateT (getExprProof >>= \expr ->
-                liftIO $ labelSetText labelExpr (show expr)) ref
-    
-    widgetShowAll box
-    
-    response <- dialogRun dialog
-    case response of
-      ResponseApply -> entryGetText entry >>= \th_name ->
-                      evalStateT (addTheoremUI aListStore th_name) ref
-      _ -> return ()
-    widgetDestroy dialog           
-          
           
           
 -- reloadAxioms :: IState ()
