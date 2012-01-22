@@ -42,7 +42,7 @@ import Control.Arrow ((***))
 
 -- | Dado un focus de una preExpresion, nos dice si esta es un hueco.
 -- import Equ.Parser
-import Equ.Theories.AbsName
+-- import Equ.Theories.AbsName
 
 isPreExprHole :: Focus -> Bool
 isPreExprHole (PrExHole _, _) = True

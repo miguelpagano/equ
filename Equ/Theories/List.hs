@@ -24,14 +24,12 @@ module Equ.Theories.List
     , take
     , drop
     , index
-    -- * Reglas de la teoría.
-    , listRules
     -- ** Concatenacion
-    , emptyConcat
+    , emptyNeutralConcat
     , consConcat
     -- ** Cardinal
-    , emptyLength
-    , consLength
+    , lengthEmptyList
+    , lengthConsList
     -- ** Tomar n elementos
     , zeroTake
     , emptyTake
@@ -52,8 +50,8 @@ import Equ.Types
 import Equ.Expr
 import Equ.PreExpr
 import Equ.Rule
-import Equ.Proof
 import Equ.Theories.AbsName
+import Equ.Theories.Common
 
 import Data.Text (Text)
 
@@ -185,13 +183,10 @@ index (Expr xs) (Expr n) = Expr $ BinOp listIndex xs n
 @
 
 -}
-emptyConcat :: Rule
-emptyConcat = Rule { lhs = concat emptyList varYS
-                   , rhs = varYS
-                   , rel = relEq
-                   , name = "concatenacion-vacia"
-                   , desc = ""
-                   }
+emptyNeutralConcat :: (Text,Expr)
+emptyNeutralConcat = ( "Neutro a izquierda de concatenación" 
+                     , leftNeutral concat emptyList varYS
+                     )
     where varYS = varList "ys" "A"
 
 {- | Caso inductivo
@@ -201,13 +196,11 @@ emptyConcat = Rule { lhs = concat emptyList varYS
 @
 
 -}
-consConcat :: Rule
-consConcat = Rule { lhs = concat (append varX varXS) varYS
-                  , rhs = append varX (concat varXS varYS)
-                  , rel = relEq
-                  , name = "concatenacion-cons"
-                  , desc = ""
-                  }
+consConcat :: (Text, Expr)
+consConcat = ( "Concatenar lista no vacía",
+              ((varX `append` varXS) `concat` varYS) `equal` 
+              (varX `append` (varXS `concat` varYS))
+            )
     where varX = Expr $ Var $ var "x" $ tyVar "A"
           varXS = varList "xs" "A"
           varYS = varList "ys" "A"
@@ -222,14 +215,10 @@ consConcat = Rule { lhs = concat (append varX varXS) varYS
 @
 
 -}
-emptyLength :: Rule
-emptyLength = Rule { lhs = length emptyList
-                   , rhs = zero
-                   , rel = relEq
-                   , name = "longitud-vacia"
-                   , desc = ""
-                   }
-
+lengthEmptyList :: (Text,Expr)
+lengthEmptyList = ( "Longitud de la lista vacía"
+                  , (length emptyList) `equal` zero
+                  )
 {- | Caso inductivo de la longitud de una lista.
 
 @
@@ -237,19 +226,18 @@ emptyLength = Rule { lhs = length emptyList
 @
 
 -}
-consLength :: Rule
-consLength = Rule { lhs = length (append varX varXS)
-                  , rhs = successor $ length varXS
-                  , rel = relEq
-                  , name = "longitud-cons"
-                  , desc = ""
-                  }
+lengthConsList :: (Text,Expr)
+lengthConsList = ( "Longitud de lista no vacía"
+                 , (length (append varX varXS)) `equal` 
+                   (successor $ length varXS)
+                 )
     where varX = Expr $ Var $ var "x" $ tyVar "A"
           varXS = varList "xs" "A"
 
--- NOTA: En el libro Calculo de Programas, se incluyen otras reglas para la definicion de length
---       con respecto a las operaciones concat, take y drop. Se opt&#243; por incluir solo las que involucran
---       constructores, las demas pueden derivarse.
+-- NOTA: En el libro Calculo de Programas, se incluyen otras reglas
+-- para la definicion de length con respecto a las operaciones concat,
+-- take y drop. Se opt&#243; por incluir solo las que involucran
+-- constructores, las demas pueden derivarse.
 
 
 -- Reglas para la definicion de take.
@@ -261,13 +249,10 @@ consLength = Rule { lhs = length (append varX varXS)
 @
 
 -}
-zeroTake :: Rule
-zeroTake = Rule { lhs = take varXS zero
-                , rhs = emptyList
-                , rel = relEq
-                , name = "tomar-cero"
-                , desc = ""
-                }
+zeroTake :: (Text,Expr) 
+zeroTake = ( "Tomar cero elementos"
+           , (take varXS zero) `equal` emptyList
+           )
     where varXS = varList "xs" "A"
                       
 {- | Caso base 2 de tomar:
@@ -277,13 +262,10 @@ zeroTake = Rule { lhs = take varXS zero
 @
 
 -}
-emptyTake :: Rule
-emptyTake = Rule { lhs = take emptyList varN
-                 , rhs = emptyList
-                 , rel = relEq
-                 , name = "tomar-vacia"
-                 , desc = ""
-                 }
+emptyTake :: (Text,Expr)
+emptyTake = ( "Tomar de la lista vacía"
+            , (take emptyList varN) `equal`  emptyList
+            )
     where varN = Expr $ Var $ var "x" $ TyAtom ATyNat
 
 {- | Caso inductivo de tomar:
@@ -293,13 +275,11 @@ emptyTake = Rule { lhs = take emptyList varN
 @
 
 -}
-consTake :: Rule
-consTake = Rule { lhs = take (append varX varXS) (successor varN)
-                , rhs = append varX $ take varXS varN 
-                , rel = relEq
-                , name = "tomar-inductivo"
-                , desc = ""
-                }
+consTake :: (Text,Expr)
+consTake = ( "Tomar (n+1) elementos"
+           , (take (append varX varXS) (successor varN)) `equal`
+             (append varX $ take varXS varN)
+           )
     where varXS = varList "xs" "A"
           varX = Expr $ Var $ var "x" $ tyVar "A"
           varN = Expr $ Var $ var "n" $ TyAtom ATyNat
@@ -314,13 +294,10 @@ consTake = Rule { lhs = take (append varX varXS) (successor varN)
 @
 
 -}
-zeroDrop :: Rule
-zeroDrop = Rule { lhs = drop varXS zero
-                , rhs = varXS
-                , rel = relEq
-                , name = "tirar-cero"
-                , desc = ""
-                }
+zeroDrop :: (Text,Expr)
+zeroDrop = ( "Tirar cero elementos"
+           , drop varXS zero `equal` varXS
+           )
     where varXS = varList "xs" "A"
 
 {- | Caso base 2 de tirar:
@@ -330,13 +307,10 @@ zeroDrop = Rule { lhs = drop varXS zero
 @
 
 -}
-emptyDrop :: Rule
-emptyDrop = Rule { lhs = drop emptyList varN
-                 , rhs = emptyList
-                 , rel = relEq
-                 , name = "tirar-vacia"
-                 , desc = ""
-                 }
+emptyDrop :: (Text,Expr)
+emptyDrop = ( "Tirar de la lista vacía"
+            , (drop emptyList varN) `equal` emptyList
+            )
     where varN = Expr $ Var $ var "x" $ TyAtom ATyNat
 
 {- | Caso inductivo de tirar.
@@ -346,13 +320,11 @@ emptyDrop = Rule { lhs = drop emptyList varN
 @
 
 -}
-consDrop :: Rule
-consDrop = Rule { lhs = drop (append varX varXS) (successor varN)
-                , rhs = drop varXS varN
-                , rel = relEq
-                , name = "tirar-inductivo"
-                , desc = ""
-                }
+consDrop :: (Text,Expr)
+consDrop = ( "Tirar (n+1) elementos"
+           , (drop (append varX varXS) (successor varN)) `equal`
+             (drop varXS varN)
+           )
     where varXS = varList "xs" "A"
           varX = Expr $ Var $ var "x" $ tyVar "A"
           varN = Expr $ Var $ var "n" $ TyAtom ATyNat
@@ -366,13 +338,10 @@ consDrop = Rule { lhs = drop (append varX varXS) (successor varN)
 @
 
 -}
-zeroIndex :: Rule
-zeroIndex = Rule { lhs = index (append varX varXS) zero
-                 , rhs = varX
-                 , rel = relEq
-                 , name = "indizar-cero"
-                 , desc = ""
-                 }
+zeroIndex :: (Text,Expr)
+zeroIndex = ( "Proyectar el elemento inicial" 
+            , (index (append varX varXS) zero) `equal` varX
+            )
     where varXS = varList "xs" "A"
           varX = Expr $ Var $ var "x" $ tyVar "A"
 
@@ -383,32 +352,30 @@ zeroIndex = Rule { lhs = index (append varX varXS) zero
 @
 
 -}
-consIndex :: Rule
-consIndex = Rule { lhs = index (append varX varXS) (successor varN)
-                 , rhs = index varXS varN
-                 , rel = relEq
-                 , name = "indizar-ind"
-                 , desc = ""
-                 }
+consIndex :: (Text,Expr)
+consIndex = ( "Proyectar el elemento (i+1)"
+            , (index (append varX varXS) (successor varN)) `equal`
+              (index varXS varN)
+            )
     where varXS = varList "xs" "A"
           varX = Expr $ Var $ var "x" $ tyVar "A"
           varN = Expr $ Var $ var "n" $ TyAtom ATyNat
 
--- NOTA: No hay reglas para lista vacia en la operacion index.
-listRules :: [Rule]
-listRules = [ emptyConcat
-            , consConcat
-            , emptyLength
-            , consLength
-            , zeroTake
-            , emptyTake
-            , consTake
-            , zeroDrop
-            , emptyDrop
-            , consDrop
-            , zeroIndex
-            , consIndex
-            ]
-
-theoryAxiomList :: [Axiom]
-theoryAxiomList = []
+theoryAxiomList :: [(Text,Expr)]
+theoryAxiomList = [ emptyNeutralConcat
+                  , consConcat
+                  -- ** Cardinal
+                  , lengthEmptyList
+                  , lengthConsList
+                  -- ** Tomar n elementos
+                  , zeroTake
+                  , emptyTake
+                  , consTake
+                  -- ** Tirar n elementos
+                  , zeroDrop
+                  , emptyDrop
+                  , consDrop
+                  -- ** Proyeccion n-esimo elemento
+                  , zeroIndex
+                  , consIndex                    
+                  ]

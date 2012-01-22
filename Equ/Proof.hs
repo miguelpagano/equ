@@ -1,8 +1,10 @@
 {-# Language GADTs,OverloadedStrings #-}
 
 {-| Este m&#243;dulo define la noci&#243;n de una prueba. -}
-module Equ.Proof (newProof, newProofWithoutEnd, addStep, newProofWithStart
-                 , proofFromTruth, fillHole
+module Equ.Proof (newProof
+                 , newProofWithStart 
+                 , newProofWithoutEnd
+                 , proofFromTruth
                  , holeProof, emptyProof, updateStart, updateEnd, updateRel
                  , validateProof, toHoleProof
                  , simpleProof, addEmptyStep, updateStartFocus, updateEndFocus
@@ -27,6 +29,7 @@ module Equ.Proof (newProof, newProofWithoutEnd, addStep, newProofWithStart
                  -- * Funciones auxiliares
                  , addHypothesis
                  , getHypothesis
+                 , addBoolHypothesis
                  , Name
                  , Ctx
                  ) where
@@ -36,9 +39,10 @@ import qualified Equ.Proof.Proof as P(getStart,getEnd,getBasic)
 import Equ.Proof.Zipper
 import Equ.Proof.Monad
 import Equ.Proof.Error
-
+import Equ.Theories.Common
 
 import qualified Equ.PreExpr as PE hiding (replace)
+import Equ.Expr
 import Equ.Rule
 import Equ.Rewrite
 
@@ -70,86 +74,8 @@ checkEqWithDefault def a b | a /= b = Left def
 whenEqWithDefault :: Eq a => ProofError -> a -> a -> PM ()
 whenEqWithDefault def a b = whenPM (==a) def b >> return ()
 
--- checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Rule
---                               -> PM ()
--- checkSimpleStepFromRule f1 f2 rel t rule = 
---     whenEqWithDefault errRel rel (truthRel t) >>
---     liftRw (focusedRewrite f1 rule) >>= \f ->
---     whenEqWithDefault err f f2 
---     
---     where errRel :: ProofError
---           errRel = ClashRel rel (truthRel t)
---           err :: ProofError
---           err = BasicNotApplicable $ truthBasic t
-
--- checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Rule
---                               -> PM ()
--- checkSimpleStepFromRule f1 f2 rel t rule = 
---     whenEqWithDefault errRel rel (truthRel t) >>
---     case partitionEithers $ rewriteAllFocuses (PE.toExpr f1) rule of
---          (_,[]) -> Left err
---          (_,ls) -> case partitionEithers $ map (flip (whenEqWithDefault err) (PE.goTop f2) . PE.goTop) ls of
---                         (errors,[]) -> Left $ head errors
---                         (_,xs) -> return ()
---     
---     where errRel :: ProofError
---           errRel = ClashRel rel (truthRel t)
---           err :: ProofError
---           err = BasicNotApplicable $ truthBasic t
--- 
--- {- 
--- Funciones para construir y manipular pruebas.
--- Este kit de funciones deber&#237;a proveer todas las herramientas
--- necesarias para desarrollar pruebas en equ.
--- -}
--- proofFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> 
---                             Rule -> PM Proof
--- proofFromRule f1 f2 rel t r = checkSimpleStepFromRule f1 f2 rel t r >>
---                                       (return $ Simple empty rel f1 f2 $ truthBasic t)
--- 
--- -- | Dados dos focuses f1 y f2, una relacion rel y un axioma o
--- -- teorema, intenta crear una prueba para f1 rel f2, utilizando el
--- -- paso simple de aplicar el axioma o teorema.
--- proofFromTruth :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> PM Proof
--- proofFromTruth f f' r t = case partitionEithers $
---                                map (proofFromRule f f' r t) 
---                                    (truthRules t)
---                           of
---                           -- Devolvemos el primer error, esto tal vez se
---                           -- podr&#237;a mejorar un poco devolviendo la lista de
---                           -- errores.
---                           ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
---                           (er, []) -> Left $ concat er
---                           (_, p:ps) -> Right p
-
 notValidSimpleProof :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Proof
 notValidSimpleProof f1 f2 r t = Simple beginCtx r f1 f2 $ truthBasic t
-          
--- proofFromAxiom :: PE.Focus -> PE.Focus -> Relation -> Axiom -> PM Proof
--- proofFromAxiom = proofFromTruth
--- 
--- proofFromTheorem :: PE.Focus -> PE.Focus -> Relation -> Theorem -> PM Proof
--- proofFromTheorem  = proofFromTruth
-
--- validateProof :: Proof -> PM Proof
--- validateProof (Hole ctx rel f1 f2) = Left [ProofError]
--- validateProof proof@(Simple ctx rel f1 f2 b) = 
---     proofFromTruth f1 f2 rel b >>
---     return proof
--- validateProof proof@(Trans ctx rel f1 f f2 p1 p2) = 
---     getStart p1 >>= whenEqWithDefault err f1 >>
---     getEnd p1 >>= whenEqWithDefault err f >>
---     getStart p2 >>= whenEqWithDefault err f >>
---     getEnd p2 >>= whenEqWithDefault err f2 >>
---     validateProof p1 >> validateProof p2 >>
---     return proof
---     
---     where err :: ProofError
---           err = TransInconsistent proof
---     
--- validateProof _ = undefined
-
-
 
 checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Rule
                              -> (ProofFocus -> ProofFocus) -> PM ()
@@ -212,21 +138,19 @@ validateProof' proof@(Trans ctx rel f1 f f2 p1 p2) moveFocus =
     where err :: ProofError
           err = ProofError (TransInconsistent proof) moveFocus
     
+validateProof' proof@(Deduc ctx p q prf) mvFocus = 
+    getEnd prf >>= whenEqWithDefault err q >>
+    case (addHypothesisProof (PE.toExpr p) relEquiv [true'] prf) of
+      Nothing -> Left err
+      Just prf' -> validateProof' prf' mvFocus >> return proof
+    where err = ProofError DeducInvalidEnd mvFocus
+          Expr true' = true
 validateProof' _ _ = undefined
 
 
 possibleExpr :: Truth t => PE.PreExpr -> t -> [PE.PreExpr]
 possibleExpr p t = map PE.toExpr $ rights $ concat $ map (rewriteAllFocuses p) (truthRules t)
           
-
-
-
--- | Igual que proofFromTruth, pero ahora cambiamos el contexto.
--- proofFromTruthWithCtx :: Truth t => Ctx -> PE.Focus -> PE.Focus -> Relation -> t
---                          -> PM Proof
--- proofFromTruthWithCtx c f f' r b = either Left
---                                           (setCtx c)
---                                           (proofFromTruth f f' r b)
 
 {- | Comenzamos una prueba dados dos focus y una relaci&#243;n entre ellas, de 
         la cual no tenemos una prueba.
@@ -304,75 +228,6 @@ newProofWithCases r f f' c lc = Cases ctx r f f' c lp
           lp :: [(PE.Focus, Proof)]
           lp = [] -- map (\fi@(ei,_) -> (fi, Hole (beginCtx ei) r f f')) lc
 
-{- | Dado un proofFocus (p, path) y una prueba p', agregamos un paso.
-
-p:
-
-@
-    startP
-rel {?}
-    endP
-@
-
-p':
-
-@
-    startP'
-rel { b }
-    endP'
-@
-
-    addStep (p, path) p' (sii startP == startP')
-    
-p'':
-
-@
-    startP
-rel { b }
-    endP'
-rel {?}
-    EndP
-@
-
-    addStep (p, path) p' (sii endP == startP')
-
-p'':
-
-@
-    startP
-rel {?}
-    startP'
-rel { b }
-    endP'
-@
--}
-addStep :: ProofFocus -> Proof -> PM Proof
-addStep = undefined
--- addStep :: ProofFocus -> Proof -> PM Proof
--- addStep (p@(Hole ctx r f f'), _) p' = do
---                 ctx' <- getCtx p'
---                 whenEqWithDefault (ClashCtx ctx ctx') ctx ctx'
---                 r' <- getRel p'
---                 whenEqWithDefault (ClashRel r r') r' r
---                 endP' <- getEnd p' -- Ac&#225; no recuerdo si ibamos a querer esto.
---                 when (PE.isPreExprHole endP') (Left $ [ProofEndWithHole p'])
---                 case getStart p' of
---                      Right cf | cf == f -> return $ p' `mappend` p'' 
---                      Right cf | cf == f' -> return $ p `mappend` p' 
---                      _ -> Left $ [ClashAddStep p p']
---     where
---         Right endP' = getEnd p'
---         p'' = newProof r endP' f'
--- addStep (p, _) _ = Left $ [ClashProofNotHole p]
-
--- | Completa un hueco en una prueba.
-fillHole :: Truth t => ProofFocus -> t -> PM ProofFocus
-fillHole = undefined
--- fillHole :: Truth t => ProofFocus -> t -> PM ProofFocus
--- fillHole pf@(Hole c r f f', _) t = either Left
---                                           (Right . replace pf) $
---                                           proofFromTruthWithCtx c f f' r t
--- fillHole (p, _) _ = Left $ [ClashProofNotHole p]
 
 -- | Función para convertir una prueba Simple en un Hole
 toHoleProof :: ProofFocus -> ProofFocus
@@ -465,5 +320,6 @@ isCompleteProofFocus p =
                                      (Hole _ _ _ _, _) -> Left p
                                      _ -> return True
 
-
-
+addBoolHypothesis :: PE.PreExpr -> Ctx -> (Ctx,Maybe Name)
+addBoolHypothesis e = addHypothesis e relEquiv [true']
+    where Expr true' = true

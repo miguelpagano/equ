@@ -135,3 +135,4 @@ instance Serialize QuantName where
         0 -> return Forall
         1 -> return Exist
         _ -> fail "Problem: Instance Serialize QuantName."
+

@@ -24,9 +24,8 @@ import Equ.Expr
 import Equ.PreExpr
 -- TODO: Agregar reglas para este módulo.
 import Equ.Rule 
-import Equ.Proof
 import Equ.Theories.AbsName
-import Equ.Theories.FOL(equal)
+import Equ.Theories.Common
 
 -- Estos módulos definen los símbolos de función
 -- que devuelven expresiones de tipo Num.
@@ -105,26 +104,9 @@ prod :: Expr -> Expr -> Expr
 prod (Expr n) (Expr m) = Expr $ BinOp natProd n m
 
 intToCon :: Int -> PreExpr
-intToCon 0 = Con $ natZero { conTy = TyUnknown }
-intToCon n = UnOp (natSucc { opTy = TyUnknown }) $ intToCon (n-1)
+intToCon 0 = Con $ natZero
+intToCon n = UnOp (natSucc) $ intToCon (n-1)
 
--- Combinadores para axiomas usuales.
--- | Simetria: @e op e' = e' op e@.
-symmetry :: (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr
-symmetry op e e' = (e `op` e') `equal` (e' `op` e)
-
--- | Asociatividad: @(e op e') op e'' = e op (e' op e'')@.
-associativity :: (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr -> Expr 
-associativity op e e' e'' = ((e `op` e') `op` e'') `equal` (e `op` (e' `op` e''))
-
-
--- | Neutro a izquierda: @n op e = e@.
-leftNeutral :: (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr
-leftNeutral op n e = (n `op` e) `equal` e
-
--- | Neutro a derecha: @n op e = e@.
-rightNeutral :: (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr
-rightNeutral op n e = (e `op` n) `equal` e
 
 -- | Variables de tipo Nat
 varI,varJ,varK :: Expr
@@ -139,10 +121,10 @@ zeroRNeutralSum :: Expr
 zeroRNeutralSum = rightNeutral sum zero varI
 
 symSum :: Expr
-symSum = symmetry sum varI varJ
+symSum = symmetryEqual sum varI varJ
 
 assocSum :: Expr
-assocSum = associativity sum varI varJ varK
+assocSum = associativityEqual sum varI varJ varK
 
 oneLNeutralProd :: Expr
 oneLNeutralProd = leftNeutral prod one varI
@@ -151,11 +133,10 @@ oneRNeutralProd :: Expr
 oneRNeutralProd = rightNeutral prod one varI
 
 symProd :: Expr
-symProd = symmetry prod varI varJ
-
+symProd = symmetryEqual prod varI varJ
 
 assocProd :: Expr
-assocProd = associativity prod varI varJ varK
+assocProd = associativityEqual prod varI varJ varK
 
 
 -- | Axiomas: los construimos automáticamente.

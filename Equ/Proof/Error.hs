@@ -31,6 +31,9 @@ data ProofError' = Rewrite [RewriteError]
                 | ReflexHasNoRel -- Reflex no tiene relacion.
                 | TransInconsistent Proof -- Una prueba transitiva donde los focuses 
                                      --no coinciden con las pruebas
+                | DeducInvalidEnd -- En un uso del meta-teorema de la deducción
+                                  -- no coincide el final de la prueba interior
+                                  -- con el esperado
     deriving Eq
     
 instance Show ProofError' where
@@ -47,6 +50,9 @@ instance Show ProofError' where
     show ReflexHasNoEnd = "Una prueba reflexiva no debe tener expresión final"
     show ReflexHasNoRel = "Una prueba reflexiva no debe tener relación"
     show (TransInconsistent p) = "La prueba transitiva es inconsistente: " ++ show p
+    show (DeducInvalidEnd) = unlines [ "En un uso del meta-teorema de la deducción"
+                                     , "no coincide el final de la prueba interior"
+                                     , "con el esperado"]
 
 
 errEmptyProof :: ProofError

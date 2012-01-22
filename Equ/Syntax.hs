@@ -211,9 +211,9 @@ instance Serialize Constant where
 
 instance Serialize Operator where
     put (Operator r n t a nt p) = put r >> put n >> put t >> 
-                                  put a >> put nt >> put p
+                                    put a >> put nt >> put p
     
-    get = Operator <$> get <*> get <*> get <*> get <*> get <*> get
+    get = Operator <$> get <*> get <*> get <*> get <*> get <*> get 
 
 instance Serialize Assoc where
     put None = putWord8 0

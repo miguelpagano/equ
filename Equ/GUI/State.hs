@@ -100,6 +100,7 @@ import Equ.Theories
 import Equ.Syntax
 import Equ.Parser
 
+import Equ.Proof(addBoolHypothesis)
 import Equ.Proof.Proof
 import Equ.Proof.Error(errEmptyProof)
 import Equ.Proof(ProofFocus,updateStartFocus,updateEndFocus,PM,validateProof,toProof)

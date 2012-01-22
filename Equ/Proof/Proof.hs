@@ -22,6 +22,7 @@ module Equ.Proof.Proof (
                  , encode, decode
                  , setCtx, beginCtx, freshName, ctxFromList
                  , addHypothesis
+                 , addHypothesisProof
                  , getHypothesis
                  ) where
 
@@ -707,10 +708,12 @@ addHypothesis expr rel exprs c = case checkPreExpr expr of
                 , hypRel  = rel
                 , hypRule = map (rule . Expr) exprs
                 }
-          rule ex' = Rule {
-                       lhs = Expr expr
-                     , rhs = ex'
-                     , rel = rel
-                     , name = ""
-                     , desc = ""
-                     }
+          rule ex' = mkrule (Expr expr) ex' rel
+
+
+-- | Agrega una hipotesis al contexto de una prueba
+addHypothesisProof :: PreExpr -> Relation -> [PreExpr] -> Proof -> Maybe Proof
+addHypothesisProof e r es pf = getCtx pf >>=
+                               return . addHypothesis e r es >>= \(ctx',_) ->
+                               setCtx ctx' pf
+

@@ -9,13 +9,11 @@ module Equ.Theories
     , quantifiersList
     , axiomList
     , axiomGroup
-    , L.listRules
     , relationList
     , relToOp
     , createTheorem
     , toForest
     , Grouped
-    , F.addBoolHypothesis
     )
     where
 
@@ -66,8 +64,9 @@ constGroup :: Grouped Constant
 constGroup = mkGrouped theories [F.theoryConstantsList, A.theoryConstantsList, L.theoryConstantsList]
 
 axiomGroup :: Grouped Axiom
-axiomGroup = mkGrouped theories [ map createAxiom' F.theoryAxiomList
-                                , map (uncurry createAxiom) A.theoryAxiomList
+axiomGroup = mkGrouped theories $ map (map (uncurry createAxiom)) 
+                                [ F.theoryAxiomList
+                                , A.theoryAxiomList
                                 , L.theoryAxiomList]
 
 operatorsList :: [Operator]
@@ -90,9 +89,9 @@ relationList = [relEq,relEquiv,relImpl,relCons]
 
 relToOp :: Relation -> Operator
 relToOp relation | relation == relEq = F.folEqual
-                            | relation == relEquiv = F.folEquiv
-                            | relation == relImpl = F.folImpl
-                            | relation == relCons = F.folConseq
+                 | relation == relEquiv = F.folEquiv
+                 | relation == relImpl = F.folImpl
+                 | relation == relCons = F.folConseq
 
 opToRel :: Operator -> Maybe Relation
 opToRel op = case opName op of 
@@ -140,10 +139,13 @@ metaRules e = [ mkrule e F.true relEquiv, mkrule F.true e relEquiv]
 -- | Dada una expresión, genera todas las reglas posibles de partir
 -- esa expresión. 
 createRulesAssoc :: PreExpr -> [Rule]
-createRulesAssoc expr = whenZ isJust rules (getRelExp expr) ++ metaRules (Expr expr)
-    where rules (Just rel) = createPairs expr >>=
-                             (\(p,q) -> return (mkrule (Expr p) (Expr q) rel))                              
+createRulesAssoc e = whenZ isJust rules (getRelExp e) ++ metaRules (Expr e)
+    where rules (Just rel) = createPairs e >>= 
+                             if relSym rel
+                             then \(p,q) -> [mkrule (Expr p) (Expr q) rel, mkrule (Expr q) (Expr p) rel]
+                             else \(p,q) -> return (mkrule (Expr p) (Expr q) rel)
           rules _ = []
+          
 
 -- | Dado un axioma reconstruye las reglas a partir de su expresión.
 createAxiom :: Text -> Expr -> Axiom
@@ -153,9 +155,6 @@ createAxiom name ex = Axiom {
                       , axRel = fromJust $ getRelExp expr
                       , axRules = createRulesAssoc expr} 
     where (Expr expr) = ex
-
-createAxiom' :: Axiom -> Axiom
-createAxiom' ax = createAxiom (axName ax) (axExpr ax)
 
 whenZ :: MonadPlus m => (a -> Bool) -> (a -> m b) -> a -> m b
 whenZ p act a = if p a then act a else mzero

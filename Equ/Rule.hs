@@ -35,20 +35,23 @@ instance Arbitrary RelName where
 data Relation = Relation {
       relRepr :: Text
     , relName :: RelName
+    , relSym :: Bool  -- ^ Es la relación simétrica? Este dato es usado en la 
+                     -- creación de reglas.
     , relTy   :: Type -- ^ Este es el tipo de las cosas relacionadas.  
     }
     deriving Eq
     
 instance Show Relation where
-    show (Relation _ n _) = show n
+    show (Relation _ n _ _) = show n
 
 instance Arbitrary Relation where
-    arbitrary = Relation <$> arbitrary <*> arbitrary <*> arbitrary
+    arbitrary = Relation <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
 -- | Relación de igualdad ; =
 relEq :: Relation
 relEq = Relation { relRepr = pack "="
                  , relName = Eq
+                 , relSym = True
                  , relTy = tyVar "A"
                  }
 
@@ -56,6 +59,7 @@ relEq = Relation { relRepr = pack "="
 relEquiv :: Relation
 relEquiv = Relation { relRepr = pack "≡"
                     , relName = Equiv
+                    , relSym = True
                     , relTy = tyBool
                     }
 
@@ -63,6 +67,7 @@ relEquiv = Relation { relRepr = pack "≡"
 relImpl :: Relation
 relImpl = Relation { relRepr = pack "⇒"
                    , relName = Impl
+                   , relSym = False
                    , relTy = tyBool
                    }
 
@@ -70,6 +75,7 @@ relImpl = Relation { relRepr = pack "⇒"
 relCons :: Relation
 relCons = Relation { relRepr = pack "⇐"
                    , relName = Cons
+                   , relSym = False
                    , relTy = tyBool
                    }
     
@@ -102,6 +108,6 @@ instance Serialize RelName where
     get = getWord8 >>= return . toEnum . fromEnum
 
 instance Serialize Relation where
-    put (Relation r n t) = put r >> put n >> put t
-    get = Relation <$> get <*> get <*> get
+    put (Relation r n s t) = put r >> put n >> put s >> put t 
+    get = Relation <$> get <*> get <*> get <*> get
 
