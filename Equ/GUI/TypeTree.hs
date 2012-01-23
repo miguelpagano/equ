@@ -63,7 +63,11 @@ buildTreeExpr' isf we te bTree l = do
             leftBranch <- io $ goTypedExpr goDownL te
             rightBranch <- io $ goTypedExpr goDownR te
             case (leftBranch, rightBranch) of
-                (Just (lf, lt, lp), Just (rf, rt, rp)) -> 
+                (Just (lf, lt, lp), Just (rf, rt, rp)) ->
+                    isf >>= \f ->
+                    io (debug $ show f) >>
+                    io (debug $ show lf) >>
+                    io (debug $ show $ goUp lf) >>
                     io (containerGetChildren we) >>= \[leb, _, reb] ->
                     makeExprState lf lt lp (castToHBox leb) >>= \dlte ->
                     makeExprState rf rt rp (castToHBox reb) >>= \drte ->
@@ -182,6 +186,7 @@ configTypeEntry isf fmp extBTree (es:ess) l =
                                 io (set b [containerChild := tb] >> 
                                     widgetShowAll b) >>
                                 isf >>= \f ->
+                                updatePath (id,id) >>
                                 fmp (setAtomType (goTop f) (fst $ pathExpr es) t) >> 
                                 io (containerGetChildren extBTree) >>= \wl ->
                                 io (containerRemove extBTree (head wl)) >>

@@ -447,16 +447,16 @@ eventsExprWidget expr ext_box w moveFocus fUpdate fGet top_box =
 
             bAnot <- makeOptionEvent win stockEdit (configAnnotTB putStrLn)
             io $ setToolTip bAnot "Anotaciones"
-
+            
             bT    <- makeOptionEvent win stockIndex 
                                 (configTypeTreeTB (getProof >>= return . fGet) 
-                                (\(e,_) -> updatePath (id,id) >> 
+                                (\(e,_) -> 
                                  updateModifExpr fUpdate >> 
                                  updateExpr e))
-
             io $ setToolTip bT "Árbol de tipado"
+            
             bInfo <- makeLayoutTypeCheckStatus
-
+            
             io (containerAdd exprButtons bAnot  >>
                 containerAdd exprButtons bT >>
                 containerAdd exprButtons bInfo >>

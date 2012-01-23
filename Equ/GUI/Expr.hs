@@ -91,7 +91,6 @@ editExpr p b s sym = do LeftButton <- eventButton
                         liftIO $ widgetShowAll b
                         return ()
 
-
 -- | Pone una caja de texto para ingresar una expresión; cuando se
 -- activa (presionando Enter) parsea el texto de la caja como una
 -- expresión y construye el widget correspondiente.
