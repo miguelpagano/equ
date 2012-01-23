@@ -386,22 +386,24 @@ createExprWidget expr moveFocus fUpdateFocus fGetFocus top_box = do
 eventsExprWidget :: PreExpr -> HBox -> ExprWidget -> 
                     (ProofFocus -> Maybe ProofFocus) ->
                     (ProofFocus -> Focus -> Maybe ProofFocus) ->
-                    (ProofFocus -> Focus) -> VBox -> IState ()
+                    (ProofFocus -> Focus) -> VBox -> IState ToggleButton
 eventsExprWidget expr ext_box w moveFocus fUpdate fGet top_box =
     get >>= \s ->
     getWindow >>= \win ->
-    setupOptionExprWidget win expr >>
-    io (setupFocusEvent s) >>
-    setupForm (formBox w) Editable
+    setupOptionExprWidget win expr >>= \tbT ->
+    io (setupFocusEvent s tbT) >>
+    setupForm (formBox w) Editable >>
+    return tbT
     
     where hb = extBox w
-          setupFocusEvent :: GRef -> IO (ConnectId Button)
-          setupFocusEvent s = do
+          setupFocusEvent :: GRef -> ToggleButton -> IO (ConnectId Button)
+          setupFocusEvent s tbT = do
                 boxPackStart ext_box hb PackGrow 0
                 hb `on` buttonReleaseEvent $ do
                     -- movemos el proofFocus hasta donde está esta expresión.
                     eventWithState (updateModifExpr fUpdate >>
-                                    updateSelectedExpr fGet) s
+                                    updateSelectedExpr fGet >>
+                                    io (set tbT [toggleButtonActive := False])) s
                     io $ widgetShowAll hb
                     return False
                     
@@ -440,7 +442,7 @@ eventsExprWidget expr ext_box w moveFocus fUpdate fGet top_box =
                                             writeExprWidget e (formBox w) >>
                                             updateExpr e)
 
-          setupOptionExprWidget :: Window -> PreExpr-> IState ()
+          setupOptionExprWidget :: Window -> PreExpr-> IState ToggleButton
           setupOptionExprWidget win e = do
 
             exprButtons <- io hButtonBoxNew
@@ -462,6 +464,7 @@ eventsExprWidget expr ext_box w moveFocus fUpdate fGet top_box =
                 containerAdd exprButtons bInfo >>
                 boxPackStart ext_box exprButtons PackNatural 10 >>
                 widgetShowAll ext_box)
+            return bT
 
           makeLayoutTypeCheckStatus :: IState Image
           makeLayoutTypeCheckStatus = io $ imageNewFromStock stockInfo IconSizeMenu

@@ -64,10 +64,6 @@ buildTreeExpr' isf we te bTree l = do
             rightBranch <- io $ goTypedExpr goDownR te
             case (leftBranch, rightBranch) of
                 (Just (lf, lt, lp), Just (rf, rt, rp)) ->
-                    isf >>= \f ->
-                    io (debug $ show f) >>
-                    io (debug $ show lf) >>
-                    io (debug $ show $ goUp lf) >>
                     io (containerGetChildren we) >>= \[leb, _, reb] ->
                     makeExprState lf lt lp (castToHBox leb) >>= \dlte ->
                     makeExprState rf rt rp (castToHBox reb) >>= \drte ->
