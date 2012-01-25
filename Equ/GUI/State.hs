@@ -11,6 +11,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , getErrPanedLabel
                      , getPath
                      , getFrmCtrl
+                     , getExprWidget
                      , eventWithState
                      , getTreeExprBox
                      , getSymCtrl
@@ -20,7 +21,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , getAxiomCtrl
                      , getAxiomBox
                      , getAxiomBox'
-                     , getSelectExpr
+                     , getExprState
                      , getUndoList
                      , getValidProof
                      , getExprProof
@@ -28,6 +29,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , getRedoList
                      , getRelPF
                      , getProofState
+                     , getSelectedExpr
                      -- * Modificacion del estado.
                      , updateExpr
                      , updateFrmCtrl
@@ -36,6 +38,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , updateFocus
                      , updateUndoList
                      , updateValidProof
+                     , updateExprWidget
                      , updateProof
                      , addTheorem
                      , addToRedoList
@@ -53,7 +56,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , cleanTreeExpr
                      -- * Funciones relacionadas con arbol de tipos
                      , addAtomExprTree
-                     , addMainExprToTree
+                     --, addMainExprToTree
                      , addQuantExprTree
                      , getMainExprTree
                      , getOpExprTree
@@ -80,7 +83,6 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , updateExprState
                      , changeProofFocus
                      , updateRelation
-                     , updateModifExpr
                      , updateSelectedExpr
                      , restoreValidProofImage
                      , updateImageValid
@@ -95,7 +97,7 @@ import Equ.GUI.Types
 import Equ.GUI.Utils
 
 import Equ.Expr
-import Equ.PreExpr
+import Equ.PreExpr hiding(goUp,goRight,goLeft,goDown,goDownL)
 import Equ.Theories
 import Equ.Syntax
 import Equ.Parser
@@ -103,7 +105,8 @@ import Equ.Parser
 import Equ.Proof(addBoolHypothesis)
 import Equ.Proof.Proof
 import Equ.Proof.Error(errEmptyProof)
-import Equ.Proof(ProofFocus,updateStartFocus,updateEndFocus,PM,validateProof,toProof)
+import Equ.Proof(ProofFocus,updateStartFocus,updateEndFocus,PM,validateProof,
+                 toProof,goFirstLeft,updateMiddleFocus,goUp',getEndFocus,goRight,goEnd,goDownL')
 import Equ.Rule
 
 import Equ.Types
@@ -177,7 +180,9 @@ updateStatus msg = withRefValue (\s -> putMsg (status s) msg)
 -- | Actualiza la expresión que se muestra en el área de estado;
 -- esta es una función que puede dejar de tener sentido más adelante.
 showExpr :: IState ()
-showExpr = withRefValue $ uncurry putMsg . (status &&& show . toExpr . (fExpr . fromJust . gExpr) )
+--showExpr = withRefValue $ uncurry putMsg . (status &&& show . toExpr . (fExpr . fromJust . gExpr) )
+showExpr = getProofState >>= 
+           F.mapM_ (\ps -> showProof) -- DEJO ESTO ASI PORQUE SI NO NO ME DOY CUENTA SI ACTUALIZO BIEN LA EXPRESION DENTRO DE LA PRUEBA
 
 showProof :: IState ()
 showProof = withRefValue $ uncurry putMsg . (status &&& show . proof . fromJust . gProof )
@@ -196,10 +201,14 @@ updateExpr'' change gst = case (gProof gst,gExpr gst) of
                       (Nothing, Just gexpr) ->  gst {gExpr = Just gexpr {fExpr = newExpr gexpr}} 
                       (_,_) -> gst
     where upd gpr gexpr = gst { gProof = Just gpr' 
-                              , gExpr = Just gexpr' 
                               }
+                -- Para actualizar la expresión dentro de la prueba, asumimos que el foco se encuentra
+                -- en la prueba simple que deja a dicha expresión a la derecha.
                 where  gpr' = gpr {proof = fromJust $ up (proof gpr) (newExpr gexpr)}
-                       up = modifExpr gpr
+                       up pf f = let up1 = updateEndFocus (goFirstLeft pf) f in
+                                    case goRight (fromJust up1) of
+                                        Nothing -> Just $ goEnd (fromJust up1)
+                                        Just pf' -> Just $ goEnd $ goDownL' $ fromJust $ updateMiddleFocus (goUp' $ fromJust $ updateStartFocus pf' f) f
                        gexpr' = gexpr {fExpr = newExpr gexpr}
                      
           newExpr gexpr = g . first change $ f e
@@ -224,14 +233,12 @@ updateProof' (p,path) gst = case (gProof gst,gExpr gst) of
                               (Just gpr,Just gexpr) -> upd gpr gexpr
                               (_,_) -> gst
     where upd gpr gexpr = gst { gProof = Just gpr { proof = (p,path)
-                                                  , modifExpr = updateStartFocus
                                                   }
-                              , gExpr = Just $ gexpr { fExpr = fromJust $ getStart p
+                              , gExpr = Just $ gexpr { fExpr = fromJust $ getEnd p
                                                      , pathExpr = (id,id)
                                                      }
                               }
               where pr = proof gpr
-                    up = modifExpr gpr
                     e = fExpr gexpr
                     (f,g) = pathExpr gexpr
         
@@ -256,10 +263,10 @@ unsetProofState = update (\gst -> gst {gProof = Nothing}) >>
 updateExprState :: ExprState -> IState ()
 updateExprState es = update (\gst -> gst {gExpr = Just es}) >> showExpr
 
-updateSelectedExpr :: (ProofFocus -> Focus) -> IState ()
-updateSelectedExpr f = getSelectExpr >>= F.mapM_ 
+updateSelectedExpr :: IState ()
+updateSelectedExpr = getExprState >>= F.mapM_ 
                        (\es -> getProof >>= \ pf -> 
-                              updateExprState (es {fExpr= f pf}))
+                              updateExprState (es {fExpr= fromJust $ getEndFocus pf}))
 
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}
@@ -282,7 +289,15 @@ updateFocus' (e,p) (f,g) gst = case gExpr gst of
 updateFrmCtrl :: HBox -> IState ()
 updateFrmCtrl l = update (\gst -> case gExpr gst of
                                         Nothing -> gst
-                                        Just es -> gst { gExpr = Just $ es {eventExpr = l }})
+                                        Just es -> gst { gExpr = Just $ es {formCtrl = l }})
+                                        
+                                        
+-- | Actualiza el widget de expresión donde tenemos foco de entrada.                                        
+updateExprWidget :: ExprWidget -> IState ()
+updateExprWidget e = update (\gst -> case gExpr gst of
+                                        Nothing -> gst
+                                        Just es -> gst { gExpr = Just $ es {exprWidget = e }})
+            
 
 -- | Actualiza la lista de símbolos para construir expresiones.
 updateSymCtrl :: IconView -> IState ()
@@ -291,9 +306,6 @@ updateSymCtrl t = update $ \gst -> gst { symCtrl = t }
 -- | Actualiza la función de ida-vuelta.
 updatePath :: GoBack -> IState ()
 updatePath p = update $ \gst -> gst { gExpr = Just $ ((fromJust . gExpr) gst) { pathExpr = p}}
-
-updateModifExpr :: (ProofFocus -> Focus -> Maybe ProofFocus) -> IState ()
-updateModifExpr f = update $ \gst -> gst { gProof = Just $ ((fromJust . gProof) gst) {modifExpr = f}}
 
 updateRelation :: Relation -> IState ()
 updateRelation r = getProof >>= \(p,path) ->
@@ -400,13 +412,13 @@ getExpr :: IState Focus
 getExpr = getStatePartDbg "getExpr" $ fExpr . fromJust . gExpr
 
 getFocusedExpr :: IState Focus
-getFocusedExpr = getPath >>= \p -> getExpr >>= return . fst p 
+getFocusedExpr = getPath >>= \p -> getExpr >>= return . fst p
 
 getFrmCtrl :: IState HBox
-getFrmCtrl = getStatePartDbg "getFrmCtrl" $ eventExpr . fromJust . gExpr
+getFrmCtrl = getStatePartDbg "getFrmCtrl" $ formCtrl . fromJust . gExpr
 
-getSelectExpr :: IState (Maybe ExprState)
-getSelectExpr = getStatePartDbg "getSelectExpr" gExpr
+getExprWidget :: IState ExprWidget
+getExprWidget = getStatePartDbg "getExprWidget" $ exprWidget . fromJust . gExpr
 
 getWindow :: IState Window
 getWindow = getStatePart gWindow
@@ -496,10 +508,6 @@ getErrPanedLabel :: IState EventBox
 getErrPanedLabel = getErrPane >>= \erp -> liftIO (panedGetChild1 erp) >>= 
                    \(Just eb) -> return $ castToEventBox eb
 
-getFormBox :: IState HBox
-getFormBox = getFrmCtrl >>= getParentNamed "formulaBox" . toWidget >>=
-             return . castToHBox
-
 -- | Devuelve el ancestro que tiene un nombre. ¡Es insegura!
 getParentNamed :: String -> Widget -> IState Widget
 getParentNamed name = go
@@ -521,6 +529,11 @@ getRedoList = getStatePart gRedo
  
 getUndoing :: IState Bool
 getUndoing = getStatePart undoing
+
+-- -- | Devuelve la expresión que está enfocada en un momento dado.
+getSelectedExpr :: IState Focus
+getSelectedExpr = getProof >>=
+                  return . fromJust . getEndFocus
  
 -- TODO: debemos hacer renombre si la variable está ligada?
 -- | Actualización de la variable de cuantificación.
@@ -530,7 +543,7 @@ updateQVar v p = localInPath p $ update (updateExpr'' putVar)
           putVar e = e
 
 selectExprFromBox :: HBox -> IState ()
-selectExprFromBox = selectFrom (eventExpr)
+selectExprFromBox = selectFrom (formCtrl)
 
 selectTypeFromBox :: HBox -> IState ()
 selectTypeFromBox = selectFrom (eventType)
@@ -651,21 +664,21 @@ updateOpExprTree fss (Just fs) (Just t) = (update (\gst -> gst {gTreeExpr = Just
 -- | Limpia el árbol de tipado del estado general.
 cleanTreeExpr :: IState ()
 cleanTreeExpr = updateMTT (const Nothing) >> 
-                getSelectExpr >>= \(Just es) -> 
+                getExprState >>= \(Just es) -> 
                 updateTypeSelectType es TyUnknown
 
 
 -- Añade una expresion y su respectivo boton a al arbol de tipado.
-addMainExprToTree :: Focus -> Type -> GoBack -> HBox -> HBox -> IState ExprState
-addMainExprToTree f t p be bt = updateTT (\gte -> gte { mainExpr = te }) >>
-                                return te
-    where te :: ExprState
-          te = ExprState { fExpr = f
-                         , fType = t
-                         , pathExpr = p
-                         , eventExpr = be
-                         , eventType = bt
-                         }
+-- addMainExprToTree :: Focus -> Type -> GoBack -> HBox -> HBox -> IState ExprState
+-- addMainExprToTree f t p be bt = updateTT (\gte -> gte { mainExpr = te }) >>
+--                                 return te
+--     where te :: ExprState
+--           te = ExprState { fExpr = f
+--                          , fType = t
+--                          , pathExpr = p
+--                          , eventExpr = be
+--                          , eventType = bt
+--                          }
                          
 -- Funcion que chequea si la prueba en la interfaz está validada
 checkValidProof :: IState Bool

@@ -71,17 +71,16 @@ data GState = GState { gWindow :: Window
                      }
  
 data ExprState = ExprState { fExpr :: Focus
-                           , fType :: Type
+                           , fType :: Type  -- (Manu) Para qué usamos esto?
                            , pathExpr :: GoBack
-                           , eventExpr :: HBox
-                           , eventType :: HBox
+                           , eventType :: HBox  -- (Manu) Para qué usamos esto?
+                           , exprWidget :: ExprWidget
+                           , formCtrl :: HBox -- Caja de la subexpresión que se está editando. Deberia cumplirse el invariante de que
+                                              -- formCtrl es hijo de (formBox exprWidget)
                            }
 
 data ProofState = ProofState { proof :: ProofFocus   -- ^ La prueba que estamos construyendo
                              , validProof :: PM Proof
-                             , modifExpr :: ProofFocus -> Focus -> Maybe ProofFocus  
-                                 -- ^ Funcion para modificar la expresion 
-                                 --  enfocada DENTRO de la prueba.
                              , axiomBox :: HBox -- ^ El contenedor para mostrar el axioma aplicado
                              }
 
@@ -102,5 +101,5 @@ instance Reference IORef IState where
 
 data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , formBox :: HBox      -- ^ Box donde se ingresa la formula
-                             , choicesButton :: Button -- ^ Botón para ver las expresiones que matchean en la prueba
+                             , choicesButton :: Maybe Button -- ^ Botón para ver las expresiones que matchean en la prueba (la expresion inicial no lo tiene)
                              }

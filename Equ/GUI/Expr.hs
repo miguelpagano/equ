@@ -144,18 +144,18 @@ writeExprWidget' emask expr box =  frameExp expr emask >>= \(WExpr box' _) ->
                                   addToBox box box' >>
                                   liftIO (widgetShowAll box)
 
-typedExprEdit :: HBox -> IState ()
-typedExprEdit b = getSelectExpr >>= \res ->
-                    case res of
-                            Nothing -> reportErrWithErrPaned 
-                                                "Ninguna expresion seleccionada."
-                            Just te -> return (fExpr te) >>= \(expr,_) ->
-                                       newExpr b >>
-                                       updateExpr expr >>
-                                       frameExp expr Editable >>= \(WExpr b' _) ->
-                                       removeAllChildren b >>
-                                       addToBox b b' >>
-                                       liftIO (widgetShowAll b)
+-- typedExprEdit :: HBox -> IState ()
+-- typedExprEdit b = getSelectExpr >>= \res ->
+--                     case res of
+--                             Nothing -> reportErrWithErrPaned 
+--                                                 "Ninguna expresion seleccionada."
+--                             Just te -> return (fExpr te) >>= \(expr,_) ->
+--                                        newExpr b >>
+--                                        updateExpr expr >>
+--                                        frameExp expr Editable >>= \(WExpr b' _) ->
+--                                        removeAllChildren b >>
+--                                        addToBox b b' >>
+--                                        liftIO (widgetShowAll b)
 
 -- | Esta es la función principal: dada una expresión, construye un
 -- widget con la expresión.
@@ -349,13 +349,13 @@ popupWin w = windowNew >>= \pop ->
 moveWin w = windowGetPosition w >>= \(x,y) ->
             windowMove w (x+64) (y+64)
 
-typeTreeWindow :: IState Focus -> (Focus -> IState ()) -> Window -> IState Window
-typeTreeWindow isf fmp w = io (popupWin w) >>= \pop -> 
+typeTreeWindow :: IState Focus -> (Focus -> IState ()) -> Window -> ExprWidget -> IState Window
+typeTreeWindow isf fmp w expr_w = io (popupWin w) >>= \pop -> 
                        io (vBoxNew False 0) >>= \bTree -> 
                        io (hBoxNew False 0) >>= \we -> 
                        isf >>= \f ->
                        writeExprTreeWidget (fst f) we >>
-                       buildTreeExpr isf fmp bTree we >>
+                       buildTreeExpr isf fmp bTree we expr_w >>
                        io (containerAdd pop bTree) >>
                        return pop
 
@@ -384,9 +384,10 @@ annotWindow act w = popupWin w >>= \pop ->
 configAnnotTB :: (String -> IO ()) -> ToggleButton -> Window -> IState ()
 configAnnotTB act tb w = io $ actTBOn tb w (io . annotWindow act)
                
-configTypeTreeTB :: IState Focus -> (Focus -> IState ()) -> ToggleButton ->  Window -> IState ()
-configTypeTreeTB isf fmp tb w = get >>= \s ->
-                            io (actTBOn tb w $ \w' -> evalStateT (typeTreeWindow isf fmp w') s) >>
+configTypeTreeTB :: IState Focus -> (Focus -> IState ()) -> ExprWidget -> ToggleButton ->  Window -> 
+                    IState ()
+configTypeTreeTB isf fmp expr_w tb w= get >>= \s ->
+                            io (actTBOn tb w $ \w' -> evalStateT (typeTreeWindow isf fmp w' expr_w) s) >>
                             return ()
 
 -- | Define la acción para cuando no está activado.
@@ -429,7 +430,12 @@ createInitExprWidget expr  = do
     --button_box <- io $ hButtonBoxNew
     io (widgetSetSizeRequest boxExprWidget (-1) 50)
     
-    eventsInitExprWidget expr boxExprWidget formBox
+    expr_w <- return $ ExprWidget { formBox = formBox
+                                  , extBox = boxExprWidget
+                                  , choicesButton = Nothing
+                                  }
+    
+    eventsInitExprWidget expr expr_w
     
     writeExprWidget expr formBox
     
@@ -437,12 +443,12 @@ createInitExprWidget expr  = do
 --     
 -- | Setea los eventos de un widget de expresion. La funcion f es la
 -- que se utiliza para actualizar la expresion dentro de la prueba
-eventsInitExprWidget :: PreExpr -> HBox -> HBox -> IState ()
-eventsInitExprWidget expr ext_box formBox =
+eventsInitExprWidget :: PreExpr -> ExprWidget ->IState ()
+eventsInitExprWidget expr expr_w =
     get >>= \s ->
     getWindow >>= \win ->
     setupOptionExprWidget win expr >>
-    setupForm formBox Editable
+    setupForm (formBox expr_w) Editable
     
     where setupOptionExprWidget :: Window -> PreExpr-> IState ()
           setupOptionExprWidget win e = do
@@ -452,16 +458,16 @@ eventsInitExprWidget expr ext_box formBox =
             bAnot <- makeOptionEvent win stockEdit (configAnnotTB putStrLn)
             io $ setToolTip bAnot "Anotaciones"
             bT    <- makeOptionEvent win stockIndex (configTypeTreeTB (getExpr)
-                                            (\(e,_) -> updateExpr e))
+                                            (\(e,_) -> updateExpr e) expr_w)
             io $ setToolTip bT "Árbol de tipado"
             bInfo <- makeLayoutTypeCheckStatus
 
             io (containerAdd exprButtons bAnot  >>
                 containerAdd exprButtons bT >>
                 containerAdd exprButtons bInfo >>
-                boxPackStart ext_box exprButtons PackNatural 10 >>
-                boxPackStart ext_box formBox PackGrow 1 >>
-                widgetShowAll ext_box)
+                boxPackStart (extBox expr_w) exprButtons PackNatural 10 >>
+                boxPackStart (extBox expr_w) (formBox expr_w) PackGrow 1 >>
+                widgetShowAll (extBox expr_w))
 
           makeLayoutTypeCheckStatus :: IState Image
           makeLayoutTypeCheckStatus = io $ imageNewFromStock stockInfo IconSizeMenu
@@ -480,20 +486,27 @@ reloadExpr formBox expr = removeAllChildren formBox >>
                           writeExprWidget expr formBox  
 
                         
-newExprState :: Focus -> HBox -> HBox -> IState ExprState
-newExprState expr hbox1 hbox2 = do
+newExprState :: Focus -> ExprWidget -> HBox -> IState ExprState
+newExprState expr expr_w hbox2 = do
     return eState
     where 
         eState = ExprState { fExpr = expr
                            , pathExpr = (id,id)
-                           , eventExpr = hbox1
                            , fType = TyUnknown
                            , eventType = hbox2
+                           , exprWidget = expr_w
+                           , formCtrl = formBox expr_w
         }
                             
 
 initExprState expr = do 
-  hbox1 <- io $ hBoxNew False 2
   hbox2 <- io $ hBoxNew False 2
-  expr' <- newExprState expr hbox1 hbox2
+  -- Ponemos un ExprWidget sin sentido para iniciar el estado. ESTO PODRIA REVISARSE
+  expr_empty_box1 <- io $ hBoxNew False 2
+  expr_empty_box2 <- io $ hBoxNew False 2
+  expr_w <- return ExprWidget { extBox = expr_empty_box1
+                              , formBox = expr_empty_box2
+                              , choicesButton = Nothing
+                    }
+  expr' <- newExprState expr expr_w hbox2
   updateExprState expr' 

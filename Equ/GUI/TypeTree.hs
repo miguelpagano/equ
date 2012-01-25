@@ -26,8 +26,8 @@ import Data.List (find)
 
 -- Función principal que construye el arbol de tipado.
 buildTreeExpr :: IState Focus -> (Focus -> IState ()) -> VBox -> 
-                 HBox -> IState [ExprState]
-buildTreeExpr isf fmp bTreeExpr we = do
+                 HBox -> ExprWidget -> IState [ExprState]
+buildTreeExpr isf fmp bTreeExpr we expr_w = do
                             f <- isf
                             fs <- return $ toFocusesWithGo $ fst f
                             [we'] <- io (containerGetChildren we)
@@ -42,9 +42,9 @@ buildTreeExpr isf fmp bTreeExpr we = do
                                 boxPackEnd bTreeExpr bb PackNatural 2
                                 widgetShowAll bb
                             l <- buildTreeExpr' isf (castToHBox we') mes 
-                                                    bTreeExpr [mes]
+                                                    bTreeExpr [mes] expr_w
                             io $ boxPackStart bTreeExpr we PackGrow 5
-                            configTypeEntry isf fmp bTreeExpr l l
+                            configTypeEntry isf fmp bTreeExpr l l expr_w
                             return l
     where
         makeMainExprState :: Focus -> HBox -> IO ExprState
@@ -54,30 +54,36 @@ buildTreeExpr isf fmp bTreeExpr we = do
                                  Left _ -> return TyUnknown
                                  Right t -> return t)
                     tb <- setupEventExpr f t we
-                    return $ ExprState f t (id,id) we tb
-
+                    return $ ExprState { fExpr = f
+                                       , fType = t
+                                       , pathExpr = (id,id)
+                                       , eventType = tb
+                                       , exprWidget = expr_w
+                                       , formCtrl = we
+                    }
+                    
 -- Función secundaria que contruye el árbol de tipado.
 buildTreeExpr' :: IState Focus -> HBox -> ExprState -> VBox -> 
-                  [ExprState] -> IState [ExprState]
-buildTreeExpr' isf we te bTree l = do
+                  [ExprState] -> ExprWidget -> IState [ExprState]
+buildTreeExpr' isf we te bTree l expr_w = do
             leftBranch <- io $ goTypedExpr goDownL te
             rightBranch <- io $ goTypedExpr goDownR te
             case (leftBranch, rightBranch) of
                 (Just (lf, lt, lp), Just (rf, rt, rp)) ->
                     io (containerGetChildren we) >>= \[leb, _, reb] ->
-                    makeExprState lf lt lp (castToHBox leb) >>= \dlte ->
-                    makeExprState rf rt rp (castToHBox reb) >>= \drte ->
+                    makeExprState lf lt lp (castToHBox leb) expr_w >>= \dlte ->
+                    makeExprState rf rt rp (castToHBox reb) expr_w >>= \drte ->
                     
                     io (hBoxNew False 0) >>= \bTree' ->
                     io (boxPackEnd bTree bTree' PackNatural 2) >>
                     io (fillNewBox bTree' rf (eventType drte)) >>= \nVb ->
                     
                     buildTreeExpr' isf (castToHBox reb) drte nVb 
-                                        (dlte : drte : l) >>= \l' ->
+                                        (dlte : drte : l) expr_w >>= \l' ->
                     
                     io (fillNewBox bTree' lf (eventType dlte)) >>= \nVb ->
                     
-                    buildTreeExpr' isf (castToHBox leb) dlte nVb l'
+                    buildTreeExpr' isf (castToHBox leb) dlte nVb l' expr_w
                 (Just (lf, lt, lp), Nothing) -> 
                     io (putStrLn $ show $ lf) >>
                     (case isPreExprParent $ fExpr te of
@@ -88,18 +94,25 @@ buildTreeExpr' isf we te bTree l = do
                                   >>= \[leb] -> return leb
                     ) >>= \leb ->
             
-                    makeExprState lf lt lp (castToHBox leb) >>= \dlte ->
+                    makeExprState lf lt lp (castToHBox leb) expr_w >>= \dlte ->
                     
                     io (hBoxNew False 0) >>= \bTree' ->
                     io (boxPackEnd bTree bTree' PackNatural 2) >>
                     io (fillNewBox bTree' lf (eventType dlte)) >>= \nVb ->
                     
-                    buildTreeExpr' isf (castToHBox leb) dlte nVb (dlte : l)
+                    buildTreeExpr' isf (castToHBox leb) dlte nVb (dlte : l) expr_w
                 (Nothing, _) -> return l
     where
-        makeExprState :: Focus -> Type -> GoBack -> HBox -> IState ExprState
-        makeExprState f t p eb = io (setupEventExpr f t eb) >>=
-                                 return . ExprState f t p eb 
+        makeExprState :: Focus -> Type -> GoBack -> HBox -> ExprWidget -> IState ExprState
+        makeExprState f t p eb expr_w = io (setupEventExpr f t eb) >>= \ev_type ->
+                                 return $ ExprState { fExpr = f
+                                                    , fType = t
+                                                    , pathExpr = p
+                                                    , eventType = ev_type
+                                                    , exprWidget = expr_w
+                                                    , formCtrl = eb
+                                 }
+                                                        
         fillNewBox :: (BoxClass b) => b -> Focus -> HBox -> IO VBox
         fillNewBox bTree f tb = 
                             vBoxNew False 0 >>= \nVb ->
@@ -134,12 +147,12 @@ typedCheckType f ess = case checkPreExpr (toExpr f) of
 
 
 configTypeEntry :: (IState Focus) -> (Focus -> IState ()) -> VBox -> 
-                   [ExprState] -> [ExprState] -> IState ()
-configTypeEntry _ _ _ [] _ = return ()
-configTypeEntry isf fmp extBTree (es:ess) l = 
+                   [ExprState] -> [ExprState] -> ExprWidget -> IState ()
+configTypeEntry _ _ _ [] _ _ = return ()
+configTypeEntry isf fmp extBTree (es:ess) l expr_w = 
                             when ((checkIsAtom . fExpr) es) 
                             (configEventSelectTypeFromTree es)
-                            >> configTypeEntry isf fmp extBTree ess l
+                            >> configTypeEntry isf fmp extBTree ess l expr_w
     where
         configEventSelectTypeFromTree :: ExprState -> IState ()
         configEventSelectTypeFromTree es = 
@@ -188,7 +201,7 @@ configTypeEntry isf fmp extBTree (es:ess) l =
                                 io (containerRemove extBTree (head wl)) >>
                                 removeAllChildren extBTree >>
                                 return (castToHBox $ head wl) >>= \we ->
-                                buildTreeExpr isf fmp extBTree we >>= \l ->
+                                buildTreeExpr isf fmp extBTree we expr_w >>= \l ->
                                 isf >>= \f ->
                                 typedCheckType f l >>
                                 return ()) >> 

@@ -44,7 +44,6 @@ newProofState (Just p) axiom_box = return pr
         pr :: ProofState
         pr = ProofState { proof = toProofFocus p
                         , validProof = validateProof p
-                        , modifExpr = updateStartFocus
                         , axiomBox = axiom_box
                         }
 newProofState Nothing axiom_box = getGlobalCtx >>=
@@ -53,7 +52,6 @@ newProofState Nothing axiom_box = getGlobalCtx >>=
         pr :: Maybe Ctx -> ProofState
         pr c = ProofState { proof = p c
                           , validProof = validateProof $ toProof (p c)
-                          , modifExpr = updateStartFocus
                           , axiomBox = axiom_box
                         }
         p c = emptyProof c $ head $ relationList
@@ -77,7 +75,7 @@ loadProof p ret_box truthBox initExprBox = do
     io $ boxPackStart initExprBox labelInitExpr PackNatural 2
     io $ widgetShowAll initExprBox
     
-    hboxEnd  <- createExprWidget (toExpr $ fromRight $ getEnd p) moveToEnd updateFinalExpr getFinalExpr truthBox
+    hboxEnd  <- createExprWidget (toExpr $ fromRight $ getEnd p) moveToEnd truthBox
     
     io (--boxPackStart ret_box hboxInit PackNatural 2 >>
         boxPackStart ret_box truthBox PackNatural 2 >>
@@ -138,8 +136,8 @@ createNewProof proof ret_box truthBox initExprBox = do
     io $ widgetShowAll ret_box
 
     where emptyProof box = do
-            hboxInit <- createExprWidget holePreExpr goTop updateFirstExpr getFirstExpr box
-            hboxEnd  <- createExprWidget holePreExpr moveToEnd updateFinalExpr getFinalExpr box
+            --hboxInit <- createExprWidget holePreExpr goTopbox
+            hboxEnd  <- createExprWidget holePreExpr moveToEnd box
 
             io (--boxPackStart ret_box hboxInit PackNatural 2 >>
                 boxPackStart ret_box box PackNatural 2 >>
@@ -162,10 +160,10 @@ initState = do
     proof' <- newProofState (Just $ pr initExpr) empty_box1
     updateProofState proof'
     
-    hbox1 <- io $ hBoxNew False 2
-    hbox2 <- io $ hBoxNew False 2
-    expr' <- newExprState emptyExpr hbox1 hbox2
-    updateExprState expr'    
+--     hbox1 <- io $ hBoxNew False 2
+--     hbox2 <- io $ hBoxNew False 2
+--     expr' <- newExprState emptyExpr hbox1 hbox2
+--     updateExprState expr'    
     
     where pr e= flip newProofWithStart e $ head $ relationList
     
@@ -303,7 +301,7 @@ newStepProof expr moveFocus container top_box = do
     addStepProof centerBoxL top_box (goDownL . fromJust . moveFocus) Nothing
     centerBoxR <- io $ vBoxNew False 2
     addStepProof centerBoxR top_box (goDownR . fromJust . moveFocus) Nothing
-    exprBox <- createExprWidget expr moveFocus' updateFocus (fromJust . getFocus) top_box
+    exprBox <- createExprWidget expr moveFocus' top_box
     
     io (boxPackStart container centerBoxL PackNatural 5 >>
             boxPackStart container exprBox PackNatural 5 >>
@@ -350,10 +348,9 @@ selectRelation r combo lstore = do
     where getIndexFromList ls rel = fromJust $ elemIndex rel ls
             
 createExprWidget :: PreExpr -> (ProofFocus -> Maybe ProofFocus) ->
-                    (ProofFocus -> Focus -> Maybe ProofFocus) -> 
-                    (ProofFocus -> Focus) -> VBox -> IState HBox
+                    VBox -> IState HBox
               
-createExprWidget expr moveFocus fUpdateFocus fGetFocus top_box = do
+createExprWidget expr moveFocus top_box = do
   
     hbox    <- io $ hBoxNew False 2
     boxExprWidget <- io $ hBoxNew False 2
@@ -372,10 +369,10 @@ createExprWidget expr moveFocus fUpdateFocus fGetFocus top_box = do
     
     exprWidget <- return $ ExprWidget { extBox = boxExprWidget -- Box externa
                                      , formBox = box
-                                     , choicesButton = expr_choices
+                                     , choicesButton = Just expr_choices
                                      }
     
-    eventsExprWidget expr hbox exprWidget moveFocus fUpdateFocus fGetFocus top_box
+    eventsExprWidget expr hbox exprWidget moveFocus top_box
     
     writeExprWidget expr box
     
@@ -385,9 +382,9 @@ createExprWidget expr moveFocus fUpdateFocus fGetFocus top_box = do
 -- que se utiliza para actualizar la expresion dentro de la prueba
 eventsExprWidget :: PreExpr -> HBox -> ExprWidget -> 
                     (ProofFocus -> Maybe ProofFocus) ->
-                    (ProofFocus -> Focus -> Maybe ProofFocus) ->
-                    (ProofFocus -> Focus) -> VBox -> IState ToggleButton
-eventsExprWidget expr ext_box w moveFocus fUpdate fGet top_box =
+                    VBox -> IState ToggleButton
+eventsExprWidget expr ext_box w moveFocus top_box =
+    let fGet = getEndFocus . fromJust . moveFocus in
     get >>= \s ->
     getWindow >>= \win ->
     setupOptionExprWidget win expr >>= \tbT ->
@@ -401,13 +398,13 @@ eventsExprWidget expr ext_box w moveFocus fUpdate fGet top_box =
                 boxPackStart ext_box hb PackGrow 0
                 hb `on` buttonReleaseEvent $ do
                     -- movemos el proofFocus hasta donde está esta expresión.
-                    eventWithState (updateModifExpr fUpdate >>
-                                    updateSelectedExpr fGet >>
+                    eventWithState (changeProofFocus' >>
+                                    updateExprWidget w >>
                                     io (set tbT [toggleButtonActive := False])) s
                     io $ widgetShowAll hb
                     return False
                     
-                (choicesButton w) `on` buttonPressEvent $ tryEvent $
+                (fromJust $ choicesButton w) `on` buttonPressEvent $ tryEvent $
                             eventWithState (changeProofFocus' >>
                                             showChoices) s
 
@@ -417,7 +414,8 @@ eventsExprWidget expr ext_box w moveFocus fUpdate fGet top_box =
                               selectBox (p,path) focusBg top_box >>
                               io (proofFocusToBox path top_box) >>= \center_box ->
                               io (axiomBoxFromCenterBox center_box) >>= \axiom_box ->
-                              changeProofFocus moveFocus (Just axiom_box)
+                              changeProofFocus moveFocus (Just axiom_box) >>
+                              updateSelectedExpr -- Actualizamos la expresion seleccionada
                         
           showChoices = do
             menu <- io menuNew
@@ -437,8 +435,8 @@ eventsExprWidget expr ext_box w moveFocus fUpdate fGet top_box =
                     io (item `on` buttonPressEvent $ tryEvent $
                                         flip eventWithState ref $ 
                                             -- Actualizamos la expresion
-                                            updateModifExpr fUpdate >>
-                                            updateSelectedExpr fGet >>
+                                            changeProofFocus' >>
+                                            updateExprWidget w >>
                                             writeExprWidget e (formBox w) >>
                                             updateExpr e)
 
@@ -451,10 +449,8 @@ eventsExprWidget expr ext_box w moveFocus fUpdate fGet top_box =
             io $ setToolTip bAnot "Anotaciones"
             
             bT    <- makeOptionEvent win stockIndex 
-                                (configTypeTreeTB (getProof >>= return . fGet) 
-                                (\(e,_) -> 
-                                 updateModifExpr fUpdate >> 
-                                 updateExpr e))
+                                (configTypeTreeTB (getSelectedExpr) 
+                                (\(e,_) -> updateExpr e) w)
             io $ setToolTip bT "Árbol de tipado"
             
             bInfo <- makeLayoutTypeCheckStatus
