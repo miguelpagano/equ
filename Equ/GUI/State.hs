@@ -263,10 +263,12 @@ unsetProofState = update (\gst -> gst {gProof = Nothing}) >>
 updateExprState :: ExprState -> IState ()
 updateExprState es = update (\gst -> gst {gExpr = Just es}) >> showExpr
 
+-- | Funcion que actualiza la expresion seleccionada por el usuario al mover el proofFocus.
 updateSelectedExpr :: IState ()
 updateSelectedExpr = getExprState >>= F.mapM_ 
                        (\es -> getProof >>= \ pf -> 
-                              updateExprState (es {fExpr= fromJust $ getEndFocus pf}))
+                              updateExprState (es {fExpr= fromJust $ getEndFocus pf
+                                                 , pathExpr = (id,id)}))
 
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}
@@ -296,7 +298,9 @@ updateFrmCtrl l = update (\gst -> case gExpr gst of
 updateExprWidget :: ExprWidget -> IState ()
 updateExprWidget e = update (\gst -> case gExpr gst of
                                         Nothing -> gst
-                                        Just es -> gst { gExpr = Just $ es {exprWidget = e }})
+                                        Just es -> gst { gExpr = Just $ es {exprWidget = e
+                                                                           , formCtrl = formBox e
+                                                                           }})
             
 
 -- | Actualiza la lista de símbolos para construir expresiones.

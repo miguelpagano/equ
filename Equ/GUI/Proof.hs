@@ -389,6 +389,7 @@ eventsExprWidget expr ext_box w moveFocus top_box =
     getWindow >>= \win ->
     setupOptionExprWidget win expr >>= \tbT ->
     io (setupFocusEvent s tbT) >>
+    updatePath (id,id) >>
     setupForm (formBox w) Editable >>
     return tbT
     
@@ -398,8 +399,8 @@ eventsExprWidget expr ext_box w moveFocus top_box =
                 boxPackStart ext_box hb PackGrow 0
                 hb `on` buttonReleaseEvent $ do
                     -- movemos el proofFocus hasta donde está esta expresión.
-                    eventWithState (changeProofFocus' >>
-                                    updateExprWidget w >>
+                    eventWithState (updateExprWidget w >>
+                                    changeProofFocus' >>
                                     io (set tbT [toggleButtonActive := False])) s
                     io $ widgetShowAll hb
                     return False
