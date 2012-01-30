@@ -108,7 +108,7 @@ main = do
 
     -- expresion inicial
     evalStateT (initExprState emptyExpr) gRef
-    formBox <- evalStateT (loadExpr initExprBox holePreExpr) gRef
+    formBox <- evalStateT (loadExpr initExprBox holePreExpr id) gRef
     
 
     -- Define la misma acción para el boton que para el menu
@@ -137,29 +137,13 @@ main = do
         axioms <- getAxiomCtrl
         eventsTruthList axioms aListStore
         symbols <- getSymCtrl
-        eventsSymbolList symbols sListStore
+        eventsSymbolList symbols sListStore id
         hidePane errPane
 
     widgetShowAll window
 
     mainGUI
           
-          
--- reloadAxioms :: IState ()
--- reloadAxioms = do
---     liftIO $ putStrLn "reloading axioms..."
---     theoremList <- getTheorems
---     liftIO $ putStrLn $ "theoremList is " ++ show theoremList
---     axioms <- getAxiomCtrl
---     liftIO $ putStrLn "setupTruthList: "
---     aListStore <- liftIO $ setupTruthList theoremList axioms 
---     lista <- liftIO $ listStoreToList aListStore
---     liftIO $ putStrLn $ "aListStore is: " ++ show (map fst lista)
---     liftIO $ putStrLn "eventsTruthList: "
---     axioms <- getAxiomCtrl
---     eventsTruthList axioms aListStore
---     return ()
-    
 -- | Funcion que define el mismo evento para un menuItem y un toolButton.
 setActionMenuTool item tool act ref = onToolButtonClicked tool action >>
                                       onActivateLeaf item action

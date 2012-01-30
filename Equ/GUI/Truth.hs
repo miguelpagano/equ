@@ -40,7 +40,7 @@ saveTheorem :: GRef -> TreeStore (String, HBox -> IRG) -> IO ()
 saveTheorem ref aListStore = evalStateT (updateValidProof >> checkValidProof) ref >>= \valid ->
                              debug ("valid is " ++ show valid) >>
                              if valid then saveTheoremDialog ref aListStore
-                                      else errorDialog "La prueba no es válida"
+                                      else debug "La prueba no es válida"
 
 
 -- | Dialogo para guardar una prueba como teorema de Equ. Asume que la prueba es válida.

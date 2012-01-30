@@ -130,6 +130,7 @@ setAtomType f go t = goTop $ set t (go f)
         set t (Con c,p) = (Con $ c {conTy = t},p)
         set t (Fun f,p) = (Fun $ f {funcTy = t},p)
         set t (PrExHole h,p) = (PrExHole $ h {holeTy = t},p)
+        set t (_,_) = error "SetAtomType!"
 
 setQuantType :: Focus -> (Focus -> Focus) -> Type -> Focus
 setQuantType f go t = goTop $ set t (go f)

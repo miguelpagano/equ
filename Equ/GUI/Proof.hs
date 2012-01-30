@@ -1,19 +1,18 @@
 -- | Modulo de muestra y control de eventos sobre pruebas.
 module Equ.GUI.Proof where
 
-import Equ.GUI.Types
+import Equ.GUI.Types hiding (GState)
 import Equ.GUI.State
 import Equ.GUI.Utils
 
 import Equ.GUI.Settings
-import Equ.GUI.SymbolList
 import Equ.GUI.TruthList
 import Equ.Rule
 import Equ.Theories
 import Equ.Proof
 import Equ.PreExpr hiding (goDownL,goDownR,goRight,goUp,goTop)
 import Equ.GUI.Widget
-import Equ.GUI.Expr (clearFocus,writeExprWidget,setupForm
+import Equ.GUI.Expr (writeExprWidget,setupForm
                     , makeOptionEvent, configAnnotTB, configTypeTreeTB
                     , newExprState, reloadExpr)
 import Equ.Parser
@@ -25,9 +24,7 @@ import Graphics.UI.Gtk.Gdk.EventM
 import Graphics.UI.Gtk.Glade (GladeXML,xmlGetWidget)
 import Graphics.UI.Gtk.Display.Image
 
-import Data.Reference
 import Data.Maybe(fromJust)
-import Control.Monad.Trans(lift,liftIO)
 import Control.Monad.State(get,evalStateT)
 import Data.Text(unpack)
 import Data.Map(empty)
@@ -374,7 +371,7 @@ createExprWidget expr moveFocus top_box = do
     
     eventsExprWidget expr hbox exprWidget moveFocus top_box
     
-    writeExprWidget expr box
+    writeExprWidget expr box id
     
     return hbox
     
@@ -389,8 +386,7 @@ eventsExprWidget expr ext_box w moveFocus top_box =
     getWindow >>= \win ->
     setupOptionExprWidget win expr >>= \tbT ->
     io (setupFocusEvent s tbT) >>
-    updatePath (id,id) >>
-    setupForm (formBox w) Editable >>
+    setupForm (formBox w) Editable id >>
     return tbT
     
     where hb = extBox w
@@ -399,7 +395,7 @@ eventsExprWidget expr ext_box w moveFocus top_box =
                 boxPackStart ext_box hb PackGrow 0
                 hb `on` buttonReleaseEvent $ do
                     -- movemos el proofFocus hasta donde está esta expresión.
-                    eventWithState (updateExprWidget w >>
+                    eventWithState (updateExprWidget w  >>
                                     changeProofFocus' >>
                                     io (set tbT [toggleButtonActive := False])) s
                     io $ widgetShowAll hb
@@ -438,20 +434,20 @@ eventsExprWidget expr ext_box w moveFocus top_box =
                                             -- Actualizamos la expresion
                                             changeProofFocus' >>
                                             updateExprWidget w >>
-                                            writeExprWidget e (formBox w) >>
-                                            updateExpr e)
+                                            writeExprWidget e (formBox w) id >>
+                                            updateExpr e id)
 
           setupOptionExprWidget :: Window -> PreExpr-> IState ToggleButton
           setupOptionExprWidget win e = do
 
             exprButtons <- io hButtonBoxNew
 
-            bAnot <- makeOptionEvent win stockEdit (configAnnotTB putStrLn)
+            bAnot <- makeOptionEvent win stockEdit (configAnnotTB putStrLn) id
             io $ setToolTip bAnot "Anotaciones"
             
             bT    <- makeOptionEvent win stockIndex 
                                 (configTypeTreeTB (getSelectedExpr) 
-                                (\(e,_) -> updateExpr e) w)
+                                (\(e,_) -> updateExpr e id) w) id
             io $ setToolTip bT "Árbol de tipado"
             
             bInfo <- makeLayoutTypeCheckStatus
@@ -472,7 +468,7 @@ eventsExprWidget expr ext_box w moveFocus top_box =
 discardProof centralBox formBox = unsetProofState >>
                                   removeAllChildren centralBox >>
                                   getExpr >>= \e ->
-                                  reloadExpr formBox (toExpr e)
+                                  reloadExpr formBox (toExpr e) id
 
 
 {- | Funcion para obtener la caja correspondiente al paso de la prueba en el que estamos

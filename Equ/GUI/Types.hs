@@ -1,4 +1,4 @@
-{-# Language ImpredicativeTypes, ExistentialQuantification, TypeSynonymInstances, MultiParamTypeClasses #-}
+{-# Language Rank2Types, ExistentialQuantification, TypeSynonymInstances, MultiParamTypeClasses #-}
 module Equ.GUI.Types where
 
 import Equ.PreExpr
@@ -72,7 +72,6 @@ data GState = GState { gWindow :: Window
  
 data ExprState = ExprState { fExpr :: Focus
                            , fType :: Type  -- (Manu) Para qué usamos esto?
-                           , pathExpr :: GoBack
                            , eventType :: HBox  -- (Manu) Para qué usamos esto?
                            , exprWidget :: ExprWidget
                            , formCtrl :: HBox -- Caja de la subexpresión que se está editando. Deberia cumplirse el invariante de que
@@ -92,8 +91,6 @@ data WExpr w = WExpr { widget :: WidgetClass w => w
                      , wexpr :: PreExpr
                      }
 
-data Boxeable w = forall w . WidgetClass w => Boxeable w
-
 instance Reference IORef IState where
     readRef = liftIO . readRef
     writeRef r = liftIO . writeRef r
@@ -103,3 +100,5 @@ data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , formBox :: HBox      -- ^ Box donde se ingresa la formula
                              , choicesButton :: Maybe Button -- ^ Botón para ver las expresiones que matchean en la prueba (la expresion inicial no lo tiene)
                              }
+
+type IExpr a = Move -> IState a

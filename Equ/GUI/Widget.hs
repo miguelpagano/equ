@@ -7,6 +7,7 @@ import Equ.TypeChecker
 import Equ.Types
 import Equ.Rule
 import Equ.Theories
+-- import Equ.GUI.SymbolList
 import Equ.Proof hiding (goDownL, goDownR)
 
 
@@ -203,11 +204,10 @@ removeAllChildren' b = containerForeach b $
 
 -- | Si se aprieta el botón izquierdo, empezamos a trabajar en este
 -- control y luego pasamos el control a la lista de símbolos.
-newFocusToSym :: WidgetClass w => HBox -> GoBack -> w  -> IRG
-newFocusToSym l f sym = updateFrmCtrl l >>
-                          updatePath f >>
-                          openSymFrame >>
-                          highlightBox l focusBg
+newFocusToSym :: WidgetClass w => HBox -> Move -> w  -> IRG
+newFocusToSym l p sym = updateFrmCtrl l >>
+--                        refocusSymbol p >>
+                        highlightBox l focusBg
 
 -- | Resalta todos los controles que están dentro de una caja.
 highlightBox b bg = liftIO $ containerForeach b (highlight bg)
@@ -223,23 +223,6 @@ highlight bg w = widgetModifyBg w (toEnum 0) bg
 unlight :: WidgetClass w => (Maybe Color) -> w -> IO ()
 unlight Nothing w = widgetModifyBg w (toEnum 0) genericBg
 unlight (Just bg) w = widgetModifyBg w (toEnum 0) bg
-
--- TODO: estamos usando esto?
--- | Funcion para mostrar dialogo con mensaje de error
-errorDialog :: String -> IO ()
-errorDialog message = do
-    dialog <- dialogNew
-    set dialog [windowTitle := "Error"]
-    box <- dialogGetUpper dialog
-    label <- labelNew $ Just message
-    boxPackStart box label PackNatural 2
-    
-    dialogAddButton dialog stockApply ResponseApply
-        
-    widgetShowAll box
-   
-    dialogRun dialog
-    widgetDestroy dialog
     
     
 fontItalic :: IO FontDescription

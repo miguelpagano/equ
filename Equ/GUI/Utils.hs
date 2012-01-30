@@ -68,18 +68,6 @@ go g e = maybe (error $ show e) id $ g e
 putMsg :: StatusPlace -> String -> IO ()
 putMsg st m = uncurry statusbarPush st m >> return ()
                  
-{- Listas heterógeneas de cosas que pueden agregarse a cajas -}
--- TODO: Estamos usando estas funciones?
-infixr 8 .*.
-
--- | Cons para listas heterogéneas.
-(.*.) :: (WidgetClass w') => w' -> [Boxeable w] -> [Boxeable w]
-w .*. ws = Boxeable w : ws
-
-infix 9 .*:
--- | @ a .*: b == [a,b]@ para listas heterogéneas.
-(.*:) :: (WidgetClass w',WidgetClass w) => w' -> w -> [Boxeable w]
-w' .*: w = Boxeable w' : Boxeable w : []
 
 -- DONDE VAN ESTAS FUNCIONES???
 encodeFile :: S.Serialize a => FilePath -> a -> IO ()

@@ -9,7 +9,6 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , getAxiomFrame
                      , getErrPane
                      , getErrPanedLabel
-                     , getPath
                      , getFrmCtrl
                      , getExprWidget
                      , eventWithState
@@ -33,7 +32,6 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      -- * Modificacion del estado.
                      , updateExpr
                      , updateFrmCtrl
-                     , updatePath
                      , updateQVar
                      , updateFocus
                      , updateUndoList
@@ -50,7 +48,6 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , showExpr
                      , withState
                      , localPath
-                     , localInPath
                      , checkValidProof
                      , initialState
                      , cleanTreeExpr
@@ -161,16 +158,15 @@ local f = askRef >>= \s -> liftIO (f s) >>= \a -> update (const s) >> return a
 -- anterior; devuelve el resultado de la acción.
 local' :: (GState -> IState a) -> IState a
 local' f = askRef >>= \oldState -> f oldState >>= \a -> 
+           getExpr >>= \e ->
+           io (debug ("Local:" ++ show e)) >>
            update (const oldState) >> return a
 
 -- | Versión especializada de la anterior donde lo que se modifica es
 -- el path.
-localPath :: MGoBack -> IState a -> IState a
-localPath p act = local' $ \st -> (updatePath . (p .^) . (pathExpr . fromJust . gExpr)) st >> act
+localPath :: Move -> (Move -> IState a) -> IState a
+localPath p' act = local' (\st -> act (p' . goTop))
 
--- | Cambiamos el foco, ejecutamos una acción, restauramos el foco.
-localInPath :: GoBack -> IState a -> IState a
-localInPath p act = getPath >>= \p' -> updatePath p >> act >>= \r -> updatePath p' >> return r
 
 -- | Actualiza el mensaje que se muestra en el área de estado.
 updateStatus :: String -> IState ()
@@ -193,15 +189,14 @@ showProof' = getProof >>= liftIO . debug . show
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
-updateExpr e' = update (updateExpr' e') >> showExpr >> addToUndoList >> restoreValidProofImage
+updateExpr e' p = update (updateExpr' e' p) >> showExpr >> addToUndoList >> restoreValidProofImage
 
-updateExpr'' :: (PreExpr -> PreExpr) -> GState -> GState
-updateExpr'' change gst = case (gProof gst,gExpr gst) of
-                      (Just gpr, Just gexpr) -> upd gpr gexpr 
-                      (Nothing, Just gexpr) ->  gst {gExpr = Just gexpr {fExpr = newExpr gexpr}} 
-                      (_,_) -> gst
-    where upd gpr gexpr = gst { gProof = Just gpr' 
-                              }
+updateExpr'' :: Move -> (PreExpr -> PreExpr) -> GState -> GState
+updateExpr'' g change gst = case (gProof gst,gExpr gst) of
+                                  (Just gpr, Just gexpr) -> upd gpr gexpr 
+                                  (Nothing, Just gexpr) ->  gst {gExpr = Just gexpr {fExpr = newExpr gexpr}} 
+                                  (_,_) -> gst
+    where upd gpr gexpr = gst { gProof = Just gpr' }
                 -- Para actualizar la expresión dentro de la prueba, asumimos que el foco se encuentra
                 -- en la prueba simple que deja a dicha expresión a la derecha.
                 where  gpr' = gpr {proof = fromJust $ up (proof gpr) (newExpr gexpr)}
@@ -211,12 +206,10 @@ updateExpr'' change gst = case (gProof gst,gExpr gst) of
                                         Just pf' -> Just $ goEnd $ goDownL' $ fromJust $ updateMiddleFocus (goUp' $ fromJust $ updateStartFocus pf' f) f
                        gexpr' = gexpr {fExpr = newExpr gexpr}
                      
-          newExpr gexpr = g . first change $ f e
-              where (f,g) = pathExpr gexpr
-                    e = fExpr gexpr
+          newExpr gexpr = first change . g . goTop . fExpr $ gexpr
 
-updateExpr' :: PreExpr -> GState -> GState
-updateExpr' e = updateExpr'' (const e)
+updateExpr' :: PreExpr -> Move -> GState -> GState
+updateExpr' e p = updateExpr'' p (const e)
 
     
 updateProofNoUndo pf = update (updateProof' pf) >>
@@ -234,13 +227,10 @@ updateProof' (p,path) gst = case (gProof gst,gExpr gst) of
                               (_,_) -> gst
     where upd gpr gexpr = gst { gProof = Just gpr { proof = (p,path)
                                                   }
-                              , gExpr = Just $ gexpr { fExpr = fromJust $ getEnd p
-                                                     , pathExpr = (id,id)
-                                                     }
+                              , gExpr = Just $ gexpr { fExpr = fromJust $ getEnd p }
                               }
               where pr = proof gpr
                     e = fExpr gexpr
-                    (f,g) = pathExpr gexpr
         
 -- | Valida la prueba y actualiza el campo "validProof" del ProofState
 updateValidProof :: IState ()
@@ -267,8 +257,7 @@ updateExprState es = update (\gst -> gst {gExpr = Just es}) >> showExpr
 updateSelectedExpr :: IState ()
 updateSelectedExpr = getExprState >>= F.mapM_ 
                        (\es -> getProof >>= \ pf -> 
-                              updateExprState (es {fExpr= fromJust $ getEndFocus pf
-                                                 , pathExpr = (id,id)}))
+                              updateExprState (es {fExpr= fromJust $ getEndFocus pf }))
 
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}
@@ -282,9 +271,7 @@ updateFocus' :: Focus -> GoBack -> GState -> GState
 updateFocus' (e,p) (f,g) gst = case gExpr gst of
                                  Just gexpr -> gst { gExpr = Just $ upd gexpr }
                                  Nothing -> gst
-    where upd gexpr = gexpr { fExpr = (e,p)
-                            , pathExpr = (f,g)
-                            }
+    where upd gexpr = gexpr { fExpr = (e,p) }
 
 
 -- | Actualiza la caja donde tenemos foco de entrada.
@@ -307,9 +294,6 @@ updateExprWidget e = update (\gst -> case gExpr gst of
 updateSymCtrl :: IconView -> IState ()
 updateSymCtrl t = update $ \gst -> gst { symCtrl = t }
 
--- | Actualiza la función de ida-vuelta.
-updatePath :: GoBack -> IState ()
-updatePath p = update $ \gst -> gst { gExpr = Just $ ((fromJust . gExpr) gst) { pathExpr = p}}
 
 updateRelation :: Relation -> IState ()
 updateRelation r = getProof >>= \(p,path) ->
@@ -415,8 +399,8 @@ getRelPF = getStatePart $ fromJust . getRel . fst . proof . fromJust . gProof
 getExpr :: IState Focus
 getExpr = getStatePartDbg "getExpr" $ fExpr . fromJust . gExpr
 
-getFocusedExpr :: IState Focus
-getFocusedExpr = getPath >>= \p -> getExpr >>= return . fst p
+getFocusedExpr :: Move -> IState Focus
+getFocusedExpr p = getExpr >>= return . p . goTop
 
 getFrmCtrl :: IState HBox
 getFrmCtrl = getStatePartDbg "getFrmCtrl" $ formCtrl . fromJust . gExpr
@@ -438,9 +422,6 @@ getSymCtrl = getStatePartDbg "getSymCtrl" symCtrl
 
 getAxiomCtrl :: IState TreeView
 getAxiomCtrl = getStatePartDbg "getAxiomCtrl"  axiomCtrl
-
-getPath :: IState GoBack
-getPath  = getStatePartDbg "getPath" $ pathExpr . fromJust . gExpr
 
 getStatus :: IState (Statusbar, ContextId)
 getStatus  = getStatePartDbg "getStatus" status
@@ -536,13 +517,12 @@ getUndoing = getStatePart undoing
 
 -- -- | Devuelve la expresión que está enfocada en un momento dado.
 getSelectedExpr :: IState Focus
-getSelectedExpr = getProof >>=
-                  return . fromJust . getEndFocus
+getSelectedExpr = getProof >>= return . fromJust . getEndFocus
  
 -- TODO: debemos hacer renombre si la variable está ligada?
 -- | Actualización de la variable de cuantificación.
 --updateQVar :: String -> IState ()
-updateQVar v p = localInPath p $ update (updateExpr'' putVar) 
+updateQVar v p = update (updateExpr'' id putVar) 
     where putVar (Quant q _ r t) = Quant q v r t
           putVar e = e
 
@@ -608,16 +588,14 @@ updateTypeQuantInMainExprTree :: ExprState -> Type -> IState ()
 updateTypeQuantInMainExprTree es qt = getMainExprTree >>= \exprT ->
                                       updateMainExprTree exprT 
                                                 {fExpr = setQuantType 
-                                                            (fExpr exprT)
-                                                            (fst $ pathExpr es)
+                                                            (fExpr exprT) id
                                                             qt}
 
 updateTypeVarQInMainExprTree :: ExprState -> Type -> IState ()
 updateTypeVarQInMainExprTree es qt = getMainExprTree >>= \exprT ->
                                       updateMainExprTree exprT 
                                                 {fExpr = setVarQType 
-                                                            (fExpr exprT)
-                                                            (fst $ pathExpr es)
+                                                            (fExpr exprT) id
                                                             qt}
 
 
@@ -626,10 +604,7 @@ updateTypeVarQInMainExprTree es qt = getMainExprTree >>= \exprT ->
 updateTypeAtomInMainExprTree :: ExprState -> Type -> IState ()
 updateTypeAtomInMainExprTree es t = getMainExprTree >>= \exprT ->
                                     updateMainExprTree exprT 
-                                                {fExpr = setAtomType 
-                                                            (fExpr exprT)
-                                                            (fst $ pathExpr es)
-                                                            t}
+                                                {fExpr = setAtomType (fExpr exprT) id t}
 
 updateExprSelectExpr :: ExprState -> PreExpr -> IState ()
 updateExprSelectExpr es e = update (\gst -> gst {gExpr = Just es'})

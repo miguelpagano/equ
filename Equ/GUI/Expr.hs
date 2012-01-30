@@ -2,15 +2,17 @@
 -- | Aspectos de la interfaz relacionados con expresiones.
 module Equ.GUI.Expr where
 
-import Equ.GUI.Types
+import Equ.GUI.Types hiding (GState)
 import Equ.GUI.Utils
 import Equ.GUI.State
 import Equ.GUI.Settings
 import Equ.GUI.Widget
 import Equ.GUI.TypeTree
+-- import Equ.GUI.TT
 
 import Equ.Expr
-import Equ.PreExpr
+import Equ.PreExpr hiding (goDown,goUp,goDownR)
+import qualified Equ.PreExpr as PE
 import Equ.Syntax
 import Equ.Parser
 import Equ.Types
@@ -19,91 +21,68 @@ import qualified Graphics.UI.Gtk as G (get)
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
 import Graphics.UI.Gtk.Gdk.EventM
 import Data.Text (unpack)
+import Data.Maybe (fromJust)
 import Control.Monad.Trans(lift,liftIO)
 import Control.Monad.State(evalStateT, get)
+import Control.Monad.Reader
 import Control.Arrow((***))
 
 import qualified Data.Foldable as F
 
--- | Devuelve la expresión que se estaba construyendo y empieza
--- una nueva construcción.
-newExpr :: HBox -> IState PreExpr
-newExpr b = clearFocus b >>= \e ->
-            getFormPane >>= 
-            openFormPane b >>
-            return e
 
--- | Comienza la construcción de una nueva expresión.
-clearFocus :: HBox -> IState PreExpr
-clearFocus b = getExpr >>= \e -> 
-               updateFocus emptyExpr (id,id) >> 
-               showExpr >>
-               updateFrmCtrl b >>
-               clearExpr b >>
-               (return . toExpr) e
-
--- | Limpia el contenido de una caja y pone el widget correspondiente
--- para ingresar una nueva expresión en esa caja. En el estado sólo
--- se actualiza la expresión del foco.
-clearExpr :: HBox -> IRG
-clearExpr b = removeAllChildren b >>
-              setupForm b Editable >> 
-              liftIO (widgetShowAll b)
-
-
+fromJust' = maybe (error "localPath...") id
+goDownR = fromJust' . PE.goDownR
+goDown = fromJust' . PE.goDown
+goUp = fromJust' . PE.goUp
 
 -- | Poné en una caja el widget que usamos para construir nuevas
 -- expresiones.
-setupForm ::  HBox -> EditMask -> IRG
-setupForm b emask = io (setToolTip b "Doble click para ingresar una expresión") >>
-                   labelStr emptyLabel >>= \l -> setupFormEv b l holePreExpr emask
+setupForm ::  HBox -> EditMask -> IExpr ()
+setupForm b emask p = io (setToolTip b "Doble click para ingresar una expresión") >>
+                      labelStr emptyLabel >>= \l -> 
+                      setupFormEv b l holePreExpr emask p
 
 -- | Asigna los manejadores de eventos para widgets de expresiones a 
 -- los controles.
-setupFormEv :: WidgetClass w => HBox -> w -> PreExpr -> EditMask -> IRG
-setupFormEv b c e emask = liftIO eventBoxNew >>= \eb ->
-                    addToBox b eb >>
-                    liftIO (set eb [ containerChild := c ]) >>
-                    setupEvents b eb e emask
+setupFormEv :: WidgetClass w => HBox -> w -> PreExpr -> EditMask -> IExpr ()
+setupFormEv b c e emask p = liftIO eventBoxNew >>= \eb ->
+                            addToBox b eb >>
+                            liftIO (set eb [ containerChild := c ]) >>
+                            setupEvents b eb e emask p
 
 -- | Define los manejadores de eventos para una caja que tiene el
 -- widget para construir expresiones.
-setupEvents :: WidgetClass w => HBox -> w -> PreExpr -> EditMask -> IRG
-setupEvents b eb e emask = get >>= \s ->
-                     getPath >>= \p ->
-                     getSymCtrl >>= \sym ->
-                     addHandler eb enterNotifyEvent (highlightBox b hoverBg) >>
-                     addHandler eb leaveNotifyEvent (unlightBox b Nothing) >>
-                     addHandler eb buttonPressEvent (editExpr p b s sym) >>= 
-                     \c -> case emask of
-                                Editable -> return ()
-                                NotEditable -> io $ signalDisconnect c
+setupEvents :: WidgetClass w => HBox -> w -> PreExpr -> EditMask -> IExpr ()
+setupEvents b eb e emask p = get >>= \s ->
+                             getSymCtrl >>= \sym ->
+                             addHandler eb enterNotifyEvent (highlightBox b hoverBg) >>
+                             addHandler eb leaveNotifyEvent (unlightBox b Nothing) >>
+                             addHandler eb buttonPressEvent (editExpr p b s sym) >>= 
+                             \c -> case emask of
+                                    Editable -> return ()
+                                    NotEditable -> io $ signalDisconnect c
 
 -- | Si apretamos el botón derecho, entonces editamos la expresión
 -- enfocada.
-editExpr :: GoBack -> HBox -> GRef -> IconView -> EventM EButton ()
+editExpr :: Move -> HBox -> GRef -> IconView -> EventM EButton ()
 editExpr p b s sym = do LeftButton <- eventButton
                         DoubleClick <- eventClick
                         eventWithState (newFocusToSym b p sym >> 
-                                        updatePath p >> 
-                                        getFocusedExpr >>= 
-                                        flip writeExpr b . Just . fst) s
+                                        getFocusedExpr p >>= \(e,_) ->
+                                        writeExpr (Just e) b p) s
                         liftIO $ widgetShowAll b
                         return ()
 
 -- | Pone una caja de texto para ingresar una expresión; cuando se
 -- activa (presionando Enter) parsea el texto de la caja como una
 -- expresión y construye el widget correspondiente.
-writeExpr :: Maybe PreExpr -> HBox -> IRG
-writeExpr pre box = newEntry >>= \entry -> 
-                    F.mapM_ (exprInEntry entry) pre >>
-                    getPath >>= \p ->
-                    withState (onEntryActivate entry) 
-                                  (localInPath p (setExprFocus entry box)) >>
-                    removeAllChildren box >>
-                    addToBox box entry >>
-                    liftIO (widgetGrabFocus entry >>
-                            widgetShowAll box)
+writeExpr :: Maybe PreExpr -> HBox -> IExpr ()
+writeExpr pre box p = newEntry >>= \entry -> 
+                      F.mapM_ (exprInEntry entry) pre >>
+                       withState (onEntryActivate entry) (setExprFocus entry box p) >>
+                       removeAllChildren box >>
+                       addToBox box entry >>
+                       io (widgetGrabFocus entry >>  widgetShowAll box)
 
 
 -- | Poné la representación de una expresión en una caja de texto.
@@ -111,7 +90,7 @@ writeExpr pre box = newEntry >>= \entry ->
 -- que está siendo construida en algo que el usuario pueda editar 
 -- como una string.
 exprInEntry :: Show t => Entry -> t -> IState ()
-exprInEntry entry = liftIO . entrySetText entry . show
+exprInEntry entry = io . entrySetText entry . show
 
 
 -- TODO: manejar errores del parser.
@@ -119,122 +98,99 @@ exprInEntry entry = liftIO . entrySetText entry . show
 --      faltaría definirle forma y color.
 -- | Dada una caja de texto, parsea el contenido como una expresión
 -- y construye un widget con toda la expresión.
-setExprFocus :: Entry -> HBox -> IRG
-setExprFocus entry box = liftIO (entryGetText entry) >>= \s ->
-                         if null s 
-                         then updateExpr hole >> writeExprWidget hole box
-                         else case parseFromString s of
-                                Right expr -> (updateExpr expr >>
-                                              writeExprWidget expr box)
-                                Left err -> 
-                                    setErrMessage (show err) >>
-                                    liftIO (widgetShowAll box) >>
-                                    return ()
+setExprFocus :: Entry -> HBox -> IExpr ()
+setExprFocus entry box p = io (entryGetText entry) >>= \s ->
+                           if null s 
+                           then updateExpr hole p >> writeExprWidget hole box p
+                           else case parseFromString s of
+                                  Right expr -> updateExpr expr p >>
+                                               writeExprWidget expr box p
+                                  Left err -> 
+                                      setErrMessage (show err) >>
+                                      liftIO (widgetShowAll box) >>
+                                      return ()
     where hole = preExprHole ""
 
-writeExprWidget :: PreExpr -> HBox -> IRG
+writeExprWidget :: PreExpr -> HBox -> IExpr ()
 writeExprWidget = writeExprWidget' Editable
 
-writeExprTreeWidget :: PreExpr -> HBox -> IRG
+writeExprTreeWidget :: PreExpr -> HBox -> IExpr ()
 writeExprTreeWidget =  writeExprWidget' NotEditable
 
-writeExprWidget' :: EditMask -> PreExpr -> HBox -> IRG
-writeExprWidget' emask expr box =  frameExp expr emask >>= \(WExpr box' _) ->
-                                  removeAllChildren box >>
-                                  addToBox box box' >>
-                                  liftIO (widgetShowAll box)
+writeExprWidget' :: EditMask -> PreExpr -> HBox -> IExpr ()
+writeExprWidget' emask expr box p = frameExp expr emask p >>= \(WExpr box' _) ->
+                                    removeAllChildren box >>
+                                    addToBox box box' >>
+                                    io (widgetShowAll box)
 
--- typedExprEdit :: HBox -> IState ()
--- typedExprEdit b = getSelectExpr >>= \res ->
---                     case res of
---                             Nothing -> reportErrWithErrPaned 
---                                                 "Ninguna expresion seleccionada."
---                             Just te -> return (fExpr te) >>= \(expr,_) ->
---                                        newExpr b >>
---                                        updateExpr expr >>
---                                        frameExp expr Editable >>= \(WExpr b' _) ->
---                                        removeAllChildren b >>
---                                        addToBox b b' >>
---                                        liftIO (widgetShowAll b)
 
 -- | Esta es la función principal: dada una expresión, construye un
 -- widget con la expresión.
-frameExp :: PreExpr -> EditMask -> IState (WExpr HBox)
-{-
-Esto es como estaba antes; el problema de esto es que necesitabámos
-otra familia para no poner entry boxes en cada hueco.
+frameExp :: PreExpr -> EditMask -> IExpr (WExpr HBox)
+frameExp e@(PrExHole h) emask p = newBox >>= \box -> setupForm box emask p >>
+                                  return (WExpr box e)
 
-frameExp e@(PrExHole h) = newBox >>= \box ->
-                          newEntry >>= \entry ->
-                          exprInEntry entry h >>
-                          setupFormEv box entry >> 
-                          return (WExpr box e)
--}
-frameExp e@(PrExHole h) emask = newBox >>= \box -> setupForm box emask >>
-                                return (WExpr box e)
+frameExp e@(Var v) emask p = newBox >>= \box ->
+                             (labelStr . repr) v >>= \lblVar ->
+                             setupFormEv box lblVar e emask p >> 
+                             return (WExpr box e)
 
-frameExp e@(Var v) emask = newBox >>= \box ->
-                     (labelStr . repr) v >>= \lblVar ->
-                     setupFormEv box lblVar e emask >> 
-                     return (WExpr box e)
+frameExp e@(Con c) emask p = newBox >>= \box ->
+                             (labelStr . repr) c >>= \lblConst ->
+                             setupFormEv box lblConst e emask p >> 
+                             return (WExpr box e)
 
-frameExp e@(Con c) emask = newBox >>= \box ->
-                     (labelStr . repr) c >>= \lblConst ->
-                     setupFormEv box lblConst e emask >> 
-                     return (WExpr box e)
+frameExp e@(Fun f) emask p = newBox >>= \box ->
+                             (labelStr . repr) f >>= \lblConst ->
+                             setupFormEv box lblConst e emask p >> 
+                             return (WExpr box e)
 
-frameExp e@(Fun f) emask = newBox >>= \box ->
-                     (labelStr . repr) f >>= \lblConst ->
-                     setupFormEv box lblConst e emask >> 
-                     return (WExpr box e)
+frameExp e@(UnOp op e') emask p = newBox >>= \box ->
+                                  localPath (goDown . p) (frameExp e' emask) >>= \(WExpr box' _) ->
+                                  (labelStr . repr) op >>= \lblOp ->
+                                  setupFormEv box lblOp e emask p >>
+                                  setupFormEv box box' e emask p >>
+                                  return (WExpr box e)
 
-frameExp e@(UnOp op e') emask = newBox >>= \box ->
-                          localPath (goDown,goUp) (frameExp e' emask) >>= \(WExpr box' _) ->
-                          (labelStr . repr) op >>= \lblOp ->
-                          setupFormEv box lblOp e emask >>
-                          setupFormEv box box' e emask >>
-                          return (WExpr box e)
+frameExp e@(BinOp op e1 e2) emask p = newBox >>= \box ->
+                                      localPath (goDown . p)  (frameExp e1 emask) >>= \(WExpr box1 _) ->
+                                      localPath (goDownR . p) (frameExp e2 emask) >>= \(WExpr box2 _) ->
+                                      (labelStr . repr) op >>= \lblOp ->
+                                      addToBox box box1 >>
+                                      setupFormEv box lblOp e emask p >>
+                                      addToBox box box2 >>
+                                      return (WExpr box e)
 
-frameExp e@(BinOp op e1 e2) emask = newBox >>= \box ->
-                              localPath (goDown,goUp)  (frameExp e1 emask) >>= \(WExpr box1 _) ->
-                              localPath (goDownR,goUp) (frameExp e2 emask) >>= \(WExpr box2 _) ->
-                              (labelStr . repr) op >>= \lblOp ->
-                              addToBox box box1 >>
-                              setupFormEv box lblOp e emask >>
-                              addToBox box box2 >>
-                              return (WExpr box e)
-
-frameExp e@(App e1 e2) emask = newBox >>= \box ->
-                           localPath (goDown,goUp) (frameExp e1 emask) >>= \(WExpr box1 _) ->
-                           localPath (goDownR,goUp) (frameExp e2 emask) >>= \(WExpr box2 _) ->
-                           labelStr  " " >>= \lblEnd ->
-                           addToBox box box1 >>
-                           setupFormEv box lblEnd e emask >>
-                           addToBox box box2 >>
-                           return (WExpr box e)
+frameExp e@(App e1 e2) emask p = newBox >>= \box ->
+                                 localPath (goDown . p) (frameExp e1 emask) >>= \(WExpr box1 _) ->
+                                 localPath (goDownR . p) (frameExp e2 emask) >>= \(WExpr box2 _) ->
+                                 labelStr  " " >>= \lblEnd ->
+                                 addToBox box box1 >>
+                                 setupFormEv box lblEnd e emask p >>
+                                 addToBox box box2 >>
+                                 return (WExpr box e)
 
 
 -- Este caso tiene un hack medio feo; nos fijamos en el texto de
 -- variable para ver si la construimos nosotros o no.
-frameExp e@(Quant q v e1 e2) emask = newBox >>= \box ->
-                               getPath >>= \p ->
-                               quantVar v p >>= \vbox ->
-                               localPath (goDown,goUp)  (frameExp e1 emask) >>= \(WExpr box1 _) ->
-                               localPath (goDownR,goUp) (frameExp e2 emask) >>= \(WExpr box2 _) ->
-                               labelStr (qInit ++ (unpack $ tRepr q)) >>= \lblQnt ->
-                               labelStr ":" >>= \lblRng ->
-                               labelStr ":" >>= \lblTrm -> 
-                               labelStr qEnd >>= \lblEnd ->
-                               setupFormEv box lblQnt e emask >>
-                               addToBox box vbox  >>
-                               setupFormEv box lblRng e emask >>
-                               addToBox box box1 >>
-                               setupFormEv box lblTrm e emask >>
-                               addToBox box box2 >>
-                               setupFormEv box lblEnd e emask >>
-                               return (WExpr box e)
+frameExp e@(Quant q v e1 e2) emask p = newBox >>= \box ->
+                                       quantVar v p >>= \vbox ->
+                                       localPath (goDown . p)  (frameExp e1 emask) >>= \(WExpr box1 _) ->
+                                       localPath (goDownR . p) (frameExp e2 emask) >>= \(WExpr box2 _) ->
+                                       labelStr (qInit ++ (unpack $ tRepr q)) >>= \lblQnt ->
+                                       labelStr ":" >>= \lblRng ->
+                                       labelStr ":" >>= \lblTrm -> 
+                                       labelStr qEnd >>= \lblEnd ->
+                                       setupFormEv box lblQnt e emask p >>
+                                       addToBox box vbox  >>
+                                       setupFormEv box lblRng e emask p >>
+                                       addToBox box box1 >>
+                                       setupFormEv box lblTrm e emask p >>
+                                       addToBox box box2 >>
+                                       setupFormEv box lblEnd e emask p >>
+                                       return (WExpr box e)
     where 
-        quantVar :: Variable -> GoBack -> IState HBox
+        quantVar :: Variable -> Move -> IState HBox
         quantVar v p = newBox >>= \box ->
                        if isPlaceHolderVar v
                        then entryvar box p >> return box
@@ -278,61 +234,62 @@ frameExp e@(Quant q v e1 e2) emask = newBox >>= \box ->
         qEnd :: String
         qEnd = quantEnd equLang
 
-frameExp e@(Paren e') emask = newBox >>= \box ->
-                        localPath (goDown,goUp) (frameExp e' emask) >>= \(WExpr box1 _) ->
-                        labelStr "[" >>= \lblOpen ->
-                        labelStr "]" >>= \lblClose -> 
-                        setupFormEv box lblOpen e emask >>
-                        addToBox box box1 >>
-                        setupFormEv box  lblClose e emask >>
-                        return (WExpr box e)
+frameExp e@(Paren e') emask p = newBox >>= \box ->
+                                localPath goDown (frameExp e' emask) >>= \(WExpr box1 _) ->
+                                labelStr "[" >>= \lblOpen ->
+                                labelStr "]" >>= \lblClose -> 
+                                setupFormEv box lblOpen e emask p >>
+                                addToBox box box1 >>
+                                setupFormEv box  lblClose e emask p >>
+                                return (WExpr box e)
 
 {- Las siguientes funciones construyen expresiones con huecos a partir de
 un constructor de la sintáxis. -}
 
 -- | Operadores.
-writeOperator :: Operator -> HBox -> IRG
-writeOperator o box = expOp o >>= \(WExpr b e) ->
-                      updateExpr e >>
-                      addToBox box b >>
-                      liftIO (widgetShowAll box)
-
-    where expOp o = case opNotationTy o of
-                      NPrefix -> frameExp (UnOp o holePreExpr) Editable
-                      NPostfix -> frameExp (UnOp o holePreExpr) Editable
-                      NInfix -> frameExp (BinOp o holePreExpr holePreExpr) Editable
-
--- | Cuantificadores.
-writeQuantifier :: Quantifier -> HBox -> IRG
-writeQuantifier q box = frameExp (Quant q 
-                                  placeHolderVar
-                                  (preExprHole "")
-                                  (preExprHole "")) Editable >>= \(WExpr b e) ->
-                        updateExpr e >>
+writeOperator :: Operator -> HBox -> IExpr ()
+writeOperator o box p = expOp o >>= \(WExpr b e) ->
+                        updateExpr e p >>
                         addToBox box b >>
                         liftIO (widgetShowAll box)
 
+    where expOp o = case opNotationTy o of
+                      NPrefix -> frameExp (UnOp o holePreExpr) Editable p
+                      NPostfix -> frameExp (UnOp o holePreExpr) Editable p
+                      NInfix -> frameExp (BinOp o holePreExpr holePreExpr) Editable p
+
+-- | Cuantificadores.
+writeQuantifier :: Quantifier -> HBox -> IExpr ()
+writeQuantifier q box p = frameExp (Quant q 
+                                    placeHolderVar
+                                    (preExprHole "")
+                                    (preExprHole "")) Editable p >>= \(WExpr b e) ->
+                          updateExpr e p >>
+                          addToBox box b >>
+                          liftIO (widgetShowAll box)
+
 -- | Constantes.
-writeConstant :: Constant -> HBox -> IRG
-writeConstant c box = updateExpr (Con c) >>
-                      (labelStr . unpack . tRepr) c >>= \label ->
-                      setupFormEv box label (Con c) Editable >>
-                      liftIO (widgetShowAll box)
+writeConstant :: Constant -> HBox -> IExpr ()
+writeConstant c box p = updateExpr (Con c) p >>
+                        (labelStr . unpack . tRepr) c >>= \label ->
+                        setupFormEv box label (Con c) Editable p >>
+                        liftIO (widgetShowAll box)
+
 
 class ExpWriter s where
-    writeExp :: s -> HBox -> IRG
+    writeExp :: s -> HBox -> IExpr ()
 
 instance ExpWriter Quantifier where
-    writeExp s cont = removeAllChildren cont >> 
-                      writeQuantifier s cont 
+    writeExp s cont p = removeAllChildren cont >> 
+                        writeQuantifier s cont p
     
 instance ExpWriter Operator where
-    writeExp s cont = removeAllChildren cont >>
-                      writeOperator s cont
+    writeExp s cont p = removeAllChildren cont >>
+                        writeOperator s cont p
 
 instance ExpWriter Constant where
-    writeExp s cont = removeAllChildren cont >>
-                      writeConstant s cont 
+    writeExp s cont p = removeAllChildren cont >>
+                        writeConstant s cont p
 
 popupWin :: Window -> IO Window
 popupWin w = windowNew >>= \pop ->
@@ -349,24 +306,46 @@ popupWin w = windowNew >>= \pop ->
 moveWin w = windowGetPosition w >>= \(x,y) ->
             windowMove w (x+64) (y+64)
 
-typeTreeWindow :: IState Focus -> (Focus -> IState ()) -> Window -> ExprWidget -> IState Window
-typeTreeWindow isf fmp w expr_w = io (popupWin w) >>= \pop -> 
+typeTreeWindow :: IState Focus -> (Focus -> IState ()) -> Window -> ExprWidget -> IExpr Window
+typeTreeWindow isf fmp w expr_w p = io (popupWin w) >>= \pop -> 
                        io (vBoxNew False 0) >>= \bTree -> 
                        io (hBoxNew False 0) >>= \we -> 
                        isf >>= \f ->
-                       writeExprTreeWidget (fst f) we >>
-                       buildTreeExpr isf fmp bTree we expr_w >>
+                       (io . debug . ("TTree: " ++ ) . show . p . goTop) f >>
+                       writeExprTreeWidget (fst f) we p >>
+                       buildTreeExpr isf fmp bTree we expr_w p >>
                        io (containerAdd pop bTree) >>
                        return pop
 
-makeOptionEvent :: Window -> String -> (ToggleButton -> Window -> IState ()) -> IState ToggleButton
-makeOptionEvent win s f = io makeButtonBox >>= \tb -> f tb win >> return tb
+makeOptionEvent :: Window -> String -> (ToggleButton -> Window -> IExpr ()) -> IExpr ToggleButton
+makeOptionEvent win s f p = io makeButtonBox >>= \tb -> f tb win p >> return tb
     where
         makeButtonBox :: IO ToggleButton
         makeButtonBox = toggleButtonNew >>= \tb ->
                         imageNewFromStock s IconSizeMenu >>=
                         containerAdd tb >>
                         return tb
+
+configAnnotTB :: (String -> IO ()) -> ToggleButton -> Window -> IExpr ()
+configAnnotTB act tb w p = io $ actTBOn tb w (io . annotWindow act)
+
+-- configTT :: ToggleButton -> Window -> IExpr ()
+-- configTT tb w p = getExpr >>= \(e,_) -> get >>= \s -> io (actTBOn tb w (io . showTT p s))
+--     where showTT p s w = popupWin w >>= \pop ->
+--                          hBoxNew False 1 >>= \b ->
+--                          containerAdd pop b >>
+--                          evalStateT (getExpr >>= \e ->
+--                                      treeExp' (fst e) p) s >>= \ttBox ->
+--                          containerAdd b ttBox >>
+--                          return pop                     
+                    
+                 
+configTypeTreeTB :: IState Focus -> (Focus -> IState ()) -> ExprWidget -> ToggleButton ->  Window -> 
+                    IExpr ()
+configTypeTreeTB isf fmp expr_w tb w p = get >>= \s ->
+                            io (actTBOn tb w $ \w' -> evalStateT (typeTreeWindow isf fmp w' expr_w p) s) >>
+                            return ()
+
 
 -- | El primer argumento indica la acción a realizar con el contenido del 
 -- buffer al momento de cerrar el popup.
@@ -381,14 +360,6 @@ annotWindow act w = popupWin w >>= \pop ->
                                            act)) >>
                     return pop
 
-configAnnotTB :: (String -> IO ()) -> ToggleButton -> Window -> IState ()
-configAnnotTB act tb w = io $ actTBOn tb w (io . annotWindow act)
-               
-configTypeTreeTB :: IState Focus -> (Focus -> IState ()) -> ExprWidget -> ToggleButton ->  Window -> 
-                    IState ()
-configTypeTreeTB isf fmp expr_w tb w= get >>= \s ->
-                            io (actTBOn tb w $ \w' -> evalStateT (typeTreeWindow isf fmp w' expr_w) s) >>
-                            return ()
 
 -- | Define la acción para cuando no está activado.
 actTBOn :: ToggleButton -> Window -> (Window -> IO Window) -> IO ()
@@ -419,8 +390,8 @@ annotBuffer = textViewNew >>= \v ->
 
 
 -- Funciones para la expresiones inicial.
-createInitExprWidget :: PreExpr -> IState (HBox,HBox)
-createInitExprWidget expr  = do
+createInitExprWidget :: PreExpr -> IExpr (HBox,HBox)
+createInitExprWidget expr p = do
   
     boxExprWidget <- io $ hBoxNew False 2
     
@@ -435,30 +406,31 @@ createInitExprWidget expr  = do
                                   , choicesButton = Nothing
                                   }
     
-    eventsInitExprWidget expr expr_w
+    eventsInitExprWidget expr expr_w p
     
-    writeExprWidget expr formBox
+    writeExprWidget expr formBox p
     
     return (boxExprWidget,formBox)
---     
+
+
 -- | Setea los eventos de un widget de expresion. La funcion f es la
 -- que se utiliza para actualizar la expresion dentro de la prueba
-eventsInitExprWidget :: PreExpr -> ExprWidget ->IState ()
-eventsInitExprWidget expr expr_w =
+eventsInitExprWidget :: PreExpr -> ExprWidget -> IExpr ()
+eventsInitExprWidget expr expr_w p =
     get >>= \s ->
     getWindow >>= \win ->
     setupOptionExprWidget win expr >>
-    setupForm (formBox expr_w) Editable
+    setupForm (formBox expr_w) Editable p
     
-    where setupOptionExprWidget :: Window -> PreExpr-> IState ()
+    where setupOptionExprWidget :: Window -> PreExpr -> IState ()
           setupOptionExprWidget win e = do
 
             exprButtons <- io hButtonBoxNew
 
-            bAnot <- makeOptionEvent win stockEdit (configAnnotTB putStrLn)
+            bAnot <- makeOptionEvent win stockEdit (configAnnotTB putStrLn) p
             io $ setToolTip bAnot "Anotaciones"
-            bT    <- makeOptionEvent win stockIndex (configTypeTreeTB (getExpr)
-                                            (\(e,_) -> updateExpr e) expr_w)
+            bT    <- makeOptionEvent win stockIndex 
+                      (configTypeTreeTB (getExpr) (\(e,_) -> updateExpr e p) expr_w) p
             io $ setToolTip bT "Árbol de tipado"
             bInfo <- makeLayoutTypeCheckStatus
 
@@ -473,17 +445,17 @@ eventsInitExprWidget expr expr_w =
           makeLayoutTypeCheckStatus = io $ imageNewFromStock stockInfo IconSizeMenu
 
 
-loadExpr :: HBox -> PreExpr -> IState HBox
-loadExpr box expr = do
+loadExpr :: HBox -> PreExpr -> IExpr HBox 
+loadExpr box expr p = do
     removeAllChildren box
-    (exprBox,formBox) <- createInitExprWidget expr
+    (exprBox,formBox) <- createInitExprWidget expr p
     io $ boxPackStart box exprBox PackNatural 2
     return formBox
             
-reloadExpr :: HBox -> PreExpr -> IState ()
-reloadExpr formBox expr = removeAllChildren formBox >>
-                          setupForm formBox Editable >>
-                          writeExprWidget expr formBox  
+reloadExpr :: HBox -> PreExpr -> IExpr ()
+reloadExpr formBox expr p = removeAllChildren formBox >>
+                            setupForm formBox Editable p >>
+                            writeExprWidget expr formBox p
 
                         
 newExprState :: Focus -> ExprWidget -> HBox -> IState ExprState
@@ -491,7 +463,6 @@ newExprState expr expr_w hbox2 = do
     return eState
     where 
         eState = ExprState { fExpr = expr
-                           , pathExpr = (id,id)
                            , fType = TyUnknown
                            , eventType = hbox2
                            , exprWidget = expr_w
@@ -510,3 +481,4 @@ initExprState expr = do
                     }
   expr' <- newExprState expr expr_w hbox2
   updateExprState expr' 
+

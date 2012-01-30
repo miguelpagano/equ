@@ -1,40 +1,17 @@
+-- | Manipulación de rehacer y deshacer acciones.
 module Equ.GUI.Undo where
 
 import Equ.GUI.Types
 import Equ.GUI.State
 import Equ.GUI.Utils
 import Equ.GUI.Widget
-import Equ.GUI.Settings
 import Equ.GUI.Expr
-import Equ.GUI.SymbolList
-import Equ.GUI.TruthList
 import Equ.GUI.Proof 
-import Equ.GUI.TypeTree
-import Equ.GUI.Truth
 
-import Equ.PreExpr(toFocus, toFocuses, agrupOp, agrupNotOp, opOfFocus, 
-                   holePreExpr,PreExpr, toExpr, emptyExpr)
+import Equ.PreExpr(toExpr)
 import Equ.Proof
-import Equ.Parser
-import Equ.Theories
-
-import Equ.Rule (relEq,relEquiv)
-
-import qualified Graphics.UI.Gtk as G
-import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
-import Graphics.UI.Gtk.Gdk.Events 
-import Graphics.UI.Gtk.Glade
-import Data.Text (pack,unpack)
-
-import Data.Reference
-
-import Control.Monad.State (evalStateT,get)
-import Control.Monad(liftM, when)
-import Control.Monad.Trans(liftIO)
 
 import qualified Data.Foldable as F (forM_)
-
-import Data.Map (fromList)
 
 
 undoEvent centralBox truthBox exprBox = 
@@ -62,7 +39,7 @@ redoEvent centralBox truthBox exprBox =
     io (debug "Redo event") >>
     getRedoList >>= \rlist ->
     case rlist of
-      [] -> liftIO (debug "lista redo vacia") >> return ()
+      [] -> io (debug "lista redo vacia") >> return ()
       p:ps -> case (urProof p) of
                Nothing -> F.forM_ (urExpr p) $ \f_expr ->
                          redoAction (recreateExpr centralBox exprBox f_expr) p ps
@@ -74,8 +51,9 @@ redoAction action p ps = setNoUndoing >>
                          addToUndoListFromRedo p >>
                          setUndoing
 
+-- TODO: Tiene sentido que estas funciones estén acá?
 recreateProof pf cbox tbox ebox = createNewProof (Just $ toProof pf) cbox tbox ebox
 
 recreateExpr cbox ebox expr = removeAllChildren cbox >>
-                                      initExprState expr >>
-                                      reloadExpr ebox (toExpr expr)
+                              initExprState expr >>
+                              reloadExpr ebox (toExpr expr) id
