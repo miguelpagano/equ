@@ -397,13 +397,13 @@ eventsExprWidget expr ext_box w moveFocus top_box =
           setupFocusEvent :: GRef -> ToggleButton -> IO (ConnectId Button)
           setupFocusEvent s tbT = do
                 boxPackStart ext_box hb PackGrow 0
-                hb `on` buttonReleaseEvent $ do
+                hb `on` buttonPressEvent $ do
                     -- movemos el proofFocus hasta donde está esta expresión.
                     eventWithState (updateExprWidget w >>
                                     changeProofFocus' >>
                                     io (set tbT [toggleButtonActive := False])) s
                     io $ widgetShowAll hb
-                    return False
+                    return True
                     
                 (fromJust $ choicesButton w) `on` buttonPressEvent $ tryEvent $
                             eventWithState (changeProofFocus' >>

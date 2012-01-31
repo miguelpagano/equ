@@ -6,7 +6,7 @@ module Equ.Proof (newProof
                  , newProofWithoutEnd
                  , proofFromTruth
                  , holeProof, emptyProof, updateStart, updateEnd, updateRel
-                 , validateProof, toHoleProof
+                 , validateProof, toHoleProof, validateProofFocus
                  , simpleProof, addEmptyStep, updateStartFocus, updateEndFocus
                  , updateMiddleFocus, getStartFocus, getEndFocus, getBasicFocus
                  , possibleExpr
@@ -19,6 +19,7 @@ module Equ.Proof (newProof
                  -- * Pruebas
                  -- $proofs
                  , Proof(..)
+                 , Proof'(..)
                  --, Basic(..)
                  -- * Ejemplos
                  -- $samples
@@ -119,6 +120,9 @@ proofFromTruth f f' r t fMove = case partitionEithers $
                           (er, []) -> Left $ head er
 
 
+validateProofFocus :: ProofFocus -> PM Proof
+validateProofFocus (pr,path) = validateProof pr
+                          
 validateProof :: Proof -> PM Proof
 validateProof p = validateProof' p goTop'
                           

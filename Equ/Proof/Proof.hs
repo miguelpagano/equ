@@ -12,6 +12,7 @@ module Equ.Proof.Proof (
                  -- * Pruebas
                  -- $proofs
                  , Proof(..)
+                 , Proof'(..)
                  , Ctx 
                  -- * Ejemplos
                  -- $samples
@@ -361,17 +362,34 @@ theoFocus = Focus ctx rel (e,p) (e',p') prf
 
 -}
 
-data Proof where
-    Reflex :: Proof
-    Hole   :: Ctx -> Relation -> Focus -> Focus -> Proof
-    Simple :: Ctx -> Relation -> Focus -> Focus -> Basic -> Proof
-    Trans  :: Ctx -> Relation -> Focus -> Focus -> Focus -> Proof -> Proof -> Proof
-    Cases  :: Ctx -> Relation -> Focus -> Focus -> Focus -> [(Focus,Proof)] -> Proof
-    Ind    :: Ctx -> Relation -> Focus -> Focus -> [Focus] -> [([Focus],Proof)] -> Proof
-    Deduc  :: Ctx -> Focus -> Focus -> Proof -> Proof
-    Focus  :: Ctx -> Relation -> Focus -> Focus -> Proof -> Proof
+data Proof' ctxTy relTy proofTy exprTy where
+    Reflex :: Proof' ctxTy relTy proofTy exprTy
+    Hole   :: ctxTy -> relTy -> exprTy -> exprTy -> Proof' ctxTy relTy proofTy exprTy
+    Simple :: ctxTy -> relTy -> exprTy -> exprTy -> proofTy ->
+              Proof' ctxTy relTy proofTy exprTy
+    Trans  :: ctxTy -> relTy -> exprTy -> exprTy -> exprTy -> 
+              Proof' ctxTy relTy proofTy exprTy -> Proof' ctxTy relTy proofTy exprTy ->
+              Proof' ctxTy relTy proofTy exprTy
+    Cases  :: ctxTy -> relTy -> exprTy -> exprTy -> exprTy -> 
+              [(exprTy,Proof' ctxTy relTy proofTy exprTy)] -> 
+              Proof' ctxTy relTy proofTy exprTy
+    Ind    :: ctxTy -> relTy -> exprTy -> exprTy -> [exprTy] -> 
+              [([exprTy],Proof' ctxTy relTy proofTy exprTy)] -> 
+              Proof' ctxTy relTy proofTy exprTy
+    Deduc  :: ctxTy -> exprTy -> exprTy -> 
+              Proof' ctxTy relTy proofTy exprTy -> 
+              Proof' ctxTy relTy proofTy exprTy
+    Focus  :: ctxTy -> relTy -> exprTy -> exprTy -> 
+              Proof' ctxTy relTy proofTy exprTy ->
+              Proof' ctxTy relTy proofTy exprTy
 
-    deriving Eq
+    --deriving Eq
+    
+type Proof = Proof' Ctx Relation Basic Focus
+
+instance Eq Proof where
+    p == q = True
+
 {-    
 instance Eq Proof where
     Reflex == Reflex = True
