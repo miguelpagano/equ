@@ -8,7 +8,7 @@ import Equ.Proof.Proof (Ctx)
 
 import Graphics.UI.Gtk ( WidgetClass, Statusbar, ContextId, HBox, TreeView
                        , EventBox, Label, Button, Notebook, HPaned, IconView
-                       , Window, Image
+                       , Window, Image, ToggleButton
                        )
 
 import Equ.Types
@@ -98,7 +98,11 @@ instance Reference IORef IState where
 
 data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , formBox :: HBox      -- ^ Box donde se ingresa la formula
-                             , choicesButton :: Maybe Button -- ^ Botón para ver las expresiones que matchean en la prueba (la expresion inicial no lo tiene)
+                             , choicesButton :: Maybe Button -- ^ Botón para ver las expresiones que matchean 
+                                                            -- en la prueba (la expresion inicial no lo tiene).
+                             , annotButton :: ToggleButton -- ^ Botón para anotaciones.
+                             , typeButton  :: ToggleButton -- ^ Botón para árbol de tipado.
+                             , imgStatus   :: Image      -- ^ Imagen para estado.
                              }
 
 type IExpr a = Move -> IState a

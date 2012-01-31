@@ -311,35 +311,22 @@ typeTreeWindow isf fmp w expr_w p = io (popupWin w) >>= \pop ->
                        io (vBoxNew False 0) >>= \bTree -> 
                        io (hBoxNew False 0) >>= \we -> 
                        isf >>= \f ->
-                       (io . debug . ("TTree: " ++ ) . show . p . goTop) f >>
                        writeExprTreeWidget (fst f) we p >>
                        buildTreeExpr isf fmp bTree we expr_w p >>
                        io (containerAdd pop bTree) >>
                        return pop
 
-makeOptionEvent :: Window -> String -> (ToggleButton -> Window -> IExpr ()) -> IExpr ToggleButton
-makeOptionEvent win s f p = io makeButtonBox >>= \tb -> f tb win p >> return tb
+makeOptionEvent :: Window -> ToggleButton -> String -> (ToggleButton -> Window -> IExpr ()) -> IExpr ()
+makeOptionEvent  win tb s f p = io makeButtonBox >> f tb win p 
     where
         makeButtonBox :: IO ToggleButton
-        makeButtonBox = toggleButtonNew >>= \tb ->
-                        imageNewFromStock s IconSizeMenu >>=
+        makeButtonBox = imageNewFromStock s IconSizeMenu >>=
                         containerAdd tb >>
                         return tb
 
 configAnnotTB :: (String -> IO ()) -> ToggleButton -> Window -> IExpr ()
-configAnnotTB act tb w p = io $ actTBOn tb w (io . annotWindow act)
+configAnnotTB act tb w p = io $ actTBOn tb w (io . annotWindow act)                    
 
--- configTT :: ToggleButton -> Window -> IExpr ()
--- configTT tb w p = getExpr >>= \(e,_) -> get >>= \s -> io (actTBOn tb w (io . showTT p s))
---     where showTT p s w = popupWin w >>= \pop ->
---                          hBoxNew False 1 >>= \b ->
---                          containerAdd pop b >>
---                          evalStateT (getExpr >>= \e ->
---                                      treeExp' (fst e) p) s >>= \ttBox ->
---                          containerAdd b ttBox >>
---                          return pop                     
-                    
-                 
 configTypeTreeTB :: IState Focus -> (Focus -> IState ()) -> ExprWidget -> ToggleButton ->  Window -> 
                     IExpr ()
 configTypeTreeTB isf fmp expr_w tb w p = get >>= \s ->
@@ -388,62 +375,76 @@ annotBuffer = textViewNew >>= \v ->
              set v [widgetWidthRequest := 500, widgetHeightRequest := 300] >>
              return v
 
+-- | Crea un widget para una expresión. El argumento indica si es inicial.
+-- En ese caso no se crea el botón para ver posibles reescrituras.
+createExprWidget :: Bool -> IState ExprWidget
+createExprWidget initial = do
+    boxExpr <- io $ hBoxNew False 2    
+    formBox <- io $ hBoxNew False 2
+
+    choices <- if not initial
+              then do
+                exprChoices <- io $ makeButtonWithImage stockIndex
+                io $ setToolTip exprChoices "Expresiones posibles"
+                return . Just $ exprChoices
+              else return Nothing
+    
+    exprButtons <- io hButtonBoxNew
+    bAnnot <- io toggleButtonNew
+    bType <- io toggleButtonNew
+    bInfo <- exprStatus
+
+    io (containerAdd exprButtons bAnnot  >>
+        containerAdd exprButtons bType >>
+        containerAdd exprButtons bInfo >>
+        boxPackStart boxExpr exprButtons PackNatural 10 >>
+        boxPackStart boxExpr formBox PackGrow 1 >>
+       --        widgetSetSizeRequest boxExpr (-1) 50
+        return ()
+       )
+           
+    return $ ExprWidget { formBox = formBox
+                        , extBox = boxExpr
+                        , choicesButton = choices
+                        , annotButton = bAnnot
+                        , typeButton = bType
+                        , imgStatus = bInfo
+                        }
+
+    where exprStatus :: IState Image
+          exprStatus = io $ imageNewFromStock stockInfo IconSizeMenu
 
 -- Funciones para la expresiones inicial.
 createInitExprWidget :: PreExpr -> IExpr (HBox,HBox)
 createInitExprWidget expr p = do
   
-    boxExprWidget <- io $ hBoxNew False 2
+    expr_w <- eventsInitExprWidget expr p
+
+    writeExprWidget expr (formBox expr_w) p    
+
+    return (extBox expr_w , formBox expr_w)
+
+-- | Setea los eventos del widget de la expresion inicial.
+eventsInitExprWidget :: PreExpr -> IExpr ExprWidget 
+eventsInitExprWidget expr p = do
+    s <- get
+    win <- getWindow
+
+    expr_w <- createExprWidget False
+
+    setupOptionExprWidget win expr_w p
+
+    setupForm (formBox expr_w) Editable p 
+    io $ widgetShowAll (extBox expr_w)
+    return expr_w
+
+setupOptionExprWidget :: Window -> ExprWidget -> IExpr ()
+setupOptionExprWidget win expr_w p = do
+  makeOptionEvent win (annotButton expr_w) stockEdit (configAnnotTB putStrLn) p
+  io $ setToolTip (annotButton expr_w) "Anotaciones"
+  makeOptionEvent win (typeButton expr_w) stockIndex (configTypeTreeTB (getExpr) (\(e,_) -> updateExpr e p) expr_w) p
+  io $ setToolTip (typeButton expr_w) "Árbol de tipado"
     
-    formBox <- io $ hBoxNew False 2
-    --expr_choices <- io $ makeButtonWithImage stockIndex
-    --io $ setToolTip expr_choices "Expresiones posibles"
-    --button_box <- io $ hButtonBoxNew
-    io (widgetSetSizeRequest boxExprWidget (-1) 50)
-    
-    expr_w <- return $ ExprWidget { formBox = formBox
-                                  , extBox = boxExprWidget
-                                  , choicesButton = Nothing
-                                  }
-    
-    eventsInitExprWidget expr expr_w p
-    
-    writeExprWidget expr formBox p
-    
-    return (boxExprWidget,formBox)
-
-
--- | Setea los eventos de un widget de expresion. La funcion f es la
--- que se utiliza para actualizar la expresion dentro de la prueba
-eventsInitExprWidget :: PreExpr -> ExprWidget -> IExpr ()
-eventsInitExprWidget expr expr_w p =
-    get >>= \s ->
-    getWindow >>= \win ->
-    setupOptionExprWidget win expr >>
-    setupForm (formBox expr_w) Editable p
-    
-    where setupOptionExprWidget :: Window -> PreExpr -> IState ()
-          setupOptionExprWidget win e = do
-
-            exprButtons <- io hButtonBoxNew
-
-            bAnot <- makeOptionEvent win stockEdit (configAnnotTB putStrLn) p
-            io $ setToolTip bAnot "Anotaciones"
-            bT    <- makeOptionEvent win stockIndex 
-                      (configTypeTreeTB (getExpr) (\(e,_) -> updateExpr e p) expr_w) p
-            io $ setToolTip bT "Árbol de tipado"
-            bInfo <- makeLayoutTypeCheckStatus
-
-            io (containerAdd exprButtons bAnot  >>
-                containerAdd exprButtons bT >>
-                containerAdd exprButtons bInfo >>
-                boxPackStart (extBox expr_w) exprButtons PackNatural 10 >>
-                boxPackStart (extBox expr_w) (formBox expr_w) PackGrow 1 >>
-                widgetShowAll (extBox expr_w))
-
-          makeLayoutTypeCheckStatus :: IState Image
-          makeLayoutTypeCheckStatus = io $ imageNewFromStock stockInfo IconSizeMenu
-
 
 loadExpr :: HBox -> PreExpr -> IExpr HBox 
 loadExpr box expr p = do
@@ -459,26 +460,18 @@ reloadExpr formBox expr p = removeAllChildren formBox >>
 
                         
 newExprState :: Focus -> ExprWidget -> HBox -> IState ExprState
-newExprState expr expr_w hbox2 = do
-    return eState
-    where 
-        eState = ExprState { fExpr = expr
-                           , fType = TyUnknown
-                           , eventType = hbox2
-                           , exprWidget = expr_w
-                           , formCtrl = formBox expr_w
-        }
-                            
+newExprState expr expr_w hbox2 = return $
+                                 ExprState { fExpr = expr
+                                           , fType = TyUnknown
+                                           , eventType = hbox2
+                                           , exprWidget = expr_w
+                                           , formCtrl = formBox expr_w
+                                           }                                 
 
 initExprState expr = do 
   hbox2 <- io $ hBoxNew False 2
+  expr_w <- createExprWidget True
   -- Ponemos un ExprWidget sin sentido para iniciar el estado. ESTO PODRIA REVISARSE
-  expr_empty_box1 <- io $ hBoxNew False 2
-  expr_empty_box2 <- io $ hBoxNew False 2
-  expr_w <- return ExprWidget { extBox = expr_empty_box1
-                              , formBox = expr_empty_box2
-                              , choicesButton = Nothing
-                    }
   expr' <- newExprState expr expr_w hbox2
   updateExprState expr' 
 

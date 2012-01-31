@@ -110,14 +110,14 @@ main = do
     sListStore <- liftIO $ setupSymbolList symbolList 
     setupScrolledWindowSymbolList swSymbolList symGoLeftEb symGoRightEb gRef
     aListStore <- liftIO $ setupTruthList [] axiomList 
-    
-    -- expresion inicial
-    evalStateT (initExprState emptyExpr) gRef
-    formBox <- evalStateT (loadExpr initExprBox holePreExpr id) gRef
-    
+        
     -- Define la misma acción para el boton que para el menu
     -- convención: "nombreItem" (para item de menu) y "nombreTool" (para botón)
     getAndSetAction xml "saveHypothesis" (addHypothesisUI aListStore) gRef
+
+    -- expresion inicial
+    evalStateT (initExprState emptyExpr) gRef
+    formBox <- evalStateT (loadExpr initExprBox holePreExpr id) gRef
 
     setActionMenuTool itemNewProof newProofTool (createNewProof Nothing centralBox truthBox formBox) gRef    
 
@@ -135,6 +135,7 @@ main = do
 
 
     onActivateLeaf itemLoadProof $ dialogLoadProof gRef centralBox truthBox formBox
+
 
     
     flip evalStateT gRef $ do
