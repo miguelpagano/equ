@@ -94,23 +94,27 @@ main = do
     imageValidProof <- imageNewFromStock iconUnknownProof IconSizeSmallToolbar
     boxPackStart boxValidIcon  imageValidProof PackNatural 2
     
+    swSymbolList <- xmlGetWidget xml castToScrolledWindow "swSymbolList"
+    symGoLeftEb <- xmlGetWidget xml castToEventBox "symGoLeftEb"
+    symGoRightEb <- xmlGetWidget xml castToEventBox "symGoRightEb"
+    
     truthBox <- io $ vBoxNew False 2
 
-    windowMaximize window
+    --windowMaximize window
 
     gRef <- newRef $ initialState window symbolList axiomList faces statusBar ctxExpr imageValidProof
 
     onActivateLeaf quitButton $ quitAction window
     onDestroy window mainQuit
 
-    sListStore <- liftIO $ setupSymbolList symbolList
+    sListStore <- liftIO $ setupSymbolList symbolList 
+    setupScrolledWindowSymbolList swSymbolList symGoLeftEb symGoRightEb gRef
     aListStore <- liftIO $ setupTruthList [] axiomList 
-
+    
     -- expresion inicial
     evalStateT (initExprState emptyExpr) gRef
     formBox <- evalStateT (loadExpr initExprBox holePreExpr) gRef
     
-
     -- Define la misma acción para el boton que para el menu
     -- convención: "nombreItem" (para item de menu) y "nombreTool" (para botón)
     getAndSetAction xml "saveHypothesis" (addHypothesisUI aListStore) gRef
