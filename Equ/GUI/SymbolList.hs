@@ -4,6 +4,7 @@ module Equ.GUI.SymbolList where
 import Equ.GUI.Types
 import Equ.GUI.State
 import Equ.GUI.Expr
+import Equ.GUI.Settings
 import Equ.GUI.Utils
 
 import Equ.Theories
@@ -45,16 +46,41 @@ setupSymbolList tv =
      set tv [ iconViewModel := Just list
             , iconViewPixbufColumn := pcol
             , iconViewTextColumn := scol
-            , iconViewColumns := -1
+            , iconViewColumns := 24
             , iconViewRowSpacing := 0
             , iconViewMargin := 0] >>
      widgetShowAll tv >>
      return list
 
+
 eventsSymbolList :: IconView -> ListStore SynItem -> IExpr ()
 eventsSymbolList tv list p = get >>= \s ->                           
                              liftIO (tv `on` itemActivated $ flip evalStateT s . (flip (oneSelection list) p)) >>
                              return ()
+
+setupScrolledWindowSymbolList :: ScrolledWindow -> EventBox -> EventBox -> 
+                                 GRef -> IO ()
+setupScrolledWindowSymbolList sw goL goR s = do
+            (Just  swslH) <- scrolledWindowGetHScrollbar sw
+            adj <- rangeGetAdjustment swslH
+            setupScrollWithArrow adj goR scrollInc s
+            setupScrollWithArrow adj goL scrollDec s
+            widgetSetChildVisible swslH False
+            widgetHide swslH
+
+setupScrollWithArrow :: Adjustment -> EventBox -> Double -> 
+                        GRef -> IO (ConnectId EventBox)
+setupScrollWithArrow adj go inc s = 
+        go `on` buttonPressEvent $ tryEvent $ 
+            flip eventWithState s (do 
+                                   val <- io $ adjustmentGetValue adj
+                                   upper <- io $ adjustmentGetUpper adj
+                                   pageSize <- io $ adjustmentGetPageSize adj
+                                   if upper - pageSize > val + inc then
+                                       io $ adjustmentSetValue adj (val + inc)
+                                   else
+                                       return ()
+                                  )    
      
 refocusSymbol :: IconView -> IExpr ()
 refocusSymbol tv p =  io (setupSymbolList tv) >>= \ ls -> eventsSymbolList tv ls p

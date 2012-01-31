@@ -53,7 +53,6 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , cleanTreeExpr
                      -- * Funciones relacionadas con arbol de tipos
                      , addAtomExprTree
-                     --, addMainExprToTree
                      , addQuantExprTree
                      , getMainExprTree
                      , getOpExprTree

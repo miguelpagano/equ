@@ -5,8 +5,8 @@ import TestSuite.Tests.TypeChecker
 import TestSuite.Tests.Matching
 import TestSuite.Tests.PreExpr
 import TestSuite.Tests.Parser
-import TestSuite.Tests.Proof
-import TestSuite.Tests.Rules
+-- import TestSuite.Tests.Proof
+-- import TestSuite.Tests.Rules
 import Test.Framework (defaultMain, testGroup, Test)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 
@@ -47,8 +47,8 @@ tests = [ -- Grupo de test para las preExpresiones.
           testGroupParse
         , -- Grupo de test de matching.
           testGroupMatch
-        , -- Grupo de test de las pruebas.
-          testGroupProof
-        , -- Grupo de test para las reglas.
-          testListRules 
+        -- Grupo de test de las pruebas.
+        -- ,  testGroupProof
+        -- Grupo de test para las reglas.
+        -- ,  testListRules 
         ]
