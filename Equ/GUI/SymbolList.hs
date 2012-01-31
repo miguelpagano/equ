@@ -51,9 +51,11 @@ setupSymbolList tv =
      widgetShowAll tv >>
      return list
 
-setupScrolledWindowSymbolList :: ScrolledWindow -> EventBox -> EventBox -> 
+setupScrolledWindowSymbolList :: ScrolledWindow -> HBox -> HBox -> 
                                  GRef -> IO ()
-setupScrolledWindowSymbolList sw goL goR s = do
+setupScrolledWindowSymbolList sw goLb goRb s = do
+            goR <- makeScrollArrow goRb stockGoForward
+            goL <- makeScrollArrow goLb stockGoBack
             (Just  swslH) <- scrolledWindowGetHScrollbar sw
             adj <- rangeGetAdjustment swslH
             setupScrollWithArrow adj goR scrollInc s
@@ -61,8 +63,8 @@ setupScrolledWindowSymbolList sw goL goR s = do
             widgetSetChildVisible swslH False
             widgetHide swslH
 
-setupScrollWithArrow :: Adjustment -> EventBox -> Double -> 
-                        GRef -> IO (ConnectId EventBox)
+setupScrollWithArrow :: Adjustment -> Button -> Double -> 
+                        GRef -> IO (ConnectId Button)
 setupScrollWithArrow adj go inc s = 
         go `on` buttonPressEvent $ tryEvent $ 
             flip eventWithState s (do 
@@ -74,6 +76,19 @@ setupScrollWithArrow adj go inc s =
                                    else
                                        return ()
                                   )    
+
+makeScrollArrow :: HBox -> StockId -> IO Button
+makeScrollArrow box si = do
+                        symGo <- buttonNew
+                        
+                        buttonSetRelief symGo ReliefNone
+                        
+                        arrow <- imageNewFromStock si IconSizeMenu
+                        
+                        buttonSetImage symGo arrow
+                        
+                        boxPackStart box symGo PackNatural 0
+                        return symGo
 
 eventsSymbolList :: IconView -> ListStore SynItem -> IRG
 eventsSymbolList tv list = get >>= \s ->                           

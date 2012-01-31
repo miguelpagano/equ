@@ -94,13 +94,13 @@ main = do
     imageValidProof <- imageNewFromStock iconUnknownProof IconSizeSmallToolbar
     boxPackStart boxValidIcon  imageValidProof PackNatural 2
     
+    symGoLeftBox <- xmlGetWidget xml castToHBox "symGoLeftBox"
+    symGoRightBox <- xmlGetWidget xml castToHBox "symGoRightBox"
     swSymbolList <- xmlGetWidget xml castToScrolledWindow "swSymbolList"
-    symGoLeftEb <- xmlGetWidget xml castToEventBox "symGoLeftEb"
-    symGoRightEb <- xmlGetWidget xml castToEventBox "symGoRightEb"
     
     truthBox <- io $ vBoxNew False 2
 
-    --windowMaximize window
+    windowMaximize window
 
     gRef <- newRef $ initialState window symbolList axiomList faces statusBar ctxExpr imageValidProof
 
@@ -108,7 +108,7 @@ main = do
     onDestroy window mainQuit
 
     sListStore <- liftIO $ setupSymbolList symbolList 
-    setupScrolledWindowSymbolList swSymbolList symGoLeftEb symGoRightEb gRef
+    setupScrolledWindowSymbolList swSymbolList symGoLeftBox symGoRightBox gRef
     aListStore <- liftIO $ setupTruthList [] axiomList 
     
     -- expresion inicial
