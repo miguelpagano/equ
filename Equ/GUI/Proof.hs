@@ -392,7 +392,7 @@ eventsExprWidget expr ext_box exprWidget moveFocus top_box = do
                          updateExprWidget exprWidget  >>
                          changeProofFocus'
                     io (widgetShowAll hb)
-                    return False
+                    return True
                     
             choices `on` buttonPressEvent $ tryEvent $
                     eventWithState (changeProofFocus' >> showChoices) s

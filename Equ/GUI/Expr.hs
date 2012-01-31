@@ -54,13 +54,17 @@ setupFormEv b c e emask p = liftIO eventBoxNew >>= \eb ->
 -- widget para construir expresiones.
 setupEvents :: WidgetClass w => HBox -> w -> PreExpr -> EditMask -> IExpr ()
 setupEvents b eb e emask p = get >>= \s ->
-                             getSymCtrl >>= \sym ->
-                             addHandler eb enterNotifyEvent (highlightBox b hoverBg) >>
-                             addHandler eb leaveNotifyEvent (unlightBox b Nothing) >>
-                             addHandler eb buttonPressEvent (editExpr p b s sym) >>= 
-                             \c -> case emask of
-                                    Editable -> return ()
-                                    NotEditable -> io $ signalDisconnect c
+                     getSymCtrl >>= \sym ->
+                     addHandler eb enterNotifyEvent (highlightBox b hoverBg) >>
+                     addHandler eb leaveNotifyEvent (unlightBox b Nothing) >>
+                     -- manejamos evento "button release" para que se propague al padre
+                     io (b `on` buttonPressEvent $ io (debug "buttonPressEvent en formBox") >> return False) >>
+                     io (eb `on` buttonPressEvent $ io (debug "buttonPressEvent en eventBox de formBox") >> return False) >>
+                     addHandler eb buttonPressEvent (editExpr p b s sym) >>= 
+                     \c -> case emask of
+                                Editable -> return ()
+                                NotEditable -> io $ signalDisconnect c
+                     
 
 -- | Si apretamos el botón derecho, entonces editamos la expresión
 -- enfocada.
@@ -78,12 +82,18 @@ editExpr p b s sym = do LeftButton <- eventButton
 -- expresión y construye el widget correspondiente.
 writeExpr :: Maybe PreExpr -> HBox -> IExpr ()
 writeExpr pre box p = newEntry >>= \entry -> 
-                      F.mapM_ (exprInEntry entry) pre >>
-                       withState (onEntryActivate entry) (setExprFocus entry box p) >>
-                       removeAllChildren box >>
-                       addToBox box entry >>
-                       io (widgetGrabFocus entry >>  widgetShowAll box)
-
+                    F.mapM_ (exprInEntry entry) pre >>
+                    withState (onEntryActivate entry) (setExprFocus entry box p) >>
+                    removeAllChildren box >>
+                    addToBox box entry >>
+                    -- manejamos evento "button release" para que se propague al padre
+                    io (entry `on` buttonPressEvent $ io (debug "buttonPressEvent en entry") >> isParent entry >> return False) >>
+                    liftIO (widgetGrabFocus entry >>
+                            widgetShowAll box)
+    where isParent entry = io $ widgetGetParent entry >>= \p -> case p of
+                                                             Nothing -> debug "entry no tiene padre"
+                                                             Just p' -> if castToHBox p'==box then debug "el padre de entry es formBox"
+                                                                                              else debug "el padre de entry NO es formBox!"
 
 -- | Poné la representación de una expresión en una caja de texto.
 -- Podría ser útil si queremos que se pueda transformar la expresión

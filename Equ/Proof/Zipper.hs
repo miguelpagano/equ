@@ -6,7 +6,8 @@ module Equ.Proof.Zipper
     , goDown, goUp, goLeft, goRight, goDownR, goDownL, goTop
     -- las siguientes funcionas navegan el zipper y siempre devuelven algo
     , goDown', goUp', goLeft', goRight', goDownR', goDownL', goTop', goEnd
-    , moveToEnd, goFirstLeft
+    , moveToEnd, goFirstLeft, goLeftLeaf, goNextStep, goFirstRight, goRightLeaf
+    , goPrevStep
     ) where
 
 import Equ.Proof.Proof
@@ -99,8 +100,30 @@ goLeft' pf = pf
 -}
 goFirstLeft :: ProofFocus -> ProofFocus
 goFirstLeft pf = case (goRight pf) of
-                      Nothing -> goUp' pf
+                      Nothing -> case (goUp pf) of
+                                      Nothing -> pf
+                                      Just pf' -> goFirstLeft pf'
                       Just pf' -> pf
+               
+-- | Simétrica a goFirstLeft
+goFirstRight :: ProofFocus -> ProofFocus
+goFirstRight pf = case (goLeft pf) of
+                      Nothing -> case (goUp pf) of
+                                      Nothing -> pf
+                                      Just pf' -> goFirstRight pf'
+                      Just pf' -> pf                       
+                      
+-- | Baja a la hoja de mas a la izquierda
+goLeftLeaf :: ProofFocus -> ProofFocus
+goLeftLeaf pf = case (goDownL pf) of
+                     Nothing -> pf
+                     Just pf' -> goLeftLeaf pf'
+               
+-- | Baja a la hoja de mas a la derecha
+goRightLeaf :: ProofFocus -> ProofFocus
+goRightLeaf pf = case (goDownR pf) of
+                     Nothing -> pf
+                     Just pf' -> goRightLeaf pf'
 
 -- | Ir a la derecha en un focus, sin cambiar de nivel.
 goRight :: ProofFocus -> Maybe ProofFocus
@@ -110,6 +133,16 @@ goRight (_, _) = Nothing
 goRight' :: ProofFocus -> ProofFocus
 goRight' (p, TransL path pr) = (pr,TransR p path)
 goRight' pf = pf
+
+{- | La siguiente funcion mueve el focus hasta la siguiente hoja de la prueba.
+     En una transitividad, vista como lista: [p1,...,pn]. goNextStep pi = pi+1.
+     NOTA: Tal como está ahora, si estamos en la ultima hoja, vuelva a la primera.
+     -}
+goNextStep :: ProofFocus -> ProofFocus
+goNextStep = goLeftLeaf . goRight' . goFirstLeft
+
+goPrevStep :: ProofFocus -> ProofFocus
+goPrevStep = goRightLeaf . goLeft' . goFirstRight
 
 moveToEnd :: ProofFocus -> Maybe ProofFocus
 moveToEnd = Just . goEnd . goTop'

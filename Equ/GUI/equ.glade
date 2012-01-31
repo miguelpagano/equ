@@ -720,20 +720,18 @@
                 <property name="label_xalign">0</property>
                 <property name="shadow_type">none</property>
                 <child>
-                  <widget class="GtkHBox" id="hbox4">
+                  <widget class="GtkHBox" id="symListExtBox">
                     <property name="visible">True</property>
                     <child>
-                      <widget class="GtkEventBox" id="symGoLeftEb">
+                      <widget class="GtkHBox" id="symGoLeftBox">
                         <property name="visible">True</property>
                         <child>
-                          <widget class="GtkArrow" id="symGoLeft">
-                            <property name="visible">True</property>
-                            <property name="arrow_type">left</property>
-                          </widget>
+                          <placeholder/>
                         </child>
                       </widget>
                       <packing>
                         <property name="expand">False</property>
+                        <property name="fill">False</property>
                         <property name="position">0</property>
                       </packing>
                     </child>
@@ -741,7 +739,7 @@
                       <widget class="GtkScrolledWindow" id="swSymbolList">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
-                        <property name="vadjustment">0 0 16 1.6000000000000001 14.4 16</property>
+                        <property name="vadjustment">0 0 20 2 18 20</property>
                         <property name="hscrollbar_policy">automatic</property>
                         <property name="vscrollbar_policy">never</property>
                         <child>
@@ -758,16 +756,15 @@
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkEventBox" id="symGoRightEb">
+                      <widget class="GtkHBox" id="symGoRightBox">
                         <property name="visible">True</property>
                         <child>
-                          <widget class="GtkArrow" id="symGoRight">
-                            <property name="visible">True</property>
-                          </widget>
+                          <placeholder/>
                         </child>
                       </widget>
                       <packing>
                         <property name="expand">False</property>
+                        <property name="fill">False</property>
                         <property name="position">2</property>
                       </packing>
                     </child>
