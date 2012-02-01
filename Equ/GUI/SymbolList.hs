@@ -16,12 +16,11 @@ import Graphics.UI.Gtk.Gdk.Events
 
 import Data.Text(unpack)
 
-import Control.Monad.State(get,evalStateT)
 import Control.Monad(liftM, when)
-import Control.Monad.Trans(liftIO)
+import Control.Monad.Reader
 import qualified Data.Foldable as F
 
-type SynItem = (String, HBox -> Move -> IRG)
+type SynItem = (String, IExpr' ())
 -- TODO: pensar que esta lista podría ser extendida si el usuario
 -- define un conjunto de símbolos de función o de constantes.
 -- | La lista de símbolos; el primer elemento nos permite ingresar
@@ -52,10 +51,14 @@ setupSymbolList tv =
      widgetShowAll tv >>
      return list
 
-eventsSymbolList :: IconView -> ListStore SynItem -> IExpr ()
-eventsSymbolList tv list p = get >>= \s ->                           
-                             liftIO (tv `on` itemActivated $ flip evalStateT s . (flip (oneSelection list) p)) >>
-                             return ()
+eventsSymbolList :: IconView -> ListStore SynItem -> IExpr' ()
+eventsSymbolList tv list = do s <- get
+                              env <- ask
+                              io $ tv `on` itemActivated $ \path -> 
+                                  flip evalStateT s $ 
+                                       runReaderT (oneSelection list path) env
+                              return ()
+
 
 setupScrolledWindowSymbolList :: ScrolledWindow -> HBox -> HBox -> GRef -> IO ()
 setupScrolledWindowSymbolList sw goLb goRb s = do
@@ -68,19 +71,15 @@ setupScrolledWindowSymbolList sw goLb goRb s = do
             widgetSetChildVisible swslH False
             widgetHide swslH
 
-setupScrollWithArrow :: Adjustment -> Button -> Double -> 
-                        GRef -> IO (ConnectId Button)
-setupScrollWithArrow adj go inc s = 
-        go `on` buttonPressEvent $ tryEvent $ 
-            flip eventWithState s (do 
-                                   val <- io $ adjustmentGetValue adj
-                                   upper <- io $ adjustmentGetUpper adj
-                                   pageSize <- io $ adjustmentGetPageSize adj
-                                   if upper - pageSize > val + inc then
-                                       io $ adjustmentSetValue adj (val + inc)
-                                   else
-                                       return ()
-                                  )    
+setupScrollWithArrow :: Adjustment -> Button -> Double -> GRef -> IO (ConnectId Button)
+setupScrollWithArrow adj go inc s = go `on` buttonPressEvent $ tryEvent $ 
+                                    flip eventWithState s $ io $ do
+                                         val <- adjustmentGetValue adj
+                                         upper <- adjustmentGetUpper adj
+                                         pageSize <- adjustmentGetPageSize adj
+                                         if upper - pageSize > val + inc 
+                                         then adjustmentSetValue adj (val + inc)
+                                         else return ()
 
 makeScrollArrow :: HBox -> StockId -> IO Button
 makeScrollArrow box si = do
@@ -96,9 +95,6 @@ makeScrollArrow box si = do
                         return symGo
 
      
-refocusSymbol :: IconView -> IExpr ()
-refocusSymbol tv p =  io (setupSymbolList tv) >>= \ ls -> eventsSymbolList tv ls p
-                     
 
 -- | Handler para cuando cambia el símbolo seleccionado. La acción es
 -- inmediata; es decir, al pasar de uno a otro se muestra
@@ -106,9 +102,8 @@ refocusSymbol tv p =  io (setupSymbolList tv) >>= \ ls -> eventsSymbolList tv ls
 -- correspondiente. Una opción es que se vaya cambiando pero que al
 -- poner Enter recién se haga el cambio real y entonces desaparezca la
 -- lista de símbolos.
-oneSelection :: ListStore SynItem -> TreePath -> IExpr ()
-oneSelection list path p = liftIO (getElem list path) >>= \i ->
-                           flip F.mapM_ i $ \(repr,acc) -> getFrmCtrl >>= flip acc p
+oneSelection :: ListStore SynItem -> TreePath -> IExpr' ()
+oneSelection list path = io (getElem list path) >>= F.mapM_ (return . fst)
 
 getElem :: ListStore a -> TreePath -> IO (Maybe a)
 getElem l p = treeModelGetIter l p >>= \i ->

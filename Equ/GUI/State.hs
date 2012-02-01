@@ -91,6 +91,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , getGlobalCtx
                      , getGlobalHypothesis
                      , addGlobalHypothesis
+                     , module Control.Monad.State.Strict
                      )
     where
 
@@ -126,7 +127,7 @@ import Data.Reference
 import Control.Arrow(first,second,(***),(&&&))
 import Data.Maybe(fromJust)
 import Control.Monad(liftM,when)
-import Control.Monad.State(get,put,evalStateT)
+import Control.Monad.State.Strict(get,put,evalStateT)
 import Control.Monad.Trans(liftIO)
 
 import qualified Data.Serialize as S

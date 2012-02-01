@@ -11,6 +11,7 @@ import Equ.GUI.Proof
 import Equ.PreExpr(toExpr)
 import Equ.Proof
 
+import Control.Monad.Reader
 import qualified Data.Foldable as F (forM_)
 
 
@@ -56,4 +57,4 @@ recreateProof pf cbox tbox expr_w = createNewProof (Just $ toProof pf) cbox tbox
 
 recreateExpr cbox expr_w expr = removeAllChildren cbox >>
                               initExprState expr >>
-                              reloadExpr expr_w (toExpr expr) id
+                              runReaderT (reloadExpr (toExpr expr)) (expr_w,id)

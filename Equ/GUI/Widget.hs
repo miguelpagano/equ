@@ -13,6 +13,7 @@ import Equ.Proof hiding (goDownL, goDownR)
 
 import Equ.GUI.Types
 import Equ.GUI.State
+import Equ.GUI.State.Expr
 import Equ.GUI.Utils
 import Equ.GUI.Settings
 
@@ -204,10 +205,10 @@ removeAllChildren' b = containerForeach b $
 
 -- | Si se aprieta el botón izquierdo, empezamos a trabajar en este
 -- control y luego pasamos el control a la lista de símbolos.
-newFocusToSym :: WidgetClass w => HBox -> Move -> w  -> IRG
-newFocusToSym l p sym = updateFrmCtrl l >>
---                        refocusSymbol p >>
-                        highlightBox l focusBg
+newFocusToSym :: IExpr' ()
+newFocusToSym = getFormBox >>= \box -> 
+                lift (updateFrmCtrl box) >> 
+                lift (highlightBox box focusBg)
 
 -- | Resalta todos los controles que están dentro de una caja.
 highlightBox b bg = liftIO $ containerForeach b (highlight bg)

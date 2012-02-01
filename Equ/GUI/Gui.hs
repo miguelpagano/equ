@@ -25,9 +25,8 @@ import Data.Text (pack,unpack)
 
 import Data.Reference
 
-import Control.Monad.State (evalStateT,get)
 import Control.Monad(liftM, when)
-import Control.Monad.Trans(liftIO)
+import Control.Monad.Reader
 
 import qualified Data.Foldable as F (forM_)
 
@@ -107,9 +106,9 @@ main = do
     onActivateLeaf quitButton $ quitAction window
     onDestroy window mainQuit
 
-    sListStore <- liftIO $ setupSymbolList symbolList 
+    sListStore <- io $ setupSymbolList symbolList 
     setupScrolledWindowSymbolList swSymbolList symGoLeftBox symGoRightBox gRef
-    aListStore <- liftIO $ setupTruthList [] axiomList 
+    aListStore <- io $ setupTruthList [] axiomList 
         
     -- Define la misma acción para el boton que para el menu
     -- convención: "nombreItem" (para item de menu) y "nombreTool" (para botón)
@@ -142,7 +141,7 @@ main = do
         axioms <- getAxiomCtrl
         eventsTruthList axioms aListStore
         symbols <- getSymCtrl
-        eventsSymbolList symbols sListStore id
+        runReaderT (eventsSymbolList symbols sListStore) (initExprWidget,id)
         hidePane errPane
 
     widgetShowAll window

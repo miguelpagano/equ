@@ -9,8 +9,6 @@ import Equ.Proof
 
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
 
-import Control.Monad.State (evalStateT,get)
-
 import Data.Maybe(isJust)
 import Control.Monad(when)
 import qualified Data.Foldable as F (mapM_)

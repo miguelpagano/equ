@@ -14,7 +14,8 @@ import Graphics.UI.Gtk ( WidgetClass, Statusbar, ContextId, HBox, TreeView
 
 import Equ.Types
 
-import Control.Monad.State
+import Control.Monad.State.Strict
+import Control.Monad.Reader
 import Data.Reference
 import Data.IORef
 
@@ -125,3 +126,6 @@ type ProofWidget = Proof' () () ProofStepWidget ExprWidget
 type ProofFocusWidget = ProofFocus' () () ProofStepWidget ExprWidget
 
 type IExpr a = Move -> IState a
+
+type IExpr' a = ReaderT (ExprWidget,Move) IState a
+

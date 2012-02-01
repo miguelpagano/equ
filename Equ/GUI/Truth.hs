@@ -17,7 +17,6 @@ import Data.Text (pack)
 import qualified Data.Foldable as F (mapM_)
 import Data.Maybe (fromJust)
 
-import Control.Monad.State (evalStateT,get)
 import Control.Monad(liftM, when)
 import Control.Monad.Trans(liftIO)
 

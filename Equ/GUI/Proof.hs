@@ -29,12 +29,11 @@ import Graphics.UI.Gtk.Glade (GladeXML,xmlGetWidget)
 import Graphics.UI.Gtk.Display.Image
 
 import Data.Maybe(fromJust)
-import Control.Monad.State(get,evalStateT)
 import Data.Text(unpack)
 import Data.Map(empty)
 import Data.List(elemIndex)
 
-import Control.Monad((=<<))
+import Control.Monad.Reader
 import Control.Applicative((<$>))
 import qualified Data.Foldable as F (forM_,mapM_)
 
@@ -373,9 +372,7 @@ newStepProof expr moveFocus container top_box = do
                              updateEndFocus (fromJust $ goDownL pf') f >>= \pf'' ->
                              updateStartFocus (fromJust $ goRight pf'') f
                              
-          getFocus pf = moveFocus pf >>= \pf' ->
-                        goDownR pf' >>= \pf'' ->
-                        getStartFocus pf''
+          getFocus pf = moveFocus pf >>= goDownR >>= getStartFocus 
 
           moveFocus' = (Just . goEnd . fromJust . goDownL . fromJust . moveFocus)
           
@@ -407,22 +404,12 @@ newExprWidget :: PreExpr ->  (forall ctxTy relTy proofTy exprTy . ProofFocus' ct
                     VBox -> IState ExprWidget
               
 newExprWidget expr moveFocus top_box = do
-  
---     hbox <- io $ hBoxNew False 2
---     buttonBox <- io $ hButtonBoxNew
--- 
---     io (widgetSetSizeRequest hbox (-1) 50)
 
     exprWidget <- createExprWidget False
---     let Just choices = choicesButton exprWidget
---     io (widgetSetSizeRequest buttonBox 200 (-1) >>
---         boxPackStart buttonBox choices PackNatural 2 >>
---         boxPackStart (extBox exprWidget) buttonBox PackNatural 1    
---        )
-    
-    eventsExprWidget expr exprWidget moveFocus top_box
-    
-    writeExprWidget expr (formBox exprWidget) id
+   
+    eventsExprWidget expr exprWidget moveFocus top_box    
+
+    runReaderT (writeExprWidget expr) (exprWidget, id)
     
     return exprWidget
     
@@ -436,9 +423,9 @@ eventsExprWidget expr exprWidget moveFocus top_box = do
     let fGet = getEndFocus . fromJust . moveFocus
     s <- get 
     win <- getWindow
-    setupOptionExprWidget win exprWidget id 
+    flip runReaderT (exprWidget,id) (setupOptionExprWidget win >>
+                                     setupForm (formBox exprWidget) Editable)
     io (setupFocusEvent s)
-    setupForm (formBox exprWidget) Editable id 
     return ()
     
     where hb = extBox exprWidget
@@ -482,7 +469,7 @@ eventsExprWidget expr exprWidget moveFocus top_box = do
                                   -- Actualizamos la expresion
                                   changeProofFocus' >>
                                   updateExprWidget exprWidget >>
-                                  writeExprWidget e (formBox exprWidget) id >>
+                                  runReaderT (writeExprWidget e) (exprWidget, id) >>
                                   updateExpr e id
 
 
@@ -491,7 +478,7 @@ eventsExprWidget expr exprWidget moveFocus top_box = do
 discardProof centralBox expr_w = unsetProofState >>
                                   removeAllChildren centralBox >>
                                   getExpr >>= \e ->
-                                  reloadExpr expr_w (toExpr e) id
+                                  runReaderT (reloadExpr (toExpr e)) (expr_w,id)
 
 
                                         
