@@ -52,6 +52,7 @@ writeTruth basic b = do
     io $ boxPackStart b label PackNatural 0
     (old_proof,path) <- getProof
     updateProof (simpleProof (old_proof,path) basic)
+    validateStep
     io $ widgetShowAll b
 
 -- | La configuración de la lista de símbolos propiamente hablando.

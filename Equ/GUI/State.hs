@@ -82,11 +82,12 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , updateProofState 
                      , unsetProofState
                      , updateExprState
-                     --, changeProofFocus
                      , updateRelation
                      , updateSelectedExpr
+                     , changeProofFocus
                      , restoreValidProofImage
                      , updateImageValid
+                     , validateStep
                      -- * Manipulación del contexto global
                      , getGlobalCtx
                      , getGlobalHypothesis
@@ -109,7 +110,7 @@ import Equ.Proof.Proof
 import Equ.Proof.Error(errEmptyProof)
 import Equ.Proof(ProofFocus,ProofFocus',updateStartFocus,updateEndFocus,PM,validateProof,
                  toProof,goFirstLeft,updateMiddleFocus,goUp',getEndFocus,goRight,goEnd,goDownL',
-                  getBasicFocus)
+                  getBasicFocus, validateProofFocus, goNextStep, goPrevStep)
 import Equ.Rule
 
 import Equ.Types
@@ -196,7 +197,11 @@ showProof' = getProof >>= liftIO . debug . show
 del estado. -}
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
 updateExpr :: PreExpr -> Move -> IState ()
-updateExpr e' p = update (updateExpr' e' p) >> showExpr >> addToUndoList >> restoreValidProofImage
+updateExpr e' p = update (updateExpr' e' p) >> showExpr >> addToUndoList >> restoreValidProofImage >>
+                  -- validamos el paso en el que esta la expresion y el siguiente, si lo tiene
+                  validateStep >> changeProofFocus (Just . goNextStep) (Just . goNextStep) Nothing >> 
+                  validateStep >> changeProofFocus (Just . goPrevStep) (Just . goPrevStep) Nothing
+                  
 
 updateExpr'' :: Move -> (PreExpr -> PreExpr) -> GState -> GState
 updateExpr'' g change gst = case (gProof gst,gExpr gst) of
@@ -253,8 +258,23 @@ updateValidProof = getValidProof >>= \vp -> update (updateValidProof' vp)
                                        Just gpr -> gst { gProof = Just $ updPrf gpr }
                                        Nothing -> gst
           updPrf gpr = gpr { validProof = validateProof (toProof $ proof gpr) }
-
-
+          
+-- Las siguientes funciones validan el paso en el que la prueba está enfocada.
+validateStep :: IState ()
+validateStep = getProofState >>= 
+               F.mapM_ (\ps -> getProof >>= \pf ->
+               case validateProofFocus pf of
+                    Left _ -> updateStepWidgetImage iconErrorProof
+                    Right _ -> updateStepWidgetImage iconValidProof
+                   )
+                   
+updateStepWidgetImage :: StockId -> IState ()
+updateStepWidgetImage icon = getProofState >>= 
+                        F.mapM_ (\ps -> getProofWidget >>= \pfw ->
+                        let image = validImage (fromJust $ getBasicFocus pfw) in
+                             io (imageSetFromStock image icon IconSizeSmallToolbar)
+                        )
+          
 updateProofState :: ProofState -> IState ()
 updateProofState ps = update (\gst -> gst {gProof = Just ps}) >>
                       addToUndoList >> restoreValidProofImage
@@ -325,13 +345,16 @@ addTheorem th = (update $ \gst -> gst { theorems = (th:theorems gst) }) >>
 -- changeProofFocus :: (ProofFocus -> Maybe ProofFocus) ->
 --                     (ProofFocusWidget -> Maybe ProofFocusWidget) ->
 --                     Maybe HBox -> IState ()
--- changeProofFocus moveFocus moveFocusW box = getProof >>=
---                                  updateProofNoUndo . fromJust' . moveFocus >>
---                                  withJust box updateAxiomBox >>
---                                  getProofWidget >>=
---                                  updateProofWidget . fromJust' . moveFocusW
+changeProofFocus moveFocus moveFocusW box = getProofState >>=
+                                 F.mapM_ (\ps ->
+                                    getProof >>=
+                                    updateProofNoUndo . fromJust' . moveFocus >>
+                                    withJust box updateAxiomBox >>
+                                    getProofWidget >>=
+                                    updateProofWidget . fromJust' . moveFocusW
+                                    )
 --                                  
---     where fromJust' = maybe (error "MOVIENDO EL FOCUS") id
+    where fromJust' = maybe (error "MOVIENDO EL FOCUS") id
 
 updateUndoList :: UndoList -> IRG
 updateUndoList ulist = update $ \gst -> gst { gUndo = ulist }
@@ -470,7 +493,11 @@ getAxiomBox = getProofWidget >>= \pfw ->
               return (axiomWidget $ fromJust $ getBasicFocus pfw)
 
 getAxiomBox' :: IState (Maybe HBox)
-getAxiomBox' = getStatePartDbg "getAxiomBox" $ \s -> gProof s >>= (return . axiomBox)
+getAxiomBox' = getProofState >>= \ps ->
+               case ps of
+                    Nothing -> return Nothing
+                    Just s -> getAxiomBox >>= return . Just
+--getAxiomBox' = getStatePartDbg "getAxiomBox" $ \s -> gProof s >>= (return . axiomBox)
 
 {- Las dos funciones que siguen devuelven cada uno de los panes; toda la 
    gracia está en getParentNamed. -}

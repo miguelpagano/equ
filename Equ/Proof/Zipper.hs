@@ -171,10 +171,16 @@ goRight' pf = pf
      NOTA: Tal como está ahora, si estamos en la ultima hoja, vuelva a la primera.
      -}
 goNextStep :: ProofFocus' ctxTy relTy proofTy exprTy -> ProofFocus' ctxTy relTy proofTy exprTy
-goNextStep = goLeftLeaf . goRight' . goFirstLeft
+goNextStep pf = let pf' = goFirstLeft pf in
+                    case goRight pf' of
+                         Nothing -> pf  -- Estamos en la última hoja de la derecha
+                         Just pf'' -> goLeftLeaf pf''
 
 goPrevStep :: ProofFocus' ctxTy relTy proofTy exprTy -> ProofFocus' ctxTy relTy proofTy exprTy
-goPrevStep = goRightLeaf . goLeft' . goFirstRight
+goPrevStep pf = let pf' = goFirstRight pf in
+                    case goLeft pf' of
+                         Nothing -> pf -- Estamos en la primera hoja de la izquierda
+                         Just pf'' -> goRightLeaf pf''
 
 moveToEnd :: ProofFocus' ctxTy relTy proofTy exprTy -> 
              Maybe (ProofFocus' ctxTy relTy proofTy exprTy)
