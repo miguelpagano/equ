@@ -20,7 +20,7 @@ import Control.Monad(liftM, when)
 import Control.Monad.Reader
 import qualified Data.Foldable as F
 
-type SynItem = (String, IExpr' ())
+type SynItem = (String, HBox -> IExpr' ())
 -- TODO: pensar que esta lista podría ser extendida si el usuario
 -- define un conjunto de símbolos de función o de constantes.
 -- | La lista de símbolos; el primer elemento nos permite ingresar
@@ -54,9 +54,8 @@ setupSymbolList tv =
 eventsSymbolList :: IconView -> ListStore SynItem -> IExpr' ()
 eventsSymbolList tv list = do s <- get
                               env <- ask
-                              io $ tv `on` itemActivated $ \path -> 
-                                  flip evalStateT s $ do
-                                       runReaderT (oneSelection list path) env
+                              io $ tv `on` itemActivated $ \path -> flip evalStateT s $
+                                 runReaderT (oneSelection list path) env
                               return ()
 
 
@@ -103,7 +102,8 @@ makeScrollArrow box si = do
 -- poner Enter recién se haga el cambio real y entonces desaparezca la
 -- lista de símbolos.
 oneSelection :: ListStore SynItem -> TreePath -> IExpr' ()
-oneSelection list path = io (getElem list path) >>= F.mapM_ (return . snd)
+oneSelection list path = io (getElem list path) >>= 
+                         F.mapM_ (\(_,acc) -> lift getFrmCtrl >>= acc)
 
 getElem :: ListStore a -> TreePath -> IO (Maybe a)
 getElem l p = treeModelGetIter l p >>= \i ->

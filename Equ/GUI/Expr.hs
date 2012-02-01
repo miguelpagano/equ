@@ -272,13 +272,12 @@ frameExp e@(Paren e') emask = lift newBox >>= \box ->
 un constructor de la sintáxis. -}
 
 -- | Operadores.
-writeOperator :: Operator -> IExpr' ()
-writeOperator o = expOp o >>= \(WExpr b e) ->
-                  getPath >>= \p ->
-                  lift (updateExpr e p) >>
-                  getFormBox >>= \box ->
-                  lift (addToBox box b) >>
-                  io (widgetShowAll box)
+writeOperator :: Operator -> HBox -> IExpr' ()
+writeOperator o box = expOp o >>= \(WExpr b e) ->
+                      getPath >>= \p ->
+                      lift (updateExpr e p) >>
+                      lift (addToBox box b) >>
+                      io (widgetShowAll box)
 
     where expOp o = case opNotationTy o of
                       NPrefix ->  frameExp (UnOp o holePreExpr) Editable
@@ -286,41 +285,39 @@ writeOperator o = expOp o >>= \(WExpr b e) ->
                       NInfix ->   frameExp (BinOp o holePreExpr holePreExpr) Editable
 
 -- | Cuantificadores.
-writeQuantifier :: Quantifier -> IExpr' ()
-writeQuantifier q  = frameExp (Quant q 
+writeQuantifier :: Quantifier -> HBox -> IExpr' ()
+writeQuantifier q box  = frameExp (Quant q 
                                placeHolderVar
                                (preExprHole "")
                                (preExprHole "")) Editable >>= \(WExpr b e) ->
-                     getPath >>= \p ->
-                     lift (updateExpr e p) >>
-                     getFormBox >>= \box ->
-                     lift (addToBox box b) >>
-                     io (widgetShowAll box)
+                         getPath >>= \p ->
+                         lift (updateExpr e p) >>
+                         lift (addToBox box b) >>
+                         io (widgetShowAll box)
 
 -- | Constantes.
-writeConstant :: Constant -> IExpr' ()
-writeConstant c = getPath >>= \p ->
-                  getFormBox >>= \box ->
-                  lift (updateExpr (Con c) p) >>
-                  (lift . labelStr . unpack . tRepr) c >>= \label ->
-                  setupFormEv box label (Con c) Editable >>
-                  io (widgetShowAll box)
+writeConstant :: Constant -> HBox -> IExpr' ()
+writeConstant c box  = getPath >>= \p ->
+                       lift (updateExpr (Con c) p) >>
+                       (lift . labelStr . unpack . tRepr) c >>= \label ->
+                       setupFormEv box label (Con c) Editable >>
+                       io (widgetShowAll box)
 
 
 class ExpWriter s where
-    writeExp :: s -> IExpr' ()
+    writeExp :: s -> HBox -> IExpr' ()
 
 instance ExpWriter Quantifier where
-    writeExp s = getFormBox >>= lift . removeAllChildren >>
-                 writeQuantifier s 
+    writeExp s box = lift (removeAllChildren box) >>
+                     writeQuantifier s box
     
 instance ExpWriter Operator where
-    writeExp s = getFormBox >>= lift . removeAllChildren >>
-                 writeOperator s
+    writeExp s box = lift (removeAllChildren box) >>
+                     writeOperator s box
 
 instance ExpWriter Constant where
-    writeExp s = getFormBox >>= lift . removeAllChildren >>
-                 writeConstant s
+    writeExp s box = lift (removeAllChildren box) >>
+                     writeConstant s box
 
 popupWin :: Window -> IO Window
 popupWin w = windowNew >>= \pop ->
