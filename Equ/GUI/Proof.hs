@@ -409,7 +409,7 @@ newExprWidget expr moveFocus top_box = do
    
     eventsExprWidget expr exprWidget moveFocus top_box    
 
-    runReaderT (writeExprWidget expr) (exprWidget, id)
+    runReaderT (writeExprWidget (formBox exprWidget) expr) (exprWidget, id)
     
     return exprWidget
     
@@ -469,7 +469,7 @@ eventsExprWidget expr exprWidget moveFocus top_box = do
                                   -- Actualizamos la expresion
                                   changeProofFocus' >>
                                   updateExprWidget exprWidget >>
-                                  runReaderT (writeExprWidget e) (exprWidget, id) >>
+                                  runReaderT (writeExprWidget (formBox exprWidget) e) (exprWidget, id) >>
                                   updateExpr e id
 
 

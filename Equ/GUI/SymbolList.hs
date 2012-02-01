@@ -55,7 +55,7 @@ eventsSymbolList :: IconView -> ListStore SynItem -> IExpr' ()
 eventsSymbolList tv list = do s <- get
                               env <- ask
                               io $ tv `on` itemActivated $ \path -> 
-                                  flip evalStateT s $ 
+                                  flip evalStateT s $ do
                                        runReaderT (oneSelection list path) env
                               return ()
 
@@ -103,7 +103,7 @@ makeScrollArrow box si = do
 -- poner Enter recién se haga el cambio real y entonces desaparezca la
 -- lista de símbolos.
 oneSelection :: ListStore SynItem -> TreePath -> IExpr' ()
-oneSelection list path = io (getElem list path) >>= F.mapM_ (return . fst)
+oneSelection list path = io (getElem list path) >>= F.mapM_ (return . snd)
 
 getElem :: ListStore a -> TreePath -> IO (Maybe a)
 getElem l p = treeModelGetIter l p >>= \i ->

@@ -123,7 +123,7 @@ checkIsOp = maybe False (const True) . opOfFocus
 -- | Dado un focus, un move y un tipo, cambiamos el tipo del focus al que 
 -- nos mueve el move.
 setAtomType :: Focus -> (Focus -> Focus) -> Type -> Focus
-setAtomType f go t = goTop $ set t (go f)
+setAtomType f go t = set t (go f)
     where
         set :: Type -> Focus -> Focus
         set t (Var v,p) = (Var $ v {varTy = t},p)

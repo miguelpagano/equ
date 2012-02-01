@@ -18,7 +18,7 @@ import Equ.Parser
 import Equ.Types
 
 import qualified Graphics.UI.Gtk as G (get)
-import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
+import Graphics.UI.Gtk hiding (eventButton, eventSent,get, UpdateType)
 import Graphics.UI.Gtk.Gdk.EventM
 import Data.Text (unpack)
 import Data.Maybe (fromJust)
@@ -65,40 +65,41 @@ setupEvents b eb e emask = lift get >>= \s ->
                            io (eb `on` buttonPressEvent $ io 
                                       (debug "buttonPressEvent en eventBox de formBox") >>
                                       return False) >>
-                           lift (addHandler eb buttonPressEvent (editExpr p expr_w s sym)) >>= 
+                           lift (addHandler eb buttonPressEvent (editExpr b p expr_w s sym)) >>= 
                            \c -> case emask of
                                   Editable -> return ()
                                   NotEditable -> io $ signalDisconnect c
 
 
--- | Si apretamos el botón derecho, entonces editamos la expresión
--- enfocada.
-editExpr :: Move -> ExprWidget -> GRef -> IconView -> EventM EButton ()
-editExpr p expr_w s sym = do LeftButton <- eventButton
-                             DoubleClick <- eventClick
-                             eventWithState (runReaderT newFocusToSym (expr_w,p) >> 
-                                             getFocusedExpr p >>= \(e,_) ->
-                                             runReaderT (writeExpr (Just e)) (expr_w,p)) s
-                             io $ widgetShowAll (formBox expr_w)
+-- | Si hacemos doble-click, entonces editamos la expresión enfocada.
+editExpr :: HBox -> Move -> ExprWidget -> GRef -> IconView -> EventM EButton ()
+editExpr b p expr_w s sym = do LeftButton <- eventButton
+                               DoubleClick <- eventClick
+                               flip eventWithState s $ 
+                                    getFocusedExpr p >>= \(e,_) ->                                               
+                                    flip runReaderT (expr_w,p) 
+                                             (newFocusToSym >> 
+                                              writeExpr (Just e) b
+                                             )
+                               io $ widgetShowAll b
 
 -- | Pone una caja de texto para ingresar una expresión; cuando se
 -- activa (presionando Enter) parsea el texto de la caja como una
 -- expresión y construye el widget correspondiente.
-writeExpr :: Maybe PreExpr -> IExpr' ()
-writeExpr pre = lift newEntry >>= \entry -> 
-                getFormBox >>= \box ->
-                F.mapM_ (lift . exprInEntry entry) pre >>
-                    ask >>= \env ->
-                    lift (withState (onEntryActivate entry) 
-                                    (runReaderT (setExprFocus entry) env) >>
-                          removeAllChildren box >>
-                          addToBox box entry) >>
+writeExpr :: Maybe PreExpr -> HBox -> IExpr' ()
+writeExpr pre box = lift newEntry >>= \entry -> 
+                    F.mapM_ (lift . exprInEntry entry) pre >>
+                     ask >>= \env ->
+                     lift (withState (onEntryActivate entry) 
+                                      (runReaderT (setExprFocus box entry) env) >>
+                           removeAllChildren box >>
+                           addToBox box entry) >>
                     -- manejamos evento "button release" para que se propague al padre
-                    io (entry `on` buttonPressEvent $ io 
-                                  (debug "buttonPressEvent en entry") >> 
-                                  isParent entry box >> 
-                        return False) >>
-                    io (widgetGrabFocus entry >> widgetShowAll box)
+                     io (entry `on` buttonPressEvent $ io 
+                                   (debug "buttonPressEvent en entry") >> 
+                                   isParent entry box >> 
+                         return False) >>
+                     io (widgetGrabFocus entry >> widgetShowAll box)
     where isParent entry box = io $ widgetGetParent entry >>= \p -> 
                                case p of
                                  Nothing -> debug "entry no tiene padre"
@@ -119,32 +120,32 @@ exprInEntry entry = io . entrySetText entry . show
 --      faltaría definirle forma y color.
 -- | Dada una caja de texto, parsea el contenido como una expresión
 -- y construye un widget con toda la expresión.
-setExprFocus :: Entry -> IExpr' ()
-setExprFocus entry  = io (entryGetText entry) >>= \s ->
-                      getPath >>= \p ->
-                      getFormBox >>= \box ->
-                      if null s 
-                      then lift (updateExpr hole p) >> 
-                           writeExprWidget hole
-                      else case parseFromString s of
-                                  Right expr -> lift (updateExpr expr p) >>
-                                               writeExprWidget expr
-                                  Left err -> lift (setErrMessage (show err)) >>
-                                             io (widgetShowAll box)
+setExprFocus :: HBox -> Entry -> IExpr' ()
+setExprFocus box entry  = io (entryGetText entry) >>= \s ->
+                          getPath >>= \p ->
+                          if null s 
+                          then lift (updateExpr hole p) >> 
+                               writeExprWidget box hole >>
+                               replaceTypeButton p
+                          else case parseFromString s of
+                                 Right expr -> lift (updateExpr expr p) >>
+                                              writeExprWidget box expr >>
+                                              replaceTypeButton p
+                                 Left err -> lift (setErrMessage (show err)) >>
+                                            io (widgetShowAll box)
     where hole = preExprHole ""
 
-writeExprWidget :: PreExpr -> IExpr' ()
+writeExprWidget :: HBox -> PreExpr ->  IExpr' ()
 writeExprWidget = writeExprWidget' Editable
 
-writeExprTreeWidget :: PreExpr -> IExpr' ()
+writeExprTreeWidget :: HBox -> PreExpr -> IExpr' ()
 writeExprTreeWidget =  writeExprWidget' NotEditable
 
-writeExprWidget' :: EditMask -> PreExpr -> IExpr' ()
-writeExprWidget' emask expr = getFormBox >>= \box ->
-                              frameExp expr emask  >>= \(WExpr box' _) ->                              
-                              lift (removeAllChildren box >>
-                                    addToBox box box') >>
-                              io (widgetShowAll box)
+writeExprWidget' :: EditMask -> HBox -> PreExpr -> IExpr' ()
+writeExprWidget' emask box expr = frameExp expr emask  >>= \(WExpr box' _) ->                              
+                                  lift (removeAllChildren box >>
+                                        addToBox box box') >>
+                                  io (widgetShowAll box)
 
 
 -- | Esta es la función principal: dada una expresión, construye un
@@ -180,9 +181,9 @@ frameExp e@(BinOp op e1 e2) emask = lift newBox >>= \box ->
                                     localPath (goDown .)  (frameExp e1 emask) >>= \(WExpr box1 _) ->
                                     localPath (goDownR .) (frameExp e2 emask) >>= \(WExpr box2 _) ->
                                     (lift . labelStr . repr) op >>= \lblOp ->
-                                    lift (addToBox box box1 >>
-                                          addToBox box box2) >>
+                                    lift (addToBox box box1) >>
                                     setupFormEv box lblOp e emask >>
+                                    lift (addToBox box box2) >>
                                     return (WExpr box e)
 
 frameExp e@(App e1 e2) emask = lift newBox >>= \box ->
@@ -333,16 +334,15 @@ popupWin w = windowNew >>= \pop ->
              windowSetPosition pop WinPosCenterAlways >>
              return pop
 
-typeTreeWindow :: IState Focus -> (Focus -> IState ()) -> Window -> IExpr' Window
-typeTreeWindow isf fmp w = io (popupWin w) >>= \pop -> 
-                           io (vBoxNew False 0) >>= \bTree -> 
-                           io (hBoxNew False 0) >>= \we -> 
-                           lift isf >>= \f ->
-                           writeExprTreeWidget (fst f)  >>
-                           ask >>= \(expr_w,p) ->
-                           lift (buildTreeExpr isf fmp bTree we expr_w p) >>
-                           io (containerAdd pop bTree) >>
-                           return pop
+typeTreeWindow :: Window -> IExpr' Window
+typeTreeWindow w = io (popupWin w) >>= \pop -> 
+                   io (vBoxNew False 0) >>= \bTree -> 
+                   io (hBoxNew False 0) >>= \we -> 
+                   lift getExpr >>= \f ->
+                   writeExprTreeWidget we (fst f)  >>
+                   buildTreeExpr bTree we >>
+                   io (containerAdd pop bTree) >>
+                   return pop
 
 -- | Pone el tooltip y configura la acciones para el boton de anotaciones 
 -- del exprWidget.
@@ -353,14 +353,14 @@ configAnnotTB act w = getAnnotButton >>= \tb ->
 
 -- | Pone el tooltip y configura la acciones para el boton del árbol
 -- de tipado del exprWidget.
-configTypeTreeTB :: IState Focus -> (Focus -> IState ()) ->  Window -> IExpr' ()
-configTypeTreeTB isf fmp w = lift get >>= \s ->
-                             getTypeButton >>= \tb ->
-                             io (setToolTip tb "Árbol de tipado") >>
-                             ask >>= \env ->
-                             io (actTBOn tb w $ \w' -> flip evalStateT s $
-                                    runReaderT (typeTreeWindow isf fmp w') env) >>
-                             return ()
+configTypeTreeTB :: Window -> IExpr' ()
+configTypeTreeTB w = lift get >>= \s ->
+                     getTypeButton >>= \tb ->
+                     io (setToolTip tb "Árbol de tipado") >>
+                     ask >>= \env ->
+                     io (actTBOn tb w $ \w' -> flip evalStateT s $
+                                     runReaderT (typeTreeWindow w') env) >>
+                     return ()
 
 
 -- | El primer argumento indica la acción a realizar con el contenido del 
@@ -447,11 +447,17 @@ createExprWidget initial = do
 
     where exprStatus :: IState Image
           exprStatus = io $ imageNewFromStock stockInfo IconSizeMenu
-          makeButtonBox :: String -> IO ToggleButton
-          makeButtonBox s = toggleButtonNew >>= \tb ->
-                            imageNewFromStock s IconSizeMenu >>=
-                            containerAdd tb >>
-                            return tb
+
+makeButtonBox :: String -> IO ToggleButton
+makeButtonBox s = toggleButtonNew >>= \tb ->
+                  imageNewFromStock s IconSizeMenu >>=
+                  containerAdd tb >>
+                  return tb
+
+replaceTypeButton :: Move -> IExpr' ()
+replaceTypeButton p = lift getWindow >>= 
+                      configTypeTreeTB 
+                      
 
 -- Funciones para la expresiones inicial.
 createInitExprWidget :: PreExpr -> IExpr ExprWidget
@@ -459,7 +465,7 @@ createInitExprWidget expr p = do
   
     expr_w <- eventsInitExprWidget expr p
 
-    runReaderT (writeExprWidget expr) (expr_w, p)
+    runReaderT (writeExprWidget (formBox expr_w) expr) (expr_w, p)
     return expr_w
 
     --return (extBox expr_w , formBox expr_w)
@@ -478,15 +484,13 @@ eventsInitExprWidget expr p = do
     return expr_w
 
 setupOptionExprWidget :: Window -> IExpr' ()
-setupOptionExprWidget win  = do 
-  p <- getPath
-  configAnnotTB putStrLn win
-  configTypeTreeTB getExpr (\(e,_) -> updateExpr e p) win
+setupOptionExprWidget win  = configAnnotTB putStrLn win >> 
+                             configTypeTreeTB win
 
 
 loadExpr :: HBox -> PreExpr -> IExpr ExprWidget 
 loadExpr box expr p = do
-    -- removeAllChildren box
+    removeAllChildren box
     expr_w <- createInitExprWidget expr p
     io $ boxPackStart box (extBox expr_w) PackNatural 2
     io $ widgetShowAll (extBox expr_w)
@@ -496,7 +500,7 @@ reloadExpr :: PreExpr -> IExpr' ()
 reloadExpr expr = getFormBox >>= \box ->
                   lift (removeAllChildren box) >>
                   setupForm box Editable >>
-                  writeExprWidget expr
+                  writeExprWidget box expr
 
 
                         
@@ -515,4 +519,3 @@ initExprState expr = do
   -- Ponemos un ExprWidget sin sentido para iniciar el estado. ESTO PODRIA REVISARSE
   expr' <- newExprState expr expr_w hbox2
   updateExprState expr' 
-

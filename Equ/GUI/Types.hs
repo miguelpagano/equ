@@ -14,7 +14,7 @@ import Graphics.UI.Gtk ( WidgetClass, Statusbar, ContextId, HBox, TreeView
 
 import Equ.Types
 
-import Control.Monad.State.Strict
+import Control.Monad.State
 import Control.Monad.Reader
 import Data.Reference
 import Data.IORef

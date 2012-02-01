@@ -91,7 +91,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , getGlobalCtx
                      , getGlobalHypothesis
                      , addGlobalHypothesis
-                     , module Control.Monad.State.Strict
+                     , module Control.Monad.State
                      )
     where
 
@@ -127,8 +127,8 @@ import Data.Reference
 import Control.Arrow(first,second,(***),(&&&))
 import Data.Maybe(fromJust)
 import Control.Monad(liftM,when)
-import Control.Monad.State.Strict(get,put,evalStateT)
-import Control.Monad.Trans(liftIO)
+import Control.Monad.State (get,put,evalStateT)
+import Control.Monad.Trans (liftIO)
 
 import qualified Data.Serialize as S
 import qualified Data.ByteString as L
@@ -195,6 +195,7 @@ showProof' = getProof >>= liftIO . debug . show
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
+updateExpr :: PreExpr -> Move -> IState ()
 updateExpr e' p = update (updateExpr' e' p) >> showExpr >> addToUndoList >> restoreValidProofImage
 
 updateExpr'' :: Move -> (PreExpr -> PreExpr) -> GState -> GState
