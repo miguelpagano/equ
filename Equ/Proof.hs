@@ -5,7 +5,7 @@ module Equ.Proof (newProof
                  , newProofWithStart 
                  , newProofWithoutEnd
                  , proofFromTruth
-                 , holeProof, emptyProof, updateStart, updateEnd, updateRel
+                 , holeProof, emptyProof, updateStart, updateEnd, updateRel, updateBasic
                  , validateProof, toHoleProof, validateProofFocus
                  , simpleProof, addEmptyStep, updateStartFocus, updateEndFocus
                  , updateMiddleFocus, getStartFocus, getEndFocus, getBasicFocus
@@ -267,22 +267,25 @@ addEmptyStep p = p
 
 
 
-updateStartFocus :: ProofFocus -> PE.Focus -> Maybe ProofFocus
+updateStartFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> exprTy -> 
+                   Maybe (ProofFocus' ctxTy relTy proofTy exprTy)
 updateStartFocus (p,path) f = Just (updateStart p f,path)
 
-updateEndFocus :: ProofFocus -> PE.Focus -> Maybe ProofFocus
+updateEndFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> exprTy -> 
+                  Maybe (ProofFocus' ctxTy relTy proofTy exprTy)
 updateEndFocus (p,path) f = Just (updateEnd p f,path)
 
-updateMiddleFocus :: ProofFocus -> PE.Focus -> Maybe ProofFocus
+updateMiddleFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> exprTy -> 
+                     Maybe (ProofFocus' ctxTy relTy proofTy exprTy)
 updateMiddleFocus (p,path) f = Just (updateMiddle p f,path)
 
-getStartFocus :: ProofFocus -> Maybe PE.Focus
+getStartFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe exprTy
 getStartFocus (p,path) = P.getStart p
 
-getEndFocus :: ProofFocus -> Maybe PE.Focus
+getEndFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe exprTy
 getEndFocus (p,path) = P.getEnd p
 
-getBasicFocus :: ProofFocus -> Maybe Basic
+getBasicFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe proofTy
 getBasicFocus (p,path) = P.getBasic p
 
 

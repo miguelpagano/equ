@@ -14,7 +14,7 @@ import Equ.Proof
 import qualified Data.Foldable as F (forM_)
 
 
-undoEvent centralBox truthBox exprBox = 
+undoEvent centralBox truthBox expr_w = 
     io (debug "Undo event") >>
     getUndoList >>= \ulist ->
         case ulist of
@@ -22,8 +22,8 @@ undoEvent centralBox truthBox exprBox =
           [p] -> io (debug "No hay pasos previos.") >> return ()
           p':p:ps -> case urProof p of
                       Nothing -> F.forM_ (urExpr p) $ \f_expr -> 
-                                undoAction (recreateExpr centralBox exprBox f_expr) p' p ps
-                      Just pf -> undoAction (recreateProof pf centralBox truthBox exprBox) p' p ps
+                                undoAction (recreateExpr centralBox expr_w f_expr) p' p ps
+                      Just pf -> undoAction (recreateProof pf centralBox truthBox expr_w) p' p ps
                                                         
           >>
           getUndoList >>= io . debug . ("UndoList es " ++) . show
@@ -35,15 +35,15 @@ undoAction action p' p ps = setNoUndoing >>
                             addToRedoList p'
                     
 
-redoEvent centralBox truthBox exprBox = 
+redoEvent centralBox truthBox expr_w = 
     io (debug "Redo event") >>
     getRedoList >>= \rlist ->
     case rlist of
       [] -> io (debug "lista redo vacia") >> return ()
       p:ps -> case (urProof p) of
                Nothing -> F.forM_ (urExpr p) $ \f_expr ->
-                         redoAction (recreateExpr centralBox exprBox f_expr) p ps
-               Just pf -> redoAction (recreateProof pf centralBox truthBox exprBox) p ps
+                         redoAction (recreateExpr centralBox expr_w f_expr) p ps
+               Just pf -> redoAction (recreateProof pf centralBox truthBox expr_w) p ps
                                                    
 redoAction action p ps = setNoUndoing >>
                          action >>
@@ -52,8 +52,8 @@ redoAction action p ps = setNoUndoing >>
                          setUndoing
 
 -- TODO: Tiene sentido que estas funciones estén acá?
-recreateProof pf cbox tbox ebox = createNewProof (Just $ toProof pf) cbox tbox ebox
+recreateProof pf cbox tbox expr_w = createNewProof (Just $ toProof pf) cbox tbox expr_w
 
-recreateExpr cbox ebox expr = removeAllChildren cbox >>
+recreateExpr cbox expr_w expr = removeAllChildren cbox >>
                               initExprState expr >>
-                              reloadExpr ebox (toExpr expr) id
+                              reloadExpr expr_w (toExpr expr) id

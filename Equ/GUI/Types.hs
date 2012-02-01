@@ -3,12 +3,13 @@ module Equ.GUI.Types where
 
 import Equ.PreExpr
 
-import Equ.Proof (Proof,PM,ProofFocus,Theorem,Hypothesis)
+import Equ.Proof (Proof,PM,ProofFocus,Theorem,Hypothesis,Proof',ProofFocus')
 import Equ.Proof.Proof (Ctx)
+import Equ.Rule(Relation)
 
 import Graphics.UI.Gtk ( WidgetClass, Statusbar, ContextId, HBox, TreeView
                        , EventBox, Label, Button, Notebook, HPaned, IconView
-                       , Window, Image, ToggleButton
+                       , Window, Image, ToggleButton, ComboBox, ListStore
                        )
 
 import Equ.Types
@@ -16,6 +17,7 @@ import Equ.Types
 import Control.Monad.State
 import Data.Reference
 import Data.IORef
+
 
 -- | Un movimiento es simplemente cambiar el foco.
 type Move = Focus -> Focus
@@ -81,6 +83,7 @@ data ExprState = ExprState { fExpr :: Focus
 data ProofState = ProofState { proof :: ProofFocus   -- ^ La prueba que estamos construyendo
                              , validProof :: PM Proof
                              , axiomBox :: HBox -- ^ El contenedor para mostrar el axioma aplicado
+                             , proofWidget :: ProofFocusWidget -- ^ Focus para navegar la interfaz de prueba
                              }
 
 type GRef = IORef GState
@@ -96,6 +99,8 @@ instance Reference IORef IState where
     writeRef r = liftIO . writeRef r
     newRef = liftIO . newRef
 
+    
+-- WIDGET PARA EXPRESIONES
 data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , formBox :: HBox      -- ^ Box donde se ingresa la formula
                              , choicesButton :: Maybe Button -- ^ Botón para ver las expresiones que matchean 
@@ -104,5 +109,19 @@ data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , typeButton  :: ToggleButton -- ^ Botón para árbol de tipado.
                              , imgStatus   :: Image      -- ^ Imagen para estado.
                              }
+
+                             
+-- WIDGET PARA PRUEBAS
+data ProofStepWidget = ProofStepWidget {
+                        relation :: (ComboBox,ListStore Relation)
+                      , axiomWidget :: HBox
+                      , addStepButton :: Button
+                      , validImage :: Image
+                      , stepBox :: HBox
+                    }
+
+type ProofWidget = Proof' () () ProofStepWidget ExprWidget
+
+type ProofFocusWidget = ProofFocus' () () ProofStepWidget ExprWidget
 
 type IExpr a = Move -> IState a

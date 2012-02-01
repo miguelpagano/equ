@@ -17,8 +17,8 @@ import qualified Data.Foldable as F (mapM_)
 
 
 
-dialogLoadProof :: GRef -> VBox -> VBox -> HBox -> IO ()
-dialogLoadProof ref centralBox truthBox exprBox = do
+dialogLoadProof :: GRef -> VBox -> VBox -> ExprWidget -> IO ()
+dialogLoadProof ref centralBox truthBox expr_w = do
     dialog <- fileChooserDialogNew (Just "Cargar Prueba") 
                                   Nothing 
                                   FileChooserActionOpen
@@ -34,7 +34,7 @@ dialogLoadProof ref centralBox truthBox exprBox = do
              io $ debug ("aceptar clicked. Selected is " ++ show selected)
              flip F.mapM_ selected (\ filepath -> 
                                     decodeFile filepath >>= \proof ->
-                                    evalStateT (createNewProof (Just proof) centralBox truthBox exprBox) ref >>
+                                    evalStateT (createNewProof (Just proof) centralBox truthBox expr_w) ref >>
                                     widgetDestroy dialog)
          _ -> io $ widgetDestroy dialog
 

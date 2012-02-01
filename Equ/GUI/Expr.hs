@@ -391,6 +391,8 @@ createExprWidget :: Bool -> IState ExprWidget
 createExprWidget initial = do
     boxExpr <- io $ hBoxNew False 2    
     formBox <- io $ hBoxNew False 2
+    
+    --io $ widgetSetSizeRequest formBox 600 (-1)
 
     choices <- if not initial
               then do
@@ -398,7 +400,7 @@ createExprWidget initial = do
                 io $ setToolTip exprChoices "Expresiones posibles"
                 return . Just $ exprChoices
               else return Nothing
-    
+
     exprButtons <- io hButtonBoxNew
     bAnnot <- io toggleButtonNew
     bType <- io toggleButtonNew
@@ -409,8 +411,12 @@ createExprWidget initial = do
         containerAdd exprButtons bInfo >>
         boxPackStart boxExpr exprButtons PackNatural 10 >>
         boxPackStart boxExpr formBox PackGrow 1 >>
-       --        widgetSetSizeRequest boxExpr (-1) 50
-        return ()
+        if not initial
+           then hButtonBoxNew >>= \buttonBox ->
+                widgetSetSizeRequest buttonBox 200 (-1) >>
+                boxPackStart buttonBox (fromJust choices) PackNatural 2 >>
+                boxPackStart boxExpr buttonBox PackNatural 1
+           else return ()
        )
            
     return $ ExprWidget { formBox = formBox
@@ -425,14 +431,15 @@ createExprWidget initial = do
           exprStatus = io $ imageNewFromStock stockInfo IconSizeMenu
 
 -- Funciones para la expresiones inicial.
-createInitExprWidget :: PreExpr -> IExpr (HBox,HBox)
+createInitExprWidget :: PreExpr -> IExpr ExprWidget
 createInitExprWidget expr p = do
   
     expr_w <- eventsInitExprWidget expr p
 
     writeExprWidget expr (formBox expr_w) p    
 
-    return (extBox expr_w , formBox expr_w)
+    return expr_w
+    --return (extBox expr_w , formBox expr_w)
 
 -- | Setea los eventos del widget de la expresion inicial.
 eventsInitExprWidget :: PreExpr -> IExpr ExprWidget 
@@ -440,7 +447,7 @@ eventsInitExprWidget expr p = do
     s <- get
     win <- getWindow
 
-    expr_w <- createExprWidget False
+    expr_w <- createExprWidget True
 
     setupOptionExprWidget win expr_w p
 
@@ -456,17 +463,17 @@ setupOptionExprWidget win expr_w p = do
   io $ setToolTip (typeButton expr_w) "Árbol de tipado"
     
 
-loadExpr :: HBox -> PreExpr -> IExpr HBox 
+loadExpr :: HBox -> PreExpr -> IExpr ExprWidget 
 loadExpr box expr p = do
     removeAllChildren box
-    (exprBox,formBox) <- createInitExprWidget expr p
-    io $ boxPackStart box exprBox PackNatural 2
-    return formBox
+    expr_w <- createInitExprWidget expr p
+    io $ boxPackStart box (extBox expr_w) PackNatural 2
+    return expr_w
             
-reloadExpr :: HBox -> PreExpr -> IExpr ()
-reloadExpr formBox expr p = removeAllChildren formBox >>
-                            setupForm formBox Editable p >>
-                            writeExprWidget expr formBox p
+reloadExpr :: ExprWidget -> PreExpr -> IExpr ()
+reloadExpr expr_w expr p = removeAllChildren (formBox expr_w) >>
+                            setupForm (formBox expr_w) Editable p >>
+                            writeExprWidget expr (formBox expr_w) p
 
                         
 newExprState :: Focus -> ExprWidget -> HBox -> IState ExprState

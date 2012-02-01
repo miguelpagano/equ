@@ -19,7 +19,7 @@ module Equ.Proof.Proof (
                  , isHole
                  -- Proyecciones
                  , getCtx, getStart, getEnd, getRel, getBasic
-                 , updateStart, updateEnd, updateRel, updateMiddle
+                 , updateStart, updateEnd, updateRel, updateMiddle, updateBasic
                  , encode, decode
                  , setCtx, beginCtx, freshName, ctxFromList
                  , addHypothesis
@@ -401,10 +401,10 @@ instance Eq Proof where
 
 instance Show Proof where
     show Reflex = ""
-    show (Hole _ r f f') = "Hole " ++ show r ++ " " ++ show (fst f) ++ " " ++ show (fst f')
-    show (Simple _ r f f' b) = "Simple " ++ show r ++ " " ++ show (fst f) ++ " " ++ show (fst f') ++ " { " ++ show b ++" } "
-    show (Trans _ r f f' f'' p p') = "Trans " ++ show r ++ " " ++ show (fst f) ++ " " ++ 
-                                                 show (fst f') ++ " " ++ show (fst f'') ++ " { " ++ show p ++ " } " ++
+    show (Hole _ r f f') = "Hole " ++ show r ++ " " ++ show (toExpr f) ++ " " ++ show (toExpr f')
+    show (Simple _ r f f' b) = "Simple " ++ show r ++ " " ++ show (toExpr f) ++ " " ++ show (toExpr f') ++ " { " ++ show b ++" } "
+    show (Trans _ r f f' f'' p p') = "Trans " ++ show r ++ " " ++ show (toExpr f) ++ " " ++ 
+                                                 show (toExpr f') ++ " " ++ show (toExpr f'') ++ " { " ++ show p ++ " } " ++
                                                  " { " ++ show p' ++ " } "
     show _ = "prueba no implementada"
 
@@ -546,7 +546,7 @@ instance Serialize Name where
             0 -> Index <$> get
             _ -> fail $ "SerializeErr Name " ++ show tag_
 
-instance Monoid Proof where
+instance Monoid (Proof' ctxTy relTy proofTy exprTy) where
     mempty = Reflex
     mappend Reflex p = p
     mappend p Reflex = p
@@ -554,11 +554,11 @@ instance Monoid Proof where
                           (fromJust $ getStart p1) (fromJust $ getStart p2) 
                           (fromJust $ getEnd p2) p1 p2
 
-isHole :: Proof -> Bool
+isHole :: Proof' ctxTy relTy proofTy exprTy -> Bool
 isHole (Hole _ _ _ _) = True
 isHole _ = False
 
-getCtx :: Proof -> Maybe Ctx
+getCtx :: Proof' ctxTy relTy proofTy exprTy -> Maybe ctxTy
 getCtx Reflex = Nothing
 getCtx (Hole c _ _ _) = Just c
 getCtx (Simple c _ _ _ _) = Just c
@@ -571,7 +571,7 @@ getCtx (Focus c _ _ _ _) = Just c
 -- Esta función me hace pensar si no hara falta lo mismo para los demas
 -- componentes de las pruebas.
 -- | Cambiamos el contexto de una prueba.
-setCtx :: Ctx -> Proof ->  Maybe Proof
+setCtx :: ctxTy -> Proof' ctxTy relTy proofTy exprTy ->  Maybe (Proof' ctxTy relTy proofTy exprTy)
 setCtx _ Reflex = Nothing
 setCtx c (Hole _ r f f') = Just (Hole c r f f')
 setCtx c (Simple _ r f f' b) = Just (Simple c r f f' b)
@@ -582,7 +582,7 @@ setCtx c (Deduc _ f f' p) = Just (Deduc c f f' p)
 setCtx c (Focus _ r f f' p) = Just (Focus c r f f' p)
 
 -- DUDA: Que hacemos con Reflex aca??
-getStart :: Proof -> Maybe Focus
+getStart :: Proof' ctxTy relTy proofTy exprTy -> Maybe exprTy
 getStart Reflex = Nothing
 getStart (Hole _ _ f _) = Just f
 getStart (Simple _ _ f _ _) = Just f
@@ -592,7 +592,7 @@ getStart (Ind _ _ f _ _ _) = Just f
 getStart (Deduc _ f _ _) = Just f
 getStart (Focus _ _ f _ _) = Just f
 
-getEnd :: Proof -> Maybe Focus
+getEnd :: Proof' ctxTy relTy proofTy exprTy -> Maybe exprTy
 getEnd Reflex = Nothing
 getEnd (Hole _ _ _ f) = Just f
 getEnd (Simple _ _ _ f _) = Just f
@@ -603,21 +603,23 @@ getEnd (Deduc _ _ f _) = Just f
 getEnd (Focus _ _ _ f _) = Just f
 
 -- | Devuelve la relación para la cual es una prueba.
-getRel :: Proof -> Maybe Relation
+-- NOTA: para Deduc devolvemos Nothing ahora para que compile. En el caso concreto de "Proof" deberia devolver "relImpl", pero
+-- como tenemos el tipo general Proof' no sabemos qué devolver.
+getRel :: Proof' ctxTy relTy proofTy exprTy -> Maybe relTy
 getRel Reflex = Nothing
 getRel (Hole _ r _ _) = Just r
 getRel (Simple _ r _ _ _) = Just r
 getRel (Trans _ r _ _ _ _ _) = Just r
 getRel (Cases _ r _ _ _ _) = Just r
 getRel (Ind _ r _ _ _ _) = Just r
-getRel (Deduc _ _ _ _) = Just relImpl
+getRel (Deduc _ _ _ _) = Nothing
 getRel (Focus _ r _ _ _) = Just r
 
-getBasic:: Proof -> Maybe Basic
+getBasic:: Proof' ctxTy relTy proofTy exprTy -> Maybe proofTy
 getBasic (Simple _ _ _ _ b) = Just b
 getBasic _ = Nothing
 
-updateStart :: Proof -> Focus -> Proof
+updateStart :: Proof' ctxTy relTy proofTy exprTy -> exprTy -> Proof' ctxTy relTy proofTy exprTy
 updateStart Reflex _ = Reflex
 updateStart (Hole c r _ f2) f = Hole c r f f2
 updateStart (Simple c r _ f2 b) f = Simple c r f f2 b
@@ -627,7 +629,7 @@ updateStart (Ind c r _ f2 l1 l2) f = Ind c r f f2 l1 l2
 updateStart (Deduc c _ f2 p) f = Deduc c f f2 p
 updateStart (Focus c r _ f2 p) f = Focus c r f f2 p
 
-updateEnd :: Proof -> Focus -> Proof
+updateEnd :: Proof' ctxTy relTy proofTy exprTy -> exprTy -> Proof' ctxTy relTy proofTy exprTy
 updateEnd Reflex f = Reflex
 updateEnd (Hole c r f1 _) f = Hole c r f1 f
 updateEnd (Simple c r f1 _ b) f = Simple c r f1 f b
@@ -637,11 +639,11 @@ updateEnd (Ind c r f1 _ l1 l2) f = Ind c r f1 f l1 l2
 updateEnd (Deduc c f1 _ p) f = Deduc c f1 f p
 updateEnd (Focus c r f1 _ p) f = Focus c r f1 f p
 
-updateMiddle :: Proof -> Focus -> Proof
+updateMiddle :: Proof' ctxTy relTy proofTy exprTy -> exprTy -> Proof' ctxTy relTy proofTy exprTy
 updateMiddle (Trans c r f1 _ f2 p p') f = Trans c r f1 f f2 (updateEnd p f) (updateStart p' f)
 updateMiddle _ f = undefined
 
-updateRel :: Proof -> Relation -> Proof
+updateRel :: Proof' ctxTy relTy proofTy exprTy -> relTy -> Proof' ctxTy relTy proofTy exprTy
 updateRel Reflex r = Reflex
 updateRel (Hole c _ f1 f2) r = Hole c r f1 f2
 updateRel (Simple c _ f1 f2 b) r = Simple c r f1 f2 b
@@ -650,6 +652,10 @@ updateRel (Cases c _ f1 f2 fc list) r = Cases c r f1 f2 fc list
 updateRel (Ind c _ f1 f2 l1 l2) r = Ind c r f1 f2 l1 l2
 updateRel (Deduc c f1 f2 p) r = Deduc c f1 f2 p
 updateRel (Focus c _ f1 f2 p) r = Focus c r f1 f2 p
+
+updateBasic :: Proof' ctxTy relTy proofTy exprTy -> proofTy -> Proof' ctxTy relTy proofTy exprTy
+updateBasic (Simple c r f1 f2 b') b = Simple c r f1 f2 b
+updateBasic p b = p
 
 {- $samples
 

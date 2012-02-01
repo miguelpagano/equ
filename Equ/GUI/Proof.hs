@@ -1,3 +1,5 @@
+{-# Language RankNTypes #-}
+   
 -- | Modulo de muestra y control de eventos sobre pruebas.
 module Equ.GUI.Proof where
 
@@ -37,51 +39,62 @@ import Control.Applicative((<$>))
 import qualified Data.Foldable as F (forM_,mapM_)
 
 -- | Crea una nueva referencia
-newProofState :: (Maybe Proof) -> HBox -> IState ProofState
-newProofState (Just p) axiom_box = return pr
+newProofState :: (Maybe Proof) -> HBox -> ExprWidget -> ExprWidget ->
+                 ProofStepWidget -> IState ProofState
+newProofState (Just p) axiom_box expr1W expr2W proofW= return pr
     where
         pr :: ProofState
         pr = ProofState { proof = toProofFocus p
                         , validProof = validateProof p
                         , axiomBox = axiom_box
+                        , proofWidget = (pw,Top)
                         }
-newProofState Nothing axiom_box = getGlobalCtx >>=
+                        
+        pw = Simple () () expr1W expr2W proofW
+            
+            
+newProofState Nothing axiom_box expr1W expr2W proofW = getGlobalCtx >>=
                                   return . pr . Just
     where
         pr :: Maybe Ctx -> ProofState
         pr c = ProofState { proof = p c
                           , validProof = validateProof $ toProof (p c)
                           , axiomBox = axiom_box
+                          , proofWidget = (pw,Top)
                         }
         p c = emptyProof c $ head $ relationList
+        
+        pw = Simple () () expr1W expr2W proofW
                         
                         
 -- | Carga una prueba a la interfaz. 
-loadProof :: Proof -> VBox -> VBox -> HBox -> IState ()
-loadProof p ret_box truthBox initExprBox = do
+loadProof :: Proof -> VBox -> VBox -> ExprWidget -> ProofStepWidget -> IState ()
+loadProof p ret_box truthBox initExprWidget proofStepW = do
+    
+    newExpr_w  <- newExprWidget (toExpr $ fromRight $ getEnd p) moveToEnd truthBox
     
     empty_box1 <- io $ hBoxNew False 2
-    proof <- newProofState (Just p) empty_box1
+    proof <- newProofState (Just p) empty_box1 initExprWidget newExpr_w proofStepW
     updateProofState proof
     
     -- Expresión inicial:
-    removeAllChildren initExprBox
+    removeAllChildren (formBox initExprWidget)
     initExpr <- return . fromRight $ getStart p
     
     labelInitExpr <- io $ labelNew (Just $ show $ toExpr initExpr)
-    io $ boxPackStart initExprBox labelInitExpr PackNatural 2
-    io $ widgetShowAll initExprBox
-    
-    hboxEnd  <- newExprWidget (toExpr $ fromRight $ getEnd p) moveToEnd truthBox
+    io $ boxPackStart (formBox initExprWidget) labelInitExpr PackNatural 2
+    io $ widgetShowAll (formBox initExprWidget)
     
     io (--boxPackStart ret_box hboxInit PackNatural 2 >>
         boxPackStart ret_box truthBox PackNatural 2 >>
-        boxPackStart ret_box hboxEnd PackNatural 2)
+        boxPackStart ret_box (extBox newExpr_w) PackNatural 2)
     
     completeProof p truthBox truthBox goTop
     
     
-completeProof :: Proof -> VBox -> VBox -> (ProofFocus -> Maybe ProofFocus) -> IState ()
+completeProof :: Proof -> VBox -> VBox -> 
+                (forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
+                    Maybe (ProofFocus' ctxTy relTy proofTy exprTy)) -> IState ()
 completeProof p@(Trans _ rel f1 fm f2 p1 p2) center_box top_box moveFocus = do
     (boxL,boxR) <- newStepProof (toExpr fm) moveFocus center_box top_box
     
@@ -89,35 +102,43 @@ completeProof p@(Trans _ rel f1 fm f2 p1 p2) center_box top_box moveFocus = do
     completeProof p2 boxR top_box  (goDownR . fromJust . moveFocus)  
 
 completeProof (Hole _ rel f1 f2) center_box top_box  moveFocus =
-    addStepProof center_box top_box moveFocus Nothing
+    --addStepProof center_box top_box moveFocus Nothing >>
+    return ()
 
 completeProof p@(Simple _ rel f1 f2 b) center_box top_box moveFocus =
-    addStepProof center_box top_box moveFocus (Just b)
+    --addStepProof center_box top_box moveFocus (Just b) >>
+    changeProofFocus moveFocus moveFocus Nothing >>
+    getProofWidget >>= \pfw ->
+    writeTruth b (axiomWidget $ fromJust $ getBasicFocus pfw) >>
+    return ()
 
 -- | Crea toda la estructura necesaria para una nueva prueba.  Si el
 -- primer argumento es @Nothing@, entonces se crea la estructura para
 -- una prueba vacía; si es @Just p@, entonces se crea para la prueba @p@.
-createNewProof :: (Maybe Proof) -> VBox -> VBox -> HBox -> IState ()
-createNewProof proof ret_box truthBox initExprBox = do
+createNewProof :: (Maybe Proof) -> VBox -> VBox -> ExprWidget -> IState ()
+createNewProof proof ret_box truthBox initExprWidget = do
     io $ debug "creando prueba..."
     
     -- delete all children
     removeAllChildren ret_box
     
-    removeAllChildren initExprBox
+    removeAllChildren (formBox initExprWidget)
     initExpr <- getExpr
     
     labelInitExpr <- io $ labelNew (Just $ show $ toExpr initExpr)
-    io $ boxPackStart initExprBox labelInitExpr PackNatural 2
-    io $ widgetShowAll initExprBox
+    io $ boxPackStart (formBox initExprWidget) labelInitExpr PackNatural 2
+    io $ widgetShowAll (formBox initExprWidget)
     
-    initState
-
     -- truthBox es la caja central para colocar la relacion y el axioma aplicado. La
     -- funcion para mover el foco es ir hasta el tope.
-    addStepProof truthBox truthBox goTop  Nothing
+    io $ debug $ "Antes de crear el widget de paso de prueba"
     
-    maybe (emptyProof truthBox) (\p -> loadProof p ret_box truthBox initExprBox) proof
+    firstStepProof <- addStepProof truthBox truthBox goTop  Nothing
+    
+    io $ debug $ "Pude crear el widget de paso de prueba"
+        
+    maybe (emptyProof truthBox initExprWidget firstStepProof) 
+          (\p -> loadProof p ret_box truthBox initExprWidget firstStepProof) proof
     
 --     valid_button <- io $ buttonNewWithLabel "Validar prueba"
 --     validImage <- io $ imageNewFromStock stockCancel IconSizeSmallToolbar
@@ -132,18 +153,20 @@ createNewProof proof ret_box truthBox initExprBox = do
 --                             eventWithState (checkProof validImage truthBox) s)
     io $ widgetShowAll ret_box
 
-    where emptyProof box = do
+    where emptyProof box initExprW firstStepW = do
             --hboxInit <- createExprWidget holePreExpr goTopbox
-            hboxEnd  <- newExprWidget holePreExpr moveToEnd box
+            expr_w  <- newExprWidget holePreExpr moveToEnd box
 
+            initState initExprW expr_w firstStepW
+            
             io (--boxPackStart ret_box hboxInit PackNatural 2 >>
                 boxPackStart ret_box box PackNatural 2 >>
-                boxPackStart ret_box hboxEnd PackNatural 2
+                boxPackStart ret_box (extBox expr_w) PackNatural 2
                )
 
 
-initState :: IRG
-initState = do
+initState :: ExprWidget -> ExprWidget -> ProofStepWidget -> IRG
+initState expr1W expr2W proofW = do
     -- TODO: Ver si está bien poner cajas vacias para la caja de expresion y la de 
     -- axiomas al iniciar la referencia. Si el usuario elige un símbolo para construir 
     -- expresión o elige un axioma ANTES de hacer click en alguna caja, entonces la prueba
@@ -154,7 +177,7 @@ initState = do
     -- expresión enfocada.
     empty_box1 <- io $ hBoxNew False 2
     initExpr <- getExpr
-    proof' <- newProofState (Just $ pr initExpr) empty_box1
+    proof' <- newProofState (Just $ pr initExpr) empty_box1 expr1W expr2W proofW
     updateProofState proof'
     
 --     hbox1 <- io $ hBoxNew False 2
@@ -180,18 +203,18 @@ checkProof validImage top_box = getProofState >>= (F.mapM_ $ \ps ->
                                 if valid 
                                 then updateImageValid iconValidProof
                                 else getValidProof >>= \(Left errorProof) ->
-                                      io (putStrLn (show errorProof)) >>
-                                       updateImageValid iconErrorProof >>
-                                       reportErrWithErrPaned (show errorProof) >>
-                                       unSelectBox >>
-                                       getProof >>= \pf ->
-                                       return ((getMoveFocus errorProof) (goTop' pf)) >>=
-                                       \pf -> selectBox pf errBg top_box)
+                                        io (putStrLn (show errorProof)) >>
+                                        updateImageValid iconErrorProof >>
+                                        reportErrWithErrPaned (show errorProof))
+--                                         return (getMoveFocus errorProof) >>= \move ->
+--                                             changeProofFocus move move Nothing >>
+--                                             selectBox errBg)
                                        
 
 -- | Creación de línea de justificación de paso en una prueba.
-addStepProof :: VBox -> VBox -> (ProofFocus -> Maybe ProofFocus) -> 
-                   Maybe Basic -> IState ()
+addStepProof :: VBox -> VBox -> (forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
+                   Maybe (ProofFocus' ctxTy relTy proofTy exprTy)) -> 
+                   Maybe Basic -> IState ProofStepWidget
 addStepProof center_box top_box moveFocus maybe_basic = do
     -- top_box es la caja central mas general, que es creada al iniciar una prueba.    
     removeAllChildren center_box
@@ -212,9 +235,11 @@ addStepProof center_box top_box moveFocus maybe_basic = do
     addStepProofButton <- io $ makeButtonWithImage stockGoDown
     
     io $ setToolTip addStepProofButton "Agregar Paso"
-    io $ widgetSetSizeRequest button_box 200 (-1)
+    io $ widgetSetSizeRequest button_box 150 (-1)
     
     eb_axiom_box <- io $ eventBoxNew 
+    
+    imageValidStep <- io $ imageNewFromStock iconUnknownProof IconSizeSmallToolbar
 
     io (widgetSetSizeRequest combo_rel 80 (-1) >>
             boxPackStart button_box addStepProofButton PackNatural 2 >>
@@ -222,6 +247,7 @@ addStepProof center_box top_box moveFocus maybe_basic = do
             set eb_axiom_box [ containerChild := axiom_box ] >>
             boxPackStart hbox eb_axiom_box PackGrow 5 >> 
             boxPackStart hbox button_box PackNatural 1 >>
+            boxPackStart hbox imageValidStep PackNatural 1 >>
             highlightBox hbox axiomBg)
 
     s <- get
@@ -230,17 +256,13 @@ addStepProof center_box top_box moveFocus maybe_basic = do
     addHandler eb_axiom_box buttonPressEvent (do
         LeftButton <- eventButton
         io $ debug "axiom_box clicked"
-        eventWithState (unSelectBox >>
-                        changeProofFocus moveFocus (Just axiom_box) >>
-                        getProof >>= \pf ->
-                        selectBox pf focusBg top_box
-                        ) s)
+        eventWithState (changeProofFocus moveFocus moveFocus (Just axiom_box)) s)
         
         
     addHandler eb_axiom_box  buttonPressEvent (do
         RightButton <- eventButton
         io $ debug "axiom_box right clicked"
-        eventWithState (changeProofFocus moveFocus (Just axiom_box) >>
+        eventWithState (changeProofFocus moveFocus moveFocus (Just axiom_box) >>
                         removeAllChildren axiom_box) s
 
         label <- io (labelNew (Just $ emptyLabel))
@@ -256,55 +278,89 @@ addStepProof center_box top_box moveFocus maybe_basic = do
     io $ boxPackStart center_box hbox PackNatural 5
     
     flip F.mapM_ maybe_basic $ flip writeTruth axiom_box
+    
+    return ProofStepWidget {
+                    relation = (combo_rel,store_rel) 
+                  , axiomWidget = axiom_box 
+                  , addStepButton = addStepProofButton
+                  , validImage = imageValidStep
+                  , stepBox = hbox
+    }
             
     where changeItem c list box = do 
-            unSelectBox
-            changeProofFocus moveFocus (Just box)
-            pf <- getProof
-            selectBox pf focusBg top_box
+            changeProofFocus moveFocus moveFocus (Just box)
             ind <- io $ comboBoxGetActive c
             newRel <- io $ listStoreGetValue list ind
             updateRelation newRel
       
 unSelectBox :: IRG      
-unSelectBox = getAxiomBox >>= \ axiom_box ->
-            io (widgetGetParent axiom_box) >>= \ eb_box ->
-            F.forM_ eb_box 
-                        (\ p -> io (widgetGetParent p) >>=
-                        flip unlightBox (Just axiomBg) . castToHBox . fromJust
-                        )
+unSelectBox = getStepProofBox >>=
+              F.mapM_ (\box -> unlightBox box (Just axiomBg))
+              
+              
+--             io (widgetGetParent axiom_box) >>= \ eb_box ->
+--             F.forM_ eb_box 
+--                         (\ p -> io (widgetGetParent p) >>=
+--                         flip unlightBox (Just axiomBg) . castToHBox . fromJust
+--                         )
 
-selectBox :: ProofFocus -> Color -> VBox -> IRG
-selectBox (_,path) color top_box = io (proofFocusToBox path top_box) >>= \cbox ->
-            io (containerGetChildren cbox) >>= \chd ->
-                highlightBox (castToHBox $ chd!!0) color
+selectBox :: Color -> IRG
+selectBox color = 
+            getStepProofBox >>=
+            F.mapM_ (\box -> highlightBox box color)
+           
+               
+--             io (debug "Probando zipper de widgets") >>
+--             getProofWidget >>= \(pw,pathW) ->
+--             io (debug $ "Path en el proofFocusWidget es: " ++ show pathW) >>
+--             io (widgetGetParent box) >>= \center_box ->
+--             F.forM_ center_box 
+--                 (\b -> getProof >>= \(_,path) ->
+--                 io (proofFocusToBox path top_box) >>= \b' ->
+--                 if (castToVBox b)==(castToVBox b') then io (debug ("proofFocusToBox da la misma caja que el zipper"))
+--                                                    else io (debug ("proofFocusToBox NO da la misma caja que el zipper"))
+--                 )
+--             
+--             io (widgetGetParent axiom_box) >>= \ eb_box ->
+--             F.forM_ eb_box 
+--                         (\ p -> io (widgetGetParent p) >>= \box ->
+--                         highlightBox (castToHBox $ fromJust $ box) color
+--                         )
                                  
-newStepProof :: PreExpr -> (ProofFocus -> Maybe ProofFocus) ->
+newStepProof :: PreExpr -> (forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
+                    Maybe (ProofFocus' ctxTy relTy proofTy exprTy)) ->
                 VBox -> VBox -> IState (VBox,VBox)
 newStepProof expr moveFocus container top_box = do
     removeAllChildren container
     -- Movemos el ProofFocus hasta donde está el hueco que queremos reemplazar
     -- por una transitividad
-    changeProofFocus moveFocus Nothing 
+    changeProofFocus moveFocus moveFocus Nothing
         -- Reemplazamos el hueco por una transitividad
     pf <- getProof
     updateProof (addEmptyStep pf) 
-    -- Dejamos enfocada la prueba derecha de la transitividad
-    changeProofFocus goDownR Nothing
     
     relation <- getRelPF
     
     centerBoxL <- io $vBoxNew False 2
-    addStepProof centerBoxL top_box (goDownL . fromJust . moveFocus) Nothing
+    newStepWL <- addStepProof centerBoxL top_box (goDownL . fromJust . moveFocus) Nothing
     centerBoxR <- io $ vBoxNew False 2
-    addStepProof centerBoxR top_box (goDownR . fromJust . moveFocus) Nothing
-    exprBox <- newExprWidget expr moveFocus' top_box
+    newStepWR <- addStepProof centerBoxR top_box (goDownR . fromJust . moveFocus) Nothing
+    expr_w <- newExprWidget expr moveFocus' top_box
     
     io (boxPackStart container centerBoxL PackNatural 5 >>
-            boxPackStart container exprBox PackNatural 5 >>
+            boxPackStart container (extBox expr_w) PackNatural 5 >>
             boxPackStart container centerBoxR PackNatural 5 >>
         
             widgetShowAll container)
+           
+    (pfW,path) <- getProofWidget
+    updateProofWidget (Trans () () (fromJust' $ getStartFocus (pfW,path)) expr_w (fromJust' $ getEndFocus (pfW,path)) 
+                      (Simple () () (fromJust' $ getStartFocus (pfW,path)) expr_w newStepWL) 
+                      (Simple () () expr_w (fromJust' $ getEndFocus (pfW,path)) newStepWR)
+                      , path)
+                      
+    -- Dejamos enfocada la prueba derecha de la transitividad
+    changeProofFocus goDownR goDownR Nothing           
     
     return (centerBoxL,centerBoxR)
     
@@ -322,6 +378,8 @@ newStepProof expr moveFocus container top_box = do
                         getStartFocus pf''
 
           moveFocus' = (Just . goEnd . fromJust . goDownL . fromJust . moveFocus)
+          
+          fromJust' = maybe (error "CONSTRUYENDO Trans para widget") id
             
 relationListStore :: IO (ListStore Relation)
 relationListStore = listStoreNew relationList 
@@ -344,35 +402,37 @@ selectRelation r combo lstore = do
     
     where getIndexFromList ls rel = fromJust $ elemIndex rel ls
             
-newExprWidget :: PreExpr -> (ProofFocus -> Maybe ProofFocus) ->
-                    VBox -> IState HBox
+newExprWidget :: PreExpr ->  (forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
+                    Maybe (ProofFocus' ctxTy relTy proofTy exprTy)) ->
+                    VBox -> IState ExprWidget
               
 newExprWidget expr moveFocus top_box = do
   
-    hbox <- io $ hBoxNew False 2
-    buttonBox <- io $ hButtonBoxNew
-
-    io (widgetSetSizeRequest hbox (-1) 50)
+--     hbox <- io $ hBoxNew False 2
+--     buttonBox <- io $ hButtonBoxNew
+-- 
+--     io (widgetSetSizeRequest hbox (-1) 50)
 
     exprWidget <- createExprWidget False
-    let Just choices = choicesButton exprWidget
-    io (widgetSetSizeRequest buttonBox 200 (-1) >>
-        boxPackStart buttonBox choices PackNatural 2 >>
-        boxPackStart (extBox exprWidget) buttonBox PackNatural 1    
-       )
+--     let Just choices = choicesButton exprWidget
+--     io (widgetSetSizeRequest buttonBox 200 (-1) >>
+--         boxPackStart buttonBox choices PackNatural 2 >>
+--         boxPackStart (extBox exprWidget) buttonBox PackNatural 1    
+--        )
     
-    eventsExprWidget expr hbox exprWidget moveFocus top_box
+    eventsExprWidget expr exprWidget moveFocus top_box
     
     writeExprWidget expr (formBox exprWidget) id
     
-    return hbox
+    return exprWidget
     
 -- | Setea los eventos de un widget de expresion. La funcion f es la
 -- que se utiliza para actualizar la expresion dentro de la prueba
-eventsExprWidget :: PreExpr -> HBox -> ExprWidget -> 
-                    (ProofFocus -> Maybe ProofFocus) ->
+eventsExprWidget :: PreExpr -> ExprWidget -> 
+                    (forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
+                    Maybe (ProofFocus' ctxTy relTy proofTy exprTy)) ->
                     VBox -> IState ()
-eventsExprWidget expr ext_box exprWidget moveFocus top_box = do
+eventsExprWidget expr exprWidget moveFocus top_box = do
     let fGet = getEndFocus . fromJust . moveFocus
     s <- get 
     win <- getWindow
@@ -385,7 +445,6 @@ eventsExprWidget expr ext_box exprWidget moveFocus top_box = do
           setupFocusEvent :: GRef -> IO (ConnectId Button)
           setupFocusEvent s = do
             let Just choices = choicesButton exprWidget
-            boxPackStart ext_box hb PackGrow 0
             hb `on` buttonReleaseEvent $ do
                     flip eventWithState s $
                     -- movemos el proofFocus hasta donde está esta expresión.
@@ -397,13 +456,10 @@ eventsExprWidget expr ext_box exprWidget moveFocus top_box = do
             choices `on` buttonPressEvent $ tryEvent $
                     eventWithState (changeProofFocus' >> showChoices) s
 
-          changeProofFocus' = unSelectBox >>
-                              changeProofFocus moveFocus Nothing >>
-                              getProof >>= \(p,path) ->
-                              selectBox (p,path) focusBg top_box >>
-                              io (proofFocusToBox path top_box) >>= \center_box ->
-                              io (axiomBoxFromCenterBox center_box) >>= \axiom_box ->
-                              changeProofFocus moveFocus (Just axiom_box) >>
+          changeProofFocus' = changeProofFocus moveFocus moveFocus Nothing >>
+--                               io (proofFocusToBox path top_box) >>= \center_box ->
+--                               io (axiomBoxFromCenterBox center_box) >>= \axiom_box ->
+--                               changeProofFocus moveFocus moveFocus (Just axiom_box) >>
                               updateSelectedExpr -- Actualizamos la expresion seleccionada
                         
           showChoices = do
@@ -432,12 +488,30 @@ eventsExprWidget expr ext_box exprWidget moveFocus top_box = do
 
 
 -- | Descarta la prueba actual.
-discardProof centralBox formBox = unsetProofState >>
+discardProof centralBox expr_w = unsetProofState >>
                                   removeAllChildren centralBox >>
                                   getExpr >>= \e ->
-                                  reloadExpr formBox (toExpr e) id
+                                  reloadExpr expr_w (toExpr e) id
 
 
+                                        
+changeProofFocus moveFocus moveFocusW box = 
+                                 unSelectBox >>
+                                 getProof >>=
+                                 updateProofNoUndo . fromJust' . moveFocus >>
+                                 withJust box updateAxiomBox >>
+                                 getProofWidget >>=
+                                 updateProofWidget . fromJust' . moveFocusW >>
+                                 selectBox focusBg
+                                 
+                                 
+    where fromJust' = maybe (error "MOVIENDO EL FOCUS") id
+                                  
+
+                                  
+-- LAS SIGUIENTES FUNCIONES NO SE USAN MAS.
+                                  
+                                  
 {- | Funcion para obtener la caja correspondiente al paso de la prueba en el que estamos
    dentro de una transitividad.
     El parámetro "box" debe ser una caja construida con "addStepProof". Cada una de esas
@@ -487,3 +561,5 @@ axiomBoxFromCenterBox center_box = containerGetChildren center_box >>= \chd ->
                                         then return $ castToHBox axiom_box
                                         else error $ "axiomBoxFromCenterBox: El axiom_box no es HBox"
 
+                                        
+                                        

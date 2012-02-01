@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings #-}
+{-# Language OverloadedStrings , RankNTypes #-}
 -- | Utilidades varias que tienen que ver con el estado de la
 -- interfaz (es probable que se muden a Equ.GUI.State) y con
 -- funciones convenientes que podrían mudarse a otros módulos.
@@ -29,6 +29,8 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , getRelPF
                      , getProofState
                      , getSelectedExpr
+                     , getProofWidget
+                     , getStepProofBox
                      -- * Modificacion del estado.
                      , updateExpr
                      , updateFrmCtrl
@@ -42,6 +44,9 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , addToRedoList
                      , addToUndoListFromRedo
                      , updateRedoList
+                     , updateProofWidget
+                     , updateProofNoUndo
+                     , updateAxiomBox
                      , setUndoing
                      , setNoUndoing
                      -- * Otras funciones
@@ -77,7 +82,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , updateProofState 
                      , unsetProofState
                      , updateExprState
-                     , changeProofFocus
+                     --, changeProofFocus
                      , updateRelation
                      , updateSelectedExpr
                      , restoreValidProofImage
@@ -101,8 +106,9 @@ import Equ.Parser
 import Equ.Proof(addBoolHypothesis)
 import Equ.Proof.Proof
 import Equ.Proof.Error(errEmptyProof)
-import Equ.Proof(ProofFocus,updateStartFocus,updateEndFocus,PM,validateProof,
-                 toProof,goFirstLeft,updateMiddleFocus,goUp',getEndFocus,goRight,goEnd,goDownL')
+import Equ.Proof(ProofFocus,ProofFocus',updateStartFocus,updateEndFocus,PM,validateProof,
+                 toProof,goFirstLeft,updateMiddleFocus,goUp',getEndFocus,goRight,goEnd,goDownL',
+                  getBasicFocus)
 import Equ.Rule
 
 import Equ.Types
@@ -214,6 +220,12 @@ updateExpr' e p = updateExpr'' p (const e)
 updateProofNoUndo pf = update (updateProof' pf) >>
                        showProof >>
                        getProof >>= liftIO . debug . show
+                       
+updateProofWidget pfw = update (\gst -> case gProof gst of
+                                             Nothing -> gst
+                                             Just gpr -> gst {gProof = Just gpr {
+                                                     proofWidget = pfw}
+                                             })
     
 updateProof pf = update (updateProof' pf) >>
                  showProof >>
@@ -305,10 +317,19 @@ addTheorem :: Theorem -> IState Theorem
 addTheorem th = (update $ \gst -> gst { theorems = (th:theorems gst) }) >>
                 return th
 
-changeProofFocus :: (ProofFocus -> Maybe ProofFocus) -> Maybe HBox -> IState ()
-changeProofFocus moveFocus box = getProof >>=
-                                 updateProofNoUndo . fromJust . moveFocus >>
-                                 withJust box updateAxiomBox
+{-changeProofFocus :: (forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
+                    Maybe (ProofFocus' ctxTy relTy proofTy exprTy)) -> 
+                    Maybe HBox -> IState ()      -}       
+-- changeProofFocus :: (ProofFocus -> Maybe ProofFocus) ->
+--                     (ProofFocusWidget -> Maybe ProofFocusWidget) ->
+--                     Maybe HBox -> IState ()
+-- changeProofFocus moveFocus moveFocusW box = getProof >>=
+--                                  updateProofNoUndo . fromJust' . moveFocus >>
+--                                  withJust box updateAxiomBox >>
+--                                  getProofWidget >>=
+--                                  updateProofWidget . fromJust' . moveFocusW
+--                                  
+--     where fromJust' = maybe (error "MOVIENDO EL FOCUS") id
 
 updateUndoList :: UndoList -> IRG
 updateUndoList ulist = update $ \gst -> gst { gUndo = ulist }
@@ -375,6 +396,9 @@ getStatePartDbg msg part = (liftIO $ debug msg) >> getStatePart part
 getProof :: IState ProofFocus
 getProof = getStatePartDbg "getProof" (proof . fromJust . gProof)
 
+getProofWidget :: IState ProofFocusWidget
+getProofWidget = getStatePartDbg "getProofWidget" (proofWidget . fromJust . gProof)
+
 getValidProof :: IState (PM Proof)
 getValidProof = getStatePart (maybe (Left errEmptyProof) validProof . gProof)
 
@@ -392,7 +416,11 @@ getExprProof = getValidProof >>= either (const (return holeExpr)) (return . getE
                                      
 
 getRelPF :: IState Relation
-getRelPF = getStatePart $ fromJust . getRel . fst . proof . fromJust . gProof
+getRelPF = getProofState >>= \ps ->
+            case ps of
+                 Nothing -> return relEq
+                 Just ps' -> 
+                    getStatePart $ fromJust . getRel . fst . proof . fromJust . gProof
 
 
 getExpr :: IState Focus
@@ -425,8 +453,19 @@ getAxiomCtrl = getStatePartDbg "getAxiomCtrl"  axiomCtrl
 getStatus :: IState (Statusbar, ContextId)
 getStatus  = getStatePartDbg "getStatus" status
 
+-- getAxiomBox :: IState HBox
+-- getAxiomBox = getStatePartDbg "getAxiomBox" $ axiomBox . fromJust . gProof
+
+getStepProofBox :: IState (Maybe HBox)
+getStepProofBox = getProofWidget >>= \pfw ->
+                  case getBasicFocus pfw of
+                       Nothing -> return Nothing
+                       Just b -> return (Just $ stepBox b)
+
+
 getAxiomBox :: IState HBox
-getAxiomBox = getStatePartDbg "getAxiomBox" $ axiomBox . fromJust . gProof
+getAxiomBox = getProofWidget >>= \pfw ->
+              return (axiomWidget $ fromJust $ getBasicFocus pfw)
 
 getAxiomBox' :: IState (Maybe HBox)
 getAxiomBox' = getStatePartDbg "getAxiomBox" $ \s -> gProof s >>= (return . axiomBox)

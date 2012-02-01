@@ -117,24 +117,24 @@ main = do
 
     -- expresion inicial
     evalStateT (initExprState emptyExpr) gRef
-    formBox <- evalStateT (loadExpr initExprBox holePreExpr id) gRef
+    initExprWidget <- evalStateT (loadExpr initExprBox holePreExpr id) gRef
 
-    setActionMenuTool itemNewProof newProofTool (createNewProof Nothing centralBox truthBox formBox) gRef    
+    setActionMenuTool itemNewProof newProofTool (createNewProof Nothing centralBox truthBox initExprWidget) gRef    
 
     setActionMenuTool itemSaveProof saveProofTool saveProofDialog gRef    
-    setActionMenuTool itemDiscardProof discardProofTool (discardProof centralBox formBox) gRef
+    setActionMenuTool itemDiscardProof discardProofTool (discardProof centralBox initExprWidget) gRef
     setActionMenuTool itemValidateProof validTool (checkProof imageValidProof truthBox) gRef
     
-    setActionMenuTool itemUndo unDo (undoEvent centralBox truthBox formBox) gRef
-    setActionMenuTool itemRedo reDo (redoEvent centralBox truthBox formBox) gRef
+    setActionMenuTool itemUndo unDo (undoEvent centralBox truthBox initExprWidget) gRef
+    setActionMenuTool itemRedo reDo (redoEvent centralBox truthBox initExprWidget) gRef
         
     onActivateLeaf itemSaveAsTheorem $ saveTheorem gRef aListStore
     onToolButtonClicked saveTheoremTool $ saveTheorem gRef aListStore
 
-    onToolButtonClicked loadProofTool $ dialogLoadProof gRef centralBox truthBox formBox
+    onToolButtonClicked loadProofTool $ dialogLoadProof gRef centralBox truthBox initExprWidget
 
 
-    onActivateLeaf itemLoadProof $ dialogLoadProof gRef centralBox truthBox formBox
+    onActivateLeaf itemLoadProof $ dialogLoadProof gRef centralBox truthBox initExprWidget
 
 
     
