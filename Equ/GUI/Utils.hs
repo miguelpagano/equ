@@ -20,7 +20,6 @@ import Equ.Rule
 import Equ.Types
 
 import Graphics.UI.Gtk hiding (eventButton, eventSent, get)
-
 import qualified Graphics.UI.Gtk as G
 import System.Glib.GType
 import System.Glib.GObject

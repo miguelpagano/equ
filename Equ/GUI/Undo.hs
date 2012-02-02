@@ -57,4 +57,4 @@ recreateProof pf cbox tbox expr_w = createNewProof (Just $ toProof pf) cbox tbox
 
 recreateExpr cbox expr_w expr = removeAllChildren cbox >>
                               initExprState expr >>
-                              runReaderT (reloadExpr (toExpr expr)) (expr_w,id)
+                              runReaderT (reloadExpr (toExpr expr)) (expr_w,id,ProofMove $ Just)

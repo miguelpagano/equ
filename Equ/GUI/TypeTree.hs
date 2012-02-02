@@ -39,7 +39,9 @@ typeTreeWidget eb btree =  io $ do
 -- Esencialmente, esta función construye una caja donde se muestra el
 -- arbol construido con @buildTreeExpr'@. 
 buildTreeExpr :: VBox -> HBox -> IExpr' [(ExprState,Move)]
-buildTreeExpr bTreeExpr we = do f <- lift getExpr
+buildTreeExpr bTreeExpr we = do moveFocus <- getProofMove
+                                lift (changeProofFocus (pm moveFocus) (pm moveFocus) Nothing)
+                                f <- lift getExpr
                                 io $ debug $ show f
                                 ws <- io (containerGetChildren we)
                                 if (length ws < 1) 
@@ -177,6 +179,8 @@ setupEventsLeaf extBTree (es,p') = do
 onTypeEdited :: Entry -> VBox -> HBox -> EventBox -> ExprState -> Move -> IExpr' ()
 onTypeEdited eText extBTree b tb es p' = ask >>= \ env -> 
             lift (withState (onEntryActivate eText) (flip runReaderT env $ 
+                        getProofMove >>= \moveFocus ->
+                        lift (changeProofFocus (pm moveFocus) (pm moveFocus) Nothing) >>
                         lift getExpr >>= \f ->
                         io (entryGetText eText) >>= \text -> 
                         lift (checkInType text) >>= \checkText ->
@@ -189,6 +193,7 @@ onTypeEdited eText extBTree b tb es p' = ask >>= \ env ->
                                set b [containerChild := tb] >> 
                                widgetShowAll b) >>
                         getPath >>= \p ->
+                        getProofMove >>= \moveFocus ->
                         lift (updateAtPlace (p' . p) (setAtomType f (p' . p . goTop) t)) >>
                         lift (getFocusedExpr p) >>= \(e,_) -> 
                         lift (updateExpr e p) >>

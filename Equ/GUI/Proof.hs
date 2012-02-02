@@ -1,10 +1,9 @@
-{-# Language RankNTypes #-}
-   
 -- | Modulo de muestra y control de eventos sobre pruebas.
 module Equ.GUI.Proof where
 
 import Equ.GUI.Types hiding (GState)
-import Equ.GUI.State
+import Equ.GUI.State hiding (getExprWidget)
+import Equ.GUI.State.Expr
 import Equ.GUI.Utils
 
 import Equ.GUI.Settings
@@ -70,7 +69,7 @@ newProofState Nothing axiom_box expr1W expr2W proofW = getGlobalCtx >>=
 loadProof :: Proof -> VBox -> VBox -> ExprWidget -> ProofStepWidget -> IState ()
 loadProof p ret_box truthBox initExprWidget proofStepW = do
     
-    newExpr_w  <- newExprWidget (toExpr $ fromRight $ getEnd p) moveToEnd truthBox
+    newExpr_w  <- newExprWidget (toExpr $ fromRight $ getEnd p) (ProofMove moveToEnd) truthBox
     
     empty_box1 <- io $ hBoxNew False 2
     proof <- newProofState (Just p) empty_box1 initExprWidget newExpr_w proofStepW
@@ -88,17 +87,15 @@ loadProof p ret_box truthBox initExprWidget proofStepW = do
         boxPackStart ret_box truthBox PackNatural 2 >>
         boxPackStart ret_box (extBox newExpr_w) PackNatural 2)
     
-    completeProof p truthBox truthBox goTop
+    completeProof p truthBox truthBox (ProofMove goTop)
     
     
-completeProof :: Proof -> VBox -> VBox -> 
-                (forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
-                    Maybe (ProofFocus' ctxTy relTy proofTy exprTy)) -> IState ()
+completeProof :: Proof -> VBox -> VBox -> ProofMove -> IState ()
 completeProof p@(Trans _ rel f1 fm f2 p1 p2) center_box top_box moveFocus = do
     (boxL,boxR) <- newStepProof (toExpr fm) moveFocus center_box top_box
     
-    completeProof p1 boxL top_box (goDownL . fromJust . moveFocus)
-    completeProof p2 boxR top_box  (goDownR . fromJust . moveFocus)  
+    completeProof p1 boxL top_box (ProofMove (goDownL . fromJust . pm moveFocus))
+    completeProof p2 boxR top_box (ProofMove (goDownR . fromJust . pm moveFocus))
 
 completeProof (Hole _ rel f1 f2) center_box top_box  moveFocus =
     --addStepProof center_box top_box moveFocus Nothing >>
@@ -106,7 +103,7 @@ completeProof (Hole _ rel f1 f2) center_box top_box  moveFocus =
 
 completeProof p@(Simple _ rel f1 f2 b) center_box top_box moveFocus =
     --addStepProof center_box top_box moveFocus (Just b) >>
-    changeProofFocusAndShow moveFocus moveFocus Nothing >>
+    changeProofFocusAndShow (pm moveFocus) (pm moveFocus) Nothing >>
     getProofWidget >>= \pfw ->
     writeTruth b (axiomWidget $ fromJust $ getBasicFocus pfw) >>
     return ()
@@ -132,7 +129,7 @@ createNewProof proof ret_box truthBox initExprWidget = do
     -- funcion para mover el foco es ir hasta el tope.
     io $ debug $ "Antes de crear el widget de paso de prueba"
     
-    firstStepProof <- addStepProof truthBox truthBox goTop  Nothing
+    firstStepProof <- addStepProof truthBox truthBox (ProofMove goTop)  Nothing
     
     io $ debug $ "Pude crear el widget de paso de prueba"
         
@@ -154,7 +151,7 @@ createNewProof proof ret_box truthBox initExprWidget = do
 
     where emptyProof box initExprW firstStepW = do
             --hboxInit <- createExprWidget holePreExpr goTopbox
-            expr_w  <- newExprWidget holePreExpr moveToEnd box
+            expr_w  <- newExprWidget holePreExpr (ProofMove moveToEnd) box
 
             initState initExprW expr_w firstStepW
             
@@ -211,9 +208,7 @@ checkProof validImage top_box = getProofState >>= (F.mapM_ $ \ps ->
                                        
 
 -- | Creación de línea de justificación de paso en una prueba.
-addStepProof :: VBox -> VBox -> (forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
-                   Maybe (ProofFocus' ctxTy relTy proofTy exprTy)) -> 
-                   Maybe Basic -> IState ProofStepWidget
+addStepProof :: VBox -> VBox -> ProofMove -> Maybe Basic -> IState ProofStepWidget
 addStepProof center_box top_box moveFocus maybe_basic = do
     -- top_box es la caja central mas general, que es creada al iniciar una prueba.    
     removeAllChildren center_box
@@ -228,10 +223,11 @@ addStepProof center_box top_box moveFocus maybe_basic = do
     axiom_box  <- io $ hBoxNew False 2
     label      <- io $ labelNew (Just $ emptyLabel)
     io (widgetSetSizeRequest axiom_box 450 (-1) >>
-            boxPackStart axiom_box label PackGrow 0)
+        boxPackStart axiom_box label PackGrow 0)
 
     button_box <- io $ hButtonBoxNew    
-    addStepProofButton <- io $ makeButtonWithImage stockGoDown
+    addStepProofButton <- io $ makeButtonWithImage addStepIcon
+    io $ buttonSetRelief addStepProofButton ReliefNone
     
     io $ setToolTip addStepProofButton "Agregar Paso"
     io $ widgetSetSizeRequest button_box 150 (-1)
@@ -255,13 +251,13 @@ addStepProof center_box top_box moveFocus maybe_basic = do
     addHandler eb_axiom_box buttonPressEvent (do
         LeftButton <- eventButton
         io $ debug "axiom_box clicked"
-        eventWithState (changeProofFocusAndShow moveFocus moveFocus (Just axiom_box)) s)
+        eventWithState (changeProofFocusAndShow (pm moveFocus) (pm moveFocus) (Just axiom_box)) s)
         
         
     addHandler eb_axiom_box  buttonPressEvent (do
         RightButton <- eventButton
         io $ debug "axiom_box right clicked"
-        eventWithState (changeProofFocusAndShow moveFocus moveFocus (Just axiom_box) >>
+        eventWithState (changeProofFocusAndShow (pm moveFocus) (pm moveFocus) (Just axiom_box) >>
                         removeAllChildren axiom_box) s
 
         label <- io (labelNew (Just $ emptyLabel))
@@ -287,7 +283,7 @@ addStepProof center_box top_box moveFocus maybe_basic = do
     }
             
     where changeItem c list box = do 
-            changeProofFocusAndShow moveFocus moveFocus (Just box)
+            changeProofFocusAndShow (pm moveFocus) (pm moveFocus) (Just box)
             ind <- io $ comboBoxGetActive c
             newRel <- io $ listStoreGetValue list ind
             updateRelation newRel
@@ -327,14 +323,12 @@ selectBox color =
 --                         highlightBox (castToHBox $ fromJust $ box) color
 --                         )
                                  
-newStepProof :: PreExpr -> (forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
-                    Maybe (ProofFocus' ctxTy relTy proofTy exprTy)) ->
-                VBox -> VBox -> IState (VBox,VBox)
+newStepProof :: PreExpr -> ProofMove -> VBox -> VBox -> IState (VBox,VBox)
 newStepProof expr moveFocus container top_box = do
     removeAllChildren container
     -- Movemos el ProofFocus hasta donde está el hueco que queremos reemplazar
     -- por una transitividad
-    changeProofFocusAndShow moveFocus moveFocus Nothing
+    changeProofFocusAndShow (pm moveFocus) (pm moveFocus) Nothing
         -- Reemplazamos el hueco por una transitividad
     pf <- getProof
     updateProof (addEmptyStep pf) 
@@ -342,10 +336,10 @@ newStepProof expr moveFocus container top_box = do
     relation <- getRelPF
     
     centerBoxL <- io $vBoxNew False 2
-    newStepWL <- addStepProof centerBoxL top_box (goDownL . fromJust . moveFocus) Nothing
+    newStepWL <- addStepProof centerBoxL top_box (ProofMove (goDownL . fromJust . pm moveFocus)) Nothing
     centerBoxR <- io $ vBoxNew False 2
-    newStepWR <- addStepProof centerBoxR top_box (goDownR . fromJust . moveFocus) Nothing
-    expr_w <- newExprWidget expr moveFocus' top_box
+    newStepWR <- addStepProof centerBoxR top_box (ProofMove (goDownR . fromJust . pm moveFocus)) Nothing
+    expr_w <- newExprWidget expr (ProofMove moveFocus') top_box
     
     io (boxPackStart container centerBoxL PackNatural 5 >>
             boxPackStart container (extBox expr_w) PackNatural 5 >>
@@ -369,13 +363,13 @@ newStepProof expr moveFocus container top_box = do
        prueba izquierda y la expr inicial de la prueba derecha. Para hacer todo esto vamos moviéndonos
        con el zipper
        -}
-    where updateFocus pf f = updateMiddleFocus (fromJust $ moveFocus pf) f >>= \pf' ->
+    where updateFocus pf f = updateMiddleFocus (fromJust $ pm moveFocus pf) f >>= \pf' ->
                              updateEndFocus (fromJust $ goDownL pf') f >>= \pf'' ->
                              updateStartFocus (fromJust $ goRight pf'') f
                              
-          getFocus pf = moveFocus pf >>= goDownR >>= getStartFocus 
+          getFocus pf = pm moveFocus pf >>= goDownR >>= getStartFocus 
 
-          moveFocus' = (Just . goEnd . fromJust . goDownL . fromJust . moveFocus)
+          moveFocus' = (Just . goEnd . fromJust . goDownL . fromJust . pm moveFocus)
           
           fromJust' = maybe (error "CONSTRUYENDO Trans para widget") id
             
@@ -400,32 +394,24 @@ selectRelation r combo lstore = do
     
     where getIndexFromList ls rel = fromJust $ elemIndex rel ls
             
-newExprWidget :: PreExpr ->  (forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
-                    Maybe (ProofFocus' ctxTy relTy proofTy exprTy)) ->
-                    VBox -> IState ExprWidget
-              
+newExprWidget :: PreExpr -> ProofMove -> VBox -> IState ExprWidget              
 newExprWidget expr moveFocus top_box = do
 
     exprWidget <- createExprWidget False
    
-    eventsExprWidget expr exprWidget moveFocus top_box    
-
-    runReaderT (writeExprWidget (formBox exprWidget) expr) (exprWidget, id)
+    eventsExprWidget expr top_box moveFocus exprWidget 
+    flip runReaderT (exprWidget,id,moveFocus) (writeExprWidget (formBox exprWidget) expr) 
     
     return exprWidget
     
 -- | Setea los eventos de un widget de expresion. La funcion f es la
 -- que se utiliza para actualizar la expresion dentro de la prueba
-eventsExprWidget :: PreExpr -> ExprWidget -> 
-                    (forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
-                    Maybe (ProofFocus' ctxTy relTy proofTy exprTy)) ->
-                    VBox -> IState ()
-eventsExprWidget expr exprWidget moveFocus top_box = do
-    let fGet = getEndFocus . fromJust . moveFocus
+eventsExprWidget :: PreExpr -> VBox -> ProofMove -> ExprWidget -> IState ()
+eventsExprWidget expr top_box moveFocus exprWidget = do
     s <- get 
     win <- getWindow
-    flip runReaderT (exprWidget,id) (setupOptionExprWidget win >>
-                                     setupForm (formBox exprWidget) Editable)
+    runReaderT (setupOptionExprWidget win >>
+                setupForm (formBox exprWidget) Editable) (exprWidget,id,moveFocus)
     io (setupFocusEvent s)
     return ()
     
@@ -444,7 +430,7 @@ eventsExprWidget expr exprWidget moveFocus top_box = do
             choices `on` buttonPressEvent $ tryEvent $
                     eventWithState (changeProofFocus' >> showChoices) s
 
-          changeProofFocus' = changeProofFocusAndShow moveFocus moveFocus Nothing >>
+          changeProofFocus' = changeProofFocusAndShow (pm moveFocus) (pm moveFocus) Nothing >>
 --                               io (proofFocusToBox path top_box) >>= \center_box ->
 --                               io (axiomBoxFromCenterBox center_box) >>= \axiom_box ->
 --                               changeProofFocus moveFocus moveFocus (Just axiom_box) >>
@@ -470,7 +456,7 @@ eventsExprWidget expr exprWidget moveFocus top_box = do
                                   -- Actualizamos la expresion
                                   changeProofFocus' >>
                                   updateExprWidget exprWidget >>
-                                  runReaderT (writeExprWidget (formBox exprWidget) e) (exprWidget, id) >>
+                                  runReaderT (writeExprWidget (formBox exprWidget) e) (exprWidget, id,moveFocus) >>
                                   updateExpr e id
 
 
@@ -479,7 +465,7 @@ eventsExprWidget expr exprWidget moveFocus top_box = do
 discardProof centralBox expr_w = unsetProofState >>
                                   removeAllChildren centralBox >>
                                   getExpr >>= \e ->
-                                  runReaderT (reloadExpr (toExpr e)) (expr_w,id)
+                                  runReaderT (reloadExpr (toExpr e)) (expr_w,id,ProofMove Just)
 
 
                                         
@@ -487,10 +473,6 @@ changeProofFocusAndShow moveFocus moveFocusW box =
                                  unSelectBox >>
                                  changeProofFocus moveFocus moveFocusW box >>
                                  selectBox focusBg
-                                 
-                                 
-    where fromJust' = maybe (error "MOVIENDO EL FOCUS") id
-                                  
 
                                   
 -- LAS SIGUIENTES FUNCIONES NO SE USAN MAS.

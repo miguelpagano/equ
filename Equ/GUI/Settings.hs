@@ -2,6 +2,7 @@
 module Equ.GUI.Settings where
 
 import Graphics.UI.Gtk
+import Equ.GUI.Types (ExprStatus(..))
 
 -- | Color del resaltado para mouse-over.
 hoverBg :: Color
@@ -54,3 +55,17 @@ scrollInc = 10.0
 
 scrollDec :: Double
 scrollDec = - scrollInc
+
+
+-- | Iconos para botones
+typeTreeIcon = stockProperties
+annotIcon = stockEdit
+choicesIcon = stockIndex
+addStepIcon = stockGoDown
+
+-- | Iconos para estado de expresiones
+imgState :: ExprStatus -> StockId
+imgState Unknown = stockDialogQuestion
+imgState Parsed =  stockDialogWarning
+imgState NotParsed = stockDialogError
+imgState TypeChecked = stockOk

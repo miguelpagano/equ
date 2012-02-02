@@ -92,7 +92,7 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , getGlobalCtx
                      , getGlobalHypothesis
                      , addGlobalHypothesis
-                     , module Control.Monad.State
+                     , module Control.Monad.State.Strict
                      )
     where
 
@@ -128,7 +128,7 @@ import Data.Reference
 import Control.Arrow(first,second,(***),(&&&))
 import Data.Maybe(fromJust)
 import Control.Monad(liftM,when)
-import Control.Monad.State (get,put,evalStateT)
+import Control.Monad.State.Strict (get,put,evalStateT)
 import Control.Monad.Trans (liftIO)
 
 import qualified Data.Serialize as S
@@ -233,7 +233,7 @@ updateProofWidget pfw = update (\gst -> case gProof gst of
                                              Just gpr -> gst {gProof = Just gpr {
                                                      proofWidget = pfw}
                                              })
-    
+updateProof :: ProofFocus -> IState ()
 updateProof pf = update (updateProof' pf) >>
                  showProof >>
                  getProof >>= liftIO . debug . show >>
@@ -339,12 +339,9 @@ addTheorem :: Theorem -> IState Theorem
 addTheorem th = (update $ \gst -> gst { theorems = (th:theorems gst) }) >>
                 return th
 
-{-changeProofFocus :: (forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
-                    Maybe (ProofFocus' ctxTy relTy proofTy exprTy)) -> 
-                    Maybe HBox -> IState ()      -}       
--- changeProofFocus :: (ProofFocus -> Maybe ProofFocus) ->
---                     (ProofFocusWidget -> Maybe ProofFocusWidget) ->
---                     Maybe HBox -> IState ()
+changeProofFocus :: (ProofFocus -> Maybe ProofFocus) ->
+                   (ProofFocusWidget -> Maybe ProofFocusWidget) ->
+                   Maybe HBox -> IState ()
 changeProofFocus moveFocus moveFocusW box = getProofState >>=
                                  F.mapM_ (\ps ->
                                     getProof >>=

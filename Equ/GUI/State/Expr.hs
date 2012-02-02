@@ -5,25 +5,27 @@ import Equ.GUI.Types
 import Graphics.UI.Gtk (HBox,ToggleButton,Image)
 
 import Control.Monad.Reader
-import Control.Arrow((***))
 
 getExprWidget :: IExpr' ExprWidget
-getExprWidget = asks fst
+getExprWidget = asks (\(e,_,_) -> e)
 
 getFormBox :: IExpr' HBox
-getFormBox = asks (formBox . fst)
+getFormBox = getExprWidget >>= return . formBox 
 
 getTypeButton :: IExpr' ToggleButton
-getTypeButton = asks (typeButton . fst)
+getTypeButton = getExprWidget >>= return . typeButton
 
 getAnnotButton :: IExpr' ToggleButton
-getAnnotButton = asks (annotButton . fst)
+getAnnotButton = getExprWidget >>= return . annotButton
 
 getImgStatus :: IExpr' Image
-getImgStatus = asks (imgStatus . fst)
+getImgStatus = getExprWidget >>= return . imgStatus
 
 getPath :: IExpr' Move
-getPath = asks snd
+getPath = asks (\(_,p,_) -> p)
+
+getProofMove :: IExpr' ProofMove
+getProofMove = asks (\(_,_,pm) -> pm) 
 
 localPath :: (Move -> Move) -> IExpr' a -> IExpr' a
-localPath f = local (id *** f)
+localPath f = local (\(e,p,m) -> (e,f p,m))

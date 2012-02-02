@@ -1,4 +1,5 @@
-{-# Language Rank2Types, ExistentialQuantification, TypeSynonymInstances, MultiParamTypeClasses #-}
+{-# Language Rank2Types, ExistentialQuantification, TypeSynonymInstances, MultiParamTypeClasses,
+    ImpredicativeTypes #-}
 module Equ.GUI.Types where
 
 import Equ.PreExpr
@@ -14,7 +15,7 @@ import Graphics.UI.Gtk ( WidgetClass, Statusbar, ContextId, HBox, TreeView
 
 import Equ.Types
 
-import Control.Monad.State
+import Control.Monad.State.Strict
 import Control.Monad.Reader
 import Data.Reference
 import Data.IORef
@@ -119,7 +120,7 @@ data ProofStepWidget = ProofStepWidget {
                       , addStepButton :: Button
                       , validImage :: Image
                       , stepBox :: HBox
-                    }
+                      }
 
 type ProofWidget = Proof' () () ProofStepWidget ExprWidget
 
@@ -127,5 +128,12 @@ type ProofFocusWidget = ProofFocus' () () ProofStepWidget ExprWidget
 
 type IExpr a = Move -> IState a
 
-type IExpr' a = ReaderT (ExprWidget,Move) IState a
+type Env = (ExprWidget,Move,ProofMove)
 
+type IExpr' a = ReaderT (ExprWidget,Move,ProofMove) IState a
+
+newtype ProofMove = ProofMove { pm ::  forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
+                                      Maybe (ProofFocus' ctxTy relTy proofTy exprTy)}
+
+
+data ExprStatus =  Unknown | Parsed | NotParsed | TypeChecked

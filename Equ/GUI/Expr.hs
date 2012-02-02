@@ -4,7 +4,7 @@ module Equ.GUI.Expr where
 
 import Equ.GUI.Types hiding (GState)
 import Equ.GUI.Utils
-import Equ.GUI.State hiding (localPath)
+import Equ.GUI.State hiding (localPath,getExprWidget)
 import Equ.GUI.State.Expr
 import Equ.GUI.Settings
 import Equ.GUI.Widget
@@ -54,34 +54,30 @@ setupFormEv b c e emask = io eventBoxNew >>= \eb ->
 -- widget para construir expresiones.
 setupEvents :: WidgetClass w => HBox -> w -> PreExpr -> EditMask -> IExpr' ()
 setupEvents b eb e emask = lift get >>= \s ->
-                           ask >>= \(expr_w,p) ->
+                           ask >>= \ env ->
                            lift getSymCtrl >>= \sym ->
                            lift (addHandler eb enterNotifyEvent (highlightBox b hoverBg)) >>
                            lift (addHandler eb leaveNotifyEvent (unlightBox b Nothing)) >>
                            -- manejamos evento "button release" para que se propague al padre
-                           io (b `on` buttonPressEvent $ io 
-                                     (debug "buttonPressEvent en formBox") >>
-                                     return False) >>
-                           io (eb `on` buttonPressEvent $ io 
-                                      (debug "buttonPressEvent en eventBox de formBox") >>
-                                      return False) >>
-                           lift (addHandler eb buttonPressEvent (editExpr b p expr_w s sym)) >>= 
+                           io (b `on` buttonPressEvent $ return False) >>
+                           io (eb `on` buttonPressEvent $ return False) >>
+                           lift (addHandler eb buttonPressEvent (editExpr b env s sym)) >>= 
                            \c -> case emask of
                                   Editable -> return ()
                                   NotEditable -> io $ signalDisconnect c
 
 
 -- | Si hacemos doble-click, entonces editamos la expresión enfocada.
-editExpr :: HBox -> Move -> ExprWidget -> GRef -> IconView -> EventM EButton ()
-editExpr b p expr_w s sym = do LeftButton <- eventButton
-                               DoubleClick <- eventClick
-                               flip eventWithState s $ 
-                                    getFocusedExpr p >>= \(e,_) ->                                               
-                                    flip runReaderT (expr_w,p) 
-                                             (newFocusToSym >> 
-                                              writeExpr (Just e) b
-                                             )
-                               io $ widgetShowAll b
+editExpr :: HBox -> Env -> GRef -> IconView -> EventM EButton ()
+editExpr b env s sym = do LeftButton <- eventButton
+                          DoubleClick <- eventClick
+                          flip eventWithState s $ 
+                               flip runReaderT env $
+                                    getPath >>= \p ->
+                                    lift (getFocusedExpr p) >>= \(e,_) ->
+                                    newFocusToSym >>                                              
+                                    writeExpr (Just e) b
+                          io $ widgetShowAll b
 
 -- | Pone una caja de texto para ingresar una expresión; cuando se
 -- activa (presionando Enter) parsea el texto de la caja como una
@@ -95,10 +91,7 @@ writeExpr pre box = lift newEntry >>= \entry ->
                            removeAllChildren box >>
                            addToBox box entry) >>
                     -- manejamos evento "button release" para que se propague al padre
-                     io (entry `on` buttonPressEvent $ io 
-                                   (debug "buttonPressEvent en entry") >> 
-                                   isParent entry box >> 
-                         return False) >>
+                     io (entry `on` buttonPressEvent $ return False) >>
                      io (widgetGrabFocus entry >> widgetShowAll box)
     where isParent entry box = io $ widgetGetParent entry >>= \p -> 
                                case p of
@@ -125,12 +118,10 @@ setExprFocus box entry  = io (entryGetText entry) >>= \s ->
                           getPath >>= \p ->
                           if null s 
                           then lift (updateExpr hole p) >> 
-                               writeExprWidget box hole >>
-                               replaceTypeButton p
+                               writeExprWidget box hole
                           else case parseFromString s of
                                  Right expr -> lift (updateExpr expr p) >>
-                                              writeExprWidget box expr >>
-                                              replaceTypeButton p
+                                              writeExprWidget box expr
                                  Left err -> lift (setErrMessage (show err)) >>
                                             io (widgetShowAll box)
     where hole = preExprHole ""
@@ -404,35 +395,31 @@ annotBuffer = textViewNew >>= \v ->
 -- En ese caso no se crea el botón para ver posibles reescrituras.
 createExprWidget :: Bool -> IState ExprWidget
 createExprWidget initial = do
+
     boxExpr <- io $ hBoxNew False 2    
     formBox <- io $ hBoxNew False 2
-    
-    --io $ widgetSetSizeRequest formBox 600 (-1)
 
     choices <- if not initial
               then do
                 exprChoices <- io $ makeButtonWithImage stockIndex
-                io $ setToolTip exprChoices "Expresiones posibles"
+                io $ buttonSetRelief exprChoices ReliefNone >>
+                     setToolTip exprChoices "Expresiones posibles"
                 return . Just $ exprChoices
               else return Nothing
 
-    exprButtons <- io hButtonBoxNew
-    bAnnot <- io $ makeButtonBox stockEdit
-    bType <- io $ makeButtonBox stockIndex
-    bInfo <- exprStatus
+    bAnnot <- io $ makeButtonBox annotIcon
+    bType <- io $ makeButtonBox typeTreeIcon
+    bInfo <- io $ imageNewFromStock  (imgState Unknown) IconSizeMenu
 
-    io (containerAdd exprButtons bAnnot  >>
-        containerAdd exprButtons bType >>
-        containerAdd exprButtons bInfo >>
-        boxPackStart boxExpr exprButtons PackNatural 10 >>
-        boxPackStart boxExpr formBox PackGrow 1 >>
-        if not initial
-        then hButtonBoxNew >>= \buttonBox ->
-             widgetSetSizeRequest buttonBox 200 (-1) >>
-             boxPackStart buttonBox (fromJust choices) PackNatural 2 >>
-             boxPackStart boxExpr buttonBox PackNatural 1
-        else return ()
-       )
+    io $ do 
+      boxPackStart boxExpr formBox PackGrow 2
+      if not initial
+      then boxPackStart boxExpr (fromJust choices) PackNatural 2
+      else return ()
+      boxPackStart boxExpr bInfo PackNatural 1 
+      boxPackStart boxExpr bAnnot PackNatural 2
+      boxPackStart boxExpr bType PackNatural 2
+      widgetSetSizeRequest formBox 400 (-1)
            
     return $ ExprWidget { formBox = formBox
                         , extBox = boxExpr
@@ -442,41 +429,25 @@ createExprWidget initial = do
                         , imgStatus = bInfo
                         }
 
-    where exprStatus :: IState Image
-          exprStatus = io $ imageNewFromStock stockInfo IconSizeMenu
-
 makeButtonBox :: String -> IO ToggleButton
 makeButtonBox s = toggleButtonNew >>= \tb ->
-                  imageNewFromStock s IconSizeMenu >>=
-                  containerAdd tb >>
+                  imageNewFromStock s IconSizeSmallToolbar >>=
+                  buttonSetImage tb >>
+                  buttonSetImagePosition tb PosBottom >>
+                  buttonSetRelief tb ReliefNone >>
                   return tb
-
-replaceTypeButton :: Move -> IExpr' ()
-replaceTypeButton p = lift getWindow >>= 
-                      configTypeTreeTB 
                       
-
--- Funciones para la expresiones inicial.
-createInitExprWidget :: PreExpr -> IExpr ExprWidget
+-- | Crea y setea los eventos del widget de la expresion inicial.
+createInitExprWidget :: PreExpr -> IExpr ExprWidget 
 createInitExprWidget expr p = do
-  
-    expr_w <- eventsInitExprWidget expr p
-
-    runReaderT (writeExprWidget (formBox expr_w) expr) (expr_w, p)
-    return expr_w
-
-    --return (extBox expr_w , formBox expr_w)
-
--- | Setea los eventos del widget de la expresion inicial.
-eventsInitExprWidget :: PreExpr -> IExpr ExprWidget 
-eventsInitExprWidget expr p = do
     s <- get
     win <- getWindow
 
     expr_w <- createExprWidget True
-
-    flip runReaderT (expr_w,p) (setupOptionExprWidget win >>
-                                setupForm (formBox expr_w) Editable) 
+    flip runReaderT (expr_w,p,ProofMove Just) $ 
+         setupForm (formBox expr_w) Editable >>
+         writeExprWidget (formBox expr_w) expr >>
+         setupOptionExprWidget win
                
     return expr_w
 
