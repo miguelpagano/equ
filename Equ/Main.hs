@@ -1,4 +1,4 @@
-module Equ.Main where
+module Main where
 
 import qualified Equ.GUI.Gui as G
 

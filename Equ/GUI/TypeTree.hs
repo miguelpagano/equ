@@ -1,3 +1,4 @@
+{-# Language DoAndIfThenElse #-}
 -- | Aspectos de la interfaz independientes de las expresiones.
 module Equ.GUI.TypeTree (buildTreeExpr) where
 

@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings, DoRec #-}
+{-# Language DoAndIfThenElse, OverloadedStrings, DoRec #-}
 -- | Aspectos de la interfaz relacionados con expresiones.
 module Equ.GUI.Expr where
 

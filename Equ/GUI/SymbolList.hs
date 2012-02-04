@@ -1,3 +1,4 @@
+{-# Language DoAndIfThenElse #-}
 -- | Configuración de la lista de símbolos.
 module Equ.GUI.SymbolList where
 
@@ -47,7 +48,8 @@ setupSymbolList tv =
             , iconViewTextColumn := scol
             , iconViewColumns := 24
             , iconViewRowSpacing := 0
-            , iconViewMargin := 0] >>
+            , iconViewMargin := 0
+            ] >>
      widgetShowAll tv >>
      return list
 
@@ -114,3 +116,4 @@ getElem l p = treeModelGetIter l p >>= \i ->
                         if (idx < len) 
                         then listStoreGetValue l idx >>= return . Just
                         else return Nothing
+

@@ -13,7 +13,6 @@ import Equ.Theories
 import Equ.Syntax
 import Equ.Proof
 import qualified Equ.Proof.Proof as P
-
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
 import Graphics.UI.Gtk.Gdk.Events 
 
@@ -63,7 +62,7 @@ setupTruthList theoremList tv =
      treeViewSetHeadersVisible tv False >>
      cellRendererTextNew >>= \renderer ->
      cellLayoutPackStart col renderer False >>
-     cellLayoutSetAttributes col renderer list (\ind -> [cellText := fst ind]) >>
+     cellLayoutSetAttributes col renderer list (\ind -> [ cellText := fst ind ]) >>
      treeViewAppendColumn tv col >> return list
 
 eventsTruthList :: TreeView -> TreeStore (String,HBox -> IRG) -> IRG
