@@ -112,11 +112,6 @@ closeErrPane = getErrPane >>= \erp ->
                                , panedPosition := 0 ] >>
                        widgetShowAll erp)
 
-
--- | Limpia el arbol de tipado de una expresión.
-cleanTypedExprTree :: IState ()
-cleanTypedExprTree = getTreeExprBox >>= removeAllChildren
-
 {- Las siguientes acciones muestran y ocultan el widget de fórmulas . -}
 openFormPane :: HBox -> Paned -> IState ()
 openFormPane b p = liftIO (widgetShow b >>
@@ -240,3 +235,18 @@ makeButtonWithImage s = buttonNew >>= \b ->
                         imageNewFromStock s IconSizeMenu >>=
                         containerAdd b >>
                         return b
+
+showAllItemTool :: HBox -> IState ()
+showAllItemTool tb = io $ 
+                    do
+                    widgetSetNoShowAll tb False 
+                    widgetShowAll tb
+                       
+hideExerItemTool :: HBox -> IState ()
+hideExerItemTool tb = io $
+                    do
+                    tbList <- containerGetChildren tb
+                    [sep,b,b'] <- return $ drop 3 tbList
+                    widgetHideAll sep
+                    widgetHideAll b
+                    widgetHideAll b'

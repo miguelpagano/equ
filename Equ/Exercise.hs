@@ -17,36 +17,40 @@ type Annot = (Text, ProofFocus)
 type Annotations = [Annot]
 
 -- Objetivo del ejercicio.
-data Goal = Goal { initExpr :: Maybe Expr
+data Goal = Goal { initExpr :: Expr
                  , rel :: R.Relation
-                 , finalExpr :: Maybe Expr
-                 }
+                 , finalExpr :: Expr
+                 } deriving Show
 
 -- Enunciado del ejercicio.
 data Statement = Statement { title :: Text
                            , goal :: Goal
                            , hints :: Text
-                           }
+                           } deriving Show
 
 -- Representacion del ejercicio en equ.
 data Exercise = Exercise { exerConf :: ExerciseConf
                          , exerStatement :: Statement
-                         , exerProof :: Proof
+                         , exerProof :: Maybe Proof
                          , exerAnnots :: Annotations
                          }
+
+instance Show Exercise where
+    show exer = show $ exerStatement exer
+
+createGoal :: Goal
+createGoal = Goal holeExpr R.relEq holeExpr
+
+createStatement :: Statement
+createStatement = Statement empty createGoal empty
 
 -- Crea un ejercicio a partir de una configuraci´on y un enunciado.
 -- En el cual la prueba es un hueco con el contexto y relaci´on propio de la
 -- configuraci´on del ejercicio.
-createEmptyExercise :: ExerciseConf -> Statement -> Exercise
-createEmptyExercise exerConf stmnt = Exercise exerConf stmnt p []
+createExercise :: Exercise
+createExercise = Exercise exerConf stmnt Nothing []
     where
-        ctx :: Maybe Ctx
-        ctx = let c = eConfInitCtx exerConf
-              in case M.null $ c of
-                    True -> Nothing
-                    False -> Just $ c
-        r :: R.Relation
-        r = rel $ goal stmnt
-        p :: Proof
-        p = holeProof ctx r
+        exerConf :: ExerciseConf
+        exerConf = createExerciseConf
+        stmnt :: Statement
+        stmnt = createStatement

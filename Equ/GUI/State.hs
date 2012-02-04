@@ -2,8 +2,10 @@
 -- | Utilidades varias que tienen que ver con el estado de la
 -- interfaz (es probable que se muden a Equ.GUI.State) y con
 -- funciones convenientes que podrían mudarse a otros módulos.
-module Equ.GUI.State (-- * Proyeccion de componentes del estado
-                       getSymFrame
+module Equ.GUI.State ( update
+                     , getStatePart
+                     -- * Proyeccion de componentes del estado
+                     , getSymFrame
                      , getParentNamed
                      , getWindow
                      , getAxiomFrame
@@ -12,7 +14,6 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , getFrmCtrl
                      , getExprWidget
                      , eventWithState
-                     , getTreeExprBox
                      , getSymCtrl
                      , getFormPane
                      , getExpr
@@ -62,10 +63,6 @@ module Equ.GUI.State (-- * Proyeccion de componentes del estado
                      , getMainExprTree
                      , getOpExprTree
                      , getQuantExprTree
-                     , getTreeOpBox
-                     , getTreeQuantBox
-                     , getTreeVarQBox
-                     , searchFocusInTree
                      , selectTypeFromBox
                      , updateExprSelectExpr
                      , updateMainExprTree
@@ -104,6 +101,7 @@ import Equ.PreExpr hiding(goUp,goRight,goLeft,goDown,goDownL)
 import Equ.Theories
 import Equ.Syntax
 import Equ.Parser
+import Equ.Exercise
 
 import Equ.Proof(addBoolHypothesis)
 import Equ.Proof.Proof
@@ -463,9 +461,6 @@ getWindow = getStatePart gWindow
 getTreeExpr :: IState (Maybe TreeExpr)
 getTreeExpr = getStatePart gTreeExpr
 
-getFaces :: IState Notebook
-getFaces = getStatePart gFaces
-
 getSymCtrl :: IState IconView
 getSymCtrl = getStatePartDbg "getSymCtrl" symCtrl
 
@@ -498,37 +493,6 @@ getAxiomBox' = getProofState >>= \ps ->
 
 {- Las dos funciones que siguen devuelven cada uno de los panes; toda la 
    gracia está en getParentNamed. -}
-
--- | Retorna la caja contenedora de los widget de operadores de pre-expresion.
-getTreeOpBox :: IState VBox
-getTreeOpBox = getFaces >>= \f -> liftIO (notebookGetNthPage f 1) >>= 
-                 \(Just w) -> liftIO (containerGetChildren (castToBox w)) >>= 
-                 \[_,w'] -> liftIO (containerGetChildren (castToBox w')) >>= 
-                 \[_,m,_,_,_] -> liftIO (containerGetChildren (castToContainer m)) >>= 
-                 \[m',_] -> return $ castToVBox m'
-
--- | Retorna la caja contenedora de los widget de variables de cuantificador
---  de pre-expresion.
-getTreeVarQBox :: IState VBox
-getTreeVarQBox = getFaces >>= \f -> liftIO (notebookGetNthPage f 1) >>= 
-                 \(Just w) -> liftIO (containerGetChildren (castToBox w)) >>= 
-                 \[_,w'] -> liftIO (containerGetChildren (castToBox w')) >>= 
-                 \[_,_,m,_,_] -> liftIO (containerGetChildren (castToContainer m)) >>= 
-                 \[m',_] -> return $ castToVBox m'
-
-getTreeQuantBox :: IState VBox
-getTreeQuantBox = getFaces >>= \f -> liftIO (notebookGetNthPage f 1) >>= 
-                 \(Just w) -> liftIO (containerGetChildren (castToBox w)) >>= 
-                 \[_,w'] -> liftIO (containerGetChildren (castToBox w')) >>= 
-                 \[_,_,_,m,_] -> liftIO (containerGetChildren (castToContainer m)) >>= 
-                 \[m',_] -> return $ castToVBox m'
-
--- | Retorna la caja contenedora del árbol de tipado de una pre-expresion.
-getTreeExprBox :: IState VBox
-getTreeExprBox = getFaces >>= \f -> liftIO (notebookGetNthPage f 1) >>= 
-                 \(Just w) -> liftIO (containerGetChildren (castToBox w)) >>= 
-                 \[_,w'] -> liftIO (containerGetChildren (castToBox w')) >>= 
-                 \[_,_,_,_,m] -> return $ castToVBox m
 
 -- | Devuelve el paned que contiene la lista de símbolos.
 getSymFrame :: IState Frame
@@ -785,15 +749,15 @@ eventWithState :: IState a -> GRef -> EventM t a
 eventWithState m = liftIO . evalStateT m
 
 -- | Estado inicial
-initialState :: Window -> IconView -> TreeView -> Notebook -> Statusbar -> ContextId -> Image -> GState
-initialState win sl al fc sb ce valid = GState 
+initialState :: Window -> IconView -> TreeView -> Maybe Exercise -> Statusbar -> ContextId -> Image -> GState
+initialState win sl al me sb ce valid = GState 
                                     win
                                     Nothing
                                     Nothing
                                     Nothing
                                     sl
                                     al
-                                    fc
+                                    me
                                     []
                                     []
                                     (Statistic [])

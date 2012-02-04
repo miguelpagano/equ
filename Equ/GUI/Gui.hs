@@ -1,6 +1,7 @@
 -- | Interfaz gráfica de Equ.
 module Equ.GUI.Gui where
 
+import Equ.GUI.Exercise
 import Equ.GUI.Types
 import Equ.GUI.State
 import Equ.GUI.Utils
@@ -64,7 +65,9 @@ main = do
     itemUndo <- xmlGetWidget xml castToImageMenuItem "undoMenuItem"
     itemRedo <- xmlGetWidget xml castToImageMenuItem "redoMenuItem"
     
-    faces <- notebookNew
+    itemMakeExercise <- xmlGetWidget xml castToImageMenuItem "itemMakeExercise"
+    itemSaveExercise <- xmlGetWidget xml castToImageMenuItem "itemSaveExercise"
+    
     -- toolbuttons
     newProofTool <- xmlGetWidget xml castToToolButton "newProof"
     loadProofTool <- xmlGetWidget xml castToToolButton "loadProof"
@@ -75,6 +78,8 @@ main = do
 
     unDo <- xmlGetWidget xml castToToolButton "undoTool"
     reDo <- xmlGetWidget xml castToToolButton "redoTool"
+    
+    toolbarBox <- xmlGetWidget xml castToHBox "toolbarBox"
     
     fieldProofFaceBox <- xmlGetWidget xml castToHBox "fieldProofFaceBox"
     
@@ -101,8 +106,11 @@ main = do
 
     windowMaximize window
 
-    gRef <- newRef $ initialState window symbolList axiomList faces statusBar ctxExpr imageValidProof
+    gRef <- newRef $ initialState window symbolList axiomList Nothing statusBar ctxExpr imageValidProof
 
+    -- Agregamos los botones pero sin visibilidad.
+    evalStateT (setupExerciseToolbar toolbarBox) gRef
+    
     onActivateLeaf quitButton $ quitAction window
     onDestroy window mainQuit
 
@@ -126,7 +134,12 @@ main = do
     
     setActionMenuTool itemUndo unDo (undoEvent centralBox truthBox initExprWidget) gRef
     setActionMenuTool itemRedo reDo (redoEvent centralBox truthBox initExprWidget) gRef
-        
+    
+    onActivateLeaf itemMakeExercise $ 
+                   evalStateT (showAllItemTool toolbarBox >> makeExercise) gRef 
+    onActivateLeaf itemSaveExercise $ 
+                   evalStateT (saveExercise) gRef 
+    
     onActivateLeaf itemSaveAsTheorem $ saveTheorem gRef aListStore
     onToolButtonClicked saveTheoremTool $ saveTheorem gRef aListStore
 
@@ -134,8 +147,6 @@ main = do
 
 
     onActivateLeaf itemLoadProof $ dialogLoadProof gRef centralBox truthBox initExprWidget
-
-
     
     flip evalStateT gRef $ do
         axioms <- getAxiomCtrl

@@ -3,6 +3,7 @@
 module Equ.GUI.Types where
 
 import Equ.PreExpr
+import Equ.Exercise
 
 import Equ.Proof (Proof,PM,ProofFocus,Theorem,Hypothesis,Proof',ProofFocus')
 import Equ.Proof.Proof (Ctx)
@@ -63,7 +64,7 @@ data GState = GState { gWindow :: Window
                      , gTreeExpr :: Maybe TreeExpr -- ^ Árbol de una expresión.
                      , symCtrl :: IconView   -- ^ La lista de símbolos para construir expresiones.
                      , axiomCtrl :: TreeView -- ^ La lista de axiomas para construir pruebas.
-                     , gFaces :: Notebook -- ^ Las distintas caras de la interfaz.
+                     , gExercise :: Maybe Exercise -- ^ El estado de la edición de un ejercicio.
                      , gUndo :: UndoList -- ^ Undo.
                      , gRedo :: RedoList -- ^ Redo.
                      , gStatistic :: Statistic -- ^ Conjunto de estadisticas.
