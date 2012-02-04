@@ -32,6 +32,7 @@ Source-repository this
 
 
 Executable equ
+  buildable: True
   HS-Source-Dirs: .
   main-is: Equ/Main.hs
 
@@ -51,9 +52,9 @@ Library
   -- Packages needed in order to build this package.
   -- Last three for test.
   Build-depends:        base >= 4.2, text >= 0.11.0.8, ordered, random, either, 
-                        transformers, mtl >= 2.0, QuickCheck == 2.4.1.1, test-framework-quickcheck2,
+                        transformers, mtl >= 2.0, QuickCheck, test-framework-quickcheck2,
                         test-framework, containers >= 0.4, test-framework-hunit, HUnit,parsec, 
-                        cereal == 0.3.3.0, gtk, glade, reference, bytestring, glib, cairo, pango
+                        cereal >= 0.3.3.0, gtk >= 0.12, glade, reference, bytestring, glib, cairo, pango
 
   GHC-Options:         -Odph -Wall
   -- HS-Source-Dirs:

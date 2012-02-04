@@ -382,7 +382,8 @@ newComboRel rel = do
     combo <- comboBoxNew
     renderer <- cellRendererTextNew
     cellLayoutPackStart combo renderer False
-    cellLayoutSetAttributes combo renderer list (\ind -> [cellText := unpack $ relRepr ind])
+    cellLayoutSetAttributes combo renderer list 
+                  (\ind -> [cellText := unpack $ relRepr ind])
     comboBoxSetModel combo (Just list)
     selectRelation rel combo list
     return (combo,list)
