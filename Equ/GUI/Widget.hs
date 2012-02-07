@@ -246,7 +246,36 @@ hideExerItemTool :: HBox -> IState ()
 hideExerItemTool tb = io $
                     do
                     tbList <- containerGetChildren tb
-                    [sep,b,b'] <- return $ drop 3 tbList
+                    [sep,b,b',b''] <- return $ drop 3 tbList
                     widgetHideAll sep
                     widgetHideAll b
                     widgetHideAll b'
+                    widgetHideAll b''
+
+makeErrWindow :: String -> IState ()
+makeErrWindow s = io $ 
+                    do
+                    w <- io $ windowNew
+                    
+                    okButton <- buttonNewWithLabel "Ok"
+                    onClicked okButton (widgetDestroy w)
+                    commentLabel <- labelNew $ Just s
+                    errImg <- imageNewFromStock stockDialogError IconSizeDialog
+                    
+                    hBox <- hBoxNew False 0
+                    vBox <- vBoxNew False 0
+                    
+                    buttonBox <- hButtonBoxNew
+                    boxPackEnd buttonBox okButton PackNatural 2
+                    buttonBoxSetLayout buttonBox ButtonboxEnd
+                    
+                    boxPackStart vBox commentLabel PackNatural 20
+                    boxPackStart vBox buttonBox PackNatural 2
+                    
+                    boxPackStart hBox errImg PackGrow 20
+                    boxPackStart hBox vBox PackGrow 2
+                    
+                    containerAdd w hBox
+                    windowSetPosition w WinPosCenterAlways
+                    
+                    widgetShowAll w

@@ -36,7 +36,9 @@ data Exercise = Exercise { exerConf :: ExerciseConf
                          }
 
 instance Show Exercise where
-    show exer = show $ exerStatement exer
+    show exer = show (exerConf exer) ++ " " ++
+                show (exerStatement exer) ++ " " ++
+                show (exerProof exer)
 
 createGoal :: Goal
 createGoal = Goal holeExpr R.relEq holeExpr

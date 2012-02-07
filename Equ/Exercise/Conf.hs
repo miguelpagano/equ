@@ -1,8 +1,10 @@
 module Equ.Exercise.Conf where
 
-import Data.Text hiding (empty)
+import Equ.Theories (Grouped (..))
+import Equ.Proof.Proof(Axiom (..))
+
+import Data.Text hiding (empty, map)
 import qualified Data.Set as S (Set (..), empty)
-import qualified Data.Map as M (Map (..), empty)
 
 import Equ.Proof hiding (Simple, Focus, Cases)
 
@@ -36,31 +38,23 @@ data Explicit = Initial
 -- Conjunto de informacion a mostar relacionada con el objetivo del ejercicio.
 type ExplicitInfo = S.Set Explicit
 
--- Determina de que manera la teoria esta disponible.
-data AvaibleTheory = AvaibleTheory { name :: Text -- ^ Nombre de la teoria.
-                                   , axioms :: [Axiom] -- ^ Axiomas a mostrar.
-                                   , theos :: [Theorem] -- ^ Teoremas a mostrar.
-                                   }
-
--- Lista de las teorias permitidas.
-type AvaibleTheories = [AvaibleTheory]
-
 -- Configuracion de un ejercicio.
 data ExerciseConf = ExerciseConf { eConfTypeProof :: TypeProof
                                  , eConfExplicit :: ExplicitInfo
                                  , eConfRewriteMode :: RewriteMode
                                  , eConfTypeCheck :: TypeCheck
-                                 , eConfAvaibleTheories :: AvaibleTheories
-                                 , eConfInitCtx :: Ctx
+                                 , eConfAvaibleTheories :: Grouped Axiom
                                  }
 
 instance Show ExerciseConf where
     show exerConf = show (eConfTypeProof exerConf) ++ " " ++ 
                     show (eConfRewriteMode exerConf) ++ " " ++
-                    show (eConfTypeCheck exerConf)
+                    show (eConfTypeCheck exerConf) ++ " " ++
+                    show (eConfExplicit exerConf)  ++ " " ++
+                    show (map (fst) $ eConfAvaibleTheories exerConf)
 
 createExerciseConf :: ExerciseConf
-createExerciseConf = ExerciseConf Direct S.empty Simple Auto [] M.empty 
+createExerciseConf = ExerciseConf Direct S.empty Simple Auto []
 
 typeCheckOptionList :: [TypeCheck]
 typeCheckOptionList = [Auto, Manual, Infer]

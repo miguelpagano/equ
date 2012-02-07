@@ -1,7 +1,7 @@
 -- | En este m&#243;dulo se re-exportan las definiciones sintácticas
 -- de cada teoría y las reglas de reescritura de expresiones que
 -- incluyen elementos sintácticos definidos en esa teoría.
-{-# Language OverloadedStrings #-}
+{-# Language OverloadedStrings, TypeSynonymInstances #-}
 module Equ.Theories 
     ( -- * Teor&#237;as.
       operatorsList
@@ -35,6 +35,7 @@ import qualified Data.Foldable as DF  (mapM_)
 import Control.Monad
 
 type TheoryName = Text
+
 type Grouped a = [(TheoryName,[a])]
 
 folTheory :: TheoryName
