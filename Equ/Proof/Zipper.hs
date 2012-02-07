@@ -9,7 +9,9 @@ module Equ.Proof.Zipper
     -- las siguientes funcionas navegan el zipper y siempre devuelven algo
     , goDown', goUp', goLeft', goRight', goDownR', goDownL', goTop', goEnd
     , moveToEnd, goFirstLeft, goLeftLeaf, goNextStep, goFirstRight, goRightLeaf
-    , goPrevStep
+    , goPrevStep, goNextStep', goPrevStep'
+    , updateStartFocus, updateEndFocus
+    , updateMiddleFocus, getStartFocus, getEndFocus, getBasicFocus
     ) where
 
 import Equ.Proof.Proof
@@ -181,7 +183,49 @@ goPrevStep pf = let pf' = goFirstRight pf in
                     case goLeft pf' of
                          Nothing -> pf -- Estamos en la primera hoja de la izquierda
                          Just pf'' -> goRightLeaf pf''
+                         
+                         
+
+goNextStep' :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe (ProofFocus' ctxTy relTy proofTy exprTy)
+goNextStep' pf = let pf' = goFirstLeft pf in
+                    case goRight pf' of
+                         Nothing -> Nothing  -- Estamos en la última hoja de la derecha
+                         Just pf'' -> Just $ goLeftLeaf pf''
+
+goPrevStep' :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe (ProofFocus' ctxTy relTy proofTy exprTy)
+goPrevStep' pf = let pf' = goFirstRight pf in
+                    case goLeft pf' of
+                         Nothing -> Nothing -- Estamos en la primera hoja de la izquierda
+                         Just pf'' -> Just $ goRightLeaf pf''
+                         
 
 moveToEnd :: ProofFocus' ctxTy relTy proofTy exprTy -> 
              Maybe (ProofFocus' ctxTy relTy proofTy exprTy)
 moveToEnd = Just . goEnd . goTop'
+
+
+-- Funciones que actualizan elementos de la prueba enfocada
+updateStartFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> exprTy -> 
+                   Maybe (ProofFocus' ctxTy relTy proofTy exprTy)
+updateStartFocus (p,path) f = Just (updateStart p f,path)
+
+updateEndFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> exprTy -> 
+                  Maybe (ProofFocus' ctxTy relTy proofTy exprTy)
+updateEndFocus (p,path) f = Just (updateEnd p f,path)
+
+updateMiddleFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> exprTy -> 
+                     Maybe (ProofFocus' ctxTy relTy proofTy exprTy)
+updateMiddleFocus (p,path) f = Just (updateMiddle p f,path)
+
+getStartFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe exprTy
+getStartFocus (p,path) = getStart p
+
+getEndFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe exprTy
+getEndFocus (p,path) = getEnd p
+
+getBasicFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe proofTy
+getBasicFocus (p,path) = getBasic p
+
+
+
+

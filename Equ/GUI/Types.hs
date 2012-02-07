@@ -118,9 +118,12 @@ data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
 data ProofStepWidget = ProofStepWidget {
                         relation :: (ComboBox,ListStore Relation)
                       , axiomWidget :: HBox
+                      , eventBoxAxiom :: EventBox
                       , addStepButton :: Button
                       , validImage :: Image
                       , stepBox :: HBox
+                      -- ids de los manejadores de eventos click izquierdo y derecho sobre la caja de axioma:
+                      --, eventsId :: (ConnectId EventBox,ConnectId EventBox) 
                       }
 
 type ProofWidget = Proof' () () ProofStepWidget ExprWidget

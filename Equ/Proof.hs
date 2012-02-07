@@ -7,8 +7,7 @@ module Equ.Proof (newProof
                  , proofFromTruth
                  , holeProof, emptyProof, updateStart, updateEnd, updateRel, updateBasic
                  , validateProof, toHoleProof, validateProofFocus
-                 , simpleProof, addEmptyStep, updateStartFocus, updateEndFocus
-                 , updateMiddleFocus, getStartFocus, getEndFocus, getBasicFocus
+                 , simpleProof, addEmptyStep
                  , possibleExpr
                  , Truth (..)
                   -- * Axiomas y teoremas
@@ -265,30 +264,13 @@ addEmptyStep (p@(Simple ctx r f1 f2 b),path) =
 addEmptyStep p = p
 
 
-
-
-updateStartFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> exprTy -> 
-                   Maybe (ProofFocus' ctxTy relTy proofTy exprTy)
-updateStartFocus (p,path) f = Just (updateStart p f,path)
-
-updateEndFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> exprTy -> 
-                  Maybe (ProofFocus' ctxTy relTy proofTy exprTy)
-updateEndFocus (p,path) f = Just (updateEnd p f,path)
-
-updateMiddleFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> exprTy -> 
-                     Maybe (ProofFocus' ctxTy relTy proofTy exprTy)
-updateMiddleFocus (p,path) f = Just (updateMiddle p f,path)
-
-getStartFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe exprTy
-getStartFocus (p,path) = P.getStart p
-
-getEndFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe exprTy
-getEndFocus (p,path) = P.getEnd p
-
-getBasicFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe proofTy
-getBasicFocus (p,path) = P.getBasic p
-
-
+createEmptyStep :: Proof -> Proof
+createEmptyStep (Hole ctx r f1 f2) = 
+    Trans ctx r f1 PE.emptyExpr f2 (Hole ctx r f1 PE.emptyExpr) (Hole ctx r PE.emptyExpr f2)
+-- Si le pasamos una prueba simple, la considera un hueco
+createEmptyStep (Simple ctx r f1 f2 b) = 
+    Trans ctx r f1 PE.emptyExpr f2 (Hole ctx r f1 PE.emptyExpr) (Hole ctx r PE.emptyExpr f2)
+createEmptyStep p = p
 
 
 {-
