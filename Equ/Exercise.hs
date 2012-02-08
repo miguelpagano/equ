@@ -16,15 +16,9 @@ type Annot = (Text, ProofFocus)
 -- Conjunto de anotaciones para una prueba.
 type Annotations = [Annot]
 
--- Objetivo del ejercicio.
-data Goal = Goal { initExpr :: Expr
-                 , rel :: R.Relation
-                 , finalExpr :: Expr
-                 } deriving Show
-
 -- Enunciado del ejercicio.
 data Statement = Statement { title :: Text
-                           , goal :: Goal
+                           , initExpr :: Expr
                            , hints :: Text
                            } deriving Show
 
@@ -40,19 +34,16 @@ instance Show Exercise where
                 show (exerStatement exer) ++ " " ++
                 show (exerProof exer)
 
-createGoal :: Goal
-createGoal = Goal holeExpr R.relEq holeExpr
-
-createStatement :: Statement
-createStatement = Statement empty createGoal empty
+createStatement :: Expr -> Statement
+createStatement e = Statement empty e empty
 
 -- Crea un ejercicio a partir de una configuraci´on y un enunciado.
 -- En el cual la prueba es un hueco con el contexto y relaci´on propio de la
 -- configuraci´on del ejercicio.
-createExercise :: Exercise
-createExercise = Exercise exerConf stmnt Nothing []
+createExercise :: Expr -> Exercise
+createExercise e = Exercise exerConf stmnt Nothing []
     where
         exerConf :: ExerciseConf
         exerConf = createExerciseConf
         stmnt :: Statement
-        stmnt = createStatement
+        stmnt = createStatement e

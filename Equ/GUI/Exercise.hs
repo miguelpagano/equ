@@ -2,14 +2,17 @@ module Equ.GUI.Exercise where
 
 import Graphics.UI.Gtk hiding (get)
 
-import Equ.Exercise
-import Equ.Exercise.Conf
-
 import Equ.GUI.Types
 import Equ.GUI.Utils
 import Equ.GUI.State
+import Equ.GUI.State.Expr (getInitialExpr)
 import Equ.GUI.State.Exercise 
 import Equ.GUI.Widget
+
+import Equ.Expr
+import Equ.Parser (parseFromString)
+import Equ.Exercise
+import Equ.Exercise.Conf
 import Equ.Theories (relationList, axiomGroup, Grouped (..))
 import Equ.Proof.Proof(Axiom (..))
 import Equ.Proof (toProof)
@@ -23,33 +26,33 @@ import qualified Data.Foldable as F
 
 import Control.Monad.State.Strict (when, get, evalStateT)
 
+-- Configura los botones para las ventanas de configuraci´on de ejercicio y
+-- enunciado.
 setupExerciseToolbar :: HBox -> IState ()
 setupExerciseToolbar b = do
-            (exerConfButton, statementButton, associateProofButton) <- io $ makeToolButtons
+            (exerConfButton, statementButton) <- io $ makeToolButtons
             s <- get
             io $ onToolButtonClicked exerConfButton 
                                     (evalStateT makeExerConfWindow s)
             io $ onToolButtonClicked statementButton 
                                     (evalStateT makeStatementWindow s)
-            io $ onToolButtonClicked associateProofButton
-                                    (evalStateT makeAssocProofWindow s)
             return ()
     where
-        makeToolButtons :: IO (ToolButton, ToolButton, ToolButton)
+        makeToolButtons :: IO (ToolButton, ToolButton)
         makeToolButtons = do
             sep <- separatorToolItemNew
             exerConfButton <- toolButtonNewFromStock stockProperties
             statementButton <- toolButtonNewFromStock stockSelectAll
-            associateProofButton <- toolButtonNewFromStock stockRevertToSaved
             
             boxPackStart b sep PackNatural 0
             boxPackStart b exerConfButton PackNatural 0
             boxPackStart b statementButton PackNatural 0
-            boxPackStart b associateProofButton PackNatural 0
             
             widgetSetNoShowAll b True 
-            return (exerConfButton, statementButton, associateProofButton)
+            return (exerConfButton, statementButton)
 
+-- Crear un comboBox para la configuraci´on de los campos de configuraci´on 
+-- de un ejercicio.
 makeExerConfComboItem :: (Show a, Eq a) => String -> ListStore a -> IState a -> 
                                            IState HBox
 makeExerConfComboItem s ls isItem = do
@@ -70,7 +73,8 @@ makeExerConfComboItem s ls isItem = do
 
                      return box
 
-
+-- Crea la lista de "elementos tildables" para la configuraci´on de
+-- un ejercicio.
 makeExerConfCheckItem :: (Show a, Eq a) => String -> [a] -> [a] -> IState HBox
 makeExerConfCheckItem s items activeItems = do
                     box <- io $ hBoxNew False 0
@@ -92,6 +96,8 @@ makeExerConfCheckItem' box aItems item= io $
                     when (elem item aItems)
                         (set cbutton [toggleButtonActive := True])
 
+-- Crea los botones aceptar y cancelar para las ventanas de enunciado y 
+-- configuraci´on de ejercicio.
 makeOkCancelButtons :: IO HBox
 makeOkCancelButtons = do
                       box <- hBoxNew False 0
@@ -104,6 +110,8 @@ makeOkCancelButtons = do
                       
                       return box
 
+-- Funci´on general para manejar los botones aceptar y cancelar, incluidos
+-- en las ventanas de enunciado y configuraci´on de ejercicio.
 setupOkCancelButtons :: HBox -> IState () -> IState () -> IState ()
 setupOkCancelButtons b actionOk actionCancel = do
                 [okButton, cancelButton] <- io $ containerGetChildren b
@@ -118,6 +126,8 @@ setupOkCancelButtons b actionOk actionCancel = do
                 
                 return ()
 
+-- Configuraci´on del boton aceptar para la ventana de configuraci´on de un
+-- ejercicio.
 actionOkButtonExerConf :: HBox -> (HBox, ListStore TypeProof) -> 
                           (HBox, ListStore RewriteMode) -> 
                           (HBox, ListStore TypeCheck) -> 
@@ -146,7 +156,7 @@ actionOkButtonExerConf b tpBox rwBox tcBox infoBox infoList atBox atList w =
                     
                     io (widgetDestroy w)
 
-
+-- Retorna el conjunto de teorias disponibles.
 getActiveItemsFromCheckATheories :: HBox -> Grouped Axiom -> IState (Grouped Axiom)
 getActiveItemsFromCheckATheories b gAxiom = do
                             [_, itemBox] <- io $ containerGetChildren b
@@ -166,6 +176,8 @@ getActiveItemsFromCheckATheories b gAxiom = do
             where
                 getItemFromList s = return $ fromJust $ find (\i -> s == show (fst i)) ilist
 
+-- Retorna el conjunto de items seleccionado para mostrar como informaci´on
+-- relacionado a la configuraci´on de un ejercicio.
 getActiveItemsFromCheckInfo :: HBox -> [Explicit] -> IState (S.Set Explicit)
 getActiveItemsFromCheckInfo b infoList = do
                             [_, itemBox] <- io $ containerGetChildren b
@@ -186,13 +198,16 @@ getActiveItemsFromCheckInfo b infoList = do
                 getItemFromList :: String -> IState Explicit
                 getItemFromList s = return $ fromJust $ find (\i -> s == show i) ilist
 
-getActiveItemFromCombo :: Show a => (HBox, ListStore a) -> IO a
+-- Item activo en un comboBox.
+getActiveItemFromCombo :: (Show a, BoxClass b) => (b, ListStore a) -> IO a
 getActiveItemFromCombo (b, ls) = do
                         [_, cBox] <- containerGetChildren b
                         i <- comboBoxGetActive (castToComboBox cBox)
                         item <- listStoreGetValue ls i
                         return item
 
+-- Crea una ventana que permite editar los campos para la configuraci´on de
+-- un ejercicio.
 makeExerConfWindow :: IState ()
 makeExerConfWindow = do
                      vBox <- newVBox
@@ -231,11 +246,7 @@ makeExerConfWindow = do
                      box <- io $ makeOkCancelButtons
                      io $ boxPackEnd vBox box PackNatural 2
                      
-                     w <- io $ windowNew
-                     io $ containerAdd w vBox
-                     io $ set w [windowDefaultWidth := 300]
-                     io $ windowSetPosition w WinPosCenterAlways
-                     io $ widgetShowAll w
+                     w <- makeWindowPop vBox 300
                      
                      setupOkCancelButtons box 
                         (actionOkButtonExerConf box (tpBox, tpLs) (rwBox, rwLs) 
@@ -250,6 +261,7 @@ makeExerConfWindow = do
                          sep <- io $ hSeparatorNew
                          io $ boxPackStart vBox sep PackNatural 2
 
+-- Crea un entry para ingresar el texto relacionado a un titulo del enunciado.
 makeExerciseTitleEntry :: IState HBox
 makeExerciseTitleEntry = do
                     box <- io $ hBoxNew False 0
@@ -265,43 +277,8 @@ makeExerciseTitleEntry = do
                     
                     return box
 
-makeExerciseGoal :: IState HBox
-makeExerciseGoal = do
-                hbox <- io $ hBoxNew False 0
-                    
-                optionLabel <- io $ labelNew $ Just "Meta (?)"
-                
-                vbox <- io $ vBoxNew False 0
-                
-                stat <- getExerciseStatement
-                
-                initEntry <- io $ entryNew
-                io $ entrySetText initEntry $ (show . initExpr . goal) stat
-                
-                
-                ls <- io $ listStoreNew relationList 
-                cbox <- io $ comboBoxNewWithModel ls
-                cellRenderer <- io $ cellRendererTextNew
-                io $ cellLayoutPackStart cbox cellRenderer True
-                io $ cellLayoutSetAttributes cbox cellRenderer ls 
-                                        (\s -> [cellText := unpack $ relRepr s])
-                
-                l <- io $ listStoreToList ls
-                item <- return $ (rel . goal) stat
-                io $ comboBoxSetActive cbox (fromJust $ elemIndex item l)
-                
-                finalEntry <- io $ entryNew
-                io $ entrySetText finalEntry $ (show . finalExpr . goal) stat
-                
-                io $ boxPackStart vbox initEntry PackNatural 2
-                io $ boxPackStart vbox cbox PackNatural 2
-                io $ boxPackStart vbox finalEntry PackNatural 2
-                
-                io $ boxPackStart hbox optionLabel PackGrow 0
-                io $ boxPackStart hbox vbox PackNatural 0
-                
-                return hbox
-
+-- Crea un textview para ingresar texto relacionado con los hint's del
+-- enunciado.
 makeExerciseHintEntry :: IState HBox
 makeExerciseHintEntry = do
                     box <- io $ hBoxNew False 0
@@ -325,27 +302,25 @@ makeExerciseHintEntry = do
                     
                     return box
 
-actionOkButtonStatement :: HBox -> HBox -> HBox -> Window -> IState ()
-actionOkButtonStatement titleBox goalBox hintBox w = do
+-- Acci´on del boton Aceptar para la ventana de edici´on del enunciado.
+actionOkButtonStatement :: HBox -> HBox -> Window -> IState ()
+actionOkButtonStatement titleBox hintBox w = do
                      
                      updateExerciseStatementTitle titleBox
-                     
-                     updateExerciseStatementGoal goalBox
                      
                      updateExerciseStatementHint hintBox
                      
                      io (widgetDestroy w)
 
+-- Update del titulo de un enunciado.
 updateExerciseStatementTitle :: HBox -> IState ()
 updateExerciseStatementTitle titleBox = do
-                     [_,entry] <- io $ containerGetChildren titleBox
-                     text <- io $ entryGetText (castToEntry entry)
-                     stat <- getExerciseStatement
-                     updateExerciseStatement (stat {title = pack text})
+                            [_,entry] <- io $ containerGetChildren titleBox
+                            text <- io $ entryGetText (castToEntry entry)
+                            stat <- getExerciseStatement
+                            updateExerciseStatement (stat {title = pack text})
 
-updateExerciseStatementGoal :: HBox -> IState ()
-updateExerciseStatementGoal goalBox = return ()
-
+-- Update del hint de un enunciado.
 updateExerciseStatementHint :: HBox -> IState ()
 updateExerciseStatementHint hintBox = do
             [_,textView] <- io $ containerGetChildren hintBox
@@ -360,6 +335,7 @@ updateExerciseStatementHint hintBox = do
             stat <- getExerciseStatement
             updateExerciseStatement (stat {hints = pack text})
 
+-- Crea una ventana que permite editar los campos de un enunciado.
 makeStatementWindow :: IState ()
 makeStatementWindow =  do
                      vBox <- newVBox
@@ -367,23 +343,16 @@ makeStatementWindow =  do
                      titleBox <- makeExerciseTitleEntry
                      vBoxAdd vBox titleBox
                      
-                     goalBox <- makeExerciseGoal
-                     vBoxAdd vBox goalBox
-                     
                      hintBox <- makeExerciseHintEntry
                      vBoxAdd vBox hintBox
                      
                      box <- io $ makeOkCancelButtons
                      io $ boxPackEnd vBox box PackNatural 2
                      
-                     w <- io $ windowNew
-                     io $ containerAdd w vBox
-                     io $ set w [windowDefaultWidth := 400]
-                     io $ windowSetPosition w WinPosCenterAlways
-                     io $ widgetShowAll w
+                     w <- makeWindowPop vBox 400
                      
                      setupOkCancelButtons box 
-                        (actionOkButtonStatement titleBox goalBox hintBox w)
+                        (actionOkButtonStatement titleBox hintBox w)
                         (io $ widgetDestroy w)
     where
         vBoxAdd :: WidgetClass w => VBox -> w -> IState ()
@@ -392,6 +361,9 @@ makeStatementWindow =  do
                          sep <- io $ hSeparatorNew
                          io $ boxPackStart vBox sep PackNatural 2
 
+-- Asocia una prueba a un ejercicio. Esta funci´on esta proxima a cambiar
+-- bastante debido a que la asociacion se hara durante el guardado del
+-- ejercicio.
 makeAssocProofWindow :: IState ()
 makeAssocProofWindow = do
             proofState <- getProofState
@@ -402,11 +374,24 @@ makeAssocProofWindow = do
                            updateExercise $ 
                                 exer {exerProof = Just $ toProof $ proof ps }
 
+-- Genera una ventana para mostar el contenido de "b" con ancho width
+makeWindowPop :: (BoxClass b) => b -> Int -> IState Window
+makeWindowPop box width = io $ 
+                    do
+                    w <- windowNew
+                    containerAdd w box
+                    set w [windowDefaultWidth := width]
+                    windowSetPosition w WinPosCenterAlways
+                    widgetShowAll w
+                    return w
+
+-- Guarda un ejercicio.
 saveExercise :: IState ()
 saveExercise = return ()
 
+-- Crea un ejercicio.
 makeExercise :: IState ()
-makeExercise = updateExercise initExercise
+makeExercise = getInitialExpr >>= updateExercise . initExercise . fromJust
     where
-        initExercise :: Exercise
+        initExercise :: Expr -> Exercise
         initExercise = createExercise

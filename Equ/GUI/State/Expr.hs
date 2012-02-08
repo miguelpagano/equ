@@ -1,10 +1,23 @@
 module Equ.GUI.State.Expr where
 
 import Equ.GUI.Types
+import Equ.GUI.State hiding (getExprWidget)
+
+import Equ.Expr (Expr (..))
+import Equ.PreExpr (toExpr)
+import Equ.Proof(getStart, toProof)
 
 import Graphics.UI.Gtk (HBox,ToggleButton,Image)
 
 import Control.Monad.Reader
+
+getInitialExpr :: IState (Maybe Expr)
+getInitialExpr = getProofState >>= \mps ->
+                 case mps of
+                    Nothing -> getExpr >>= return . Just . Expr . fst
+                    Just ps -> either (return . (const  Nothing)) 
+                                      (return . Just . Expr . toExpr) 
+                                      (getStart $ toProof $ proof ps)
 
 getExprWidget :: IExpr' ExprWidget
 getExprWidget = asks (\(e,_,_) -> e)
