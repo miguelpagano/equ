@@ -319,7 +319,7 @@
                       </widget>
                     </child>
                     <child>
-                      <widget class="GtkImageMenuItem" id="itemLoadExercise">
+                      <widget class="GtkImageMenuItem" id="itemLoadForEditExercise">
                         <property name="label">Cargar ejercicio</property>
                         <property name="visible">True</property>
                         <property name="use_stock">False</property>

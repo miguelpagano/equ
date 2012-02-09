@@ -5,26 +5,31 @@ import Graphics.UI.Gtk hiding (get)
 import Equ.GUI.Types
 import Equ.GUI.Utils
 import Equ.GUI.State
+import Equ.GUI.Expr (initExprState)
 import Equ.GUI.State.Expr (getInitialExpr)
+import Equ.GUI.Proof (createNewProof)
 import Equ.GUI.State.Exercise 
 import Equ.GUI.Widget
 
-import Equ.Expr
+import Equ.Expr (Expr, getPreExpr)
+import Equ.PreExpr(toFocus)
 import Equ.Parser (parseFromString)
 import Equ.Exercise
 import Equ.Exercise.Conf
 import Equ.Theories (relationList, axiomGroup, Grouped (..))
 import Equ.Proof.Proof(Axiom (..))
-import Equ.Proof (toProof)
+import Equ.Proof (Proof,toProof, goTop)
 import Equ.Rule hiding (rel)
 
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust,isJust)
 import Data.Text (unpack, pack)
 import Data.List (elemIndex, find)
+
 import qualified Data.Set as S
 import qualified Data.Foldable as F
 
 import Control.Monad.State.Strict (when, get, evalStateT)
+import Control.Monad.IO.Class (MonadIO)
 
 -- Configura los botones para las ventanas de configuraci´on de ejercicio y
 -- enunciado.
@@ -385,9 +390,51 @@ makeWindowPop box width = io $
                     widgetShowAll w
                     return w
 
+exerciseFileFilter :: (FileChooserClass f, MonadIO m) => f -> m ()
+exerciseFileFilter dialog = io $ setFileFilter dialog "*.exer" "Ejercicio de equ"
+
 -- Guarda un ejercicio.
 saveExercise :: IState ()
-saveExercise = return ()
+saveExercise = getExercise >>= \mexer ->
+               case mexer of
+                   Nothing -> makeErrWindow "Ningun ejercicio para guardar."
+                   Just _ -> setupExerciseToSave >>= \exer -> 
+                             io (debug $ show exer) >>
+                             saveDialog ("Guardar ejercicio") 
+                                        (exerciseFileFilter)
+                                        (exer) >> return ()
+    where
+        takeProof :: Maybe ProofState -> Proof
+        takeProof = toProof . fromJust . goTop . proof . fromJust
+        setupExerciseToSave :: IState Exercise
+        setupExerciseToSave = do
+                    mps <- getProofState 
+                    when (isJust mps) (updateExerciseProof $ takeProof mps)
+                    Just initE <- getInitialExpr
+                    io (debug $ show initE)
+                    stat <- getExerciseStatement
+                    updateExerciseStatement (stat {initExpr = initE}) 
+                    Just exer <- getExercise
+                    return exer
+
+-- Cargar el ejercicio para su edici´on.
+loadForEditExercise :: IState Bool
+loadForEditExercise = do
+                      s <- get
+                      flag <- io $ dialogLoad
+                                    ("Cargar ejercicio")
+                                    (exerciseFileFilter)
+                                    (\exer -> flip evalStateT s $ 
+                                                   updateExercise exer)
+                      return flag
+
+-- Configura la prueba a mostrar cuando cargamos un ejercicio para editar.
+setupProofFromExercise :: VBox -> VBox -> ExprWidget -> IState ()
+setupProofFromExercise centralBox truthBox initExprWidget = do
+                    e <- getExerciseStatementInitExpr 
+                    initExprState $ toFocus $ getPreExpr e
+                    mproof <- getExerciseProof
+                    createNewProof mproof centralBox truthBox initExprWidget
 
 -- Crea un ejercicio.
 makeExercise :: IState ()

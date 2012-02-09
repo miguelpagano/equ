@@ -225,7 +225,3 @@ getEndFocus (p,path) = getEnd p
 
 getBasicFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe proofTy
 getBasicFocus (p,path) = getBasic p
-
-
-
-

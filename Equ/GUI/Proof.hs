@@ -527,6 +527,3 @@ axiomBoxFromCenterBox center_box = containerGetChildren center_box >>= \chd ->
                                         if isHBox axiom_box
                                         then return $ castToHBox axiom_box
                                         else error $ "axiomBoxFromCenterBox: El axiom_box no es HBox"
-
-                                        
-                                        

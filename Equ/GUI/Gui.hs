@@ -16,6 +16,8 @@ import Equ.GUI.Truth
 import Equ.GUI.Undo
 import Equ.GUI.Proof.Dialogs
 
+import Equ.GUI.State.Exercise
+
 import Equ.PreExpr(holePreExpr, emptyExpr)
 
 import qualified Graphics.UI.Gtk as G
@@ -67,6 +69,7 @@ main = do
     
     itemMakeExercise <- xmlGetWidget xml castToImageMenuItem "itemMakeExercise"
     itemSaveExercise <- xmlGetWidget xml castToImageMenuItem "itemSaveExercise"
+    itemLoadForEditExercise <- xmlGetWidget xml castToImageMenuItem "itemLoadForEditExercise"
     
     -- toolbuttons
     newProofTool <- xmlGetWidget xml castToToolButton "newProof"
@@ -139,12 +142,19 @@ main = do
                    evalStateT (showAllItemTool toolbarBox >> makeExercise) gRef 
     onActivateLeaf itemSaveExercise $ 
                    evalStateT (saveExercise) gRef 
+    onActivateLeaf itemLoadForEditExercise $ 
+                   evalStateT (loadForEditExercise >>= \flag ->
+                               when (flag) (setupProofFromExercise
+                                                          centralBox 
+                                                          truthBox 
+                                                          initExprWidget
+                                           ) >>
+                               showAllItemTool toolbarBox ) gRef 
     
     onActivateLeaf itemSaveAsTheorem $ saveTheorem gRef aListStore
     onToolButtonClicked saveTheoremTool $ saveTheorem gRef aListStore
 
     onToolButtonClicked loadProofTool $ dialogLoadProof gRef centralBox truthBox initExprWidget
-
 
     onActivateLeaf itemLoadProof $ dialogLoadProof gRef centralBox truthBox initExprWidget
     

@@ -2,6 +2,8 @@ module Equ.GUI.State.Exercise where
 
 import Equ.Exercise
 import Equ.Exercise.Conf
+import Equ.Expr (Expr)
+import Equ.Proof
 import Equ.Theories (Grouped (..))
 import Equ.Proof.Proof(Axiom (..))
 
@@ -39,9 +41,16 @@ getExerciseConfATheories = getExerciseConf >>= return . eConfAvaibleTheories
 getExerciseConf :: IState (ExerciseConf)
 getExerciseConf = getExercise >>= return . exerConf . fromJust
 
+-- Retorna la expresi´on inicial de un enunciado.
+getExerciseStatementInitExpr :: IState Expr
+getExerciseStatementInitExpr = getExerciseStatement >>= return . initExpr
+
 -- Retorna el enunciado del ejercicio.
 getExerciseStatement :: IState Statement
 getExerciseStatement = getExercise >>= return . exerStatement . fromJust 
+
+getExerciseProof :: IState (Maybe Proof)
+getExerciseProof = getExercise >>= return . exerProof . fromJust 
 
 -- Retorna el ejercicio.
 getExercise :: IState (Maybe Exercise)
@@ -58,6 +67,12 @@ updateExerciseStatement :: Statement -> IState ()
 updateExerciseStatement exerStat = do
                               Just exer <- getExercise 
                               updateExercise $ exer {exerStatement = exerStat}
+
+-- Update de la prueba del ejercicio.
+updateExerciseProof :: Proof -> IState ()
+updateExerciseProof p = do
+                        Just exer <- getExercise 
+                        updateExercise $ exer {exerProof = Just p}
 
 -- Update del ejercicio.
 updateExercise :: Exercise -> IState ()

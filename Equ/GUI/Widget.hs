@@ -24,14 +24,14 @@ import Graphics.UI.Gtk.Gdk.EventM
 import Graphics.UI.Gtk.Glade (GladeXML,xmlGetWidget)
 import Data.Reference
 import Data.Maybe(fromJust)
+import Data.Text(unpack)
+import Data.List (deleteBy)
 
+import qualified Data.Foldable as F
 import Control.Monad.Trans(lift,liftIO)
 import Control.Monad.State(get,evalStateT)
 import Control.Monad(filterM) 
 
-import Data.Text(unpack)
-
-import Data.List (deleteBy)
 import qualified Data.Serialize as S
 import qualified Data.ByteString as L
 
@@ -279,3 +279,50 @@ makeErrWindow s = io $
                     windowSetPosition w WinPosCenterAlways
                     
                     widgetShowAll w
+
+-- Abre una ventana para cargar un tipo con instancia Serialize, retorna True
+-- si la opci´on fue cargar, retorna False si la opci´on fue cancelar.
+dialogLoad :: (S.Serialize s) => String -> (FileChooserDialog -> IO ()) -> 
+                               (s -> IO ()) -> IO Bool
+dialogLoad label fileFilter action = do
+    dialog <- fileChooserDialogNew (Just label) 
+                                    Nothing 
+                                    FileChooserActionOpen
+                                    [ ("Cargar",ResponseAccept)
+                                    , ("Cancelar",ResponseCancel)]
+
+    fileFilter dialog 
+    response <- dialogRun dialog
+    
+    case response of
+        ResponseAccept -> do
+            selected <- fileChooserGetFilename dialog
+            flip F.mapM_ selected (\filepath -> 
+                                    decodeFile filepath >>= \decode ->
+                                    action decode >>
+                                    widgetDestroy dialog)
+            return True
+        _ -> widgetDestroy dialog >> return False
+
+-- Abre una ventana para guardar un tipo con instancia Serialize, retorna True 
+-- si la opci´on fue guardar, retorna False si la opci´on fue cancelar.
+saveDialog :: (S.Serialize s) => String -> (FileChooserDialog -> IO ()) -> 
+                               s -> IState Bool
+saveDialog label fileFilter serialItem = do
+    dialog <- io $ fileChooserDialogNew (Just label) 
+                                        Nothing 
+                                        FileChooserActionSave 
+                                        [ ("Guardar",ResponseAccept)
+                                        , ("Cancelar",ResponseCancel)]
+                                
+    io $ fileFilter dialog
+    response <- io $ dialogRun dialog
+
+    case response of
+        ResponseAccept -> io (fileChooserGetFilename dialog) >>= 
+                          \fp -> F.mapM_ save fp >> 
+                          io (widgetDestroy dialog) >> return True
+        _ -> io (widgetDestroy dialog) >> return False
+    where
+        save:: FilePath -> IState ()
+        save filepath = io $ encodeFile filepath serialItem

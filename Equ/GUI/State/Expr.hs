@@ -4,7 +4,7 @@ import Equ.GUI.Types
 import Equ.GUI.State hiding (getExprWidget)
 
 import Equ.Expr (Expr (..))
-import Equ.PreExpr (toExpr)
+import Equ.PreExpr (toExpr, goTop)
 import Equ.Proof(getStart, toProof)
 
 import Graphics.UI.Gtk (HBox,ToggleButton,Image)
@@ -14,9 +14,9 @@ import Control.Monad.Reader
 getInitialExpr :: IState (Maybe Expr)
 getInitialExpr = getProofState >>= \mps ->
                  case mps of
-                    Nothing -> getExpr >>= return . Just . Expr . fst
+                    Nothing -> getExpr >>= return . Just . Expr . toExpr . goTop
                     Just ps -> either (return . (const  Nothing)) 
-                                      (return . Just . Expr . toExpr) 
+                                      (return . Just . Expr . toExpr . goTop) 
                                       (getStart $ toProof $ proof ps)
 
 getExprWidget :: IExpr' ExprWidget
