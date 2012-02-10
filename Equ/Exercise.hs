@@ -21,15 +21,16 @@ type Annotations = [Annot]
 
 -- Enunciado del ejercicio.
 data Statement = Statement { title :: Text
+                           , stat :: Text
                            , initExpr :: Expr
                            , hints :: Text
                            } deriving Show
 
 instance Serialize Statement where
-    put (Statement title initExpr hints) = 
-        put title >> put initExpr >> put hints
+    put (Statement title stat initExpr hints) = 
+        put title >> put stat >> put initExpr >> put hints
     
-    get = Statement <$> get <*> get <*> get
+    get = Statement <$> get <*> get <*> get <*> get
 
 -- Representacion del ejercicio en equ.
 data Exercise = Exercise { exerConf :: ExerciseConf
@@ -50,7 +51,7 @@ instance Show Exercise where
                 show (exerProof exer)
 
 createStatement :: Expr -> Statement
-createStatement e = Statement empty e empty
+createStatement e = Statement empty empty e empty
 
 -- Crea un ejercicio a partir de una configuraci´on y un enunciado.
 -- En el cual la prueba es un hueco con el contexto y relaci´on propio de la

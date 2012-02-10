@@ -306,15 +306,17 @@ dialogLoad label fileFilter action = do
 
 -- Abre una ventana para guardar un tipo con instancia Serialize, retorna True 
 -- si la opci´on fue guardar, retorna False si la opci´on fue cancelar.
-saveDialog :: (S.Serialize s) => String -> (FileChooserDialog -> IO ()) -> 
-                               s -> IState Bool
-saveDialog label fileFilter serialItem = do
+saveDialog :: (S.Serialize s) => String -> String ->
+                                 (FileChooserDialog -> IO ()) -> 
+                                 s -> IState Bool
+saveDialog label filename fileFilter serialItem = do
     dialog <- io $ fileChooserDialogNew (Just label) 
                                         Nothing 
                                         FileChooserActionSave 
                                         [ ("Guardar",ResponseAccept)
                                         , ("Cancelar",ResponseCancel)]
-                                
+    
+    io $ fileChooserSetCurrentName dialog filename
     io $ fileFilter dialog
     response <- io $ dialogRun dialog
 
