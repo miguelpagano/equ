@@ -6,7 +6,8 @@ module Equ.Proof (newProof
                  , newProofWithoutEnd
                  , proofFromTruth
                  , holeProof, emptyProof, updateStart, updateEnd, updateRel, updateBasic
-                 , validateProof, toHoleProof, validateProofFocus
+                 , validateProof, toHoleProof, validateProofFocus, validateListedProof
+                 , validateStepProof
                  , simpleProof, addEmptyStep
                  , possibleExpr
                  , Truth (..)
@@ -26,6 +27,7 @@ module Equ.Proof (newProof
                  , module Equ.Proof.Monad
                  , module Equ.Proof.Error
                  , module Equ.Rewrite
+                 , module Equ.Proof.ListedProof
                  -- * Funciones auxiliares
                  , addHypothesis
                  , getHypothesis
@@ -39,6 +41,7 @@ import qualified Equ.Proof.Proof as P(getStart,getEnd,getBasic)
 import Equ.Proof.Zipper
 import Equ.Proof.Monad
 import Equ.Proof.Error
+import Equ.Proof.ListedProof
 import Equ.Theories.Common
 
 import qualified Equ.PreExpr as PE hiding (replace)
@@ -121,6 +124,15 @@ proofFromTruth f f' r t fMove = case partitionEithers $
 
 validateProofFocus :: ProofFocus -> PM Proof
 validateProofFocus (pr,path) = validateProof pr
+
+-- | Valida una prueba completa vista como lista
+validateListedProof :: ListedProof -> PM Proof
+validateListedProof lProof = validateProof (toProof $ pFocus lProof)
+
+-- | Valida el paso de una prueba vista como lista.
+validateStepProof :: ListedProof -> PM Proof
+validateStepProof lProof = let p = (pList lProof)!!(selIndex lProof) in
+                               validateProof p
                           
 validateProof :: Proof -> PM Proof
 validateProof p = validateProof' p goTop'

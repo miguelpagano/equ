@@ -47,7 +47,6 @@ module Equ.GUI.State ( update
                      , updateRedoList
                      , updateProofWidget
                      , updateProofNoUndo
-                     , updateAxiomBox
                      , setUndoing
                      , setNoUndoing
                      -- * Otras funciones
@@ -108,7 +107,8 @@ import Equ.Proof.Proof
 import Equ.Proof.Error(errEmptyProof)
 import Equ.Proof(ProofFocus,ProofFocus',updateStartFocus,updateEndFocus,PM,validateProof,
                  toProof,goFirstLeft,updateMiddleFocus,goUp',getEndFocus,goRight,goEnd,goDownL',
-                  getBasicFocus, validateProofFocus, goNextStep, goPrevStep)
+                  getBasicFocus, validateListedProof,validateStepProof, goNextStep, goPrevStep)
+import Equ.Proof.ListedProof
 import Equ.Rule
 
 import Equ.Types
@@ -197,8 +197,11 @@ del estado. -}
 updateExpr :: PreExpr -> Move -> IState ()
 updateExpr e' p = update (updateExpr' e' p) >> showExpr >> addToUndoList >> restoreValidProofImage >>
                   -- validamos el paso en el que esta la expresion y el siguiente, si lo tiene
-                  validateStep >> changeProofFocus (Just . goNextStep) (Just . goNextStep) Nothing >> 
-                  validateStep >> changeProofFocus (Just . goPrevStep) (Just . goPrevStep) Nothing
+                  validateStep >> moveNextProofStep >> validateStep >>
+                  movePrevProofStep
+                  
+--                   changeProofFocus (Just . goNextStep) (Just . goNextStep) Nothing >> 
+--                   validateStep >> changeProofFocus (Just . goPrevStep) (Just . goPrevStep) Nothing
                   
 
 updateExpr'' :: Move -> (PreExpr -> PreExpr) -> GState -> GState
@@ -209,12 +212,8 @@ updateExpr'' g change gst = case (gProof gst,gExpr gst) of
     where upd gpr gexpr = gst { gProof = Just gpr' }
                 -- Para actualizar la expresión dentro de la prueba, asumimos que el foco se encuentra
                 -- en la prueba simple que deja a dicha expresión a la derecha.
-                where  gpr' = gpr {proof = fromJust $ up (proof gpr) (newExpr gexpr)}
-                       up pf f = let up1 = updateEndFocus (goFirstLeft pf) f in
-                                    case goRight (fromJust up1) of
-                                        Nothing -> Just $ goEnd (fromJust up1)
-                                        Just pf' -> Just $ goEnd $ goDownL' $ fromJust $ updateMiddleFocus (goUp' $ fromJust $ updateStartFocus pf' f) f
-                       gexpr' = gexpr {fExpr = newExpr gexpr}
+            where  gpr' = gpr { proof = updateSelExpr (newExpr gexpr) (proof gpr) }
+                       --gexpr' = gexpr {fExpr = newExpr gexpr}
                      
           newExpr gexpr = first change . g . goTop . fExpr $ gexpr
 
@@ -231,22 +230,20 @@ updateProofWidget pfw = update (\gst -> case gProof gst of
                                              Just gpr -> gst {gProof = Just gpr {
                                                      proofWidget = pfw}
                                              })
-updateProof :: ProofFocus -> IState ()
-updateProof pf = update (updateProof' pf) >>
+updateProof :: ListedProof -> IState ()
+updateProof lp = update (updateProof' lp) >>
                  showProof >>
                  getProof >>= liftIO . debug . show >>
                  addToUndoList >> restoreValidProofImage
 
-updateProof' :: ProofFocus -> GState -> GState
-updateProof' (p,path) gst = case (gProof gst,gExpr gst) of
-                              (Just gpr,Just gexpr) -> upd gpr gexpr
-                              (_,_) -> gst
-    where upd gpr gexpr = gst { gProof = Just gpr { proof = (p,path)
+updateProof' :: ListedProof -> GState -> GState
+updateProof' lp gst = case (gProof gst,gExpr gst) of
+                           (Just gpr,Just gexpr) -> upd gpr gexpr
+                           (_,_) -> gst
+    where upd gpr gexpr = gst { gProof = Just gpr { proof = lp
                                                   }
-                              , gExpr = Just $ gexpr { fExpr = fromJust $ getEnd p }
+                              , gExpr = Just $ gexpr { fExpr = getSelExpr lp}
                               }
-              where pr = proof gpr
-                    e = fExpr gexpr
         
 -- | Valida la prueba y actualiza el campo "validProof" del ProofState
 updateValidProof :: IState ()
@@ -255,13 +252,13 @@ updateValidProof = getValidProof >>= \vp -> update (updateValidProof' vp)
           updateValidProof' vp gst = case gProof gst of
                                        Just gpr -> gst { gProof = Just $ updPrf gpr }
                                        Nothing -> gst
-          updPrf gpr = gpr { validProof = validateProof (toProof $ proof gpr) }
+          updPrf gpr = gpr { validProof = validateListedProof (proof gpr) }
           
 -- Las siguientes funciones validan el paso en el que la prueba está enfocada.
 validateStep :: IState ()
 validateStep = getProofState >>= 
-               F.mapM_ (\ps -> getProof >>= \pf ->
-               case validateProofFocus pf of
+               F.mapM_ (\ps -> getProof >>= \lp ->
+               case validateStepProof lp of
                     Left _ -> updateStepWidgetImage iconErrorProof
                     Right _ -> updateStepWidgetImage iconValidProof
                    )
@@ -269,7 +266,7 @@ validateStep = getProofState >>=
 updateStepWidgetImage :: StockId -> IState ()
 updateStepWidgetImage icon = getProofState >>= 
                         F.mapM_ (\ps -> getProofWidget >>= \pfw ->
-                        let image = validImage (fromJust $ getBasicFocus pfw) in
+                        let image = validImage (fromJust $ getSelBasic pfw) in
                              io (imageSetFromStock image icon IconSizeSmallToolbar)
                         )
           
@@ -287,8 +284,8 @@ updateExprState es = update (\gst -> gst {gExpr = Just es}) >> showExpr
 -- | Funcion que actualiza la expresion seleccionada por el usuario al mover el proofFocus.
 updateSelectedExpr :: IState ()
 updateSelectedExpr = getExprState >>= F.mapM_ 
-                       (\es -> getProof >>= \ pf -> 
-                              updateExprState (es {fExpr= fromJust $ getEndFocus pf }))
+                       (\es -> getProof >>= \ lp -> 
+                              updateExprState (es {fExpr= getSelExpr lp }))
 
 {- Las tres funciones que siguen actualizan componentes particulares
 del estado. -}
@@ -327,29 +324,43 @@ updateSymCtrl t = update $ \gst -> gst { symCtrl = t }
 
 
 updateRelation :: Relation -> IState ()
-updateRelation r = getProof >>= \(p,path) ->
-                   updateProof (updateRel p r,path)
-                   
-updateAxiomBox :: HBox -> IState ()
-updateAxiomBox b = update $ \gst -> gst {gProof = Just $ ((fromJust . gProof) gst) {axiomBox = b}}
+updateRelation r = getProof >>= \lp ->
+                   updateProof $ updateRelLP lp r
 
 addTheorem :: Theorem -> IState Theorem
 addTheorem th = (update $ \gst -> gst { theorems = (th:theorems gst) }) >>
                 return th
 
-changeProofFocus :: (ProofFocus -> Maybe ProofFocus) ->
-                   (ProofFocusWidget -> Maybe ProofFocusWidget) ->
-                   Maybe HBox -> IState ()
-changeProofFocus moveFocus moveFocusW box = getProofState >>=
-                                 F.mapM_ (\ps ->
-                                    getProof >>=
-                                    updateProofNoUndo . fromJust' . moveFocus >>
-                                    withJust box updateAxiomBox >>
-                                    getProofWidget >>=
-                                    updateProofWidget . fromJust' . moveFocusW
-                                    )
---                                  
-    where fromJust' = maybe (error "MOVIENDO EL FOCUS") id
+changeProofFocus :: Int -> IState ()
+changeProofFocus i = getProofState >>=
+                     F.mapM_ (\ps ->
+                        getProof >>= \lp ->
+                        updateProofNoUndo (moveToPosition i lp) >>
+                        getProofWidget >>= \lpw ->
+                        updateProofWidget (moveToPosition i lpw)
+                        )
+                        
+                        
+moveNextProofStep :: IState ()
+moveNextProofStep = getProofState >>=
+                    F.mapM_ (\ps ->
+                        getProof >>= \lp ->
+                        updateProofNoUndo (moveToNextPosition lp) >>
+                        getProofWidget >>= \lpw ->
+                        updateProofWidget (moveToNextPosition lpw)
+                        )
+                        
+
+movePrevProofStep :: IState ()
+movePrevProofStep = getProofState >>=
+                    F.mapM_ (\ps ->
+                        getProof >>= \lp ->
+                        updateProofNoUndo (moveToPrevPosition lp) >>
+                        getProofWidget >>= \lpw ->
+                        updateProofWidget (moveToPrevPosition lpw)  
+                        )
+
+
 
 updateUndoList :: UndoList -> IRG
 updateUndoList ulist = update $ \gst -> gst { gUndo = ulist }
@@ -413,10 +424,10 @@ getStatePart part = askRef >>= return . part
 getStatePartDbg :: String -> (GState -> a) -> IState a
 getStatePartDbg msg part = (liftIO $ debug msg) >> getStatePart part
 
-getProof :: IState ProofFocus
+getProof :: IState ListedProof
 getProof = getStatePartDbg "getProof" (proof . fromJust . gProof)
 
-getProofWidget :: IState ProofFocusWidget
+getProofWidget :: IState ListedProofWidget
 getProofWidget = getStatePartDbg "getProofWidget" (proofWidget . fromJust . gProof)
 
 getValidProof :: IState (PM Proof)
@@ -440,7 +451,7 @@ getRelPF = getProofState >>= \ps ->
             case ps of
                  Nothing -> return relEq
                  Just ps' -> 
-                    getStatePart $ fromJust . getRel . fst . proof . fromJust . gProof
+                    getStatePart $ getRelLP . proof . fromJust . gProof
 
 
 getExpr :: IState Focus
@@ -474,15 +485,15 @@ getStatus  = getStatePartDbg "getStatus" status
 -- getAxiomBox = getStatePartDbg "getAxiomBox" $ axiomBox . fromJust . gProof
 
 getStepProofBox :: IState (Maybe HBox)
-getStepProofBox = getProofWidget >>= \pfw ->
-                  case getBasicFocus pfw of
+getStepProofBox = getProofWidget >>= \lpw ->
+                  case getSelBasic lpw of
                        Nothing -> return Nothing
                        Just b -> return (Just $ stepBox b)
 
 
 getAxiomBox :: IState HBox
-getAxiomBox = getProofWidget >>= \pfw ->
-              return (axiomWidget $ fromJust $ getBasicFocus pfw)
+getAxiomBox = getProofWidget >>= \lpw ->
+              return (axiomWidget $ fromJust $ getSelBasic lpw)
 
 getAxiomBox' :: IState (Maybe HBox)
 getAxiomBox' = getProofState >>= \ps ->
@@ -545,7 +556,7 @@ getUndoing = getStatePart undoing
 
 -- -- | Devuelve la expresión que está enfocada en un momento dado.
 getSelectedExpr :: IState Focus
-getSelectedExpr = getProof >>= return . fromJust . getEndFocus
+getSelectedExpr = getProof >>= return . getSelExpr
  
 -- TODO: debemos hacer renombre si la variable está ligada?
 -- | Actualización de la variable de cuantificación.
@@ -689,8 +700,8 @@ cleanTreeExpr = updateMTT (const Nothing) >>
                          
 -- Funcion que chequea si la prueba en la interfaz está validada
 checkValidProof :: IState Bool
-checkValidProof = getProof >>= \pf ->
-                  return (toProof pf) >>= \pr ->
+checkValidProof = getProof >>= \lp ->
+                  return (toProof (pFocus lp)) >>= \pr ->
                   liftIO (debug ("la prueba es " ++ show pr)) >>
                   getValidProof >>= \vp ->
                   liftIO (debug ("la prueba valida es " ++ show vp))  >>

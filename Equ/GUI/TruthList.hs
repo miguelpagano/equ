@@ -49,8 +49,8 @@ writeTruth basic b = do
     styleFont <- io $ fontItalic
     io $ widgetModifyFont label (Just styleFont)
     io $ boxPackStart b label PackNatural 0
-    (old_proof,path) <- getProof
-    updateProof (simpleProof (old_proof,path) basic)
+    lProof <- getProof
+    updateProof (updateBasicLP lProof basic)
     validateStep
     io $ widgetShowAll b
 

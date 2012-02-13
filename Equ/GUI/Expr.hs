@@ -427,6 +427,7 @@ createExprWidget initial = do
                         , annotButton = bAnnot
                         , typeButton = bType
                         , imgStatus = bInfo
+                        , exprEventsIds = []
                         }
 
 makeButtonBox :: String -> IO ToggleButton
@@ -444,7 +445,7 @@ createInitExprWidget expr p = do
     win <- getWindow
 
     expr_w <- createExprWidget True
-    flip runReaderT (expr_w,p,ProofMove Just) $ 
+    flip runReaderT (expr_w,p,0) $ 
          setupForm (formBox expr_w) Editable >>
          writeExprWidget (formBox expr_w) expr >>
          setupOptionExprWidget win

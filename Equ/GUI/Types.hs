@@ -7,11 +7,13 @@ import Equ.Exercise
 
 import Equ.Proof (Proof,PM,ProofFocus,Theorem,Hypothesis,Proof',ProofFocus')
 import Equ.Proof.Proof (Ctx)
+import Equ.Proof.ListedProof
 import Equ.Rule(Relation)
 
 import Graphics.UI.Gtk ( WidgetClass, Statusbar, ContextId, HBox, TreeView
                        , EventBox, Label, Button, Notebook, HPaned, IconView
                        , Window, Image, ToggleButton, ComboBox, ListStore
+                       , GObjectClass, ConnectId, VBox
                        )
 
 import Equ.Types
@@ -37,7 +39,7 @@ type StatusPlace = (Statusbar, ContextId)
 
 type UndoList = [URMove]
 type RedoList = [URMove]
-data URMove = URMove { urProof :: Maybe ProofFocus -- ^ Si guardamos una prueba. 
+data URMove = URMove { urProof :: Maybe ListedProof -- ^ Si guardamos una prueba. 
                      , urExpr :: Maybe Focus
                      }
 instance Show URMove where
@@ -83,10 +85,9 @@ data ExprState = ExprState { fExpr :: Focus
                                               -- formCtrl es hijo de (formBox exprWidget)
                            }
 
-data ProofState = ProofState { proof :: ProofFocus   -- ^ La prueba que estamos construyendo
+data ProofState = ProofState { proof :: ListedProof   -- ^ La prueba que estamos construyendo
+                             , proofWidget :: ListedProofWidget -- ^ navegacion de la interfaz
                              , validProof :: PM Proof
-                             , axiomBox :: HBox -- ^ El contenedor para mostrar el axioma aplicado
-                             , proofWidget :: ProofFocusWidget -- ^ Focus para navegar la interfaz de prueba
                              }
 
 type GRef = IORef GState
@@ -111,10 +112,15 @@ data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , annotButton :: ToggleButton -- ^ Botón para anotaciones.
                              , typeButton  :: ToggleButton -- ^ Botón para árbol de tipado.
                              , imgStatus   :: Image      -- ^ Imagen para estado.
+                             , exprEventsIds :: GObjectClass obj => [ConnectId obj]
                              }
 
                              
 -- WIDGET PARA PRUEBAS
+-- Estructura de cajas:
+{- centerBox -> stepBox -> eventBoxAxiom -> axiomWidget -}
+
+
 data ProofStepWidget = ProofStepWidget {
                         relation :: (ComboBox,ListStore Relation)
                       , axiomWidget :: HBox
@@ -122,19 +128,20 @@ data ProofStepWidget = ProofStepWidget {
                       , addStepButton :: Button
                       , validImage :: Image
                       , stepBox :: HBox
-                      -- ids de los manejadores de eventos click izquierdo y derecho sobre la caja de axioma:
-                      --, eventsId :: (ConnectId EventBox,ConnectId EventBox) 
+                      , centerBox :: VBox
+                      , eventsIds :: GObjectClass obj => [ConnectId obj]
+                      , stepEventsIds :: GObjectClass obj => [ConnectId obj]
                       }
 
 type ProofWidget = Proof' () () ProofStepWidget ExprWidget
 
-type ProofFocusWidget = ProofFocus' () () ProofStepWidget ExprWidget
+type ListedProofWidget = ListedProof' () () ProofStepWidget ExprWidget
 
 type IExpr a = Move -> IState a
 
-type Env = (ExprWidget,Move,ProofMove)
+type Env = (ExprWidget,Move,Int)
 
-type IExpr' a = ReaderT (ExprWidget,Move,ProofMove) IState a
+type IExpr' a = ReaderT (ExprWidget,Move,Int) IState a
 
 newtype ProofMove = ProofMove { pm ::  forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
                                       Maybe (ProofFocus' ctxTy relTy proofTy exprTy)}

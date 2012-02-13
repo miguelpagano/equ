@@ -6,6 +6,7 @@ import Equ.GUI.State hiding (getExprWidget)
 import Equ.Expr (Expr (..))
 import Equ.PreExpr (toExpr)
 import Equ.Proof(getStart, toProof)
+import Equ.Proof.ListedProof
 
 import Graphics.UI.Gtk (HBox,ToggleButton,Image)
 
@@ -17,7 +18,7 @@ getInitialExpr = getProofState >>= \mps ->
                     Nothing -> getExpr >>= return . Just . Expr . fst
                     Just ps -> either (return . (const  Nothing)) 
                                       (return . Just . Expr . toExpr) 
-                                      (getStart $ toProof $ proof ps)
+                                      (getStart $ toProof $ pFocus $ proof ps)
 
 getExprWidget :: IExpr' ExprWidget
 getExprWidget = asks (\(e,_,_) -> e)
@@ -37,7 +38,7 @@ getImgStatus = getExprWidget >>= return . imgStatus
 getPath :: IExpr' Move
 getPath = asks (\(_,p,_) -> p)
 
-getProofMove :: IExpr' ProofMove
+getProofMove :: IExpr' Int
 getProofMove = asks (\(_,_,pm) -> pm) 
 
 localPath :: (Move -> Move) -> IExpr' a -> IExpr' a
