@@ -13,6 +13,7 @@ module Equ.Theories
     , relToOp
     , createTheorem
     , toForest
+    , getExprProof
     , Grouped
     )
     where
@@ -23,7 +24,8 @@ import qualified Equ.Theories.List as L
 import qualified Equ.Theories.FOL as F
 import Equ.Rule
 import Equ.Syntax (Operator,Constant,Quantifier)
-import Equ.Proof
+import Equ.Proof 
+import qualified Equ.Proof.Proof as P
 import Equ.Expr
 import Equ.PreExpr
 
@@ -160,3 +162,10 @@ createAxiom name ex = Axiom {
 whenZ :: MonadPlus m => (a -> Bool) -> (a -> m b) -> a -> m b
 whenZ p act a = if p a then act a else mzero
 
+
+
+getExprProof :: PM Proof -> Expr
+getExprProof = either (const holeExpr) buildExpr
+    where buildExpr p = Expr $ BinOp (relToOp . fromJust $ P.getRel p)
+                                     (toExpr . fromJust $ P.getStart p)
+                                     (toExpr . fromJust $ P.getEnd p)

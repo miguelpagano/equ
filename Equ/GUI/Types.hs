@@ -12,6 +12,7 @@ import Equ.Rule(Relation)
 import Graphics.UI.Gtk ( WidgetClass, Statusbar, ContextId, HBox, TreeView
                        , EventBox, Label, Button, Notebook, HPaned, IconView
                        , Window, Image, ToggleButton, ComboBox, ListStore
+                       , ConnectId
                        )
 
 import Equ.Types
@@ -63,6 +64,8 @@ data GState = GState { gWindow :: Window
                      , gExpr :: Maybe ExprState -- ^ Expresión seleccionada.
                      , gTreeExpr :: Maybe TreeExpr -- ^ Árbol de una expresión.
                      , symCtrl :: IconView   -- ^ La lista de símbolos para construir expresiones.
+                     , symStore :: ListStore SynItem
+                     , symCid   :: Maybe (ConnectId IconView)
                      , axiomCtrl :: TreeView -- ^ La lista de axiomas para construir pruebas.
                      , gExercise :: Maybe Exercise -- ^ El estado de la edición de un ejercicio.
                      , gUndo :: UndoList -- ^ Undo.
@@ -80,7 +83,7 @@ data ExprState = ExprState { fExpr :: Focus
                            , eventType :: HBox  -- (Manu) Para qué usamos esto?
                            , exprWidget :: ExprWidget
                            , formCtrl :: HBox -- Caja de la subexpresión que se está editando. Deberia cumplirse el invariante de que
-                                              -- formCtrl es hijo de (formBox exprWidget)
+                                             -- formCtrl es hijo de (formBox exprWidget)
                            }
 
 data ProofState = ProofState { proof :: ProofFocus   -- ^ La prueba que estamos construyendo
@@ -132,9 +135,15 @@ type ProofFocusWidget = ProofFocus' () () ProofStepWidget ExprWidget
 
 type IExpr a = Move -> IState a
 
-type Env = (ExprWidget,Move,ProofMove)
+data Env = Env { ew :: ExprWidget
+               , mv :: Move
+               , pme :: ProofMove
+               , bx :: HBox
+               }
 
-type IExpr' a = ReaderT (ExprWidget,Move,ProofMove) IState a
+type IExpr' a = ReaderT Env  IState a
+-- (ExprWidget,Move,ProofMove)
+type SynItem = (String, HBox -> IExpr' ())
 
 newtype ProofMove = ProofMove { pm ::  forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
                                       Maybe (ProofFocus' ctxTy relTy proofTy exprTy)}

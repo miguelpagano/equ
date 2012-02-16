@@ -10,7 +10,7 @@ import Equ.Types
 import Equ.GUI.Utils
 import Equ.GUI.Widget
 import Equ.GUI.Types
-import Equ.GUI.State hiding (getExprWidget,localPath)
+import Equ.GUI.State 
 import Equ.GUI.State.Expr
 import Equ.GUI.Settings
 
@@ -67,7 +67,7 @@ buildTreeExpr bTreeExpr we = do moveFocus <- getProofMove
 
 makeExprState :: Focus -> Type -> HBox -> IExpr' ExprState
 makeExprState f t eb  = io (setupEventExpr f t eb) >>= \ev_type ->
-                        getExprWidget >>= \ expr_w ->
+                        getEWidget >>= \ expr_w ->
                         return $ ExprState { fExpr = f
                                            , fType = t
                                            , eventType = ev_type
@@ -81,7 +81,7 @@ buildTreeExpr' :: HBox -> ExprState -> VBox -> IExpr' [(ExprState,Move)]
 buildTreeExpr' we te bTree = do
             leftBranch  <- io $ goTypedExpr goDownL (fExpr te)
             rightBranch <- io $ goTypedExpr goDownR  (fExpr te)
-            expr_w <- getExprWidget
+            expr_w <- getEWidget
             case (leftBranch, rightBranch) of
               (Just (lf, lt, lp), Just (rf, rt, rp)) -> do 
                   ws <- io (containerGetChildren we)                    

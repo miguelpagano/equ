@@ -4,6 +4,7 @@ module Equ.GUI.Gui where
 import Equ.GUI.Exercise
 import Equ.GUI.Types
 import Equ.GUI.State
+import Equ.GUI.State.Expr
 import Equ.GUI.Utils
 import Equ.GUI.Widget
 import Equ.GUI.Settings
@@ -108,8 +109,9 @@ main = do
     truthBox <- io $ vBoxNew False 2
 
     windowMaximize window
+    sListStore <- io $ setupSymbolList symbolList 
 
-    gRef <- newRef $ initialState window symbolList axiomList Nothing statusBar ctxExpr imageValidProof
+    gRef <- newRef $ initialState window symbolList sListStore axiomList Nothing statusBar ctxExpr imageValidProof
 
     -- Agregamos los botones pero sin visibilidad.
     evalStateT (setupExerciseToolbar toolbarBox) gRef
@@ -117,7 +119,6 @@ main = do
     onActivateLeaf quitButton $ quitAction window
     onDestroy window mainQuit
 
-    sListStore <- io $ setupSymbolList symbolList 
     setupScrolledWindowSymbolList swSymbolList symGoLeftBox symGoRightBox gRef
     aListStore <- io $ setupTruthList [] axiomList 
         
@@ -161,8 +162,6 @@ main = do
     flip evalStateT gRef $ do
         axioms <- getAxiomCtrl
         eventsTruthList axioms aListStore
-        symbols <- getSymCtrl
-        runReaderT (eventsSymbolList symbols sListStore) (initExprWidget,id,ProofMove Just)
         hidePane errPane
 
     widgetShowAll window

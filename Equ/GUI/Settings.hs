@@ -69,3 +69,6 @@ imgState Unknown = stockDialogQuestion
 imgState Parsed =  stockDialogWarning
 imgState NotParsed = stockDialogError
 imgState TypeChecked = stockOk
+
+
+-- | Dimensiones para separación de cajas.

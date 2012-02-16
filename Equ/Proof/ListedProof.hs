@@ -1,15 +1,17 @@
 {-# Language Rank2Types #-}
 module Equ.Proof.ListedProof
-    (ListedProof,createListedProof
-    ,addStepOnPosition,updateExprOnPosition
-    ,moveToPosition
+    ( ListedProof
+    , createListedProof
+    , addStepOnPositionM
+    , updateExprOnPosition
+    , moveToPosition
     ) where
 
 import Equ.Proof.Proof
 import Equ.Proof.Zipper
 
 import Data.Maybe(fromJust)
-
+import Control.Monad.Identity
 
 {- Un ListedProof nos sirve para ver una prueba transitiva como una lista de pasos
 simples.
@@ -65,16 +67,16 @@ createListedProof' ps pf = let mpf = goNextStep' pf in
    de prueba respectivamente, el nuevo indice que tiene ese paso, y debe actualizar
    algun componente relacionado con el indice del paso en la lista.-}
 
-addStepOnPosition :: Int -> 
+addStepOnPositionM :: Monad m => Int -> 
                      (forall ctxTy relTy proofTy exprTy . Proof' ctxTy relTy proofTy exprTy -> 
                      (exprTy,Proof' ctxTy relTy proofTy exprTy,Proof' ctxTy relTy proofTy exprTy)) ->
-                     (exprTy -> Int -> exprTy) -> (proofTy -> Int -> proofTy) ->
+                     (exprTy -> Int -> m exprTy) -> (proofTy -> Int -> m proofTy) ->
                      ListedProof ctxTy relTy proofTy exprTy -> 
-                     ListedProof ctxTy relTy proofTy exprTy
-addStepOnPosition ind fNewProofs fUpIndexExpr fUpIndexBasic lProof = 
+                     m (ListedProof ctxTy relTy proofTy exprTy)
+addStepOnPositionM ind fNewProofs fUpIndexExpr fUpIndexBasic lProof = 
                                 if ind < 0 || ind >= length (pList lProof)
-                                        then lProof
-                                        else updateStepIndexes fUpIndexExpr fUpIndexBasic
+                                then return lProof
+                                else updateStepIndexesM fUpIndexExpr fUpIndexBasic
                                             (ind+2) $
                                             ListedProof {
                                                 pList = take ind (pList lProof) ++ 
@@ -96,45 +98,64 @@ addStepOnPosition ind fNewProofs fUpIndexExpr fUpIndexBasic lProof =
                     p1 = snd' $ fNewProofs p
                     p2 = third $ fNewProofs p
 
-                    
-updateStepIndexes :: (exprTy -> Int -> exprTy) -> (proofTy -> Int -> proofTy) ->
-                     Int ->  ListedProof ctxTy relTy proofTy exprTy -> 
-                     ListedProof ctxTy relTy proofTy exprTy
-updateStepIndexes fUpExpr fUpBasic ind lProof =
-                            ListedProof {
-                                pList = take ind (pList lProof) 
-                                ++ updateList (drop ind $ pList lProof) ind
-                              , pFocus = moveToPos (ind-1) $ updateFocus (pFocus lProof) ind
-                              , selIndex = ind-1
-                            }
-        
-    where updateList [] ind = []
-          updateList (p:ps) ind = 
-              case p of
-                   (Hole _ _ _ _) -> (proofEndUpdated (proofStartUpdated p ind) ind):
-                                     (updateList ps (ind+1))
-                   (Simple _ _ _ _ _) ->
-                        (updateBasic (proofEndUpdated (proofStartUpdated p ind) ind)
-                                    (fUpBasic (fromJust $ getBasic p) ind)):
-                                    (updateList ps (ind+1))
-                        
-          updateFocus pf ind = 
-              let (p,path) = moveToPos ind pf in
-                let p' = (proofEndUpdated (proofStartUpdated p ind) ind) in
-                    case p of
-                        (Hole _ _ _ _) -> 
-                            case goNextStep' (p',path) of
-                                Nothing -> (p',path)
-                                Just pf' -> updateFocus pf' (ind+1)
-                        (Simple _ _ _ _ _) ->
-                            let p'' = updateBasic p' (fUpBasic (fromJust $ getBasic p') ind) in
-                                case goNextStep' (p'',path) of
-                                    Nothing -> (p'',path)
-                                    Just pf' -> updateFocus pf' (ind+1)
 
-          proofStartUpdated p i= updateStart p (fUpExpr (fromJust $ getStart p) i)
+addStepOnPosition :: Int -> (forall ctxTy relTy proofTy exprTy . Proof' ctxTy relTy proofTy exprTy -> 
+                    (exprTy,Proof' ctxTy relTy proofTy exprTy,Proof' ctxTy relTy proofTy exprTy)) ->
+                    (exprTy -> Int -> exprTy) -> (proofTy -> Int -> proofTy) ->
+                    ListedProof ctxTy relTy proofTy exprTy -> 
+                    (ListedProof ctxTy relTy proofTy exprTy)
+
+addStepOnPosition ind fNewProofs fUpIndexExpr fUpIndexBasic = runIdentity .
+                                                              addStepOnPositionM ind fNewProofs 
+                                                                                     (\i -> return . fUpIndexExpr i) 
+                                                                                     (\i -> return . fUpIndexBasic i) 
+                                                                                            
+
+updateStepIndexesM :: Monad m => (exprTy -> Int -> m exprTy) -> (proofTy -> Int -> m proofTy) ->
+                     Int ->  ListedProof ctxTy relTy proofTy exprTy -> 
+                     m (ListedProof ctxTy relTy proofTy exprTy)
+updateStepIndexesM fUpExpr fUpBasic ind lProof = do
+  let oldList = take ind (pList lProof)
+  newList <- mapM (updateList ind) $ drop ind $ pList lProof
+  newFocus <- updateFocus (pFocus lProof) ind
+  return $ ListedProof {
+               pList = oldList ++ newList
+             , pFocus = moveToPos (ind-1) newFocus
+             , selIndex = ind-1
+             }
+        
+    where updateList idx p = 
+              case p of
+                   (Hole _ _ _ _) -> do 
+                       p' <- proofStartUpdated p idx
+                       proofEndUpdated p' idx
+                   (Simple _ _ _ _ _) -> do 
+                       p' <- fUpBasic (fromJust $ getBasic p) idx
+                       p'' <- proofStartUpdated p idx
+                       newPrf <- proofEndUpdated p'' idx
+                       return (updateBasic newPrf p')
+
+          updateFocus pf ind = do
+              let (p,path) = moveToPos ind pf 
+              pint <- proofStartUpdated p ind
+              p' <- proofEndUpdated pint ind    
+              case p of
+                (Hole _ _ _ _) -> case goNextStep' (p',path) of
+                      Nothing -> return (p',path)
+                      Just pf' -> updateFocus pf' (ind+1)
+                (Simple _ _ _ _ _) -> do
+                        pint' <- fUpBasic (fromJust $ getBasic p') ind
+                        p'' <- return $ updateBasic p' pint'
+                        case goNextStep' (p'',path) of
+                           Nothing -> return (p'',path)
+                           Just pf' -> updateFocus pf' (ind+1)
+
+
+          proofStartUpdated p i = fUpExpr (fromJust $ getStart p) i >>= 
+                                  return . updateStart p
           
-          proofEndUpdated p i = updateEnd p (fUpExpr (fromJust $ getEnd p) i)
+          proofEndUpdated p i = fUpExpr (fromJust $ getEnd p) i >>=
+                                return . updateEnd p 
                                     
 -- Reemplaza la expresión derecha de un paso de la prueba. Deja enfocado el paso.
 updateExprOnPosition :: Int -> exprTy -> 

@@ -289,7 +289,6 @@
                 <child>
                   <widget class="GtkMenu" id="menu7">
                     <property name="visible">True</property>
-                    <property name="ubuntu_local">True</property>
                     <child>
                       <widget class="GtkImageMenuItem" id="itemMakeExercise">
                         <property name="label">Crear ejercicio</property>
@@ -733,16 +732,6 @@
                                         <property name="position">0</property>
                                       </packing>
                                     </child>
-                                    <child>
-                                      <widget class="GtkStatusbar" id="statusBar">
-                                        <property name="visible">True</property>
-                                        <property name="spacing">2</property>
-                                      </widget>
-                                      <packing>
-                                        <property name="expand">False</property>
-                                        <property name="position">1</property>
-                                      </packing>
-                                    </child>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -846,6 +835,16 @@
             <property name="position">1</property>
           </packing>
         </child>
+	<child>
+	  <widget class="GtkStatusbar" id="statusBar">
+	    <property name="visible">True</property>
+	    <property name="spacing">2</property>
+	  </widget>
+	  <packing>
+	    <property name="expand">False</property>
+	    <property name="position">2</property>
+	  </packing>
+	</child>	
       </widget>
     </child>
   </widget>

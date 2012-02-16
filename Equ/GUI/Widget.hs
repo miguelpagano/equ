@@ -7,13 +7,13 @@ import Equ.TypeChecker
 import Equ.Types
 import Equ.Rule
 import Equ.Theories
--- import Equ.GUI.SymbolList
 import Equ.Proof hiding (goDownL, goDownR)
 
 
 import Equ.GUI.Types
 import Equ.GUI.State
 import Equ.GUI.State.Expr
+import Equ.GUI.State.SymbolList
 import Equ.GUI.Utils
 import Equ.GUI.Settings
 
@@ -29,6 +29,7 @@ import Data.List (deleteBy)
 
 import qualified Data.Foldable as F
 import Control.Monad.Trans(lift,liftIO)
+import Control.Monad.Reader(ask)
 import Control.Monad.State(get,evalStateT)
 import Control.Monad(filterM) 
 
@@ -202,7 +203,10 @@ removeAllChildren' b = containerForeach b $
 -- control y luego pasamos el control a la lista de símbolos.
 newFocusToSym :: IExpr' ()
 newFocusToSym = getFormBox >>= \box -> 
-                lift (updateFrmCtrl box) >> 
+                ask >>= \env ->
+                lift getSymCtrl >>= \symbols ->
+                lift getSymStore >>= \sListStore ->
+                lift (runEnv (eventsSymbolList symbols sListStore) env) >>
                 lift (highlightBox box focusBg)
 
 -- | Resalta todos los controles que están dentro de una caja.

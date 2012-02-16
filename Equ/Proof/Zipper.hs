@@ -36,9 +36,6 @@ instance Show (ProofPath' ctxTy relTy proofTy exprTy) where
 type ProofFocus' ctxTy relTy proofTy exprTy = (Proof' ctxTy relTy proofTy exprTy
                                             ,  ProofPath' ctxTy relTy proofTy exprTy)
 
-                                            
-                                            
-
 type ProofPath = ProofPath' Ctx Relation Basic PE.Focus
 type ProofFocus = ProofFocus' Ctx Relation Basic PE.Focus
 
