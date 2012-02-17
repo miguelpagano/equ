@@ -26,6 +26,7 @@ module Equ.GUI.State ( update
                      , getValidProof
                      , getExprProof
                      , getProof
+                     , getProofAnnots
                      , getRedoList
                      , getRelPF
                      , getProofState
@@ -41,6 +42,7 @@ module Equ.GUI.State ( update
                      , updateValidProof
                      , updateExprWidget
                      , updateProof
+                     , updateProofAnnots
                      , addTheorem
                      , addToRedoList
                      , addToUndoListFromRedo
@@ -197,8 +199,8 @@ del estado. -}
 updateExpr :: PreExpr -> Move -> IState ()
 updateExpr e' p = update (updateExpr' e' p) >> showExpr >> addToUndoList >> restoreValidProofImage >>
                   -- validamos el paso en el que esta la expresion y el siguiente, si lo tiene
-                  validateStep >> changeProofFocus (Just . goNextStep) (Just . goNextStep) Nothing >> 
-                  validateStep >> changeProofFocus (Just . goPrevStep) (Just . goPrevStep) Nothing
+                  validateStep >> changeProofFocus (Just . goNextStep) (Just . goNextStep) (Just . goNextStep) Nothing >> 
+                  validateStep >> changeProofFocus (Just . goPrevStep) (Just . goPrevStep) (Just . goPrevStep) Nothing
                   
 
 updateExpr'' :: Move -> (PreExpr -> PreExpr) -> GState -> GState
@@ -225,7 +227,7 @@ updateExpr' e p = updateExpr'' p (const e)
 updateProofNoUndo pf = update (updateProof' pf) >>
                        showProof >>
                        getProof >>= liftIO . debug . show
-                       
+
 updateProofWidget pfw = update (\gst -> case gProof gst of
                                              Nothing -> gst
                                              Just gpr -> gst {gProof = Just gpr {
@@ -236,6 +238,17 @@ updateProof pf = update (updateProof' pf) >>
                  showProof >>
                  getProof >>= liftIO . debug . show >>
                  addToUndoList >> restoreValidProofImage
+
+updateProofAnnots :: ProofFocusAnnots -> IState ()
+updateProofAnnots pfa = update (updateProofAnnots' pfa)
+
+updateProofAnnots' :: ProofFocusAnnots -> GState -> GState
+updateProofAnnots' pfa gst = case gProof gst of
+                                Nothing -> gst
+                                Just gpr -> upd gpr
+    where
+        upd :: ProofState -> GState
+        upd gpr = gst {gProof = Just gpr {proofAnnots = pfa}}
 
 updateProof' :: ProofFocus -> GState -> GState
 updateProof' (p,path) gst = case (gProof gst,gExpr gst) of
@@ -338,17 +351,21 @@ addTheorem th = (update $ \gst -> gst { theorems = (th:theorems gst) }) >>
                 return th
 
 changeProofFocus :: (ProofFocus -> Maybe ProofFocus) ->
+                    (ProofFocusAnnots -> Maybe ProofFocusAnnots) ->
                    (ProofFocusWidget -> Maybe ProofFocusWidget) ->
                    Maybe HBox -> IState ()
-changeProofFocus moveFocus moveFocusW box = getProofState >>=
-                                 F.mapM_ (\ps ->
+changeProofFocus moveFocus moveFocusAnnots moveFocusW box = getProofState >>=
+                                F.mapM_ (\ps ->
                                     getProof >>=
                                     updateProofNoUndo . fromJust' . moveFocus >>
                                     withJust box updateAxiomBox >>
                                     getProofWidget >>=
                                     updateProofWidget . fromJust' . moveFocusW
-                                    )
---                                  
+                                ) >>
+                                getProofState >>=
+                                F.mapM_ (\ps ->
+                                    getProofAnnots >>=
+                                    updateProofAnnots . fromJust' . moveFocusAnnots)
     where fromJust' = maybe (error "MOVIENDO EL FOCUS") id
 
 updateUndoList :: UndoList -> IRG
@@ -415,6 +432,9 @@ getStatePartDbg msg part = (liftIO $ debug msg) >> getStatePart part
 
 getProof :: IState ProofFocus
 getProof = getStatePartDbg "getProof" (proof . fromJust . gProof)
+
+getProofAnnots :: IState ProofFocusAnnots
+getProofAnnots = getStatePartDbg "getProof" (proofAnnots . fromJust . gProof)
 
 getProofWidget :: IState ProofFocusWidget
 getProofWidget = getStatePartDbg "getProofWidget" (proofWidget . fromJust . gProof)

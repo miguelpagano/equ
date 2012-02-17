@@ -464,17 +464,6 @@ makeAssocProofWindow = do
                            updateExercise $ 
                                 exer {exerProof = Just $ toProof $ proof ps }
 
--- Genera una ventana para mostar el contenido de "b" con ancho width
-makeWindowPop :: (BoxClass b) => b -> Int -> IState Window
-makeWindowPop box width = io $ 
-                    do
-                    w <- windowNew
-                    containerAdd w box
-                    set w [windowDefaultWidth := width]
-                    windowSetPosition w WinPosCenterAlways
-                    widgetShowAll w
-                    return w
-
 exerciseFileFilter :: (FileChooserClass f, MonadIO m) => f -> m ()
 exerciseFileFilter dialog = io $ setFileFilter dialog "*.exer" "Ejercicio de equ"
 
@@ -530,4 +519,4 @@ makeExercise :: IState ()
 makeExercise = getInitialExpr >>= updateExercise . initExercise . fromJust
     where
         initExercise :: Expr -> Exercise
-        initExercise = createExercise
+        initExercise = flip createExercise Nothing

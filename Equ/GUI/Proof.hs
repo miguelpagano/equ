@@ -12,6 +12,7 @@ import Equ.Rule
 import Equ.Theories
 import Equ.Proof
 import Equ.PreExpr hiding (goDownL,goDownR,goRight,goUp,goTop)
+import Equ.Exercise
 import Equ.GUI.Widget
 import Equ.GUI.Expr ( writeExprWidget,setupForm
                     , newExprState, reloadExpr
@@ -46,6 +47,7 @@ newProofState (Just p) axiom_box expr1W expr2W proofW= return pr
                         , validProof = validateProof p
                         , axiomBox = axiom_box
                         , proofWidget = (pw,Top)
+                        , proofAnnots = emptyProofAnnots
                         }
                         
         pw = Simple () () expr1W expr2W proofW
@@ -59,6 +61,7 @@ newProofState Nothing axiom_box expr1W expr2W proofW = getGlobalCtx >>=
                           , validProof = validateProof $ toProof (p c)
                           , axiomBox = axiom_box
                           , proofWidget = (pw,Top)
+                          , proofAnnots = emptyProofAnnots
                         }
         p c = emptyProof c $ head $ relationList
         
@@ -103,7 +106,7 @@ completeProof (Hole _ rel f1 f2) center_box top_box  moveFocus =
 
 completeProof p@(Simple _ rel f1 f2 b) center_box top_box moveFocus =
     --addStepProof center_box top_box moveFocus (Just b) >>
-    changeProofFocusAndShow (pm moveFocus) (pm moveFocus) Nothing >>
+    changeProofFocusAndShow (pm moveFocus) (pm moveFocus) (pm moveFocus) Nothing >>
     getProofWidget >>= \pfw ->
     writeTruth b (axiomWidget $ fromJust $ getBasicFocus pfw) >>
     return ()
@@ -251,13 +254,13 @@ addStepProof center_box top_box moveFocus maybe_basic = do
     addHandler eb_axiom_box buttonPressEvent (do
         LeftButton <- eventButton
         io $ debug "axiom_box clicked"
-        eventWithState (changeProofFocusAndShow (pm moveFocus) (pm moveFocus) (Just axiom_box)) s)
+        eventWithState (changeProofFocusAndShow (pm moveFocus) (pm moveFocus) (pm moveFocus) (Just axiom_box)) s)
         
         
     addHandler eb_axiom_box  buttonPressEvent (do
         RightButton <- eventButton
         io $ debug "axiom_box right clicked"
-        eventWithState (changeProofFocusAndShow (pm moveFocus) (pm moveFocus) (Just axiom_box) >>
+        eventWithState (changeProofFocusAndShow (pm moveFocus) (pm moveFocus) (pm moveFocus) (Just axiom_box) >>
                         removeAllChildren axiom_box) s
 
         label <- io (labelNew (Just $ emptyLabel))
@@ -283,7 +286,7 @@ addStepProof center_box top_box moveFocus maybe_basic = do
     }
             
     where changeItem c list box = do 
-            changeProofFocusAndShow (pm moveFocus) (pm moveFocus) (Just box)
+            changeProofFocusAndShow (pm moveFocus) (pm moveFocus) (pm moveFocus) (Just box)
             ind <- io $ comboBoxGetActive c
             newRel <- io $ listStoreGetValue list ind
             updateRelation newRel
@@ -328,10 +331,13 @@ newStepProof expr moveFocus container top_box = do
     removeAllChildren container
     -- Movemos el ProofFocus hasta donde está el hueco que queremos reemplazar
     -- por una transitividad
-    changeProofFocusAndShow (pm moveFocus) (pm moveFocus) Nothing
+    changeProofFocusAndShow (pm moveFocus) (pm moveFocus) (pm moveFocus) Nothing
         -- Reemplazamos el hueco por una transitividad
     pf <- getProof
+    pfa <- getProofAnnots
+    
     updateProof (addEmptyStep pf) 
+    updateProofAnnots (addEmptyStepAnnots pfa)
     
     relation <- getRelPF
     
@@ -354,7 +360,7 @@ newStepProof expr moveFocus container top_box = do
                       , path)
                       
     -- Dejamos enfocada la prueba derecha de la transitividad
-    changeProofFocusAndShow goDownR goDownR Nothing           
+    changeProofFocusAndShow goDownR goDownR goDownR Nothing           
     
     return (centerBoxL,centerBoxR)
     
@@ -431,7 +437,7 @@ eventsExprWidget expr top_box moveFocus exprWidget = do
             choices `on` buttonPressEvent $ tryEvent $
                     eventWithState (changeProofFocus' >> showChoices) s
 
-          changeProofFocus' = changeProofFocusAndShow (pm moveFocus) (pm moveFocus) Nothing >>
+          changeProofFocus' = changeProofFocusAndShow (pm moveFocus) (pm moveFocus) (pm moveFocus) Nothing >>
 --                               io (proofFocusToBox path top_box) >>= \center_box ->
 --                               io (axiomBoxFromCenterBox center_box) >>= \axiom_box ->
 --                               changeProofFocus moveFocus moveFocus (Just axiom_box) >>
@@ -470,9 +476,9 @@ discardProof centralBox expr_w = unsetProofState >>
 
 
                                         
-changeProofFocusAndShow moveFocus moveFocusW box = 
+changeProofFocusAndShow moveFocus moveFocusAnnots moveFocusW box = 
                                  unSelectBox >>
-                                 changeProofFocus moveFocus moveFocusW box >>
+                                 changeProofFocus moveFocus moveFocusAnnots moveFocusW box >>
                                  selectBox focusBg
 
                                   

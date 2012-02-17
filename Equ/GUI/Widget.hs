@@ -37,9 +37,6 @@ import qualified Data.ByteString as L
 
 import Graphics.Rendering.Pango.Font
 
-
-
-
 -- unselectAll :: IconView -> IState ()
 -- unselectAll tv = liftIO (treeViewGetSelection tv >>= \tree -> 
 --                          treeSelectionSetMode tree SelectionSingle >>
@@ -52,7 +49,6 @@ quitAction w = widgetDestroy w
 -- | Obtener un elemento del menú.
 getMenuButton :: GladeXML -> String -> IO MenuItem
 getMenuButton w = xmlGetWidget w castToMenuItem 
-
 
 {- Las siguientes acciones muestran y ocultan la lista de símbolos. -}
 openSymFrame :: IState ()
@@ -245,40 +241,17 @@ showAllItemTool tb = io $
 hideExerItemTool :: HBox -> IState ()
 hideExerItemTool tb = io $
                     do
-                    tbList <- containerGetChildren tb
-                    [sep,b,b',b''] <- return $ drop 3 tbList
-                    widgetHideAll sep
-                    widgetHideAll b
-                    widgetHideAll b'
-                    widgetHideAll b''
+                    widgetSetNoShowAll tb True
+                    widgetHideAll tb
 
 makeErrWindow :: String -> IState ()
 makeErrWindow s = io $ 
-                    do
-                    w <- io $ windowNew
-                    
-                    okButton <- buttonNewWithLabel "Ok"
-                    onClicked okButton (widgetDestroy w)
-                    commentLabel <- labelNew $ Just s
-                    errImg <- imageNewFromStock stockDialogError IconSizeDialog
-                    
-                    hBox <- hBoxNew False 0
-                    vBox <- vBoxNew False 0
-                    
-                    buttonBox <- hButtonBoxNew
-                    boxPackEnd buttonBox okButton PackNatural 2
-                    buttonBoxSetLayout buttonBox ButtonboxEnd
-                    
-                    boxPackStart vBox commentLabel PackNatural 20
-                    boxPackStart vBox buttonBox PackNatural 2
-                    
-                    boxPackStart hBox errImg PackGrow 20
-                    boxPackStart hBox vBox PackGrow 2
-                    
-                    containerAdd w hBox
-                    windowSetPosition w WinPosCenterAlways
-                    
-                    widgetShowAll w
+        do
+        md <- messageDialogNew Nothing [DialogModal] MessageError ButtonsOk s
+        widgetShowAll md
+        response <- dialogRun md
+        case response of
+            _ -> widgetDestroy md
 
 -- Abre una ventana para cargar un tipo con instancia Serialize, retorna True
 -- si la opci´on fue cargar, retorna False si la opci´on fue cancelar.
@@ -328,3 +301,14 @@ saveDialog label filename fileFilter serialItem = do
     where
         save:: FilePath -> IState ()
         save filepath = io $ encodeFile filepath serialItem
+
+-- Genera una ventana para mostar el contenido de "b" con ancho width
+makeWindowPop :: (BoxClass b) => b -> Int -> IState Window
+makeWindowPop box width = io $ 
+                    do
+                    w <- windowNew
+                    containerAdd w box
+                    set w [windowDefaultWidth := width]
+                    windowSetPosition w WinPosCenterAlways
+                    widgetShowAll w
+                    return w
