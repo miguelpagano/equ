@@ -20,6 +20,7 @@ import Equ.GUI.Proof.Dialogs
 import Equ.GUI.State.Exercise
 
 import Equ.PreExpr(holePreExpr, emptyExpr)
+import Equ.Theories (theories)
 
 import qualified Graphics.UI.Gtk as G
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
@@ -35,6 +36,7 @@ import Control.Monad.Reader
 import qualified Data.Foldable as F (forM_)
 
 import Data.Map (fromList)
+
 
 main :: IO ()
 main = do 
@@ -120,7 +122,7 @@ main = do
     onDestroy window mainQuit
 
     setupScrolledWindowSymbolList swSymbolList symGoLeftBox symGoRightBox gRef
-    aListStore <- io $ setupTruthList [] axiomList 
+    aListStore <- io $ setupTruthList  theories [] axiomList window
         
     -- Define la misma acción para el boton que para el menu
     -- convención: "nombreItem" (para item de menu) y "nombreTool" (para botón)
@@ -145,12 +147,12 @@ main = do
                    evalStateT (saveExercise) gRef 
     onActivateLeaf itemLoadForEditExercise $ 
                    evalStateT (loadForEditExercise >>= \flag ->
-                               when (flag) (setupProofFromExercise
+                               when flag (setupProofFromExercise
                                                           centralBox 
                                                           truthBox 
                                                           initExprWidget
-                                           ) >>
-                               showAllItemTool toolbarBox ) gRef 
+                                         ) >>
+                               showAllItemTool toolbarBox) gRef 
     
     onActivateLeaf itemSaveAsTheorem $ saveTheorem gRef aListStore
     onToolButtonClicked saveTheoremTool $ saveTheorem gRef aListStore

@@ -1,3 +1,4 @@
+{-# Language OverloadedStrings #-}
 module Equ.GUI.Exercise where
 
 import Graphics.UI.Gtk hiding (get)
@@ -8,6 +9,7 @@ import Equ.GUI.State
 import Equ.GUI.Expr (initExprState)
 import Equ.GUI.State.Expr (getInitialExpr)
 import Equ.GUI.Proof (createNewProof)
+import Equ.GUI.TruthList
 import Equ.GUI.State.Exercise 
 import Equ.GUI.Widget
 
@@ -16,7 +18,7 @@ import Equ.PreExpr(toFocus)
 import Equ.Parser (parseFromString)
 import Equ.Exercise
 import Equ.Exercise.Conf
-import Equ.Theories (relationList, axiomGroup, Grouped (..))
+import Equ.Theories (relationList, axiomGroup, Grouped (..), theoriesInGroup)
 import Equ.Proof.Proof(Axiom (..))
 import Equ.Proof (Proof,toProof, goTop)
 import Equ.Rule hiding (rel)
@@ -73,8 +75,9 @@ makeExerConfComboItem s ls isItem = do
                      l <- io $ listStoreToList ls
                      item <- isItem
                      io $ comboBoxSetActive cbox (fromJust $ elemIndex item l)
-                     io $ boxPackStart box optionLabel PackGrow 0
-                     io $ boxPackStart box cbox PackNatural 0
+                     io $ set optionLabel [ widgetWidthRequest := 240 ]
+                     io $ boxPackStart box optionLabel PackNatural 10
+                     io $ boxPackStart box cbox PackNatural 10
 
                      return box
 
@@ -88,8 +91,9 @@ makeExerConfCheckItem s items activeItems = do
                     itemBox <- io $ vBoxNew False 0
                     F.mapM_ (makeExerConfCheckItem' itemBox activeItems) items
                     
-                    io $ boxPackStart box optionLabel PackGrow 0
-                    io $ boxPackStart box itemBox PackNatural 0
+                    io $ boxPackStart box optionLabel PackNatural 10
+                    io $ set optionLabel [ widgetWidthRequest := 240 ]
+                    io $ boxPackStart box itemBox PackNatural 10
                     
                     return box
 
@@ -99,7 +103,7 @@ makeExerConfCheckItem' box aItems item= io $
                     cbutton <- checkButtonNewWithLabel $ show item
                     boxPackStart box cbutton PackNatural 0
                     when (elem item aItems)
-                        (set cbutton [toggleButtonActive := True])
+                             (set cbutton [toggleButtonActive := True])
 
 -- Crea los botones aceptar y cancelar para las ventanas de enunciado y 
 -- configuraci´on de ejercicio.
@@ -242,8 +246,7 @@ makeExerConfWindow = do
                      vBoxAdd vBox infoBox
                      
                      aTheories <- getExerciseConfATheories
-                     atBox <- makeExerConfCheckItem 
-                                                    "Axiomas Disponibles" 
+                     atBox <- makeExerConfCheckItem  "Axiomas Disponibles" 
                                                     (map fst axiomGroup)
                                                     (map fst aTheories)
                      vBoxAdd vBox atBox
@@ -435,6 +438,9 @@ setupProofFromExercise centralBox truthBox initExprWidget = do
                     initExprState $ toFocus $ getPreExpr e
                     mproof <- getExerciseProof
                     createNewProof mproof centralBox truthBox initExprWidget
+                    tl <- getAxiomCtrl
+                    theories <- getExerciseConfATheories
+                    changeTruthList  (theoriesInGroup theories) tl
 
 -- Crea un ejercicio.
 makeExercise :: IState ()

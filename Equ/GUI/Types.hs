@@ -46,13 +46,6 @@ instance Show URMove where
 
 data Accion = Undo | Redo | InvalidCheck | ValidCheck 
  
-type TGraph = [(Int, Int, Accion)]
- 
-data Statistic = Statistic { thinkingGraph :: TGraph }
-
--- TODO: hace falta? Eliminé el campo de GState y todo funciona bien. 
-type RecentExprList = [PreExpr]
-
 data TreeExpr = TreeExpr { mainExpr :: ExprState
                          , opExpr :: [[(Focus, Move)]]
                          , atomExpr :: [ExprState]
@@ -70,7 +63,6 @@ data GState = GState { gWindow :: Window
                      , gExercise :: Maybe Exercise -- ^ El estado de la edición de un ejercicio.
                      , gUndo :: UndoList -- ^ Undo.
                      , gRedo :: RedoList -- ^ Redo.
-                     , gStatistic :: Statistic -- ^ Conjunto de estadisticas.
                      , status :: StatusPlace  -- ^ La barra de estado.
                      , theorems :: [Theorem]
                      , hypothesis :: Ctx -- ^ Hipotesis globales. Cuando se crea una prueba se copian al contexto.

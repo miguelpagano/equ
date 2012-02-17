@@ -18,35 +18,39 @@ import Graphics.UI.Gtk.Gdk.Events
 
 import Data.Text(unpack,pack)
 import Data.Maybe
-import Data.Map (empty)
+import Data.Map (empty,elems)
 import Data.Tree
 
 import Control.Monad(liftM, when)
 import Control.Monad.Trans(liftIO)
 import qualified Data.Foldable as F (mapM_) 
 
+type TruthItem = (String, HBox -> IRG)
+
 -- | La lista de axiomas y teoremas; el primer elemento nos permite ingresar
 -- una expresión en una caja de texto y parsearla.
-listTruths :: [Theorem] -> IO (TreeStore (String, HBox -> IRG))
-listTruths theoremList = treeStoreNew $ forest axiomGroup 
+listTruths :: [TheoryName] -> [Theorem] -> IO (TreeStore TruthItem)
+listTruths available theoremList = treeStoreNew $ forest axioms 
                                       ++ forest theorems 
                                       ++ forest hypothesis
     where theorems = [(pack "Teoremas", theoremList)]
           hypothesis :: Grouped Hypothesis
           hypothesis = [(pack "Hipótesis", [])]
 
-          forest ::  (Truth t, Show t) => Grouped t -> Forest (String, HBox -> IRG)
-          forest = toForest (\x -> (unpack x, const $ return ())) addItem
+          forest ::  (Truth t, Show t) => Grouped t -> Forest TruthItem
+          forest = toForest (\x -> (unpack x, const $ return ())) addItem  
+                   
+          axioms = filter (\x -> fst x `elem` available) axiomGroup
 
-addItem :: (Truth t, Show t) => t -> (String, HBox -> IRG)
+addItem :: (Truth t, Show t) => t -> TruthItem
 addItem t = (show t, writeTruth $ truthBasic t)
 
-          
+
 writeTruth :: Basic -> HBox -> IRG
 writeTruth basic b = do
     removeAllChildren b
     label <- io (labelNew (Just $ show basic))
-    styleFont <- io $ fontItalic
+    styleFont <- io styleStepEvidence
     io $ widgetModifyFont label (Just styleFont)
     io $ boxPackStart b label PackNatural 0
     (old_proof,path) <- getProof
@@ -55,17 +59,35 @@ writeTruth basic b = do
     io $ widgetShowAll b
 
 -- | La configuración de la lista de símbolos propiamente hablando.
-setupTruthList :: [Theorem] -> TreeView -> IO (TreeStore (String,HBox -> IRG))
-setupTruthList theoremList tv = 
-     treeViewColumnNew >>= \col ->
-     listTruths theoremList >>= \list -> 
-     treeViewSetHeadersVisible tv False >>
-     cellRendererTextNew >>= \renderer ->
-     cellLayoutPackStart col renderer False >>
-     cellLayoutSetAttributes col renderer list (\ind -> [ cellText := fst ind ]) >>
-     treeViewAppendColumn tv col >> return list
+setupTruthList :: [TheoryName] -> [Theorem] -> TreeView -> Window -> IO (TreeStore TruthItem)
+setupTruthList available theoremList tv pwin  = 
+    listTruths available theoremList >>= setupTList tv 
 
-eventsTruthList :: TreeView -> TreeStore (String,HBox -> IRG) -> IRG
+setupTList :: TreeView  -> TreeStore TruthItem -> IO (TreeStore TruthItem)
+setupTList tv list = 
+    treeViewGetColumn tv 0 >>=
+    F.mapM_ (\c -> treeViewRemoveColumn tv c) >>
+    treeViewColumnNew >>= \col ->
+    treeViewSetHeadersVisible tv False >>
+    treeViewSetModel tv list >>
+    cellRendererTextNew >>= \renderer ->
+    cellLayoutPackStart col renderer False >>
+    cellLayoutSetAttributes col renderer list (\ind -> [ cellText := fst ind ]) >>
+    treeViewAppendColumn tv col >>
+    return list
+
+
+-- | Funcion útil para cuando cargamos un ejercicio; mantiene las
+-- hipótesis y los teoremas al definir los axiomas que se muestran de
+-- acuerdo al ejercicio.
+changeTruthList :: [TheoryName] -> TreeView -> IRG
+changeTruthList available tv = getGlobalCtx >>= \ hyps ->
+                               getTheorems >>= \ thms ->
+                               io (listTruths available thms) >>= \ ts ->
+                               io (mapM_ (addHypoList ts) (elems hyps)) >>
+                               io (setupTList tv ts >> return ())
+
+eventsTruthList :: TreeView -> TreeStore TruthItem -> IRG
 eventsTruthList tv list = io (treeViewGetSelection tv >>= \tree -> 
                               treeSelectionSetMode tree SelectionSingle >>
                               treeSelectionUnselectAll tree >>
@@ -87,10 +109,11 @@ oneSelection list tree = io (treeSelectionGetSelectedRows tree) >>= \sel ->
 
 
 
-addTruthList :: (Truth t, Show t) => TreeStore (String, HBox -> IRG) -> t -> Int -> IO ()
+addTruthList :: (Truth t, Show t) => TreeStore TruthItem -> t -> Int -> IO ()
 addTruthList truthList truth idx = treeStoreInsert truthList [idx] 0 (addItem truth)
 
-addTheoList :: TreeStore (String, HBox -> IRG) -> Theorem -> IO ()
+addTheoList :: TreeStore TruthItem -> Theorem -> IO ()
 addTheoList tl t = treeModelIterNChildren tl Nothing >>= \i -> addTruthList tl t (i-2) 
-addHypoList :: TreeStore (String, HBox -> IRG) -> Hypothesis -> IO ()
+
+addHypoList :: TreeStore TruthItem -> Hypothesis -> IO ()
 addHypoList tl h = treeModelIterNChildren tl Nothing >>= \i -> addTruthList tl h (i-1) 

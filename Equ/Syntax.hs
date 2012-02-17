@@ -160,7 +160,7 @@ instance Show Quantifier where
 
 -- | PrettyPrint para huecos. 
 instance Show Hole where
-    show s = if null i then "?{}" else "holeWithInfo: " ++ i
+    show s = if null i then "?{}" else "?{ " ++ i ++ " }"
         where i = unpack $ info s
 
 -- | Instancia arbitrary para las variables.

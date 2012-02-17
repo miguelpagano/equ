@@ -38,8 +38,29 @@ import qualified Data.ByteString as L
 
 import Graphics.Rendering.Pango.Font
 
-
-
+-- | Una infoBox es un tooltip con un titulo e información
+-- con estilo. Por ahora la información no tiene estilo. 
+infoBox :: Window -> Window -> String -> String -> IO ()
+infoBox pwin iwin title info = vBoxNew False 0 >>= \ ibox ->
+                     (labelNew . return)  title >>= \ titleLbl ->
+                     -- ponerle estilo de título.
+                     styleInfoTitle >>= \ styleFont ->
+                     widgetModifyFont titleLbl (Just styleFont) >>
+                     boxPackStart ibox titleLbl PackNatural 3 >>
+                     (labelNew . return) info >>= \ infoLbl ->
+                     boxPackStart ibox infoLbl PackNatural 5 >>
+                     set iwin [ windowWindowPosition := WinPosCenterAlways
+                              -- , windowDefaultWidth := 320
+                              -- , windowDefaultHeight := 240
+                              , windowTypeHint := WindowTypeHintDialog --WindowTypeHintTooltip
+                              , windowTransientFor := pwin
+                              -- , windowSkipTaskbarHint := True
+                              -- , windowSkipPagerHint := True
+                              -- , windowAcceptFocus := False
+                              , windowDecorated := False
+                              ] >>
+                     containerAdd iwin ibox >>
+                     return ()
 
 -- unselectAll :: IconView -> IState ()
 -- unselectAll tv = liftIO (treeViewGetSelection tv >>= \tree -> 
@@ -225,10 +246,6 @@ unlight Nothing w = widgetModifyBg w (toEnum 0) genericBg
 unlight (Just bg) w = widgetModifyBg w (toEnum 0) bg
     
     
-fontItalic :: IO FontDescription
-fontItalic = fontDescriptionNew >>= \fd ->
-             fontDescriptionSetStyle fd StyleItalic >>
-             return fd
 
 -- | Setea un texto de ayuda para un widget
 setToolTip :: WidgetClass w => w -> String -> IO ()

@@ -79,4 +79,5 @@ updateExercise :: Exercise -> IState ()
 updateExercise exer = update (updateExercise' exer)
     where
         updateExercise' :: Exercise -> GState -> GState
-        updateExercise' exer gs = gs {gExercise = Just exer}
+        updateExercise' exer gs = gs { gExercise = Just exer
+                                     }

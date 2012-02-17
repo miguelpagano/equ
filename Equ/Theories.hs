@@ -15,6 +15,9 @@ module Equ.Theories
     , toForest
     , getExprProof
     , Grouped
+    , TheoryName
+    , theories
+    , theoriesInGroup
     )
     where
 
@@ -50,6 +53,9 @@ listTheory :: TheoryName
 listTheory = "Listas"
 
 theories = [folTheory,arithTheory,listTheory]
+
+theoriesInGroup :: Grouped a -> [TheoryName]
+theoriesInGroup = map fst
 
 mkGrouped :: [TheoryName] -> [[a]] -> Grouped a
 mkGrouped = zip

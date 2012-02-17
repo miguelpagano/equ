@@ -109,6 +109,9 @@ addTheorem :: Theorem -> IState Theorem
 addTheorem th = (update $ \gst -> gst { theorems = (th:theorems gst) }) >>
                 return th
 
+getTheorems :: IState [Theorem]
+getTheorems = getStatePart theorems
+
 
 getRelPF :: IState Relation
 getRelPF = getProofState >>= \ps ->

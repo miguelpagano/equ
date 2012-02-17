@@ -188,9 +188,6 @@ getParentNamed name = go
                  then return w
                  else io (widgetGetParent w) >>= go . fromJust
 
-getTheorems :: IState [Theorem]
-getTheorems = getStatePart theorems
-        
                          
 -- Funcion que chequea si la prueba en la interfaz está validada
 checkValidProof :: IState Bool
@@ -226,7 +223,6 @@ initialState win sl ss al me sb ce valid = GState
                                     me
                                     []
                                     []
-                                    (Statistic [])
                                     (sb,ce)
                                     [] -- lista de teoremas, TODO: que se carguen los teoremas desde disco
                                     beginCtx -- Contexto de hipótesis.
