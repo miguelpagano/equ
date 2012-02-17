@@ -20,6 +20,7 @@ module Equ.Proof (newProof
                  , Proof(..)
                  , Proof'(..)
                  , ProofFocusAnnots(..)
+                 , ProofAnnotation(..)
                  , emptyProofAnnots
                  , addEmptyStepAnnots
                  --, Basic(..)

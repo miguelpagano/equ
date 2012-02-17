@@ -52,6 +52,9 @@ getExerciseStatement = getExercise >>= return . exerStatement . fromJust
 getExerciseProof :: IState (Maybe Proof)
 getExerciseProof = getExercise >>= return . exerProof . fromJust 
 
+getExerciseAnnots :: IState (Maybe ProofAnnotation)
+getExerciseAnnots = getExercise >>= return . exerAnnots . fromJust 
+
 -- Retorna el ejercicio.
 getExercise :: IState (Maybe Exercise)
 getExercise = getStatePart gExercise
@@ -73,6 +76,12 @@ updateExerciseProof :: Proof -> IState ()
 updateExerciseProof p = do
                         Just exer <- getExercise 
                         updateExercise $ exer {exerProof = Just p}
+
+-- Update de las anotaciones del ejercicio.
+updateExerciseAnnots :: ProofAnnotation -> IState ()
+updateExerciseAnnots pa = do
+                        Just exer <- getExercise 
+                        updateExercise $ exer {exerAnnots = Just pa}
 
 -- Update del ejercicio.
 updateExercise :: Exercise -> IState ()

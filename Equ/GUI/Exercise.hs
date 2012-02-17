@@ -18,7 +18,7 @@ import Equ.Exercise
 import Equ.Exercise.Conf
 import Equ.Theories (relationList, axiomGroup, Grouped (..))
 import Equ.Proof.Proof(Axiom (..))
-import Equ.Proof (Proof,toProof, goTop)
+import Equ.Proof (ProofAnnotation,Proof,toProof, goTop, toProofFocus)
 import Equ.Rule hiding (rel)
 
 import Data.Maybe (fromJust,isJust)
@@ -269,7 +269,7 @@ makeExerConfWindow = do
                      box <- io makeOkCancelButtons
                      io $ boxPackEnd vBox box PackNatural 2
                      
-                     w <- makeWindowPop vBox 300
+                     w <- makeWindowPop vBox 300 True
                      
                      setupOkCancelButtons box 
                         (actionOkButtonExerConf box (tpBox, tpLs) (rwBox, rwLs) 
@@ -412,7 +412,7 @@ makeStatementWindow = do
                     closeButton <- io $ buttonNewWithLabel "Close"
                     io $ boxPackEnd vBox closeButton PackNatural 2
 
-                    w <- makeWindowPop vBox 400
+                    w <- makeWindowPop vBox 400 True
                     io $ onClicked (castToButton closeButton) (widgetDestroy w)
                     return ()
     where
@@ -439,7 +439,7 @@ makeStatementEditWindow =  do
                     box <- io makeOkCancelButtons
                     io $ boxPackEnd vBox box PackNatural 2
 
-                    w <- makeWindowPop vBox 400
+                    w <- makeWindowPop vBox 400 True
 
                     setupOkCancelButtons box 
                         (actionOkButtonStatement titleBox statBox hintBox w)
@@ -484,14 +484,16 @@ saveExercise = getExercise >>= \mexer ->
                                   (unpack $ title stat) ++ ".exer"
         takeProof :: Maybe ProofState -> Proof
         takeProof = toProof . fromJust . goTop . proof . fromJust
+        takeAnnots :: Maybe ProofState -> ProofAnnotation
+        takeAnnots = toProof . fromJust . goTop . proofAnnots . fromJust
         setupExerciseToSave :: IState Exercise
         setupExerciseToSave = do
                     mps <- getProofState 
-                    when (isJust mps) (updateExerciseProof $ takeProof mps)
+                    when (isJust mps) (updateExerciseProof (takeProof mps) >>
+                                       updateExerciseAnnots (takeAnnots mps))
                     Just initE <- getInitialExpr
-                    io (debug $ show initE)
                     stat <- getExerciseStatement
-                    updateExerciseStatement (stat {initExpr = initE}) 
+                    updateExerciseStatement (stat {initExpr = initE})
                     Just exer <- getExercise
                     return exer
 
@@ -512,7 +514,10 @@ setupProofFromExercise centralBox truthBox initExprWidget = do
             initExprState $ toFocus $ getPreExpr e
             mproof <- getExerciseProof
             when (isJust mproof)
-                 (createNewProof mproof centralBox truthBox initExprWidget)
+                 (createNewProof mproof centralBox truthBox initExprWidget) 
+            mAnnots <- getExerciseAnnots
+            when (isJust mAnnots)
+                 (updateProofAnnots $ toProofFocus $ fromJust mAnnots)
 
 -- Crea un ejercicio.
 makeExercise :: IState ()

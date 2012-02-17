@@ -303,12 +303,14 @@ saveDialog label filename fileFilter serialItem = do
         save filepath = io $ encodeFile filepath serialItem
 
 -- Genera una ventana para mostar el contenido de "b" con ancho width
-makeWindowPop :: (BoxClass b) => b -> Int -> IState Window
-makeWindowPop box width = io $ 
+makeWindowPop :: (BoxClass b) => b -> Int -> Bool -> IState Window
+makeWindowPop box width isModal = io $ 
                     do
                     w <- windowNew
                     containerAdd w box
-                    set w [windowDefaultWidth := width]
+                    set w [ windowDefaultWidth := width
+                          , windowModal := isModal
+                          ]
                     windowSetPosition w WinPosCenterAlways
                     widgetShowAll w
                     return w
