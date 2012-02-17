@@ -12,7 +12,6 @@ import Equ.Rule
 import Equ.Theories
 import Equ.Proof
 import Equ.PreExpr hiding (goDownL,goDownR,goRight,goUp,goTop)
-import Equ.Exercise
 import Equ.GUI.Widget
 import Equ.GUI.Expr ( writeExprWidget,setupForm
                     , newExprState, reloadExpr

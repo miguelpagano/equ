@@ -3,9 +3,9 @@
 module Equ.GUI.Types where
 
 import Equ.PreExpr
-import Equ.Exercise
-
-import Equ.Proof (Proof,PM,ProofFocus,Theorem,Hypothesis,Proof',ProofFocus')
+import Equ.Exercise (Exercise)
+import Equ.Proof (Proof,PM,ProofFocus, ProofFocusAnnots
+                 ,Theorem,Hypothesis,Proof',ProofFocus')
 import Equ.Proof.Proof (Ctx)
 import Equ.Rule(Relation)
 

@@ -103,9 +103,9 @@ import Equ.PreExpr hiding(goUp,goRight,goLeft,goDown,goDownL)
 import Equ.Theories
 import Equ.Syntax
 import Equ.Parser
-import Equ.Exercise
+import Equ.Exercise(Exercise)
 
-import Equ.Proof(addBoolHypothesis)
+import Equ.Proof(ProofFocusAnnots,addBoolHypothesis)
 import Equ.Proof.Proof
 import Equ.Proof.Error(errEmptyProof)
 import Equ.Proof(ProofFocus,ProofFocus',updateStartFocus,updateEndFocus,PM,validateProof,

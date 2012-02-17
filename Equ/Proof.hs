@@ -19,6 +19,9 @@ module Equ.Proof (newProof
                  -- $proofs
                  , Proof(..)
                  , Proof'(..)
+                 , ProofFocusAnnots(..)
+                 , emptyProofAnnots
+                 , addEmptyStepAnnots
                  --, Basic(..)
                  -- * Ejemplos
                  -- $samples
@@ -34,6 +37,7 @@ module Equ.Proof (newProof
                  , Ctx
                  ) where
 
+import Equ.Proof.Annot
 import Equ.Proof.Proof hiding (getCtx,getStart,getEnd,getRel,setCtx)
 import qualified Equ.Proof.Proof as P(getStart,getEnd,getBasic)
 import Equ.Proof.Zipper

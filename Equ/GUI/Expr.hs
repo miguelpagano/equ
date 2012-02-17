@@ -11,8 +11,8 @@ import Equ.GUI.Widget
 import Equ.GUI.TypeTree
 
 import Equ.Expr
-import qualified Equ.Proof.Proof as P
-import qualified Equ.Proof.Zipper as Z
+import qualified Equ.Proof as P
+import qualified Equ.Proof.Proof as PP
 import Equ.PreExpr hiding (goDown,goUp,goDownR)
 import qualified Equ.PreExpr as PE
 import Equ.Syntax
@@ -352,7 +352,6 @@ configTypeTreeTB w = lift get >>= \s ->
                                      runReaderT (typeTreeWindow w') env) >>
                      return ()
 
-
 -- | El primer argumento indica la acción a realizar con el contenido del 
 -- buffer al momento de cerrar el popup.
 annotWindow :: (IState String) -> (String -> IState ()) -> GRef -> Window -> IO Window
@@ -365,7 +364,6 @@ annotWindow iST act s w = popupWin w >>= \pop ->
                                            G.get buf textBufferText >>= \str ->
                                            evalStateT (act str) s)) >>
                     return pop
-
 
 -- | Define la acción para cuando no está activado.
 actTBOn :: ToggleButton -> Window -> (Window -> IO Window) -> IO ()
@@ -466,24 +464,43 @@ setupOptionInitExprWidget win  = ask >>= \(_,_,mf) ->
                              configTypeTreeTB win
 
 setupOptionExprWidget :: Window -> IExpr' ()
-setupOptionExprWidget win  = ask >>= \s ->
-                             lift get >>= \gs ->
-                             configAnnotTB 
-                                    (runReaderT (loadAnnot) s)
-                                    (\str -> runReaderT (saveAnnot str) s)
-                                    gs win >>
+setupOptionExprWidget win  = ask >>= \env ->
+                             lift get >>= \s ->
+                             configAnnotTB (loadAnnotation env)
+                                           (saveAnnotation env)
+                                           s win >>
                              configTypeTreeTB win
+    where
+        loadAnnotation :: Env -> IState String
+        loadAnnotation env = runReaderT (loadAnnot) env
+        saveAnnotation :: Env -> String -> IState ()
+        saveAnnotation env = flip runReaderT env . saveAnnot
 
-loadAnnot = ask >>= \(_,_,mp) ->
+-- | Carga la anotaci´on de una expresi´on en base al entorno.
+loadAnnot :: IExpr' String
+loadAnnot = ask >>= \env ->
             lift getProofAnnots >>= \p ->
-            return $ unpack . fromJust . P.getEnd . fst . fromJust $ (pm mp) p
+            return $ getAnnot p env
+    where
+        getAnnot :: P.ProofFocusAnnots -> Env -> String
+        getAnnot pfa (_,_,mp) = getAnnotFromFocus $ (pm mp) pfa
+        getAnnotFromFocus :: Maybe P.ProofFocusAnnots -> String
+        getAnnotFromFocus = unpack . fromJust . PP.getEnd . fst . fromJust
 
+-- | Guarda la anotaci´on para una expresi´on en base al entorno.
+saveAnnot :: String -> IExpr' ()
 saveAnnot s = 
-        ask >>= \(_,_,mp) ->
+        ask >>= \env ->
         lift getProofAnnots >>= \p ->
-        lift (return $ fromJust $ (pm mp) p) >>= \pfa ->
-        lift (updateProofAnnots (Z.replace pfa (P.updateEnd (fst pfa) (pack s)))) >>
-        return ()
+        moveProofFocus p env >>= \pfa ->
+        updateAnnot pfa
+    where
+        moveProofFocus :: P.ProofFocusAnnots -> Env -> IExpr' P.ProofFocusAnnots
+        moveProofFocus pfa (_,_,mp) = return . fromJust $ (pm mp) pfa
+        updateAnnot :: P.ProofFocusAnnots -> IExpr' ()
+        updateAnnot pfa = lift $
+            updateProofAnnots $ P.replace pfa $ P.updateEnd (fst pfa) (pack s)
+            
 
 loadExpr :: HBox -> PreExpr -> IExpr ExprWidget 
 loadExpr box expr p = do

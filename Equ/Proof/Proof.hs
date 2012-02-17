@@ -383,8 +383,46 @@ data Proof' ctxTy relTy proofTy exprTy where
               Proof' ctxTy relTy proofTy exprTy ->
               Proof' ctxTy relTy proofTy exprTy
 
-    --deriving Eq
+instance (Serialize ctxTy, Serialize relTy, Serialize proofTy, Serialize exprTy) => 
+         Serialize (Proof' ctxTy relTy proofTy exprTy) where
+    put Reflex = putWord8 0
+    put (Hole ctxTy relTy exprTy exprTy') = 
+        putWord8 1 >> put ctxTy >> put relTy >> put exprTy >> put exprTy'
+    put (Simple ctxTy relTy exprTy exprTy' proofTy) = 
+        putWord8 2 >> put ctxTy >> put relTy >> 
+                      put exprTy >> put exprTy' >> 
+                      put proofTy
+    put (Trans ctxTy relTy exprTy exprTy' exprTy'' proofTy proofTy') = 
+                putWord8 3 >> put ctxTy >> put relTy >> 
+                              put exprTy >> put exprTy' >> put exprTy'' >>
+                              put proofTy >> put proofTy'
+    put (Cases ctxTy relTy exprTy exprTy' exprTy'' lfproofTy) = 
+                putWord8 4 >> put ctxTy >> put relTy >> 
+                              put exprTy >> put exprTy' >> put exprTy'' >>
+                              put lfproofTy
+    put (Ind ctxTy relTy exprTy exprTy' lf llfproofTy) = 
+                putWord8 5 >> put ctxTy >> put relTy >> 
+                              put exprTy >> put exprTy' >>
+                              put lf >> put llfproofTy
+    put (Deduc ctxTy exprTy exprTy' proofTy) = 
+                putWord8 6 >> put ctxTy >> put exprTy >> put exprTy' >> 
+                              put proofTy
+    put (Focus ctxTy relTy exprTy exprTy' proofTy) = 
+                putWord8 7 >> put ctxTy >> put relTy >> 
+                              put exprTy >> put exprTy' >> put proofTy
     
+    get = getWord8 >>= \tag_ ->
+        case tag_ of
+        0 -> return Reflex 
+        1 -> Hole <$> get <*> get <*> get <*> get
+        2 -> Simple <$> get <*> get <*> get <*> get <*> get
+        3 -> Trans <$> get <*> get <*> get <*> get <*> get <*> get <*> get
+        4 -> Cases <$> get <*> get <*> get <*> get <*> get <*> get
+        5 -> Ind  <$> get <*> get <*> get <*> get <*> get <*> get
+        6 -> Deduc <$> get <*> get <*> get <*> get
+        7 -> Focus <$> get <*> get <*> get <*> get <*> get
+        _ -> fail $ "SerializeErr Proof' " ++ show tag_
+
 type Proof = Proof' Ctx Relation Basic Focus
 
 instance Eq Proof where
@@ -509,34 +547,6 @@ instance Arbitrary Proof where
                     pPFocusProof = (,) <$> arbitrary <*> subProof
                     listPPFocusProof :: Gen [([Focus], Proof)]
                     listPPFocusProof = vectorOf 2 pPFocusProof
-
-instance Serialize Proof where
-    put Reflex = putWord8 0
-    put (Hole ctx r f f') = putWord8 1 >> put ctx >> put r >>  put f >> put f'
-    put (Simple ctx r f f' b) = 
-        putWord8 2 >> put ctx >> put r >> put f >> put f' >> put b
-    put (Trans ctx r f f' f'' p p') = 
-        putWord8 3 >> put ctx >> put r >> put f >> put f' >> put f'' >>
-                      put p >> put p'
-    put (Cases ctx r f f' f'' lfp) = 
-        putWord8 4 >> put ctx >> put r >> put f >> put f' >> put f'' >> put lfp
-    put (Ind ctx r f f' lf llfp) = 
-        putWord8 5 >> put ctx >> put r >> put f >> put f' >> put lf >> put llfp
-    put (Deduc ctx f f' p) = putWord8 6 >> put ctx >> put f >> put f' >> put p
-    put (Focus ctx r f f' p) = 
-        putWord8 7 >> put ctx >> put r >> put f >> put f' >> put p
-    
-    get = getWord8 >>= \tag_ ->
-          case tag_ of
-            0 -> return Reflex 
-            1 -> Hole <$> get <*> get <*> get <*> get
-            2 -> Simple <$> get <*> get <*> get <*> get <*> get
-            3 -> Trans <$> get <*> get <*> get <*> get <*> get <*> get <*> get
-            4 -> Cases <$> get <*> get <*> get <*> get <*> get <*> get
-            5 -> Ind <$> get <*> get <*> get <*> get <*> get <*> get
-            6 -> Deduc <$> get <*> get <*> get <*> get
-            7 -> Focus <$> get <*> get <*> get <*> get <*> get
-            _ -> fail $ "SerializeErr Proof " ++ show tag_
 
 instance Serialize Name where
     put (Index i) = putWord8 0 >> put i
