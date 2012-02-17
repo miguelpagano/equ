@@ -13,7 +13,7 @@ import Equ.Rule (Relation, relEq)
 
 import Equ.Proof.Proof
 import Equ.Proof.Error(errEmptyProof)
-import Equ.Proof(ProofFocus,ProofFocus',updateStartFocus,updateEndFocus,PM,validateProof,
+import Equ.Proof(ProofFocus,ProofFocus',ProofFocusAnnots,updateStartFocus,updateEndFocus,PM,validateProof,
                  toProof,goFirstLeft,updateMiddleFocus,goUp',getEndFocus,goRight,goEnd,goDownL',
                   getBasicFocus, validateProofFocus, goNextStep, goPrevStep)
 
@@ -119,3 +119,19 @@ getRelPF = getProofState >>= \ps ->
                  Nothing -> return relEq
                  Just ps' -> 
                     getStatePart $ fromJust . getRel . fst . proof . fromJust . gProof
+
+
+updateProofAnnots :: ProofFocusAnnots -> IState ()
+updateProofAnnots pfa = update (updateProofAnnots' pfa)
+
+updateProofAnnots' :: ProofFocusAnnots -> GState -> GState
+updateProofAnnots' pfa gst = case gProof gst of
+                                Nothing -> gst
+                                Just gpr -> upd gpr
+    where
+        upd :: ProofState -> GState
+        upd gpr = gst {gProof = Just gpr {proofAnnots = pfa}}
+
+
+getProofAnnots :: IState ProofFocusAnnots
+getProofAnnots = getStatePartDbg "getProof" (proofAnnots . fromJust . gProof)

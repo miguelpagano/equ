@@ -3,9 +3,9 @@
 module Equ.GUI.Types where
 
 import Equ.PreExpr
-import Equ.Exercise
-
-import Equ.Proof (Proof,PM,ProofFocus,Theorem,Hypothesis,Proof',ProofFocus')
+import Equ.Exercise (Exercise)
+import Equ.Proof (Proof,PM,ProofFocus, ProofFocusAnnots
+                 ,Theorem,Hypothesis,Proof',ProofFocus')
 import Equ.Proof.Proof (Ctx)
 import Equ.Rule(Relation)
 
@@ -82,6 +82,7 @@ data ProofState = ProofState { proof :: ProofFocus   -- ^ La prueba que estamos 
                              , validProof :: PM Proof
                              , axiomBox :: HBox -- ^ El contenedor para mostrar el axioma aplicado
                              , proofWidget :: ProofFocusWidget -- ^ Focus para navegar la interfaz de prueba
+                             , proofAnnots :: ProofFocusAnnots
                              }
 
 type GRef = IORef GState
@@ -97,7 +98,6 @@ instance Reference IORef IState where
     writeRef r = liftIO . writeRef r
     newRef = liftIO . newRef
 
-    
 -- WIDGET PARA EXPRESIONES
 data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , formBox :: HBox      -- ^ Box donde se ingresa la formula
@@ -107,8 +107,7 @@ data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , typeButton  :: ToggleButton -- ^ Botón para árbol de tipado.
                              , imgStatus   :: Image      -- ^ Imagen para estado.
                              }
-
-                             
+             
 -- WIDGET PARA PRUEBAS
 data ProofStepWidget = ProofStepWidget {
                         relation :: (ComboBox,ListStore Relation)
@@ -139,6 +138,5 @@ type SynItem = (String, HBox -> IExpr' ())
 
 newtype ProofMove = ProofMove { pm ::  forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
                                       Maybe (ProofFocus' ctxTy relTy proofTy exprTy)}
-
 
 data ExprStatus =  Unknown | Parsed | NotParsed | TypeChecked

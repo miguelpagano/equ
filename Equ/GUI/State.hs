@@ -57,12 +57,14 @@ import Equ.PreExpr (Focus,PreExpr)
 
 import Equ.Theories (getExprProof)
 
+import Equ.Exercise(Exercise)
+
 import Equ.Proof.Proof
 import Equ.Proof.Error(errEmptyProof)
-import Equ.Proof(ProofFocus,ProofFocus',updateStartFocus,updateEndFocus,PM,validateProof,
+import Equ.Proof(ProofFocus,ProofFocus',ProofFocusAnnots,updateStartFocus,updateEndFocus,PM,validateProof,
                  toProof,goFirstLeft,updateMiddleFocus,goUp',getEndFocus,goRight,goEnd,goDownL',
                   getBasicFocus, validateProofFocus, goNextStep, goPrevStep)
-import Equ.Exercise (Exercise)
+
 
 
 import Graphics.UI.Gtk hiding (eventButton, eventSent, get)
@@ -81,9 +83,9 @@ updateExpr e' p = update (updateExpr' e' p) >>
                   restoreValidProofImage >>
                   -- validamos el paso en el que esta la expresion y el siguiente, si lo tiene
                   validateStep >> 
-                  changeProofFocus (Just . goNextStep) (Just . goNextStep) Nothing >> 
+                  changeProofFocus (Just . goNextStep) (Just . goNextStep) (Just . goNextStep) Nothing >> 
                   validateStep >> 
-                  changeProofFocus (Just . goPrevStep) (Just . goPrevStep) Nothing
+                  changeProofFocus (Just . goPrevStep) (Just . goPrevStep) (Just . goNextStep) Nothing
 
 updateExpr' :: PreExpr -> Move -> GState -> GState
 updateExpr' e p = updateExpr'' p (const e)
@@ -106,6 +108,7 @@ updateProofNoUndo pf = updateProof pf >>
                        showProof >>
                        getProof >>= io . debug . show                                 
 
+
 updateProofState :: ProofState -> IState ()
 updateProofState ps = update (\gst -> gst {gProof = Just ps}) >>
                       addToUndoList >> 
@@ -120,19 +123,22 @@ unsetProofState = update (\gst -> gst {gProof = Nothing}) >>
 
 
 changeProofFocus :: (ProofFocus -> Maybe ProofFocus) ->
+                    (ProofFocusAnnots -> Maybe ProofFocusAnnots) ->
                    (ProofFocusWidget -> Maybe ProofFocusWidget) ->
                    Maybe HBox -> IState ()
-changeProofFocus moveFocus moveFocusW box = getProofState >>=
-                                            F.mapM_ (\_ ->
-                                                     getProof >>=
-                                                     updateProofNoUndo . fromJust' . moveFocus >>
-                                                     withJust box updateAxiomBox >>
-                                                     getProofWidget >>=
-                                                     updateProofWidget . fromJust' . moveFocusW
-                                                    )
---                                  
+changeProofFocus moveFocus moveFocusAnnots moveFocusW box = getProofState >>=
+                                F.mapM_ (\ps ->
+                                    getProof >>=
+                                    updateProofNoUndo . fromJust' . moveFocus >>
+                                    withJust box updateAxiomBox >>
+                                    getProofWidget >>=
+                                    updateProofWidget . fromJust' . moveFocusW
+                                ) >>
+                                getProofState >>=
+                                F.mapM_ (\ps ->
+                                    getProofAnnots >>=
+                                    updateProofAnnots . fromJust' . moveFocusAnnots)
     where fromJust' = maybe (error "MOVIENDO EL FOCUS") id
-
 getWindow :: IState Window
 getWindow = getStatePart gWindow
 

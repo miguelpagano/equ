@@ -11,6 +11,8 @@ import Equ.GUI.Widget
 import Equ.GUI.TypeTree
 
 import Equ.Expr
+import qualified Equ.Proof as P
+import qualified Equ.Proof.Proof as PP
 import Equ.PreExpr hiding (goDown,goUp,goDownR)
 import qualified Equ.PreExpr as PE
 import Equ.Syntax
@@ -20,7 +22,7 @@ import Equ.Types
 import qualified Graphics.UI.Gtk as G (get)
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get, UpdateType)
 import Graphics.UI.Gtk.Gdk.EventM
-import Data.Text (unpack)
+import Data.Text (unpack,pack)
 import Data.Maybe (fromJust)
 import Control.Monad.Reader
 import Control.Monad.Trans(lift)
@@ -328,10 +330,10 @@ typeTreeWindow w = io (popupWin w) >>= \pop ->
 
 -- | Pone el tooltip y configura la acciones para el boton de anotaciones 
 -- del exprWidget.
-configAnnotTB :: (String -> IO ()) -> Window -> IExpr' ()
-configAnnotTB act w = getAnnotButton >>= \tb ->
+configAnnotTB :: IState String -> (String -> IState ()) -> GRef -> Window -> IExpr' ()
+configAnnotTB iST act s w = getAnnotButton >>= \tb ->
                       io $ setToolTip tb "Anotaciones" >>
-                           actTBOn tb w (io . annotWindow act)
+                           actTBOn tb w (io . annotWindow iST act s)
 
 -- | Pone el tooltip y configura la acciones para el boton del árbol
 -- de tipado del exprWidget.
@@ -344,20 +346,18 @@ configTypeTreeTB w = lift get >>= \s ->
                                      runReaderT (typeTreeWindow w') env) >>
                      return ()
 
-
 -- | El primer argumento indica la acción a realizar con el contenido del 
 -- buffer al momento de cerrar el popup.
-annotWindow :: (String -> IO ()) -> Window -> IO Window
-annotWindow act w = popupWin w >>= \pop ->
+annotWindow :: (IState String) -> (String -> IState ()) -> GRef -> Window -> IO Window
+annotWindow iST act s w = popupWin w >>= \pop ->
                     hBoxNew False 1 >>= \b ->
-                    annotBuffer >>= \entry ->
+                    annotBuffer iST s >>= \entry ->
                     boxPackStart b entry PackNatural 0 >>
                     containerAdd pop b >>
                     (pop `on` unrealize $ (G.get entry textViewBuffer >>= \buf ->
-                                           G.get buf textBufferText >>=
-                                           act)) >>
+                                           G.get buf textBufferText >>= \str ->
+                                           evalStateT (act str) s)) >>
                     return pop
-
 
 -- | Define la acción para cuando no está activado.
 actTBOn :: ToggleButton -> Window -> (Window -> IO Window) -> IO ()
@@ -379,11 +379,16 @@ actTBOff tb w f pop = do rec {
                          }
                          return ()
 
-annotBuffer :: IO TextView
-annotBuffer = textViewNew >>= \v ->
-             textViewSetWrapMode v WrapWord >>
-             set v [widgetWidthRequest := 500, widgetHeightRequest := 300] >>
-             return v
+annotBuffer :: IState String -> GRef -> IO TextView
+annotBuffer iST s = 
+            evalStateT iST s >>= \text ->
+            textViewNew >>= \v ->
+            textViewSetWrapMode v WrapWord >>
+            textViewGetBuffer v >>= \b ->
+            textBufferGetStartIter b >>= \startIter ->
+            textBufferInsert b startIter text >>
+            set v [widgetWidthRequest := 500, widgetHeightRequest := 300] >>
+            return v
 
 -- | Crea un widget para una expresión. El argumento indica si es inicial.
 -- En ese caso no se crea el botón para ver posibles reescrituras.
@@ -440,14 +445,54 @@ createInitExprWidget expr p = do
     expr_w <- createExprWidget True
     flip runEnvBox (expr_w,p,ProofMove Just) $ 
          writeExprWidget (formBox expr_w) expr >>
-         setupOptionExprWidget win
+         setupOptionInitExprWidget win
                
     return expr_w
+    
+
+setupOptionInitExprWidget :: Window -> IExpr' ()
+setupOptionInitExprWidget win  = lift get >>= \gs ->
+                                 configAnnotTB (return "") (io . putStrLn) gs win >> 
+                                 configTypeTreeTB win
 
 setupOptionExprWidget :: Window -> IExpr' ()
-setupOptionExprWidget win  = configAnnotTB putStrLn win >> 
+setupOptionExprWidget win  = ask >>= \env ->
+                             lift get >>= \s ->
+                             configAnnotTB (loadAnnotation env)
+                                           (saveAnnotation env)
+                                           s win >>
                              configTypeTreeTB win
+    where
+        loadAnnotation :: Env -> IState String
+        loadAnnotation env = runReaderT (loadAnnot) env
+        saveAnnotation :: Env -> String -> IState ()
+        saveAnnotation env = flip runReaderT env . saveAnnot
 
+-- | Carga la anotaci´on de una expresi´on en base al entorno.
+loadAnnot :: IExpr' String
+loadAnnot = ask >>= \env ->
+            lift getProofAnnots >>= \p ->
+            return $ getAnnot p env
+    where
+        getAnnot :: P.ProofFocusAnnots -> Env -> String
+        getAnnot pfa env = getAnnotFromFocus $ pm (pme env) pfa
+        getAnnotFromFocus :: Maybe P.ProofFocusAnnots -> String
+        getAnnotFromFocus = unpack . fromJust . PP.getEnd . fst . fromJust
+
+-- | Guarda la anotaci´on para una expresi´on en base al entorno.
+saveAnnot :: String -> IExpr' ()
+saveAnnot s = 
+        ask >>= \env ->
+        lift getProofAnnots >>= \p ->
+        moveProofFocus p env >>= \pfa ->
+        updateAnnot pfa
+    where
+        moveProofFocus :: P.ProofFocusAnnots -> Env -> IExpr' P.ProofFocusAnnots
+        moveProofFocus pfa env = return . fromJust $ pm (pme env) pfa
+        updateAnnot :: P.ProofFocusAnnots -> IExpr' ()
+        updateAnnot pfa = lift $
+            updateProofAnnots $ P.replace pfa $ P.updateEnd (fst pfa) (pack s)
+            
 
 loadExpr :: HBox -> PreExpr -> IExpr ExprWidget 
 loadExpr box expr p = do
@@ -461,8 +506,6 @@ reloadExpr :: PreExpr -> IExpr' ()
 reloadExpr expr = getFormBox >>= \box ->
                   lift (removeAllChildren box) >>
                   writeExprWidget box expr
-
-
                         
 newExprState :: Focus -> ExprWidget -> HBox -> IState ExprState
 newExprState expr expr_w hbox2 = return $

@@ -1,9 +1,11 @@
--- | Este m&#243;dulo define la noci&#243;n de un ejercicio en equ.
+{-# Language TypeSynonymInstances #-}
+   -- | Este m&#243;dulo define la noci&#243;n de un ejercicio en equ.
 module Equ.Exercise where
 
-import Equ.Exercise.Conf
+import Equ.Exercise.Conf (ExerciseConf, createExerciseConf)
 
 import Equ.Expr
+import Equ.Proof.Annot
 import qualified Equ.Rule as R
 import Equ.Proof
 
@@ -13,29 +15,24 @@ import qualified Data.Map as M
 import Control.Applicative ((<$>), (<*>))
 import Data.Serialize (Serialize, get, getWord8, put, putWord8)
 
--- Anotacin para una expresi´on.
-type Annot = (Text, Proof)
-
--- Conjunto de anotaciones para una prueba.
-type Annotations = [Annot]
-
 -- Enunciado del ejercicio.
 data Statement = Statement { title :: Text
+                           , stat :: Text
                            , initExpr :: Expr
                            , hints :: Text
                            } deriving Show
 
 instance Serialize Statement where
-    put (Statement title initExpr hints) = 
-        put title >> put initExpr >> put hints
+    put (Statement title stat initExpr hints) = 
+        put title >> put stat >> put initExpr >> put hints
     
-    get = Statement <$> get <*> get <*> get
+    get = Statement <$> get <*> get <*> get <*> get
 
 -- Representacion del ejercicio en equ.
 data Exercise = Exercise { exerConf :: ExerciseConf
                          , exerStatement :: Statement
                          , exerProof :: Maybe Proof
-                         , exerAnnots :: Annotations
+                         , exerAnnots :: Maybe ProofAnnotation
                          }
 
 instance Serialize Exercise where
@@ -49,14 +46,16 @@ instance Show Exercise where
                 show (exerStatement exer) ++ " " ++
                 show (exerProof exer)
 
+-- | Genera un enunciado vacio. Todos los campos de texto en blanco y la
+-- expresi´on inicial es la correspondiente expresi´on inicial de la prueba.
 createStatement :: Expr -> Statement
-createStatement e = Statement empty e empty
+createStatement e = Statement empty empty e empty
 
--- Crea un ejercicio a partir de una configuraci´on y un enunciado.
+-- | Crea un ejercicio a partir de una configuraci´on y un enunciado.
 -- En el cual la prueba es un hueco con el contexto y relaci´on propio de la
 -- configuraci´on del ejercicio.
-createExercise :: Expr -> Exercise
-createExercise e = Exercise exerConf stmnt Nothing []
+createExercise :: Expr -> Maybe ProofAnnotation -> Exercise
+createExercise e mpa = Exercise exerConf stmnt Nothing mpa
     where
         exerConf :: ExerciseConf
         exerConf = createExerciseConf

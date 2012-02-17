@@ -8,7 +8,7 @@ import Equ.GUI.Utils
 import Equ.GUI.State
 import Equ.GUI.Expr (initExprState)
 import Equ.GUI.State.Expr (getInitialExpr)
-import Equ.GUI.Proof (createNewProof)
+import Equ.GUI.Proof (createNewProof,discardProof)
 import Equ.GUI.TruthList
 import Equ.GUI.State.Exercise 
 import Equ.GUI.Widget
@@ -24,7 +24,7 @@ import Equ.Proof (Proof,toProof, goTop)
 import Equ.Rule hiding (rel)
 
 import Data.Maybe (fromJust,isJust)
-import Data.Text (unpack, pack)
+import Data.Text (Text,unpack, pack)
 import Data.List (elemIndex, find)
 
 import qualified Data.Set as S
@@ -35,14 +35,14 @@ import Control.Monad.IO.Class (MonadIO)
 
 -- Configura los botones para las ventanas de configuraci´on de ejercicio y
 -- enunciado.
-setupExerciseToolbar :: HBox -> IState ()
-setupExerciseToolbar b = do
-            (exerConfButton, statementButton) <- io $ makeToolButtons
+setupExerciseEditToolbar :: HBox -> IState ()
+setupExerciseEditToolbar b = do
+            (exerConfButton, statementButton) <- io makeToolButtons
             s <- get
             io $ onToolButtonClicked exerConfButton 
                                     (evalStateT makeExerConfWindow s)
             io $ onToolButtonClicked statementButton 
-                                    (evalStateT makeStatementWindow s)
+                                    (evalStateT makeStatementEditWindow s)
             return ()
     where
         makeToolButtons :: IO (ToolButton, ToolButton)
@@ -58,6 +58,25 @@ setupExerciseToolbar b = do
             widgetSetNoShowAll b True 
             return (exerConfButton, statementButton)
 
+setupExerciseToolbar :: HBox -> IState ()
+setupExerciseToolbar b = do
+                    statementButton <- io makeToolButtons
+                    s <- get
+                    io $ onToolButtonClicked statementButton
+                                            (evalStateT makeStatementWindow s)
+                    return ()
+    where
+        makeToolButtons :: IO (ToolButton)
+        makeToolButtons = do
+            sep <- separatorToolItemNew
+            statementButton <- toolButtonNewFromStock stockSelectAll
+            
+            boxPackStart b sep PackNatural 0
+            boxPackStart b statementButton PackNatural 0
+            
+            widgetSetNoShowAll b True
+            return statementButton
+
 -- Crear un comboBox para la configuraci´on de los campos de configuraci´on 
 -- de un ejercicio.
 makeExerConfComboItem :: (Show a, Eq a) => String -> ListStore a -> IState a -> 
@@ -67,7 +86,7 @@ makeExerConfComboItem s ls isItem = do
                      optionLabel <- io $ labelNew $ Just s
                      
                      cbox <- io $ comboBoxNewWithModel ls
-                     cellRenderer <- io $ cellRendererTextNew
+                     cellRenderer <- io cellRendererTextNew
                      io $ cellLayoutPackStart cbox cellRenderer True
                      io $ cellLayoutSetAttributes cbox cellRenderer ls 
                                              (\s -> [cellText := show s])
@@ -102,8 +121,8 @@ makeExerConfCheckItem' box aItems item= io $
                     do
                     cbutton <- checkButtonNewWithLabel $ show item
                     boxPackStart box cbutton PackNatural 0
-                    when (elem item aItems)
-                             (set cbutton [toggleButtonActive := True])
+                    when (item `elem` aItems)
+                        (set cbutton [toggleButtonActive := True])
 
 -- Crea los botones aceptar y cancelar para las ventanas de enunciado y 
 -- configuraci´on de ejercicio.
@@ -128,10 +147,10 @@ setupOkCancelButtons b actionOk actionCancel = do
                 s <- get 
                 
                 io $ onClicked (castToButton cancelButton) 
-                               (flip evalStateT s $ actionCancel)
+                               (flip evalStateT s actionCancel)
                 
                 io $ onClicked (castToButton okButton) 
-                               (flip evalStateT s $ actionOk)
+                               (flip evalStateT s actionOk)
                 
                 return ()
 
@@ -212,8 +231,7 @@ getActiveItemFromCombo :: (Show a, BoxClass b) => (b, ListStore a) -> IO a
 getActiveItemFromCombo (b, ls) = do
                         [_, cBox] <- containerGetChildren b
                         i <- comboBoxGetActive (castToComboBox cBox)
-                        item <- listStoreGetValue ls i
-                        return item
+                        listStoreGetValue ls i
 
 -- Crea una ventana que permite editar los campos para la configuraci´on de
 -- un ejercicio.
@@ -251,7 +269,7 @@ makeExerConfWindow = do
                                                     (map fst aTheories)
                      vBoxAdd vBox atBox
                      
-                     box <- io $ makeOkCancelButtons
+                     box <- io makeOkCancelButtons
                      io $ boxPackEnd vBox box PackNatural 2
                      
                      w <- makeWindowPop vBox 300
@@ -266,7 +284,7 @@ makeExerConfWindow = do
         vBoxAdd :: WidgetClass w => VBox -> w -> IState ()
         vBoxAdd vBox w = do
                          io $ boxPackStart vBox w PackNatural 2
-                         sep <- io $ hSeparatorNew
+                         sep <- io hSeparatorNew
                          io $ boxPackStart vBox sep PackNatural 2
 
 -- Crea un entry para ingresar el texto relacionado a un titulo del enunciado.
@@ -277,7 +295,7 @@ makeExerciseTitleEntry = do
                     optionLabel <- io $ labelNew $ Just "Titulo"
                     
                     stat <- getExerciseStatement
-                    entry <- io $ entryNew
+                    entry <- io entryNew
                     io $ entrySetText entry $ (unpack . title) stat
                     
                     io $ boxPackStart box optionLabel PackGrow 0
@@ -287,15 +305,15 @@ makeExerciseTitleEntry = do
 
 -- Crea un textview para ingresar texto relacionado con los hint's del
 -- enunciado.
-makeExerciseHintEntry :: IState HBox
-makeExerciseHintEntry = do
+makeExerciseTextView :: String -> (Statement -> Text) -> IState HBox
+makeExerciseTextView s field = do
                     box <- io $ hBoxNew False 0
                     
-                    optionLabel <- io $ labelNew $ Just "Hint's"
+                    optionLabel <- io $ labelNew $ Just s
                     
                     stat <- getExerciseStatement
                     
-                    textView <- io $ textViewNew
+                    textView <- io textViewNew
                     io $ textViewSetWrapMode textView WrapWord
                     io $ set textView [ widgetWidthRequest := 200
                                       , widgetHeightRequest := 100
@@ -303,7 +321,7 @@ makeExerciseHintEntry = do
                     
                     textBuffer <- io $ textViewGetBuffer textView
                     
-                    io $ textBufferSetText textBuffer (unpack $ hints stat)
+                    io $ textBufferSetText textBuffer (unpack $ field stat)
                     
                     io $ boxPackStart box optionLabel PackGrow 0
                     io $ boxPackStart box textView PackNatural 0
@@ -311,12 +329,14 @@ makeExerciseHintEntry = do
                     return box
 
 -- Acci´on del boton Aceptar para la ventana de edici´on del enunciado.
-actionOkButtonStatement :: HBox -> HBox -> Window -> IState ()
-actionOkButtonStatement titleBox hintBox w = do
+actionOkButtonStatement :: HBox -> HBox -> HBox -> Window -> IState ()
+actionOkButtonStatement titleBox statBox hintBox w = do
                      
                      updateExerciseStatementTitle titleBox
                      
-                     updateExerciseStatementHint hintBox
+                     updateExerciseStatementStat statBox
+                     
+                     updateExerciseStatementHints hintBox
                      
                      io (widgetDestroy w)
 
@@ -328,45 +348,110 @@ updateExerciseStatementTitle titleBox = do
                             stat <- getExerciseStatement
                             updateExerciseStatement (stat {title = pack text})
 
+-- Update del cuerpo de un enunciado.
+updateExerciseStatementStat :: HBox -> IState ()
+updateExerciseStatementStat statBox = do
+            text <- io $ getTextFromTextView statBox
+            stat <- getExerciseStatement
+            updateExerciseStatement (stat {stat = pack text})
+
 -- Update del hint de un enunciado.
-updateExerciseStatementHint :: HBox -> IState ()
-updateExerciseStatementHint hintBox = do
-            [_,textView] <- io $ containerGetChildren hintBox
-            textBuffer <- io $ textViewGetBuffer (castToTextView textView)
-            textIterStart <- io $ textBufferGetStartIter textBuffer
-            textIterEnd <- io $ textBufferGetEndIter textBuffer
-            
-            text <- io $ textBufferGetText textBuffer 
-                                           textIterStart 
-                                           textIterEnd False
-            
+updateExerciseStatementHints :: HBox -> IState ()
+updateExerciseStatementHints hintBox = do
+            text <- io $ getTextFromTextView hintBox
             stat <- getExerciseStatement
             updateExerciseStatement (stat {hints = pack text})
 
--- Crea una ventana que permite editar los campos de un enunciado.
+-- Retorna el texto de un textView.
+getTextFromTextView  :: HBox -> IO String
+getTextFromTextView box = do
+        [_,textView] <- containerGetChildren box
+        textBuffer <- textViewGetBuffer (castToTextView textView)
+        textIterStart <- textBufferGetStartIter textBuffer
+        textIterEnd <- textBufferGetEndIter textBuffer
+        
+        textBufferGetText textBuffer textIterStart textIterEnd False
+
+makeExerciseTitleView :: IState HBox
+makeExerciseTitleView = do
+            stat <- getExerciseStatement
+            io $ makeExerciseStatementView " Titulo: " $ (unpack . title) stat
+
+makeExerciseStatView :: IState HBox
+makeExerciseStatView = do
+            state <- getExerciseStatement
+            io $ makeExerciseStatementView " Enunciado: " $ (unpack . stat) state
+
+makeExerciseHintsView :: IState HBox
+makeExerciseHintsView = do
+            stat <- getExerciseStatement
+            io $ makeExerciseStatementView " Hints: " $ (unpack . hints) stat
+
+makeExerciseStatementView :: String -> String -> IO HBox
+makeExerciseStatementView l info = do
+                        box <- hBoxNew False 0
+                        
+                        label <- labelNew $ Just l
+                        infoLabel <- labelNew $ Just info
+                        
+                        boxPackStart box label PackNatural 0
+                        boxPackStart box infoLabel PackGrow 0
+                        
+                        return box   
+
 makeStatementWindow :: IState ()
-makeStatementWindow =  do
-                     vBox <- newVBox
-                     
-                     titleBox <- makeExerciseTitleEntry
-                     vBoxAdd vBox titleBox
-                     
-                     hintBox <- makeExerciseHintEntry
-                     vBoxAdd vBox hintBox
-                     
-                     box <- io $ makeOkCancelButtons
-                     io $ boxPackEnd vBox box PackNatural 2
-                     
-                     w <- makeWindowPop vBox 400
-                     
-                     setupOkCancelButtons box 
-                        (actionOkButtonStatement titleBox hintBox w)
+makeStatementWindow = do
+                    vBox <- newVBox
+
+                    titleBox <- makeExerciseTitleView
+                    vBoxAdd vBox titleBox
+
+                    statBox <- makeExerciseStatView
+                    vBoxAdd vBox statBox
+
+                    hintBox <- makeExerciseHintsView
+                    vBoxAdd vBox hintBox
+
+                    closeButton <- io $ buttonNewWithLabel "Close"
+                    io $ boxPackEnd vBox closeButton PackNatural 2
+
+                    w <- makeWindowPop vBox 400
+                    io $ onClicked (castToButton closeButton) (widgetDestroy w)
+                    return ()
+    where
+        vBoxAdd :: WidgetClass w => VBox -> w -> IState ()
+        vBoxAdd vBox w = do
+                         io $ boxPackStart vBox w PackNatural 2
+                         sep <- io hSeparatorNew
+                         io $ boxPackStart vBox sep PackNatural 2
+
+-- Crea una ventana que permite editar los campos de un enunciado.
+makeStatementEditWindow :: IState ()
+makeStatementEditWindow =  do
+                    vBox <- newVBox
+
+                    titleBox <- makeExerciseTitleEntry
+                    vBoxAdd vBox titleBox
+
+                    statBox <- makeExerciseTextView "Enunciado" stat
+                    vBoxAdd vBox statBox
+
+                    hintBox <- makeExerciseTextView "Hint's" hints
+                    vBoxAdd vBox hintBox
+
+                    box <- io makeOkCancelButtons
+                    io $ boxPackEnd vBox box PackNatural 2
+
+                    w <- makeWindowPop vBox 400
+
+                    setupOkCancelButtons box 
+                        (actionOkButtonStatement titleBox statBox hintBox w)
                         (io $ widgetDestroy w)
     where
         vBoxAdd :: WidgetClass w => VBox -> w -> IState ()
         vBoxAdd vBox w = do
                          io $ boxPackStart vBox w PackNatural 2
-                         sep <- io $ hSeparatorNew
+                         sep <- io hSeparatorNew
                          io $ boxPackStart vBox sep PackNatural 2
 
 -- Asocia una prueba a un ejercicio. Esta funci´on esta proxima a cambiar
@@ -382,17 +467,6 @@ makeAssocProofWindow = do
                            updateExercise $ 
                                 exer {exerProof = Just $ toProof $ proof ps }
 
--- Genera una ventana para mostar el contenido de "b" con ancho width
-makeWindowPop :: (BoxClass b) => b -> Int -> IState Window
-makeWindowPop box width = io $ 
-                    do
-                    w <- windowNew
-                    containerAdd w box
-                    set w [windowDefaultWidth := width]
-                    windowSetPosition w WinPosCenterAlways
-                    widgetShowAll w
-                    return w
-
 exerciseFileFilter :: (FileChooserClass f, MonadIO m) => f -> m ()
 exerciseFileFilter dialog = io $ setFileFilter dialog "*.exer" "Ejercicio de equ"
 
@@ -402,11 +476,15 @@ saveExercise = getExercise >>= \mexer ->
                case mexer of
                    Nothing -> makeErrWindow "Ningun ejercicio para guardar."
                    Just _ -> setupExerciseToSave >>= \exer -> 
-                             io (debug $ show exer) >>
-                             saveDialog ("Guardar ejercicio") 
-                                        (exerciseFileFilter)
-                                        (exer) >> return ()
+                             getExerciseStatement >>= \stat ->
+                             saveDialog "Guardar ejercicio"
+                                        (configFileName stat)
+                                        exerciseFileFilter
+                                        exer >> return ()
     where
+        configFileName :: Statement -> String
+        configFileName stat = map (\c -> if c == ' ' then '_' else c) 
+                                  (unpack $ title stat) ++ ".exer"
         takeProof :: Maybe ProofState -> Proof
         takeProof = toProof . fromJust . goTop . proof . fromJust
         setupExerciseToSave :: IState Exercise
@@ -420,31 +498,32 @@ saveExercise = getExercise >>= \mexer ->
                     Just exer <- getExercise
                     return exer
 
--- Cargar el ejercicio para su edici´on.
-loadForEditExercise :: IState Bool
-loadForEditExercise = do
-                      s <- get
-                      flag <- io $ dialogLoad
-                                    ("Cargar ejercicio")
-                                    (exerciseFileFilter)
-                                    (\exer -> flip evalStateT s $ 
-                                                   updateExercise exer)
-                      return flag
+-- Cargar el ejercicio al estado.
+loadExercise :: IState Bool
+loadExercise = do
+            s <- get
+            io $ dialogLoad
+                "Cargar ejercicio"
+                exerciseFileFilter
+                (flip evalStateT s . updateExercise)
 
 -- Configura la prueba a mostrar cuando cargamos un ejercicio para editar.
 setupProofFromExercise :: VBox -> VBox -> ExprWidget -> IState ()
 setupProofFromExercise centralBox truthBox initExprWidget = do
-                    e <- getExerciseStatementInitExpr 
-                    initExprState $ toFocus $ getPreExpr e
-                    mproof <- getExerciseProof
-                    createNewProof mproof centralBox truthBox initExprWidget
-                    tl <- getAxiomCtrl
-                    theories <- getExerciseConfATheories
-                    changeTruthList  (theoriesInGroup theories) tl
+            discardProof centralBox initExprWidget
+            e <- getExerciseStatementInitExpr 
+            initExprState $ toFocus $ getPreExpr e
+            mproof <- getExerciseProof
+            tl <- getAxiomCtrl
+            theories <- getExerciseConfATheories
+            changeTruthList  (theoriesInGroup theories) tl
+            when (isJust mproof)
+                 (createNewProof mproof centralBox truthBox initExprWidget)
+
 
 -- Crea un ejercicio.
 makeExercise :: IState ()
 makeExercise = getInitialExpr >>= updateExercise . initExercise . fromJust
     where
         initExercise :: Expr -> Exercise
-        initExercise = createExercise
+        initExercise = flip createExercise Nothing

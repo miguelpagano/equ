@@ -70,9 +70,15 @@ main = do
     itemUndo <- xmlGetWidget xml castToImageMenuItem "undoMenuItem"
     itemRedo <- xmlGetWidget xml castToImageMenuItem "redoMenuItem"
     
+    exerciseEditToolBarBox <- xmlGetWidget xml castToHBox "exerciseEditToolBarBox"
+    exerciseToolBarBox <- xmlGetWidget xml castToHBox "exerciseToolBarBox"
+    
     itemMakeExercise <- xmlGetWidget xml castToImageMenuItem "itemMakeExercise"
     itemSaveExercise <- xmlGetWidget xml castToImageMenuItem "itemSaveExercise"
     itemLoadForEditExercise <- xmlGetWidget xml castToImageMenuItem "itemLoadForEditExercise"
+    
+    itemSaveProofExercise <- xmlGetWidget xml castToImageMenuItem "itemSaveProofExercise"
+    itemLoadExercise <- xmlGetWidget xml castToImageMenuItem "itemLoadExercise"
     
     -- toolbuttons
     newProofTool <- xmlGetWidget xml castToToolButton "newProof"
@@ -116,7 +122,8 @@ main = do
     gRef <- newRef $ initialState window symbolList sListStore axiomList Nothing statusBar ctxExpr imageValidProof
 
     -- Agregamos los botones pero sin visibilidad.
-    evalStateT (setupExerciseToolbar toolbarBox) gRef
+    evalStateT (setupExerciseEditToolbar exerciseEditToolBarBox) gRef
+    evalStateT (setupExerciseToolbar exerciseToolBarBox) gRef
     
     onActivateLeaf quitButton $ quitAction window
     onDestroy window mainQuit
@@ -142,17 +149,31 @@ main = do
     setActionMenuTool itemRedo reDo (redoEvent centralBox truthBox initExprWidget) gRef
     
     onActivateLeaf itemMakeExercise $ 
-                   evalStateT (showAllItemTool toolbarBox >> makeExercise) gRef 
+                   evalStateT (showAllItemTool exerciseEditToolBarBox >> 
+                               makeExercise) gRef 
     onActivateLeaf itemSaveExercise $ 
                    evalStateT (saveExercise) gRef 
     onActivateLeaf itemLoadForEditExercise $ 
-                   evalStateT (loadForEditExercise >>= \flag ->
-                               when flag (setupProofFromExercise
+                   evalStateT (loadExercise >>= \flag ->
+                               when (flag) (setupProofFromExercise
                                                           centralBox 
                                                           truthBox 
-                                                          initExprWidget
-                                         ) >>
-                               showAllItemTool toolbarBox) gRef 
+                                                          initExprWidget >>
+                                            showAllItemTool exerciseEditToolBarBox)
+                                ) gRef 
+    
+    onActivateLeaf itemSaveProofExercise $ 
+                   evalStateT (return ()) gRef 
+    
+    onActivateLeaf itemLoadExercise $ 
+                   evalStateT (loadExercise >>= \flag ->
+                                when (flag)
+                                     (setupProofFromExercise
+                                                          centralBox 
+                                                          truthBox 
+                                                          initExprWidget >>
+                                      showAllItemTool exerciseToolBarBox)
+                              ) gRef 
     
     onActivateLeaf itemSaveAsTheorem $ saveTheorem gRef aListStore
     onToolButtonClicked saveTheoremTool $ saveTheorem gRef aListStore
