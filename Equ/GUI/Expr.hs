@@ -23,7 +23,7 @@ import qualified Graphics.UI.Gtk as G (get)
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get, UpdateType)
 import Graphics.UI.Gtk.Gdk.EventM
 import Data.Text (unpack,pack)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust,isJust)
 import Control.Monad.Reader
 import Control.Monad.Trans(lift)
 import Control.Arrow((***))
@@ -338,8 +338,8 @@ typeTreeWindow w = io (popupWin w) >>= \pop ->
 -- del exprWidget.
 configAnnotTB :: IState String -> (String -> IState ()) -> GRef -> Window -> IExpr' ()
 configAnnotTB iST act s w = getAnnotButton >>= \tb ->
-                      io $ setToolTip tb "Anotaciones" >>
-                           actTBOn tb w (io . annotWindow iST act s)
+                            io $ setToolTip tb "Anotaciones" >>
+                            actTBOn tb w (io . annotWindow iST act s)
 
 -- | Pone el tooltip y configura la acciones para el boton del árbol
 -- de tipado del exprWidget.
@@ -458,10 +458,40 @@ createInitExprWidget expr p = do
     
 
 setupOptionInitExprWidget :: Window -> IExpr' ()
-setupOptionInitExprWidget win  = ask >>= \(_,_,mf) ->
-                                 lift get >>= \gs ->
-                             configAnnotTB (return "") (io . putStrLn) gs win >> 
-                             configTypeTreeTB win
+setupOptionInitExprWidget win = ask >>= \env ->
+                                lift get >>= \s ->
+                                configAnnotTB (loadAnnotation env) 
+                                              (saveAnnotation env) s win >> 
+                                 configTypeTreeTB win
+    where
+        loadAnnotation :: Env -> IState String
+        loadAnnotation env = getProofState >>= \mps ->
+                             case mps of
+                                Nothing -> return "No existe una prueba para asociar la anotaci´on." 
+                                Just _ -> runReaderT (loadInitAnnot) env
+        saveAnnotation :: Env -> String -> IState ()
+        saveAnnotation env s = getProofState >>= \mps ->
+                               case mps of
+                                    Nothing -> return ()
+                                    Just _ -> runReaderT (saveInitAnnot s) env
+
+-- | Carga la anotaci´on de una expresi´on en base al entorno.
+loadInitAnnot :: IExpr' String
+loadInitAnnot = lift getProofAnnots >>= \p ->
+                return $ getAnnot p
+    where
+        getAnnot :: P.ProofFocusAnnots -> String
+        getAnnot = unpack . fromJust . PP.getStart . P.toProof
+        
+saveInitAnnot :: String -> IExpr' ()
+saveInitAnnot s = lift getProofAnnots >>= \p ->
+                  updateAnnot p
+    where
+        pfaTop :: P.ProofFocusAnnots -> P.ProofFocusAnnots
+        pfaTop pfa= fromJust $ P.goTop pfa
+        updateAnnot :: P.ProofFocusAnnots -> IExpr' ()
+        updateAnnot pfa = lift $
+            updateProofAnnots $ P.replace (pfaTop pfa) $ P.updateStart (fst $ pfaTop pfa) (pack s)
 
 setupOptionExprWidget :: Window -> IExpr' ()
 setupOptionExprWidget win  = ask >>= \env ->
@@ -472,7 +502,7 @@ setupOptionExprWidget win  = ask >>= \env ->
                              configTypeTreeTB win
     where
         loadAnnotation :: Env -> IState String
-        loadAnnotation env = runReaderT (loadAnnot) env
+        loadAnnotation = runReaderT (loadAnnot)
         saveAnnotation :: Env -> String -> IState ()
         saveAnnotation env = flip runReaderT env . saveAnnot
 
