@@ -140,7 +140,8 @@ validateProof' proof@(Trans ctx rel f1 f f2 p1 p2) moveFocus =
     getEnd p1 >>= whenEqWithDefault err f >>
     getStart p2 >>= whenEqWithDefault err f >>
     getEnd p2 >>= whenEqWithDefault err f2 >>
-    validateProof' p1 (goDownL' . moveFocus) >> validateProof' p2 (goDownR' . moveFocus) >>
+    validateProof' p1 (goDownL' . moveFocus) >> 
+    validateProof' p2 (goDownR' . moveFocus) >>
     return proof
     
     where err :: ProofError

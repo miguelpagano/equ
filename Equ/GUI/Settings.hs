@@ -1,8 +1,11 @@
 -- | Definición de elementos configurables. 
 module Equ.GUI.Settings where
 
-import Graphics.UI.Gtk
 import Equ.GUI.Types (ExprStatus(..))
+
+
+import Graphics.UI.Gtk
+import Graphics.Rendering.Pango.Font
 
 -- | Color del resaltado para mouse-over.
 hoverBg :: Color
@@ -69,3 +72,25 @@ imgState Unknown = stockDialogQuestion
 imgState Parsed =  stockDialogWarning
 imgState NotParsed = stockDialogError
 imgState TypeChecked = stockOk
+
+
+-- | Estilo para nombre de axiomas o teoremas.
+styleStepEvidence :: IO FontDescription
+styleStepEvidence = fontItalic
+
+-- | Estilo para títulos en info-boxes
+styleInfoTitle ::  IO FontDescription
+styleInfoTitle = fontBold
+
+fontItalic :: IO FontDescription
+fontItalic = fontDescriptionNew >>= \fd ->
+             fontDescriptionSetStyle fd StyleItalic >>
+             return fd
+
+
+fontBold :: IO FontDescription
+fontBold = fontDescriptionNew >>= \fd ->
+           fontDescriptionSetWeight fd WeightBold >>
+           return fd
+
+

@@ -67,8 +67,8 @@ saveTheoremDialog ref aListStore = do
     boxPackStart box hbox1 PackNatural 2
     boxPackStart box hbox2 PackNatural 2
     
-    evalStateT (getExprProof >>= \expr ->
-                liftIO $ labelSetText labelExpr (show expr)) ref
+    evalStateT (getValidProof >>= 
+                io . labelSetText labelExpr . show . getExprProof) ref
     
     widgetShowAll box
     

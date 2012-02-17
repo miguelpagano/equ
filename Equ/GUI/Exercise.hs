@@ -1,3 +1,4 @@
+{-# Language OverloadedStrings #-}
 module Equ.GUI.Exercise where
 
 import Graphics.UI.Gtk hiding (get)
@@ -7,7 +8,8 @@ import Equ.GUI.Utils
 import Equ.GUI.State
 import Equ.GUI.Expr (initExprState)
 import Equ.GUI.State.Expr (getInitialExpr)
-import Equ.GUI.Proof (createNewProof, discardProof)
+import Equ.GUI.Proof (createNewProof,discardProof)
+import Equ.GUI.TruthList
 import Equ.GUI.State.Exercise 
 import Equ.GUI.Widget
 
@@ -16,7 +18,7 @@ import Equ.PreExpr(toFocus)
 import Equ.Parser (parseFromString)
 import Equ.Exercise
 import Equ.Exercise.Conf
-import Equ.Theories (relationList, axiomGroup, Grouped (..))
+import Equ.Theories (relationList, axiomGroup, Grouped (..), theoriesInGroup)
 import Equ.Proof.Proof(Axiom (..))
 import Equ.Proof (ProofAnnotation,Proof,toProof, goTop, toProofFocus)
 import Equ.Rule hiding (rel)
@@ -92,8 +94,9 @@ makeExerConfComboItem s ls isItem = do
                      l <- io $ listStoreToList ls
                      item <- isItem
                      io $ comboBoxSetActive cbox (fromJust $ elemIndex item l)
-                     io $ boxPackStart box optionLabel PackGrow 0
-                     io $ boxPackStart box cbox PackNatural 0
+                     io $ set optionLabel [ widgetWidthRequest := 240 ]
+                     io $ boxPackStart box optionLabel PackNatural 10
+                     io $ boxPackStart box cbox PackNatural 10
 
                      return box
 
@@ -107,8 +110,9 @@ makeExerConfCheckItem s items activeItems = do
                     itemBox <- io $ vBoxNew False 0
                     F.mapM_ (makeExerConfCheckItem' itemBox activeItems) items
                     
-                    io $ boxPackStart box optionLabel PackGrow 0
-                    io $ boxPackStart box itemBox PackNatural 0
+                    io $ boxPackStart box optionLabel PackNatural 10
+                    io $ set optionLabel [ widgetWidthRequest := 240 ]
+                    io $ boxPackStart box itemBox PackNatural 10
                     
                     return box
 
@@ -260,8 +264,7 @@ makeExerConfWindow = do
                      vBoxAdd vBox infoBox
                      
                      aTheories <- getExerciseConfATheories
-                     atBox <- makeExerConfCheckItem 
-                                                    "Axiomas Disponibles" 
+                     atBox <- makeExerConfCheckItem  "Axiomas Disponibles" 
                                                     (map fst axiomGroup)
                                                     (map fst aTheories)
                      vBoxAdd vBox atBox
@@ -513,11 +516,15 @@ setupProofFromExercise centralBox truthBox initExprWidget = do
             e <- getExerciseStatementInitExpr 
             initExprState $ toFocus $ getPreExpr e
             mproof <- getExerciseProof
+            tl <- getAxiomCtrl
+            theories <- getExerciseConfATheories
+            changeTruthList  (theoriesInGroup theories) tl
             when (isJust mproof)
                  (createNewProof mproof centralBox truthBox initExprWidget) 
             mAnnots <- getExerciseAnnots
             when (isJust mAnnots)
                  (updateProofAnnots $ toProofFocus $ fromJust mAnnots)
+
 
 -- Crea un ejercicio.
 makeExercise :: IState ()

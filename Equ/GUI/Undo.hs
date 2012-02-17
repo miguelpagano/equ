@@ -3,6 +3,7 @@ module Equ.GUI.Undo where
 
 import Equ.GUI.Types
 import Equ.GUI.State
+import Equ.GUI.State.Expr
 import Equ.GUI.Utils
 import Equ.GUI.Widget
 import Equ.GUI.Expr
@@ -57,4 +58,4 @@ recreateProof pf cbox tbox expr_w = createNewProof (Just $ toProof pf) cbox tbox
 
 recreateExpr cbox expr_w expr = removeAllChildren cbox >>
                               initExprState expr >>
-                              runReaderT (reloadExpr (toExpr expr)) (expr_w,id,ProofMove $ Just)
+                              runEnvBox (reloadExpr (toExpr expr)) (expr_w,id,ProofMove $ Just)

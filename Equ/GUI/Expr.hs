@@ -4,7 +4,7 @@ module Equ.GUI.Expr where
 
 import Equ.GUI.Types hiding (GState)
 import Equ.GUI.Utils
-import Equ.GUI.State hiding (localPath,getExprWidget)
+import Equ.GUI.State
 import Equ.GUI.State.Expr
 import Equ.GUI.Settings
 import Equ.GUI.Widget
@@ -31,10 +31,10 @@ import Control.Arrow((***))
 import qualified Data.Foldable as F
 
 
-fromJust' = maybe (error "localPath...") id
-goDownR = fromJust' . PE.goDownR
-goDown = fromJust' . PE.goDown
-goUp = fromJust' . PE.goUp
+fromJust' str = maybe (error ("localPath: " ++ str)) id
+goDownR = fromJust' "downR" . PE.goDownR
+goDown = fromJust' "down" . PE.goDown
+goUp = fromJust' "up" . PE.goUp
 
 -- | Poné en una caja el widget que usamos para construir nuevas
 -- expresiones.
@@ -54,32 +54,32 @@ setupFormEv b c e emask = io eventBoxNew >>= \eb ->
 
 -- | Define los manejadores de eventos para una caja que tiene el
 -- widget para construir expresiones.
-setupEvents :: WidgetClass w => HBox -> w -> PreExpr -> EditMask -> IExpr' ()
+setupEvents :: HBox -> EventBox -> PreExpr -> EditMask -> IExpr' ()
 setupEvents b eb e emask = lift get >>= \s ->
-                           ask >>= \ env ->
-                           lift getSymCtrl >>= \sym ->
-                           lift (addHandler eb enterNotifyEvent (highlightBox b hoverBg)) >>
-                           lift (addHandler eb leaveNotifyEvent (unlightBox b Nothing)) >>
-                           -- manejamos evento "button release" para que se propague al padre
-                           io (b `on` buttonPressEvent $ return False) >>
-                           io (eb `on` buttonPressEvent $ return False) >>
-                           lift (addHandler eb buttonPressEvent (editExpr b env s sym)) >>= 
-                           \c -> case emask of
-                                  Editable -> return ()
-                                  NotEditable -> io $ signalDisconnect c
-
+                           localBox b (
+                             ask >>= \ env ->
+                             lift (addHandler eb enterNotifyEvent (highlightBox b hoverBg)) >>
+                             lift (addHandler eb leaveNotifyEvent (unlightBox b Nothing)) >>
+                             -- manejamos evento "button release" para que se propague al padre
+                             io (b `on` buttonPressEvent $ return False) >>
+                             io (eb `on` buttonPressEvent $ return False) >>
+                             lift (addHandler eb buttonPressEvent (editExpr b env s)) >>= 
+                             \c -> case emask of
+                                    Editable -> return ()
+                                    NotEditable -> io $ signalDisconnect c
+                                      )
 
 -- | Si hacemos doble-click, entonces editamos la expresión enfocada.
-editExpr :: HBox -> Env -> GRef -> IconView -> EventM EButton ()
-editExpr b env s sym = do LeftButton <- eventButton
-                          DoubleClick <- eventClick
-                          flip eventWithState s $ 
-                               flip runReaderT env $
+editExpr :: HBox -> Env -> GRef -> EventM EButton ()
+editExpr b env s = do LeftButton <- eventButton
+                      DoubleClick <- eventClick
+                      flip eventWithState s $ 
+                           flip runReaderT env $ 
                                     getPath >>= \p ->
                                     lift (getFocusedExpr p) >>= \(e,_) ->
-                                    newFocusToSym >>                                              
+                                    newFocusToSym >>
                                     writeExpr (Just e) b
-                          io $ widgetShowAll b
+                      io $ widgetShowAll b
 
 -- | Pone una caja de texto para ingresar una expresión; cuando se
 -- activa (presionando Enter) parsea el texto de la caja como una
@@ -89,18 +89,12 @@ writeExpr pre box = lift newEntry >>= \entry ->
                     F.mapM_ (lift . exprInEntry entry) pre >>
                      ask >>= \env ->
                      lift (withState (onEntryActivate entry) 
-                                      (runReaderT (setExprFocus box entry) env) >>
+                                      (runEnv (setExprFocus box entry) env) >>
                            removeAllChildren box >>
                            addToBox box entry) >>
                     -- manejamos evento "button release" para que se propague al padre
                      io (entry `on` buttonPressEvent $ return False) >>
                      io (widgetGrabFocus entry >> widgetShowAll box)
-    where isParent entry box = io $ widgetGetParent entry >>= \p -> 
-                               case p of
-                                 Nothing -> debug "entry no tiene padre"
-                                 Just p' -> if castToHBox p'==box 
-                                           then debug "el padre de entry es formBox"
-                                           else debug "el padre de entry NO es formBox!"
 
 -- | Poné la representación de una expresión en una caja de texto.
 -- Podría ser útil si queremos que se pueda transformar la expresión
@@ -171,7 +165,7 @@ frameExp e@(UnOp op e') emask = lift newBox >>= \box ->
                                 return (WExpr box e)
 
 frameExp e@(BinOp op e1 e2) emask = lift newBox >>= \box ->
-                                    localPath (goDown .)  (frameExp e1 emask) >>= \(WExpr box1 _) ->
+                                    localPath (goDown .) (frameExp e1 emask) >>= \(WExpr box1 _) ->
                                     localPath (goDownR .) (frameExp e2 emask) >>= \(WExpr box2 _) ->
                                     (lift . labelStr . repr) op >>= \lblOp ->
                                     lift (addToBox box box1) >>
@@ -221,7 +215,7 @@ frameExp e@(Quant q v e1 e2) emask = lift newBox >>= \box ->
                                    return . parserVar >>=
                                    either (reportErrWithErrPaned . show) 
                                            (\v -> replaceEntry box v p >>
-                                                 updateQVar v p >>
+                                                 updateQVar v >>
                                                  showExpr >>
                                                  return ())) >>
                          entryDim entry entryVarLength >>
@@ -449,8 +443,7 @@ createInitExprWidget expr p = do
     win <- getWindow
 
     expr_w <- createExprWidget True
-    flip runReaderT (expr_w,p,ProofMove Just) $ 
-         setupForm (formBox expr_w) Editable >>
+    flip runEnvBox (expr_w,p,ProofMove Just) $ 
          writeExprWidget (formBox expr_w) expr >>
          setupOptionInitExprWidget win
                
@@ -513,7 +506,7 @@ loadAnnot = ask >>= \env ->
             return $ getAnnot p env
     where
         getAnnot :: P.ProofFocusAnnots -> Env -> String
-        getAnnot pfa (_,_,mp) = getAnnotFromFocus $ (pm mp) pfa
+        getAnnot pfa env = getAnnotFromFocus $ pm (pme env) pfa
         getAnnotFromFocus :: Maybe P.ProofFocusAnnots -> String
         getAnnotFromFocus = unpack . fromJust . PP.getEnd . fst . fromJust
 
@@ -526,7 +519,7 @@ saveAnnot s =
         updateAnnot pfa
     where
         moveProofFocus :: P.ProofFocusAnnots -> Env -> IExpr' P.ProofFocusAnnots
-        moveProofFocus pfa (_,_,mp) = return . fromJust $ (pm mp) pfa
+        moveProofFocus pfa env = return . fromJust $ pm (pme env) pfa
         updateAnnot :: P.ProofFocusAnnots -> IExpr' ()
         updateAnnot pfa = lift $
             updateProofAnnots $ P.replace pfa $ P.updateEnd (fst pfa) (pack s)
@@ -543,7 +536,6 @@ loadExpr box expr p = do
 reloadExpr :: PreExpr -> IExpr' ()
 reloadExpr expr = getFormBox >>= \box ->
                   lift (removeAllChildren box) >>
-                  setupForm box Editable >>
                   writeExprWidget box expr
                         
 newExprState :: Focus -> ExprWidget -> HBox -> IState ExprState
