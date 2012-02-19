@@ -170,13 +170,18 @@ frameExp e@(UnOp op e') emask = lift newBox >>= \box ->
                                            return (WExpr box e)
 
 frameExp e@(BinOp op e1 e2) emask = lift newBox >>= \box ->
-                                    localPath (goDown .) (frameExp e1 emask) >>= \(WExpr box1 _) ->
-                                    localPath (goDownR .) (frameExp e2 emask) >>= \(WExpr box2 _) ->
-                                    (lift . labelStr . repr) op >>= \lblOp ->
-                                    lift (addToBox box box1) >>
-                                    setupFormEv box lblOp e emask >>
-                                    lift (addToBox box box2) >>
-                                    return (WExpr box e)
+                                    case PS.showL e "" of 
+                                      Nothing ->
+                                          localPath (goDown .) (frameExp e1 emask) >>= \(WExpr box1 _) ->
+                                          localPath (goDownR .) (frameExp e2 emask) >>= \(WExpr box2 _) ->
+                                          (lift . labelStr . repr) op >>= \lblOp ->
+                                          lift (addToBox box box1) >>
+                                          setupFormEv box lblOp e emask >>
+                                          lift (addToBox box box2) >>
+                                          return (WExpr box e)
+                                      Just list -> (lift . labelStr) list >>= \lblList ->
+                                           setupFormEv box lblList e emask >> 
+                                           return (WExpr box e)
 
 frameExp e@(App e1 e2) emask = lift newBox >>= \box ->
                                localPath (goDown .) (frameExp e1 emask) >>= \(WExpr box1 _) ->
