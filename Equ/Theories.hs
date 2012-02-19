@@ -31,6 +31,7 @@ import Equ.Proof
 import qualified Equ.Proof.Proof as P
 import Equ.Expr
 import Equ.PreExpr
+import Equ.PreExpr.Show
 
 import Data.Text hiding (head,zip,concatMap,map)
 import Data.Either(rights)

@@ -57,20 +57,6 @@ instance Functor PreExpr' where
     fmap f (Quant q a e e') = Quant q (f a) (fmap f e) (fmap f e')
     fmap f (Paren e) = Paren $ fmap f e
 
--- | Pretty print para las preExpresiones.
-instance Show PreExpr where
-    show (Var x) = show x
-    show (Con k) = show k
-    show (Fun f) = show f
-    show (PrExHole h) = show h
-    show (UnOp op preExp) = show op ++ " " ++ show preExp
-    show (BinOp op preExp0 preExp1) = show preExp0 ++ show op ++ show preExp1
-    show (App preExp0 preExp1) = show preExp0 ++ "@" ++ show preExp1
-    show (Quant qua v preExp0 preExp1) = "〈" ++ show qua ++ show v ++ ":" 
-                                        ++ show preExp0 ++ ":" 
-                                        ++ show preExp1 ++ "〉"
-    show (Paren e) = "(" ++ show e ++ ")"
-
 -- | Instancia arbitrary para las preExpresiones.
 instance Arbitrary PreExpr where
     arbitrary =
@@ -84,6 +70,20 @@ instance Arbitrary PreExpr where
                 , Quant <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
                 , Paren <$> arbitrary
                 ]
+
+-- | Pretty print para las preExpresiones.
+instance Show PreExpr where
+    show (Var x) = show x
+    show (Con k) = show k
+    show (Fun f) = show f
+    show (PrExHole h) = show h
+    show (UnOp op preExp) = show op ++ " " ++ show preExp
+    show (BinOp op preExp0 preExp1) = show preExp0 ++ show op ++ show preExp1
+    show (App preExp0 preExp1) = show preExp0 ++ "@" ++ show preExp1
+    show (Quant qua v preExp0 preExp1) = "〈" ++ show qua ++ show v ++ ":" 
+                                        ++ show preExp0 ++ ":" 
+                                        ++ show preExp1 ++ "〉"
+    show (Paren e) = "(" ++ show e ++ ")"
 
 
 -- | Substitucion de variable por variable en preExpresiones.

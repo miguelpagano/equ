@@ -13,6 +13,7 @@ import Equ.Rule
 import Equ.Theories
 import Equ.Proof
 import Equ.PreExpr hiding (goDownL,goDownR,goRight,goUp,goTop)
+import qualified Equ.PreExpr.Show as PS
 import Equ.GUI.Widget
 import Equ.GUI.Expr ( writeExprWidget,setupForm
                     , newExprState, reloadExpr
@@ -82,7 +83,7 @@ loadProof p ret_box truthBox initExprWidget proofStepW = do
     removeAllChildren (formBox initExprWidget)
     initExpr <- return . fromRight $ getStart p
     
-    labelInitExpr <- io $ labelNew (Just $ show $ toExpr initExpr)
+    labelInitExpr <- io $ labelNew (Just $ PS.showExpr $ toExpr initExpr)
     io $ boxPackStart (formBox initExprWidget) labelInitExpr PackNatural 2
     io $ widgetShowAll (formBox initExprWidget)
     
@@ -123,7 +124,7 @@ createNewProof proof ret_box truthBox initExprWidget = do
     removeAllChildren (formBox initExprWidget)
     initExpr <- getExpr
     
-    labelInitExpr <- io $ labelNew (Just $ show $ toExpr initExpr)
+    labelInitExpr <- io $ labelNew (Just $ PS.showExpr $ toExpr initExpr)
     io $ boxPackStart (formBox initExprWidget) labelInitExpr PackNatural 2 >>
          widgetShowAll (formBox initExprWidget)
     
@@ -327,10 +328,10 @@ newExprWidget :: PreExpr -> ProofMove -> VBox -> IState ExprWidget
 newExprWidget expr moveFocus top_box = do
 
     exprWidget <- createExprWidget False
-   
-    eventsExprWidget expr top_box moveFocus exprWidget 
---    flip runEnvBox (exprWidget,id,moveFocus) (writeExprWidget (formBox exprWidget) expr) 
     
+    eventsExprWidget expr top_box moveFocus exprWidget 
+    flip runEnvBox (exprWidget,id,moveFocus) (writeExprWidget (formBox exprWidget) expr) 
+
     return exprWidget
     
 -- | Setea los eventos de un widget de expresion. La funcion f es la
@@ -343,7 +344,7 @@ eventsExprWidget expr top_box moveFocus exprWidget = do
     flip runEnvBox (exprWidget,id,moveFocus) $
              setupOptionExprWidget win >>
              setupForm (formBox exprWidget) Editable
-
+    io $ widgetShowAll (extBox exprWidget)
     return ()
     
     where hb = extBox exprWidget
@@ -355,7 +356,6 @@ eventsExprWidget expr top_box moveFocus exprWidget = do
             -- ¡Si no está, entonces tenemos un bug con la edición con
             -- el teclado!
             hb `on` buttonReleaseEvent $ do
-                    io $ putStrLn "ButtonRelease!"
                     flip eventWithState s $
                     -- movemos el proofFocus hasta donde está esta expresión.
                          updateExprWidget exprWidget >>
@@ -384,7 +384,7 @@ eventsExprWidget expr top_box moveFocus exprWidget = do
             
           addToMenu m = mapM_ addItem
             where addItem e = do
-                    item <- io $ menuItemNewWithLabel $ show e
+                    item <- io $ menuItemNewWithLabel $ PS.showExpr e
                     io $ menuShellAppend m item
                     s' <- get
                     io $ item `on` buttonPressEvent $ tryEvent $

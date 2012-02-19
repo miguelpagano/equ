@@ -80,12 +80,13 @@ setupTList tv list =
 -- | Funcion útil para cuando cargamos un ejercicio; mantiene las
 -- hipótesis y los teoremas al definir los axiomas que se muestran de
 -- acuerdo al ejercicio.
-changeTruthList :: [TheoryName] -> TreeView -> IRG
+changeTruthList :: [TheoryName] -> TreeView -> IState (TreeStore TruthItem)
 changeTruthList available tv = getGlobalCtx >>= \ hyps ->
                                getTheorems >>= \ thms ->
                                io (listTruths available thms) >>= \ ts ->
                                io (mapM_ (addHypoList ts) (elems hyps)) >>
-                               io (setupTList tv ts >> return ())
+                               io (setupTList tv ts) >>
+                               return ts
 
 eventsTruthList :: TreeView -> TreeStore TruthItem -> IRG
 eventsTruthList tv list = io (treeViewGetSelection tv >>= \tree -> 

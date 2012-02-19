@@ -22,50 +22,17 @@ import Equ.Syntax
 import Equ.Types
 import Equ.Expr
 import Equ.PreExpr
+import Equ.PreExpr.Symbols
+import Equ.PreExpr.Eval
 -- TODO: Agregar reglas para este módulo.
 import Equ.Rule 
 import Equ.Theories.AbsName
 import Equ.Theories.Common
 
+import Control.Applicative
 -- Estos módulos definen los símbolos de función
 -- que devuelven expresiones de tipo Num.
  
--- | Constante cero.
-natZero :: Constant
-natZero = Constant { conRepr = "0"
-                   , conName = Zero
-                   , conTy = TyAtom ATyNat
-                   }
-
--- | Operador sucesor.
-natSucc :: Operator
-natSucc = Operator { opRepr = "succ"
-                   , opName = Succ
-                   , opTy = TyAtom ATyNat :-> TyAtom ATyNat
-                   , opAssoc = None
-                   , opNotationTy = NPrefix
-                   , opPrec = 23 -- Analizar.
-                   }
-
--- | Operador suma.
-natSum :: Operator
-natSum = Operator { opRepr = "+"
-                  , opName = Sum
-                  , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyNat
-                  , opAssoc = ALeft
-                  , opNotationTy = NInfix
-                  , opPrec = 21
-                  }
-
--- | Operador producto.
-natProd :: Operator
-natProd = Operator { opRepr = "*"
-                   , opName = Prod
-                   , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyNat
-                   , opAssoc = ALeft
-                   , opNotationTy = NInfix
-                   , opPrec = 22
-                   }
 
 -- | Constantes de arith
 theoryConstantsList :: [Constant]
@@ -102,10 +69,6 @@ sum (Expr n) (Expr m) = Expr $ BinOp natSum n m
 
 prod :: Expr -> Expr -> Expr
 prod (Expr n) (Expr m) = Expr $ BinOp natProd n m
-
-intToCon :: Int -> PreExpr
-intToCon 0 = Con $ natZero
-intToCon n = UnOp (natSucc) $ intToCon (n-1)
 
 
 -- | Variables de tipo Nat
@@ -151,3 +114,4 @@ theoryAxiomList = [ ("Neutro a izquierda de la suma",zeroLNeutralSum)
                   , ("Simetría del producto", symProd)
                   , ("Asociatividad del producto", assocProd)
                   ]
+

@@ -23,6 +23,8 @@ import Equ.Proof.Proof(Axiom (..))
 import Equ.Proof (ProofAnnotation,Proof,toProof, goTop, toProofFocus)
 import Equ.Rule hiding (rel)
 
+import qualified Graphics.UI.Gtk as G
+
 import Data.Maybe (fromJust,isJust)
 import Data.Text (Text,unpack, pack)
 import Data.List (elemIndex, find)
@@ -518,7 +520,8 @@ setupProofFromExercise centralBox truthBox initExprWidget = do
             mproof <- getExerciseProof
             tl <- getAxiomCtrl
             theories <- getExerciseConfATheories
-            changeTruthList  (theoriesInGroup theories) tl
+            ts <- changeTruthList  (theoriesInGroup theories) tl
+            eventsTruthList tl ts
             when (isJust mproof)
                  (createNewProof mproof centralBox truthBox initExprWidget) 
             mAnnots <- getExerciseAnnots

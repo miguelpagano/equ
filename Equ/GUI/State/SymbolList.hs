@@ -40,7 +40,6 @@ getElem l p = treeModelGetIter l p >>= \i ->
               flip (maybe (return Nothing)) i $ \it -> 
                         return (listStoreIterToIndex it) >>= \idx ->
                         listStoreGetSize l >>= \len -> 
-                        debug ( "getElem: (" ++ show idx ++ " of " ++ show len ++")") >>
                         if (idx < len) 
                         then listStoreGetValue l idx >>= return . Just
                         else return Nothing

@@ -133,7 +133,6 @@ data Env = Env { ew :: ExprWidget
                }
 
 type IExpr' a = ReaderT Env  IState a
--- (ExprWidget,Move,ProofMove)
 type SynItem = (String, HBox -> IExpr' ())
 
 newtype ProofMove = ProofMove { pm ::  forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 

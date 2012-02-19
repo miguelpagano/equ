@@ -15,6 +15,8 @@ import qualified Equ.Proof as P
 import qualified Equ.Proof.Proof as PP
 import Equ.PreExpr hiding (goDown,goUp,goDownR)
 import qualified Equ.PreExpr as PE
+import Equ.PreExpr.Eval
+import qualified Equ.PreExpr.Show as PS
 import Equ.Syntax
 import Equ.Parser
 import Equ.Types
@@ -100,8 +102,8 @@ writeExpr pre box = lift newEntry >>= \entry ->
 -- Podría ser útil si queremos que se pueda transformar la expresión
 -- que está siendo construida en algo que el usuario pueda editar 
 -- como una string.
-exprInEntry :: Show t => Entry -> t -> IState ()
-exprInEntry entry = io . entrySetText entry . show
+exprInEntry :: Entry -> PreExpr -> IState ()
+exprInEntry entry = io . entrySetText entry . PS.showExpr
 
 
 -- TODO: manejar errores del parser.
@@ -113,8 +115,7 @@ setExprFocus :: HBox -> Entry -> IExpr' ()
 setExprFocus box entry  = io (entryGetText entry) >>= \s ->
                           getPath >>= \p ->
                           if null s 
-                          then lift (updateExpr hole p) >> 
-                               writeExprWidget box hole
+                          then lift (updateExpr hole p) >> writeExprWidget box hole
                           else case parseFromString s of
                                  Right expr -> lift (updateExpr expr p) >>
                                               writeExprWidget box expr
@@ -158,11 +159,15 @@ frameExp e@(Fun f) emask = lift newBox >>= \box ->
                            return (WExpr box e)
 
 frameExp e@(UnOp op e') emask = lift newBox >>= \box ->
-                                localPath (goDown .) (frameExp e' emask) >>= \(WExpr box' _) ->
-                                (lift . labelStr . repr) op >>= \lblOp ->
-                                setupFormEv box lblOp e emask >>
-                                setupFormEv box box' e emask >>
-                                return (WExpr box e)
+                                case evalNat e of
+                                  Nothing -> localPath (goDown .) (frameExp e' emask) >>= \(WExpr box' _) ->
+                                            (lift . labelStr . repr) op >>= \lblOp ->
+                                            setupFormEv box lblOp e emask >>
+                                            setupFormEv box box' e emask >>
+                                            return (WExpr box e)
+                                  Just n -> (lift . labelStr . show) n >>= \lblInt ->
+                                           setupFormEv box lblInt e emask >> 
+                                           return (WExpr box e)
 
 frameExp e@(BinOp op e1 e2) emask = lift newBox >>= \box ->
                                     localPath (goDown .) (frameExp e1 emask) >>= \(WExpr box1 _) ->
