@@ -300,9 +300,10 @@ makeExerciseTitleEntry = do
                     entry <- io entryNew
                     io $ entrySetText entry $ (unpack . title) stat
                     
-                    io $ boxPackStart box optionLabel PackGrow 0
-                    io $ boxPackStart box entry PackNatural 0
-                    
+                    io $ boxPackStart box optionLabel PackNatural 10
+                    io $ set optionLabel [ widgetWidthRequest := 240 ]
+                    io $ boxPackStart box entry PackNatural 10
+                    io $ set entry [ widgetWidthRequest := 400 ]
                     return box
 
 -- Crea un textview para ingresar texto relacionado con los hint's del
@@ -317,7 +318,7 @@ makeExerciseTextView s field = do
                     
                     textView <- io textViewNew
                     io $ textViewSetWrapMode textView WrapWord
-                    io $ set textView [ widgetWidthRequest := 200
+                    io $ set textView [ widgetWidthRequest := 400
                                       , widgetHeightRequest := 100
                                       ]
                     
@@ -325,8 +326,9 @@ makeExerciseTextView s field = do
                     
                     io $ textBufferSetText textBuffer (unpack $ field stat)
                     
-                    io $ boxPackStart box optionLabel PackGrow 0
-                    io $ boxPackStart box textView PackNatural 0
+                    io $ boxPackStart box optionLabel PackNatural 10
+                    io $ set optionLabel [ widgetWidthRequest := 240 ]
+                    io $ boxPackStart box textView PackNatural 10
                     
                     return box
 
@@ -397,7 +399,7 @@ makeExerciseStatementView l info = do
                         infoLabel <- labelNew $ Just info
                         
                         boxPackStart box label PackNatural 0
-                        boxPackStart box infoLabel PackGrow 0
+                        boxPackStart box infoLabel PackNatural 0
                         
                         return box   
 
