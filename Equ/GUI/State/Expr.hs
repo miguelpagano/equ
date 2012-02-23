@@ -1,3 +1,4 @@
+
 module Equ.GUI.State.Expr where
 
 import Equ.GUI.Types
@@ -141,3 +142,6 @@ updateSelectedExpr :: IState ()
 updateSelectedExpr = getExprState >>= F.mapM_ 
                        (\es -> getProof >>= \ pf -> 
                               updateExprState (es {fExpr= fromJust $ getEndFocus pf }))
+
+
+

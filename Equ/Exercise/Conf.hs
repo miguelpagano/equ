@@ -46,7 +46,7 @@ instance Serialize RewriteMode where
     put = putWord8 . toEnum . fromEnum
 
     get = getWord8 >>= \tag ->
-          if tag < 2 then return . toEnum . fromEnum $ tag
+          if tag < 3 then return . toEnum . fromEnum $ tag
           else fail $ "SerializeErr RewriteMode " ++ show tag
 
 -- Tipo de prueba.

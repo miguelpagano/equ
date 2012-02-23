@@ -82,9 +82,11 @@ whenEqWithDefault def a b = whenPM (==a) def b >> return ()
 notValidSimpleProof :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Proof
 notValidSimpleProof f1 f2 r t = Simple beginCtx r f1 f2 $ truthBasic t
 
+-- | Comprueba que el uso de una regla sea correcto. La relación que se
+-- pasa como argumento es el de la prueba.
 checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Rule
                              -> (ProofFocus -> ProofFocus) -> PM ()
-checkSimpleStepFromRule f1 f2 rel t rule fMove= 
+checkSimpleStepFromRule f1 f2 rel t rule fMove = 
     whenEqWithDefault errRel rel (truthRel t) >>
     case partitionEithers $ rewriteAllFocuses (PE.toExpr f1) rule of
          (_,[]) -> Left err
@@ -113,15 +115,16 @@ proofFromRule f1 f2 rel t r fMove = checkSimpleStepFromRule f1 f2 rel t r fMove 
 proofFromTruth :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> 
                              (ProofFocus -> ProofFocus) -> PM Proof
 proofFromTruth f f' r t fMove = case partitionEithers $
-                               map (flip (proofFromRule f f' r t) fMove) 
+                                map (flip (proofFromRule f f' r t) fMove) 
                                    (truthRules t)
-                          of
-                          -- Devolvemos el primer error, esto tal vez se
-                          -- podr&#237;a mejorar un poco devolviendo la lista de
-                          -- errores.
-                          ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
-                          (_, p:ps) -> Right p
-                          (er, []) -> Left $ head er
+                                of
+                                  -- Devolvemos el primer error, esto tal vez se
+                                  -- podr&#237;a mejorar un poco devolviendo la lista de
+                                  -- errores.
+                                  ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
+                                  (_, p:ps) -> Right p
+                                  (er, []) -> Left $ head er
+    where 
 
 
 validateProofFocus :: ProofFocus -> PM Proof

@@ -6,6 +6,7 @@ import Equ.GUI.Types hiding (GState)
 import Equ.GUI.Utils
 import Equ.GUI.State
 import Equ.GUI.State.Expr
+import Equ.GUI.State.Exercise(showChoicesButton)
 import Equ.GUI.Settings
 import Equ.GUI.Widget
 import Equ.GUI.TypeTree
@@ -41,7 +42,7 @@ goUp = fromJust' "up" . PE.goUp
 -- | Poné en una caja el widget que usamos para construir nuevas
 -- expresiones.
 setupForm :: HBox -> EditMask -> IExpr' ()
-setupForm box emask = io (setToolTip box "Doble click para ingresar una expresión") >>
+setupForm box emask = -- io (setToolTip box "Doble click para ingresar una expresión") >>
                       lift (labelStr emptyLabel) >>= \l -> 
                       setupFormEv box l holePreExpr emask
 
@@ -401,14 +402,16 @@ annotBuffer iST s =
             return v
 
 -- | Crea un widget para una expresión. El argumento indica si es inicial.
--- En ese caso no se crea el botón para ver posibles reescrituras.
+-- En ese caso no se crea el botón para ver posibles reescrituras. Notar
+-- que ese botón tampoco se crea si así lo indica el ejercicio.
 createExprWidget :: Bool -> IState ExprWidget
 createExprWidget initial = do
 
     boxExpr <- io $ hBoxNew False 2    
     formBox <- io $ hBoxNew False 2
-
-    choices <- if not initial
+    
+    listRw <- showChoicesButton
+    choices <- if not initial && listRw
               then do
                 exprChoices <- io $ makeButtonWithImage stockIndex
                 io $ buttonSetRelief exprChoices ReliefNone >>
@@ -422,7 +425,7 @@ createExprWidget initial = do
 
     io $ do 
       boxPackStart boxExpr formBox PackGrow 2
-      if not initial
+      if not initial && listRw
       then boxPackStart boxExpr (fromJust choices) PackNatural 2
       else return ()
       boxPackStart boxExpr bInfo PackNatural 1 

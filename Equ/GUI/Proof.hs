@@ -249,8 +249,6 @@ addStepProof center_box top_box moveFocus maybe_basic = do
     
     flip F.mapM_ maybe_basic $ flip writeTruth axiom_box
 
-    showExpr
-    
     return ProofStepWidget {
                     relation = (combo_rel,store_rel) 
                   , axiomWidget = axiom_box 
@@ -348,9 +346,9 @@ eventsExprWidget expr top_box moveFocus exprWidget = do
     return ()
     
     where hb = extBox exprWidget
-          setupFocusEvent :: GRef -> IO (ConnectId Button)
+          setupFocusEvent :: GRef -> IO ()
           setupFocusEvent s = do
-            let Just choices = choicesButton exprWidget
+            
             -- MIGUEL: ¿por qué manejamos este evento? Esto causa un bug
             -- en la edición de expresiones con la barra de símbolos.
             -- ¡Si no está, entonces tenemos un bug con la edición con
@@ -362,9 +360,11 @@ eventsExprWidget expr top_box moveFocus exprWidget = do
                          changeProofFocus'
                     io (widgetShowAll hb)
                     return True
-                    
-            choices `on` buttonPressEvent $ tryEvent $
-                    eventWithState (changeProofFocus' >> showChoices) s
+
+            flip F.mapM_ (choicesButton exprWidget) $ \ choices -> 
+                 do choices `on` buttonPressEvent $ tryEvent $
+                            eventWithState (changeProofFocus' >> showChoices) s
+                    return ()
 
           changeProofFocus' = changeProofFocusAndShow (pm moveFocus) (pm moveFocus) (pm moveFocus) Nothing >>
 --                               io (proofFocusToBox path top_box) >>= \center_box ->

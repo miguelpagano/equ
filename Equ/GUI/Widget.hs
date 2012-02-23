@@ -38,6 +38,17 @@ import qualified Data.ByteString as L
 
 import Graphics.Rendering.Pango.Font
 
+tooltipF :: (WidgetClass w ,TooltipClass self) => w -> self  -> IO Bool
+tooltipF w t = (hBoxNew False 0) >>= \box ->
+               labelNew (Just "Hola") >>= \lbl ->
+               boxPackStart box lbl PackNatural 3 >>
+               widgetShowAll box >>
+               putStrLn "bbbb" >>
+               tooltipSetCustom t (Just lbl) >>             
+               widgetGetTooltipWindow w >>= \ win ->
+               windowPresent win >>
+               return True
+
 -- unselectAll :: IconView -> IState ()
 -- unselectAll tv = liftIO (treeViewGetSelection tv >>= \tree -> 
 --                          treeSelectionSetMode tree SelectionSingle >>
@@ -167,8 +178,18 @@ newEntry = liftIO $ entryNew >>= \entry ->
 
 -- | Una nueva etiqueta.
 labelStr :: String -> IState Label
-labelStr = liftIO . labelNew . return
+labelStr s = io (labelNew (return s) >>= \ lbl ->
+                 set lbl [ widgetHasTooltip := True ] >>
+                 newTTwin >>= \win ->
+                 widgetSetTooltipWindow lbl (Just win) >>
+                 on lbl queryTooltip (\w p t -> windowPresent win >> return True) >>
+                 widgetTriggerTooltipQuery lbl >>
+                 return lbl)
 
+
+newTTwin = windowNewPopup >>= \win ->
+           widgetSetName win "gtk-tooltip" >>
+           return win
 
 -- | Redimensiona una caja de texto.
 entryDim :: Entry -> Int -> IState ()
