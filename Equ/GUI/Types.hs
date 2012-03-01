@@ -116,6 +116,9 @@ data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , ewId :: String
                              }
 
+instance Show ExprWidget where
+    show e = "EWidget- id="++ewId e
+                             
                              
 -- WIDGET PARA PRUEBAS
 -- Estructura de cajas:
@@ -157,8 +160,12 @@ type IExpr' a = ReaderT (ExprWidget,Move,Int) IState a
 -- tipo para poder crear lista heterogénea de objetos conectables a una señal.
 data Connectable = forall w . GObjectClass w => Connectable (ConnectId w)
 
-newtype ProofMove = ProofMove { pm ::  forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
-                                      Maybe (ProofFocus' ctxTy relTy proofTy exprTy)}
+
+-- newtype ProofMove = ProofMove { pm ::  forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
+--                                       Maybe (ProofFocus' ctxTy relTy proofTy exprTy)}
 
 
 data ExprStatus =  Unknown | Parsed | NotParsed | TypeChecked
+
+
+

@@ -185,12 +185,27 @@ updateStepIndexes fUpExpr fUpBasic ind lProof =
           
           
 -- | Ejecuta acciones monádicas sobre cada elemento de la prueba listeada, a partir
--- de un índice.
+-- de un índice. La acción monádica devuelve la expresion de la derecha y el basic
+-- correspondientes al paso en el cual se ejecuta la accion.
+-- El uso que le damos a esto es para restablecer los manejadores de eventos luego
+-- de haber cambiado el índice de cada paso que quedó a la derecha del agregado.
+-- Al cambiar los manejadores tenemos que actualizar los cids de la expresion derecha y
+-- del basic correspondiente.
 runActionLP :: MonadIO m => ListedProof' ctxTy relTy proofTy exprTy -> Int ->
-                          (Proof' ctxTy relTy proofTy exprTy -> m ()) -> m ()
-runActionLP lProof ind action =
-    mapM_ action (drop ind $ pList lProof)
-
+                     (Proof' ctxTy relTy proofTy exprTy -> m (exprTy,proofTy)) -> 
+                     m (ListedProof' ctxTy relTy proofTy exprTy)
+runActionLP lProof ind action = (runActionLP' lProof ind action) >>= \lp ->
+                                return $ moveToPosition ind lp
+    where runActionLP' lProof ind action = 
+            let lProof' = moveToPosition ind lProof in
+                let selProof = (pList lProof')!!ind in
+                    action selProof >>= \(e,p) ->
+                    return (updateSelExpr e lProof') >>= \lProof'' ->
+                    return (updateBasicLP lProof'' p) >>= \lp ->
+                    if ind < length (pList lProof') - 1
+                        then runActionLP' lp (ind+1) action
+                        else return lp
+           
 
 -- updateStepIndexesM :: Monad m => (exprTy -> Int -> m exprTy) -> (proofTy -> Int -> m proofTy) ->
 --                      Int ->  ListedProof' ctxTy relTy proofTy exprTy -> 

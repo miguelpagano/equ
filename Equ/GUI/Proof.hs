@@ -345,9 +345,10 @@ newStepProof expr stepIndex container = do
 
     liftIO $ debug $ "ProofWidget despues de agregar: " ++ show lpw'
                                     
-    runActionLP lpw' (stepIndex+1) resetSignalsStep
+    lpw'' <- runActionLP lpw' (stepIndex+1) resetSignalsStep
+    -- Nota: queda enfocado el paso stepIndex+1
     
-    updateProofWidget lpw'
+    updateProofWidget lpw''
 
     return (centerBoxL,centerBoxR)
     
@@ -405,10 +406,10 @@ newExprWidget expr stepIndex = do
 
     exprWidget <- createExprWidget False stepIndex
    
-    eventsExprWidget exprWidget
-    flip runReaderT (exprWidget,id,stepIndex) (writeExprWidget (formBox exprWidget) expr) 
+    exprWidget' <- eventsExprWidget exprWidget
+    flip runReaderT (exprWidget',id,stepIndex) (writeExprWidget (formBox exprWidget') expr) 
     
-    return exprWidget
+    return exprWidget'
     
 -- | Setea los eventos de un widget de expresion. La funcion f es la
 -- que se utiliza para actualizar la expresion dentro de la prueba
@@ -419,6 +420,15 @@ eventsExprWidget exprWidget = let stepIndex = exprProofIndex exprWidget in
     win <- getWindow
     runReaderT (setupOptionExprWidget win >>
                 setupForm (formBox exprWidget) Editable) (exprWidget,id,stepIndex)
+
+    expw <- eventsExprWidget' exprWidget
+    return expw
+
+eventsExprWidget' :: ExprWidget -> IState ExprWidget
+eventsExprWidget' exprWidget = let stepIndex = exprProofIndex exprWidget in
+    do
+    liftIO $ debug $ "Seteando eventos para eWidget :"++ show exprWidget ++" con indice "++ show stepIndex
+    s <- get
     (cid1,cid2) <- io (setupFocusEvent s stepIndex)
     return $ exprWidget {exprEventsIds = [Connectable cid1,Connectable cid2]}
     
@@ -468,6 +478,7 @@ eventsExprWidget exprWidget = let stepIndex = exprProofIndex exprWidget in
                                   runReaderT (writeExprWidget (formBox exprWidget) e) (exprWidget, id,stepIndex) >>
                                   updateExpr e id
 
+
 -- resetSignalsExpr :: ExprWidget -> Int -> IRG
 -- resetSignalsExpr ew newInd = let ls = exprEventsIds ew in do
 --                                 io $ mapM_ signalDisconnect' ls
@@ -477,20 +488,20 @@ eventsExprWidget exprWidget = let stepIndex = exprProofIndex exprWidget in
 --     where signalDisconnect' (Connectable cid) = signalDisconnect cid
           
           
-resetSignalsStep :: ProofWidget -> IRG
+-- | Funcion para resetear los manejadores de eventos de expresiones y pasos de prueba.
+-- Solo se realiza con las expresiones derechas. Las expresiones izquierdas se encuentran
+-- siempre a la derecha de algun otro paso y se resetean en ese momento.
+resetSignalsStep :: ProofWidget -> IState (ExprWidget,ProofStepWidget)
 resetSignalsStep pw = case pw of
-                           (Simple _ _ e1 e2 b) -> do
+                           (Simple _ _ _ e b) -> do
                                liftIO $ debug $ "-- ResetSignals " ++ show pw ++ " --"
-                               let ls1 = exprEventsIds e1
-                               let ls2 = exprEventsIds e2
-                               let ls3 = stepEventsIds b
+                               let ls1 = exprEventsIds e
+                               let ls2 = stepEventsIds b
                                io $ mapM_ signalDisconnect' ls1
                                io $ mapM_ signalDisconnect' ls2
-                               io $ mapM_ signalDisconnect' ls3
-                               eventsExprWidget e1
-                               eventsExprWidget e2
-                               eventsProofStep b
-                               return ()
+                               e' <- eventsExprWidget' e
+                               b' <- eventsProofStep b
+                               return (e',b')
                                
     where signalDisconnect' (Connectable cid) = signalDisconnect cid
           

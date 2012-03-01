@@ -334,10 +334,16 @@ addTheorem th = (update $ \gst -> gst { theorems = (th:theorems gst) }) >>
 changeProofFocus :: Int -> IState ()
 changeProofFocus i = getProofState >>=
                      F.mapM_ (\ps ->
+                        liftIO (debug "\n---changeProofFocus---") >>
                         getProof >>= \lp ->
                         updateProofNoUndo (moveToPosition i lp) >>
                         getProofWidget >>= \lpw ->
-                        updateProofWidget (moveToPosition i lpw)
+                        updateProofWidget (moveToPosition i lpw) >>
+                        getProofWidget >>= \lpw' ->
+                        return (getSelExpr lpw') >>= \ew ->
+                        liftIO (debug $ "Ewidget seleccionado es: "++show ew) >>
+                        getExprState >>= \es ->
+                        liftIO (debug $ "Ewidget en ExprState es: "++ show (exprWidget $ fromJust es))
                         )
                         
                         
