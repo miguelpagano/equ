@@ -15,7 +15,7 @@ import Equ.Exercise
 import Equ.Exercise.Conf
 import Equ.Theories (relationList, axiomGroup, Grouped (..))
 import Equ.Proof.Proof(Axiom (..))
-import Equ.Proof (toProof)
+import Equ.Proof (toProof,listedToProof)
 import Equ.Rule hiding (rel)
 
 import Data.Maybe (fromJust)
@@ -372,7 +372,7 @@ makeAssocProofWindow = do
                            "No existe prueba para asociar al ejercicio. "
                 Just ps -> getExercise >>= \(Just exer) ->
                            updateExercise $ 
-                                exer {exerProof = Just $ toProof $ proof ps }
+                                exer {exerProof = Just $ listedToProof $ proof ps }
 
 -- Genera una ventana para mostar el contenido de "b" con ancho width
 makeWindowPop :: (BoxClass b) => b -> Int -> IState Window

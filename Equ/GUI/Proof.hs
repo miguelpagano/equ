@@ -39,11 +39,13 @@ import Control.Applicative((<$>))
 import qualified Data.Foldable as F (forM_,mapM_)
 
 import System.Glib.GObject(toGObject)
+import System.Random
 
 -- | Crea una nueva referencia
 newProofState :: (Maybe Proof) -> HBox -> ExprWidget -> ExprWidget ->
                  ProofStepWidget -> IState ProofState
 newProofState (Just p) axiom_box expr1W expr2W proofW= return pr
+
     where
         pr :: ProofState
         pr = ProofState { proof = fromJust $ createListedProof (toProofFocus p)
@@ -156,6 +158,7 @@ createNewProof proof ret_box truthBox initExprWidget = do
             --hboxInit <- createExprWidget holePreExpr goTopbox
             expr_w  <- newExprWidget holePreExpr 0
 
+            liftIO $ debug "Inicializando estado de prueba..."
             initState initExprW expr_w firstStepW
             
             io (--boxPackStart ret_box hboxInit PackNatural 2 >>
@@ -252,6 +255,8 @@ addStepProof center_box stepIndex maybe_basic = do
     
     flip F.mapM_ maybe_basic $ flip writeTruth axiom_box
     
+    ran <- io $ randomIO
+    
     psw <- return ProofStepWidget {
                     relation = (combo_rel,store_rel) 
                   , axiomWidget = axiom_box 
@@ -261,9 +266,11 @@ addStepProof center_box stepIndex maybe_basic = do
                   , stepBox = hbox
                   , centerBox = center_box
                   , stepEventsIds = []
+                  , stepProofIndex = stepIndex
+                  , pswId = show (mod (ran :: Int) 200)
     }
     
-    psw' <- eventsProofStep psw stepIndex
+    psw' <- eventsProofStep psw
     
     return psw'                 
       
@@ -331,8 +338,14 @@ newStepProof expr stepIndex container = do
         
             widgetShowAll container)
     
-    lpw' <- addStepOnPositionM stepIndex (fProofWidget expr_w newStepWL newStepWR)
-                                    resetSignalsExpr resetSignalsProofStep lpw
+    liftIO $ debug $ "ProofWidget antes de agregar: " ++ show lpw
+    
+    lpw' <- return $ addStepOnPosition stepIndex (fProofWidget expr_w newStepWL newStepWR)
+                                    fUpIndexExprW fUpIndexProofW lpw
+
+    liftIO $ debug $ "ProofWidget despues de agregar: " ++ show lpw'
+                                    
+    runActionLP lpw' (stepIndex+1) resetSignalsStep
     
     updateProofWidget lpw'
 
@@ -357,6 +370,13 @@ newStepProof expr stepIndex container = do
             fProofWidget expr_w newStepWL newStepWR p = 
                   (expr_w,Simple () () (fromJust $ P.getStart p) expr_w newStepWL,
                             Simple () () expr_w (fromJust $ P.getEnd p) newStepWR)
+                            
+            fUpIndexExprW :: ExprWidget -> Int -> ExprWidget
+            fUpIndexExprW expr_w ind = expr_w { exprProofIndex = ind }
+            
+            fUpIndexProofW :: ProofStepWidget -> Int -> ProofStepWidget
+            fUpIndexProofW step_w ind = step_w { stepProofIndex = ind }
+            
             
 relationListStore :: IO (ListStore Relation)
 relationListStore = listStoreNew relationList 
@@ -383,57 +403,59 @@ selectRelation r combo lstore = do
 newExprWidget :: PreExpr -> Int -> IState ExprWidget              
 newExprWidget expr stepIndex = do
 
-    exprWidget <- createExprWidget False
+    exprWidget <- createExprWidget False stepIndex
    
-    eventsExprWidget exprWidget stepIndex
+    eventsExprWidget exprWidget
     flip runReaderT (exprWidget,id,stepIndex) (writeExprWidget (formBox exprWidget) expr) 
     
     return exprWidget
     
 -- | Setea los eventos de un widget de expresion. La funcion f es la
 -- que se utiliza para actualizar la expresion dentro de la prueba
-eventsExprWidget :: ExprWidget -> Int -> IState ExprWidget
-eventsExprWidget exprWidget stepIndex = do
+eventsExprWidget :: ExprWidget -> IState ExprWidget
+eventsExprWidget exprWidget = let stepIndex = exprProofIndex exprWidget in
+    do
     s <- get 
     win <- getWindow
     runReaderT (setupOptionExprWidget win >>
                 setupForm (formBox exprWidget) Editable) (exprWidget,id,stepIndex)
-    (ConnectId o1,ConnectId o2) <- io (setupFocusEvent s)
-    return $ exprWidget {exprEventsIds = [ConnectId (toGObject o1),ConnectId (toGObject o2)]}
+    (cid1,cid2) <- io (setupFocusEvent s stepIndex)
+    return $ exprWidget {exprEventsIds = [Connectable cid1,Connectable cid2]}
     
     where hb = extBox exprWidget
-          setupFocusEvent :: GRef -> IO (ConnectId HBox,ConnectId Button)
-          setupFocusEvent s = do
+          setupFocusEvent :: GRef -> Int -> IO (ConnectId HBox,ConnectId Button)
+          setupFocusEvent s stepIndex = do
             let Just choices = choicesButton exprWidget
             cid1 <- hb `on` buttonReleaseEvent $ do
                     flip eventWithState s $
                     -- movemos el proofFocus hasta donde está esta expresión.
+                         liftIO (debug $ "Expresión clickeada con indice: " ++ show stepIndex) >>
                          updateExprWidget exprWidget  >>
-                         changeProofFocus'
+                         changeProofFocus' stepIndex
                     io (widgetShowAll hb)
                     return True
                     
             cid2 <- choices `on` buttonPressEvent $ tryEvent $
-                        eventWithState (changeProofFocus' >> showChoices) s
+                        eventWithState (changeProofFocus' stepIndex >> showChoices stepIndex) s
             return (cid1,cid2)
 
-          changeProofFocus' = changeProofFocusAndShow stepIndex >>
+          changeProofFocus' stepIndex = changeProofFocusAndShow stepIndex >>
 --                               io (proofFocusToBox path top_box) >>= \center_box ->
 --                               io (axiomBoxFromCenterBox center_box) >>= \axiom_box ->
 --                               changeProofFocus moveFocus moveFocus (Just axiom_box) >>
-                              updateSelectedExpr -- Actualizamos la expresion seleccionada
+                                        updateSelectedExpr -- Actualizamos la expresion seleccionada
                         
-          showChoices = do
+          showChoices stepIndex = do
             menu <- io menuNew
             pf <- getProof
-            exp1 <- return . fromJust $ getStartFocus pf
-            m_axiom <- return $ getBasicFocus pf
+            exp1 <- return $ getStartExpr pf
+            m_axiom <- return $ getSelBasic pf
             flip F.mapM_ m_axiom $ \axiom -> 
                 return (possibleExpr (toExpr exp1) axiom) >>=
-                addToMenu menu >>
+                addToMenu menu stepIndex >>
                 io (widgetShowAll menu >> menuPopup menu Nothing)
             
-          addToMenu m = mapM_ addItem
+          addToMenu m stepIndex = mapM_ addItem
             where addItem e = do
                     item <- io $ menuItemNewWithLabel $ show e
                     io $ menuShellAppend m item
@@ -441,19 +463,41 @@ eventsExprWidget exprWidget stepIndex = do
                     io $ item `on` buttonPressEvent $ tryEvent $
                              flip eventWithState s' $ 
                                   -- Actualizamos la expresion
-                                  changeProofFocus' >>
+                                  changeProofFocus' stepIndex >>
                                   updateExprWidget exprWidget >>
                                   runReaderT (writeExprWidget (formBox exprWidget) e) (exprWidget, id,stepIndex) >>
                                   updateExpr e id
 
-resetSignalsExpr :: ExprWidget -> Int -> IState ExprWidget
-resetSignalsExpr ew newInd = let ls = exprEventsIds ew in do
-                                io $ mapM_ signalDisconnect ls
-                                ew' <- eventsExprWidget ew newInd
-                                return ew'
+-- resetSignalsExpr :: ExprWidget -> Int -> IRG
+-- resetSignalsExpr ew newInd = let ls = exprEventsIds ew in do
+--                                 io $ mapM_ signalDisconnect' ls
+--                                 ew' <- eventsExprWidget ew
+--                                 return ()
+--                                 
+--     where signalDisconnect' (Connectable cid) = signalDisconnect cid
+          
+          
+resetSignalsStep :: ProofWidget -> IRG
+resetSignalsStep pw = case pw of
+                           (Simple _ _ e1 e2 b) -> do
+                               liftIO $ debug $ "-- ResetSignals " ++ show pw ++ " --"
+                               let ls1 = exprEventsIds e1
+                               let ls2 = exprEventsIds e2
+                               let ls3 = stepEventsIds b
+                               io $ mapM_ signalDisconnect' ls1
+                               io $ mapM_ signalDisconnect' ls2
+                               io $ mapM_ signalDisconnect' ls3
+                               eventsExprWidget e1
+                               eventsExprWidget e2
+                               eventsProofStep b
+                               return ()
+                               
+    where signalDisconnect' (Connectable cid) = signalDisconnect cid
+          
                                   
-eventsProofStep :: ProofStepWidget -> Int -> IState ProofStepWidget
-eventsProofStep psw ind = do
+eventsProofStep :: ProofStepWidget -> IState ProofStepWidget
+eventsProofStep psw = do
+    let ind = stepProofIndex psw
     s <- get
     combo_rel <- return (fst $ relation psw)
     store_rel <- return (snd $ relation psw)
@@ -474,7 +518,7 @@ eventsProofStep psw ind = do
 
         label <- io (labelNew (Just $ emptyLabel))
         io $ boxPackStart axiom_box label PackGrow 0
-        eventWithState (getProof >>= updateProof . toHoleProof) s
+        eventWithState (getProof >>= updateProof . resetStep) s
         io $ widgetShowAll axiom_box)
         
     cid3 <- io $ (addStepButton psw) `on` buttonPressEvent $ 
@@ -483,7 +527,8 @@ eventsProofStep psw ind = do
        
     cid4 <- io (combo_rel `on` changed $ evalStateT (changeItem combo_rel store_rel ind) s)
        
-    return psw { eventsProofStep = [cid1,cid2,cid3,cid4] }
+    return psw { stepEventsIds = [Connectable cid1,Connectable cid2,Connectable cid3,
+                                  Connectable cid4] }
        
     where changeItem c list ind= do 
             changeProofFocusAndShow ind
@@ -492,24 +537,25 @@ eventsProofStep psw ind = do
             updateRelation newRel
             validateStep
         
-resetSignalsProofStep :: ProofStepWidget -> Int -> IState ProofStepWidget
-resetSignalsProofStep psw ind = let ls = stepEventsIds psw in do
-                                io $ mapM_ signalDisconnect ls
-                                psw' <- eventsProofStep psw ind
-                                return psw'
-                                  
+-- resetSignalsProofStep :: ProofStepWidget -> Int -> IRG
+-- resetSignalsProofStep psw ind = let ls = stepEventsIds psw in do
+--                                 io $ mapM_ signalDisconnect' ls
+--                                 psw' <- eventsProofStep psw
+--                                 return ()
+--                                   
+--     where signalDisconnect' (Connectable obj) = signalDisconnect obj
 
 -- | Descarta la prueba actual.
 discardProof centralBox expr_w = unsetProofState >>
                                   removeAllChildren centralBox >>
                                   getExpr >>= \e ->
-                                  runReaderT (reloadExpr (toExpr e)) (expr_w,id,ProofMove Just)
+                                  runReaderT (reloadExpr (toExpr e)) (expr_w,id,0)
 
 
                                         
-changeProofFocusAndShow moveFocus moveFocusW box = 
+changeProofFocusAndShow ind = 
                                  unSelectBox >>
-                                 changeProofFocus moveFocus moveFocusW box >>
+                                 changeProofFocus ind >>
                                  selectBox focusBg
 
                                   

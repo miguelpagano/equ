@@ -152,7 +152,7 @@ main = do
         axioms <- getAxiomCtrl
         eventsTruthList axioms aListStore
         symbols <- getSymCtrl
-        runReaderT (eventsSymbolList symbols sListStore) (initExprWidget,id,ProofMove Just)
+        runReaderT (eventsSymbolList symbols sListStore) (initExprWidget,id,0)
         hidePane errPane
 
     widgetShowAll window

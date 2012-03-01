@@ -377,7 +377,6 @@ addToUndoList = getProofState >>= \ps ->
                                     addURMove (urmove (Just p,Nothing))
                 
     where addURMove urm= getUndoing >>= \u -> when u $
-                            getProof >>= \p ->
                             getUndoList >>= \ulist ->
                             updateUndoList (urm:ulist) >>
                             getUndoList >>= \ulist' ->

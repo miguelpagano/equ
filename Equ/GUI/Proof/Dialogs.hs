@@ -55,6 +55,6 @@ saveProofDialog = do
       io $ widgetDestroy dialog
                          
 saveProof :: FilePath -> IRG
-saveProof filepath = getProof >>= io . encodeFile filepath . toProof
+saveProof filepath = getProof >>= io . encodeFile filepath . listedToProof
 
 equFileFilter dialog = io $ setFileFilter dialog "*.equ" "Prueba de Equ"

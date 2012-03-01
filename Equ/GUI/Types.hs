@@ -6,7 +6,7 @@ import Equ.PreExpr
 import Equ.Exercise
 
 import Equ.Proof (Proof,PM,ProofFocus,Theorem,Hypothesis,Proof',ProofFocus')
-import Equ.Proof.Proof (Ctx)
+import Equ.Proof.Proof (Ctx,Proof'(..))
 import Equ.Proof.ListedProof
 import Equ.Rule(Relation)
 
@@ -22,7 +22,6 @@ import Control.Monad.State.Strict
 import Control.Monad.Reader
 import Data.Reference
 import Data.IORef
-
 
 -- | Un movimiento es simplemente cambiar el foco.
 type Move = Focus -> Focus
@@ -43,7 +42,7 @@ data URMove = URMove { urProof :: Maybe ListedProof -- ^ Si guardamos una prueba
                      , urExpr :: Maybe Focus
                      }
 instance Show URMove where
-    show u = show (urProof u)
+    show u = show (urProof u,urExpr u)
 
 data Accion = Undo | Redo | InvalidCheck | ValidCheck 
  
@@ -112,7 +111,9 @@ data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , annotButton :: ToggleButton -- ^ Botón para anotaciones.
                              , typeButton  :: ToggleButton -- ^ Botón para árbol de tipado.
                              , imgStatus   :: Image      -- ^ Imagen para estado.
-                             , exprEventsIds :: GObjectClass obj => [ConnectId obj]
+                             , exprEventsIds :: [Connectable]
+                             , exprProofIndex :: Int    -- ^ Indice dentro de la prueba, correspondiente al paso en el que se encuentra a la derecha.
+                             , ewId :: String
                              }
 
                              
@@ -129,19 +130,32 @@ data ProofStepWidget = ProofStepWidget {
                       , validImage :: Image
                       , stepBox :: HBox
                       , centerBox :: VBox
-                      , eventsIds :: GObjectClass obj => [ConnectId obj]
-                      , stepEventsIds :: GObjectClass obj => [ConnectId obj]
+                      , stepEventsIds :: [Connectable]
+                      , stepProofIndex :: Int  -- ^ Indice del paso dentro de la prueba.
+                      , pswId :: String
                       }
 
 type ProofWidget = Proof' () () ProofStepWidget ExprWidget
 
+instance Show ProofWidget where
+    show (Simple _ _ e1 e2 step) = "PWidget- Ei -> id=" ++ ewId e1 ++ ", ind=" ++ show (exprProofIndex e1) ++
+                                   ", E2 -> id=" ++ ewId e2 ++ ", ind=" ++ show (exprProofIndex e2) ++
+                                   ", STEP -> id=" ++ pswId step ++", ind=" ++ show (stepProofIndex step)
+    show _ = ""
+
 type ListedProofWidget = ListedProof' () () ProofStepWidget ExprWidget
+
+instance Show ListedProofWidget where
+    show lProof = show (pList lProof) ++ " | index: " ++ show (selIndex lProof)
 
 type IExpr a = Move -> IState a
 
 type Env = (ExprWidget,Move,Int)
 
 type IExpr' a = ReaderT (ExprWidget,Move,Int) IState a
+
+-- tipo para poder crear lista heterogénea de objetos conectables a una señal.
+data Connectable = forall w . GObjectClass w => Connectable (ConnectId w)
 
 newtype ProofMove = ProofMove { pm ::  forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
                                       Maybe (ProofFocus' ctxTy relTy proofTy exprTy)}
