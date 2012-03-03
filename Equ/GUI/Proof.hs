@@ -201,7 +201,7 @@ addStepProof center_box stepIndex maybe_basic = do
     
     -- Axiom box
     axiom_box  <- io $ hBoxNew False 2
-    label      <- io $ labelNew (Just $ emptyLabel)
+    label      <- io $ labelNew (Just $ emptyLabel "")
     io (widgetSetSizeRequest axiom_box 450 (-1) >>
         boxPackStart axiom_box label PackGrow 0)
 
@@ -347,7 +347,7 @@ eventsExprWidget exprWidget = let stepIndex = exprProofIndex exprWidget in
     s <- get 
     win <- getWindow
     runEnvBox (setupOptionExprWidget win >>
-                setupForm (formBox exprWidget) Editable) (exprWidget,id,stepIndex)
+               setupForm (formBox exprWidget) Editable "") (exprWidget,id,stepIndex)
 
     expw <- eventsExprWidget' exprWidget
     return expw
@@ -443,7 +443,7 @@ eventsProofStep psw = do
         eventWithState (changeProofFocusAndShow ind >>
                         removeAllChildren axiom_box) s
 
-        label <- io (labelNew (Just $ emptyLabel))
+        label <- io (labelNew (Just $ emptyLabel ""))
         io $ boxPackStart axiom_box label PackGrow 0
         eventWithState (getProof >>= updateProofUndo . resetStep) s
         io $ widgetShowAll axiom_box)

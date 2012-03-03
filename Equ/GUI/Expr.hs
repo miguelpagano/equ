@@ -6,12 +6,13 @@ import Equ.GUI.Types hiding (GState)
 import Equ.GUI.Utils
 import Equ.GUI.State
 import Equ.GUI.State.Expr
-import Equ.GUI.State.Exercise(showChoicesButton)
+import Equ.GUI.State.Exercise(showChoicesButton, getExercise, getExerciseConfTypeCheck)
 import Equ.GUI.Settings
 import Equ.GUI.Widget
 import Equ.GUI.TypeTree
 
 import Equ.Expr
+import Equ.Exercise.Conf
 import qualified Equ.Proof as P
 import qualified Equ.Proof.Proof as PP
 import Equ.PreExpr hiding (goDown,goUp,goDownR)
@@ -43,11 +44,12 @@ goUp = fromJust' "up" . PE.goUp
 
 -- | Poné en una caja el widget que usamos para construir nuevas
 -- expresiones.
-setupForm :: HBox -> EditMask -> IExpr' ()
-setupForm box emask = -- io (setToolTip box "Doble click para ingresar una expresión") >>
-                      lift (labelStr emptyLabel) >>= \l -> 
+setupForm :: HBox -> EditMask -> String -> IExpr' ()
+setupForm box emask s = -- io (setToolTip box "Doble click para ingresar una expresión") >>
+                      lift (labelStr $ emptyLabel s) >>= \l -> 
+                      io fontItalic >>= \sf ->
+                      io (widgetModifyFont l (Just sf)) >>
                       setupFormEv box l holePreExpr emask
-
 
 -- | Asigna los manejadores de eventos para widgets de expresiones a 
 -- los controles.
@@ -76,15 +78,17 @@ setupEvents b eb e emask = lift get >>= \s ->
 
 -- | Si hacemos doble-click, entonces editamos la expresión enfocada.
 editExpr :: HBox -> Env -> GRef -> EventM EButton ()
-editExpr b env s = do LeftButton <- eventButton
-                      DoubleClick <- eventClick
-                      flip eventWithState s $ 
-                           flip runReaderT env $ 
-                                    getPath >>= \p ->
-                                    lift (getFocusedExpr p) >>= \(e,_) ->
-                                    newFocusToSym >>
-                                    writeExpr (Just e) b
-                      io $ widgetShowAll b
+editExpr b env s = do 
+                   LeftButton <- eventButton
+                   DoubleClick <- eventClick
+                   flip eventWithState s $ 
+                       flip runReaderT env $ 
+                           exprChangeStatus (ew env) NotParsed >>
+                           getPath >>= \p ->
+                           lift (getFocusedExpr p) >>= \(e,_) ->
+                           newFocusToSym >>
+                           writeExpr (Just e) b
+                   io $ widgetShowAll b
 
 -- | Pone una caja de texto para ingresar una expresión; cuando se
 -- activa (presionando Enter) parsea el texto de la caja como una
@@ -108,23 +112,54 @@ writeExpr pre box = lift newEntry >>= \entry ->
 exprInEntry :: Entry -> PreExpr -> IState ()
 exprInEntry entry = io . entrySetText entry . PS.showExpr
 
-
 -- TODO: manejar errores del parser.
 -- Ale: Empece a hacer algo, lo principal es que muestra el error (no se rompe),
 --      faltaría definirle forma y color.
 -- | Dada una caja de texto, parsea el contenido como una expresión
 -- y construye un widget con toda la expresión.
 setExprFocus :: HBox -> Entry -> IExpr' ()
-setExprFocus box entry  = io (entryGetText entry) >>= \s ->
-                          getPath >>= \p ->
-                          if null s 
-                          then lift (updateExpr hole p) >> writeExprWidget box hole
-                          else case parseFromString s of
-                                 Right expr -> lift (updateExpr expr p) >>
-                                              writeExprWidget box expr
-                                 Left err -> lift (setErrMessage (show err)) >>
-                                            io (widgetShowAll box)
-    where hole = preExprHole ""
+setExprFocus box entry  = lift getExercise >>= \exer ->
+                          io (entryGetText entry) >>= \s ->
+                          if null s then putHole else parse s (isJust exer)
+    where hole :: PreExpr
+          hole = preExprHole ""
+          putHole :: IExpr' ()
+          putHole = getPath >>= \p -> lift (updateExpr hole p) >> 
+                    configExprStatus hole Unknown >>
+                    writeExprWidget box hole
+          isHole :: PreExpr -> Bool
+          isHole = isPreExprHole . toFocus
+          configExprStatus :: PreExpr -> ExprStatus -> IExpr' ()
+          configExprStatus e es = 
+                            ask >>= \env -> 
+                            if isHole e then
+                                exprChangeStatus (ew env) Unknown
+                            else
+                                exprChangeStatus (ew env) es
+          typeCheckConfigExpr :: Bool -> PreExpr -> IExpr' PreExpr
+          typeCheckConfigExpr exerFlag e = 
+                    if not exerFlag then 
+                        configExprStatus e TypeChecked >>
+                        return e
+                    else
+                        lift getExerciseConfTypeCheck >>= \tc -> 
+                        case tc of
+                            Auto -> configExprStatus e TypeChecked >> 
+                                    return e
+                            _ -> configExprStatus e Parsed >> 
+                                 (return . toExpr)
+                                    (PE.resetTypeAllAtoms $ toFocus e)
+          parse :: String -> Bool -> IExpr' ()
+          parse s exerFlag = 
+                    getPath >>= \p ->
+                    case parseFromString s of
+                        Right expr -> 
+                            typeCheckConfigExpr exerFlag expr >>= \expr' ->
+                            lift (updateExpr expr' p) >>
+                            writeExprWidget box expr'
+                        Left err -> 
+                            lift (setErrMessage (show err)) >>
+                            io (widgetShowAll box)
 
 writeExprWidget :: HBox -> PreExpr ->  IExpr' ()
 writeExprWidget = writeExprWidget' Editable
@@ -143,7 +178,7 @@ writeExprWidget' emask box expr = frameExp expr emask  >>= \(WExpr box' _) ->
 -- widget con la expresión.
 frameExp :: PreExpr -> EditMask -> IExpr' (WExpr HBox)
 frameExp e@(PrExHole h) emask = lift newBox >>= \box -> 
-                                setupForm box emask >>
+                                setupForm box emask (unpack $ info h) >>
                                 return (WExpr box e)
 
 frameExp e@(Var v) emask = lift newBox >>= \box ->
@@ -403,6 +438,11 @@ annotBuffer iST s =
             set v [widgetWidthRequest := 500, widgetHeightRequest := 300] >>
             return v
 
+exprChangeStatus :: ExprWidget -> ExprStatus -> IExpr' ()
+exprChangeStatus ew es = io $
+                    do
+                    imageSetFromStock (imgStatus ew) (imgState es) IconSizeMenu
+                    setToolTip (imgStatus ew) (show es)
 -- | Crea un widget para una expresión. El argumento "initial" indica si es inicial.
 -- En ese caso no se crea el botón para ver posibles reescrituras.
 -- El argumento "proofIndex" indica el paso de prueba en la cual este widget de expresion
@@ -424,16 +464,17 @@ createExprWidget initial proofIndex = do
 
     bAnnot <- io $ makeButtonBox annotIcon
     bType <- io $ makeButtonBox typeTreeIcon
-    bInfo <- io $ imageNewFromStock  (imgState Unknown) IconSizeMenu
+    bInfo <- io $ imageNewFromStock (imgState Unknown) IconSizeMenu
+    io $ setToolTip bInfo (show Unknown)
 
     io $ do 
       boxPackStart boxExpr formBox PackGrow 2
       if not initial && listRw
       then boxPackStart boxExpr (fromJust choices) PackNatural 2
       else return ()
-      boxPackStart boxExpr bInfo PackNatural 1 
       boxPackStart boxExpr bAnnot PackNatural 2
       boxPackStart boxExpr bType PackNatural 2
+      boxPackStart boxExpr bInfo PackNatural 1 
       widgetSetSizeRequest formBox 400 (-1)
            
     ran <- io $ randomIO
@@ -465,7 +506,7 @@ createInitExprWidget expr p = do
 
     expr_w <- createExprWidget True 0
     flip runEnvBox (expr_w,p,0) $ 
-         setupForm (formBox expr_w) Editable >>
+         setupForm (formBox expr_w) Editable "" >>
          writeExprWidget (formBox expr_w) expr >>
          setupOptionInitExprWidget win
                

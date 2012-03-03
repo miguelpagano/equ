@@ -163,5 +163,9 @@ data Connectable = forall w . GObjectClass w => Connectable (ConnectId w)
 
 data ExprStatus =  Unknown | Parsed | NotParsed | TypeChecked
 
-
+instance Show ExprStatus where
+    show Unknown = "Ninguna info relevante."
+    show Parsed = "Parseado exitoso. Sin tipado."
+    show NotParsed = "No parseado."
+    show TypeChecked = "Parseado y tipado exitosos."
 
