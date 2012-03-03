@@ -2,7 +2,7 @@
    -- | Este m&#243;dulo define la noci&#243;n de un ejercicio en equ.
 module Equ.Exercise where
 
-import Equ.Exercise.Conf (ExerciseConf, createExerciseConf)
+import Equ.Exercise.Conf (TypeCheck, ExerciseConf, createExerciseConf)
 
 import Equ.Expr
 import Equ.Proof.Annot

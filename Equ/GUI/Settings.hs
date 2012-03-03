@@ -50,15 +50,14 @@ paneErrPaneHeight :: Int
 paneErrPaneHeight = 100
 
 -- | Símbolo para label donde todavía no hay nada ingresado.
-emptyLabel :: String
-emptyLabel = "..."
+emptyLabel :: String -> String
+emptyLabel s = if null s then "..." else s
 
 scrollInc :: Double
 scrollInc = 10.0
 
 scrollDec :: Double
 scrollDec = - scrollInc
-
 
 -- | Iconos para botones
 typeTreeIcon = stockProperties
@@ -73,7 +72,6 @@ imgState Parsed =  stockDialogWarning
 imgState NotParsed = stockDialogError
 imgState TypeChecked = stockOk
 
-
 -- | Estilo para nombre de axiomas o teoremas.
 styleStepEvidence :: IO FontDescription
 styleStepEvidence = fontItalic
@@ -87,10 +85,7 @@ fontItalic = fontDescriptionNew >>= \fd ->
              fontDescriptionSetStyle fd StyleItalic >>
              return fd
 
-
 fontBold :: IO FontDescription
 fontBold = fontDescriptionNew >>= \fd ->
            fontDescriptionSetWeight fd WeightBold >>
            return fd
-
-

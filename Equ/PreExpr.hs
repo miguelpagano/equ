@@ -14,6 +14,7 @@ module Equ.PreExpr ( freeVars, freshVar
                    , setQuantType, setVarQType
                    , getVarTypeFromQuantType, getQTypeFromQuantType
                    , resetTypeAllFocus, getTypeFocus
+                   , resetTypeAllAtoms
                    , getQAndVarFromQuant 
                    , createPairs
                    , module Equ.Syntax
@@ -176,15 +177,28 @@ updateOpType ((f,go):fs) t = ((set t f), go) : updateOpType fs t
           set t (UnOp op e, p) = (UnOp (op{opTy = t}) e,p)
           set t (BinOp op e e', p) = (BinOp (op{opTy = t}) e e',p)
 
+resetTypeAllAtoms :: Focus -> Focus
+resetTypeAllAtoms = resetTypeAllFocus' resetTypeAtoms
+
 resetTypeAllFocus :: Focus -> Focus
-resetTypeAllFocus f = reset listReset f
+resetTypeAllFocus = resetTypeAllFocus' resetTypeFocus
+
+resetTypeAllFocus' :: (Focus -> Focus) -> Focus -> Focus
+resetTypeAllFocus' funReset f = reset listReset f
     where
         listReset :: [(Focus, Focus -> Focus)]
-        listReset = map (\f -> (resetTypeFocus $ fst f, snd f)) $ 
+        listReset = map (\f -> (funReset $ fst f, snd f)) $ 
                                                     toFocusesWithGo $ fst f
         reset :: [(Focus, Focus -> Focus)] -> Focus -> Focus
         reset [] f = f
         reset (fm:fms) f = reset fms $ goTop $ replace (snd fm $ f) (fst $ fst fm)
+
+resetTypeAtoms :: Focus -> Focus
+resetTypeAtoms (Var v, p) = (Var $ v {varTy = TyUnknown}, p)
+resetTypeAtoms (Con c, p) = (Con $ c {conTy = TyUnknown}, p)
+resetTypeAtoms (Fun f, p) = (Fun $ f {funcTy = TyUnknown}, p)
+resetTypeAtoms (PrExHole h, p) = (PrExHole $ h {holeTy = TyUnknown}, p)
+resetTypeAtoms f = f
 
 resetTypeFocus :: Focus -> Focus
 resetTypeFocus (Var v, p) = (Var $ v {varTy = TyUnknown}, p)

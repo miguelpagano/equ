@@ -196,7 +196,7 @@ addStepProof center_box top_box moveFocus maybe_basic = do
     
     -- Axiom box
     axiom_box  <- io $ hBoxNew False 2
-    label      <- io $ labelNew (Just $ emptyLabel)
+    label      <- io $ labelNew (Just $ emptyLabel "")
     io (widgetSetSizeRequest axiom_box 450 (-1) >>
         boxPackStart axiom_box label PackGrow 0)
 
@@ -235,7 +235,7 @@ addStepProof center_box top_box moveFocus maybe_basic = do
         eventWithState (changeProofFocusAndShow (pm moveFocus) (pm moveFocus) (pm moveFocus) (Just axiom_box) >>
                         removeAllChildren axiom_box) s
 
-        label <- io (labelNew (Just $ emptyLabel))
+        label <- io (labelNew (Just $ emptyLabel ""))
         io $ boxPackStart axiom_box label PackGrow 0
         eventWithState (getProof >>= updateProofUndo . toHoleProof) s
         io $ widgetShowAll axiom_box)
@@ -341,7 +341,7 @@ eventsExprWidget expr top_box moveFocus exprWidget = do
     io (setupFocusEvent s)
     flip runEnvBox (exprWidget,id,moveFocus) $
              setupOptionExprWidget win >>
-             setupForm (formBox exprWidget) Editable
+             setupForm (formBox exprWidget) Editable ""
     io $ widgetShowAll (extBox exprWidget)
     return ()
     
