@@ -10,10 +10,8 @@ import Equ.Expr (Expr (..))
 import Equ.Syntax (Variable)
 import Equ.PreExpr (toExpr,goTop,Focus,PreExpr'(..),PreExpr)
 
-import Equ.Proof(getStart, toProof)
-import Equ.Proof(ProofFocus,ProofFocus',updateStartFocus,updateEndFocus,PM,validateProof,
-                 toProof,goFirstLeft,updateMiddleFocus,goUp',getEndFocus,goRight,goEnd,goDownL',
-                  getBasicFocus, validateProofFocus, goNextStep, goPrevStep)
+import Equ.Proof(getStart, toProof,getEnd,getRel)
+import Equ.Proof.ListedProof
 
 
 import Graphics.UI.Gtk (HBox,ToggleButton,Image)
@@ -58,8 +56,8 @@ getInitialExpr = getProofState >>= \mps ->
                  case mps of
                     Nothing -> getExpr >>= return . Just . Expr . toExpr . goTop
                     Just ps -> either (return . (const  Nothing)) 
-                                      (return . Just . Expr . toExpr . goTop) 
-                                      (getStart $ toProof $ proof ps)
+                                      (return . Just . Expr . toExpr) 
+                                      (getStart $ toProof $ pFocus $ proof ps)
 
 getFormBox :: IExpr' HBox
 getFormBox = asks bx -- getExprWidget >>= return . formBox 
@@ -79,7 +77,7 @@ getImgStatus = asks ew >>= return . imgStatus
 getPath :: IExpr' Move
 getPath = asks mv
 
-getProofMove :: IExpr' ProofMove
+getProofMove :: IExpr' Int
 getProofMove = asks pme
 
 localPath :: (Move -> Move) -> IExpr' a -> IExpr' a
@@ -94,7 +92,7 @@ localBox b = local (\env -> env { bx = b})
 runEnv :: IExpr' a -> Env -> IState a
 runEnv c env = runReaderT c env
 
-runEnvBox :: IExpr' a -> (ExprWidget, Move, ProofMove) -> IState a
+runEnvBox :: IExpr' a -> (ExprWidget, Move, Int) -> IState a
 runEnvBox c (e,m,p) = runReaderT c (Env e m p (formBox e))
 
 updateExprState :: ExprState -> IState ()
@@ -106,7 +104,6 @@ updateExprState es = update (\gst -> gst {gExpr = Just es}) >> showExpr
 showExpr :: IState ()
 showExpr = withRefValue $ uncurry putMsg . (status &&& show . toExpr . (fExpr . fromJust . gExpr) )
 
-
 updateExpr'' :: Move -> (PreExpr -> PreExpr) -> GState -> GState
 updateExpr'' g change gst = case (gProof gst,gExpr gst) of
                                   (Just gpr, Just gexpr) -> upd gpr gexpr 
@@ -115,33 +112,32 @@ updateExpr'' g change gst = case (gProof gst,gExpr gst) of
     where upd gpr gexpr = gst { gProof = Just gpr' }
                 -- Para actualizar la expresión dentro de la prueba, asumimos que el foco se encuentra
                 -- en la prueba simple que deja a dicha expresión a la derecha.
-                where  gpr' = gpr {proof = fromJust $ up (proof gpr) (newExpr gexpr)}
-                       up pf f = let up1 = updateEndFocus (goFirstLeft pf) f in
-                                    case goRight (fromJust up1) of
-                                        Nothing -> Just $ goEnd (fromJust' up1)
-                                        Just pf' -> Just $ goEnd $ goDownL' $ fromJust $ updateMiddleFocus (goUp' $ fromJust $ updateStartFocus pf' f) f
-                       gexpr' = gexpr {fExpr = newExpr gexpr}
-                       fromJust' = maybe (error "updateExpr'': up1 is Nothing") id
+            where  gpr' = gpr { proof = updateSelExpr (newExpr gexpr) (proof gpr) }
+                       --gexpr' = gexpr {fExpr = newExpr gexpr}
                      
           newExpr gexpr = first change . g . goTop . fExpr $ gexpr
 
 
+updateExpr' :: PreExpr -> Move -> GState -> GState
+updateExpr' e p = updateExpr'' p (const e)
+
+
 -- -- | Devuelve la expresión que está enfocada en un momento dado.
 getSelectedExpr :: IState Focus
-getSelectedExpr = getProof >>= return . fromJust . getEndFocus
+getSelectedExpr = getProof >>= return . getSelExpr
  
 -- TODO: debemos hacer renombre si la variable está ligada?
 -- | Actualización de la variable de cuantificación.
-updateQVar :: Variable -> IState ()
-updateQVar v = update (updateExpr'' id putVar) 
+updateQVar v p = update (updateExpr'' id putVar) 
     where putVar (Quant q _ r t) = Quant q v r t
           putVar e = e
+
 
 -- | Funcion que actualiza la expresion seleccionada por el usuario al mover el proofFocus.
 updateSelectedExpr :: IState ()
 updateSelectedExpr = getExprState >>= F.mapM_ 
-                       (\es -> getProof >>= \ pf -> 
-                              updateExprState (es {fExpr= fromJust $ getEndFocus pf }))
+                       (\es -> getProof >>= \ lp -> 
+                              updateExprState (es {fExpr= getSelExpr lp }))
 
 
 

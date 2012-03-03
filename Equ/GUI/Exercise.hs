@@ -21,6 +21,7 @@ import Equ.Exercise.Conf
 import Equ.Theories (relationList, axiomGroup, Grouped (..), theoriesInGroup)
 import Equ.Proof.Proof(Axiom (..))
 import Equ.Proof (ProofAnnotation,Proof,toProof, goTop, toProofFocus)
+import Equ.Proof.ListedProof
 import Equ.Rule hiding (rel)
 
 import qualified Graphics.UI.Gtk as G
@@ -469,7 +470,7 @@ makeAssocProofWindow = do
                            "No existe prueba para asociar al ejercicio. "
                 Just ps -> getExercise >>= \(Just exer) ->
                            updateExercise $ 
-                                exer {exerProof = Just $ toProof $ proof ps }
+                                exer {exerProof = Just $ listedToProof $ proof ps }
 
 exerciseFileFilter :: (FileChooserClass f, MonadIO m) => f -> m ()
 exerciseFileFilter dialog = io $ setFileFilter dialog "*.exer" "Ejercicio de equ"
@@ -490,7 +491,7 @@ saveExercise = getExercise >>= \mexer ->
         configFileName stat = map (\c -> if c == ' ' then '_' else c) 
                                   (unpack $ title stat) ++ ".exer"
         takeProof :: Maybe ProofState -> Proof
-        takeProof = toProof . fromJust . goTop . proof . fromJust
+        takeProof = toProof . fromJust . goTop . pFocus . proof . fromJust
         takeAnnots :: Maybe ProofState -> ProofAnnotation
         takeAnnots = toProof . fromJust . goTop . proofAnnots . fromJust
         setupExerciseToSave :: IState Exercise

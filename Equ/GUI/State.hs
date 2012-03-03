@@ -20,10 +20,10 @@ module Equ.GUI.State ( -- * Proyeccion de componentes del estado
                      , getAxiomCtrl
                      , getAxiomBox
                      , getAxiomBox'
-                     , getExprProof
                      , getStepProofBox
                      -- * Modificacion del estado.
                      , updateExpr
+                     , updateRelation
                      , updateFocus
                      , updateProofUndo
                      , updateProofNoUndo
@@ -53,9 +53,10 @@ import Equ.GUI.State.TypeTree
 import Equ.GUI.Types
 import Equ.GUI.Utils
 
-import Equ.PreExpr (Focus,PreExpr)
-
-import Equ.Theories (getExprProof)
+import Equ.PreExpr (Focus,PreExpr,PreExpr'(BinOp),toExpr)
+import Equ.Expr
+import Equ.Syntax
+import Equ.Theories (getExprProof,relToOp)
 
 import Equ.Exercise(Exercise)
 
@@ -63,7 +64,9 @@ import Equ.Proof.Proof
 import Equ.Proof.Error(errEmptyProof)
 import Equ.Proof(ProofFocus,ProofFocus',ProofFocusAnnots,updateStartFocus,updateEndFocus,PM,validateProof,
                  toProof,goFirstLeft,updateMiddleFocus,goUp',getEndFocus,goRight,goEnd,goDownL',
-                  getBasicFocus, validateProofFocus, goNextStep, goPrevStep)
+                  getBasicFocus, validateListedProof,validateStepProof, goNextStep, goPrevStep)
+import Equ.Proof.ListedProof
+import Equ.Rule
 
 
 
@@ -82,13 +85,9 @@ updateExpr e' p = update (updateExpr' e' p) >>
                   addToUndoList >> 
                   restoreValidProofImage >>
                   -- validamos el paso en el que esta la expresion y el siguiente, si lo tiene
-                  validateStep >> 
-                  changeProofFocus (Just . goNextStep) (Just . goNextStep) (Just . goNextStep) Nothing >> 
-                  validateStep >> 
-                  changeProofFocus (Just . goPrevStep) (Just . goPrevStep) (Just . goNextStep) Nothing
-
-updateExpr' :: PreExpr -> Move -> GState -> GState
-updateExpr' e p = updateExpr'' p (const e)
+                  validateStep >> moveNextProofStep >> validateStep >>
+                  movePrevProofStep
+                  
 
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
 updateFocus :: Focus -> GoBack -> IState ()
@@ -97,17 +96,15 @@ updateFocus e' f = update (updateFocus' e' f) >>
                    showProof
 
 -- | Actualización de la prueba, agregando la posibilidad de deshacer.
-updateProofUndo :: ProofFocus -> IState ()
-updateProofUndo pf = updateProof pf >>
-                     showProof >>
-                     getProof >>= io . debug . show >>
-                     addToUndoList >> restoreValidProofImage
+updateProofUndo :: ListedProof -> IState ()
+updateProofUndo lp = update (updateProof' lp) >>
+                 showProof >>
+                 getProof >>= io . debug . show >>
+                 addToUndoList >> restoreValidProofImage
 
--- | Actualización de la prueba, sin deshacer.    
-updateProofNoUndo pf = updateProof pf >>
+updateProofNoUndo pf = update (updateProof' pf) >>
                        showProof >>
-                       getProof >>= io . debug . show                                 
-
+                       getProof >>= io . debug . show
 
 updateProofState :: ProofState -> IState ()
 updateProofState ps = update (\gst -> gst {gProof = Just ps}) >>
@@ -122,23 +119,86 @@ unsetProofState = update (\gst -> gst {gProof = Nothing}) >>
 
 
 
-changeProofFocus :: (ProofFocus -> Maybe ProofFocus) ->
-                    (ProofFocusAnnots -> Maybe ProofFocusAnnots) ->
-                   (ProofFocusWidget -> Maybe ProofFocusWidget) ->
-                   Maybe HBox -> IState ()
-changeProofFocus moveFocus moveFocusAnnots moveFocusW box = getProofState >>=
-                                F.mapM_ (\ps ->
-                                    getProof >>=
-                                    updateProofNoUndo . fromJust' . moveFocus >>
-                                    withJust box updateAxiomBox >>
-                                    getProofWidget >>=
-                                    updateProofWidget . fromJust' . moveFocusW
-                                ) >>
-                                getProofState >>=
-                                F.mapM_ (\ps ->
-                                    getProofAnnots >>=
-                                    updateProofAnnots . fromJust' . moveFocusAnnots)
-    where fromJust' = maybe (error "MOVIENDO EL FOCUS") id
+-- | Actualiza la caja donde tenemos foco de entrada.
+updateFrmCtrl :: HBox -> IState ()
+updateFrmCtrl l = update (\gst -> case gExpr gst of
+                                        Nothing -> gst
+                                        Just es -> gst { gExpr = Just $ es {formCtrl = l }})
+                                        
+                                        
+-- | Actualiza el widget de expresión donde tenemos foco de entrada.                                        
+updateExprWidget :: ExprWidget -> IState ()
+updateExprWidget e = update (\gst -> case gExpr gst of
+                                        Nothing -> gst
+                                        Just es -> gst { gExpr = Just $ es {exprWidget = e
+                                                                           , formCtrl = formBox e
+                                                                           }})
+            
+
+-- | Actualiza la lista de símbolos para construir expresiones.
+updateSymCtrl :: IconView -> IState ()
+updateSymCtrl t = update $ \gst -> gst { symCtrl = t }
+
+
+updateRelation :: Relation -> IState ()
+updateRelation r = getProof >>= \lp ->
+                   updateProofUndo $ updateRelLP lp r
+
+addTheorem :: Theorem -> IState Theorem
+addTheorem th = (update $ \gst -> gst { theorems = (th:theorems gst) }) >>
+                return th
+
+changeProofFocus :: Int -> IState ()
+changeProofFocus i = getProofState >>=
+                     F.mapM_ (\ps ->
+                        io (debug "\n---changeProofFocus---") >>
+                        getProof >>= \lp ->
+                        updateProofNoUndo (moveToPosition i lp) >>
+                        getProofWidget >>= \lpw ->
+                        updateProofWidget (moveToPosition i lpw) >>
+                        getProofWidget >>= \lpw' ->
+                        return (getSelExpr lpw') >>= \ew ->
+                        io (debug $ "Ewidget seleccionado es: "++show ew) >>
+                        getExprState >>= \es ->
+                        io (debug $ "Ewidget en ExprState es: "++ show (exprWidget $ fromJust es))
+                        )
+                        
+                        
+moveNextProofStep :: IState ()
+moveNextProofStep = getProofState >>=
+                    F.mapM_ (\ps ->
+                        getProof >>= \lp ->
+                        updateProofNoUndo (moveToNextPosition lp) >>
+                        getProofWidget >>= \lpw ->
+                        updateProofWidget (moveToNextPosition lpw)
+                        )
+                        
+
+movePrevProofStep :: IState ()
+movePrevProofStep = getProofState >>=
+                    F.mapM_ (\ps ->
+                        getProof >>= \lp ->
+                        updateProofNoUndo (moveToPrevPosition lp) >>
+                        getProofWidget >>= \lpw ->
+                        updateProofWidget (moveToPrevPosition lpw)  
+                        )
+
+
+
+getExprProof :: IState Expr
+getExprProof = getValidProof >>= either (const (return holeExpr)) (return . getExpr)                    
+    where getExpr p = Expr $ BinOp (relToOp (fromJust $ getRel p))
+                                   (toExpr $ fromJust $ getStart p)
+                                   (toExpr $ fromJust $ getEnd p)
+                                     
+
+getFrmCtrl :: IState HBox
+getFrmCtrl = getStatePartDbg "getFrmCtrl" $ formCtrl . fromJust . gExpr
+
+getExprWidget :: IState ExprWidget
+getExprWidget = getStatePartDbg "getExprWidget" $ exprWidget . fromJust . gExpr
+
+
 getWindow :: IState Window
 getWindow = getStatePart gWindow
 
@@ -149,14 +209,14 @@ getStatus :: IState (Statusbar, ContextId)
 getStatus  = getStatePartDbg "getStatus" status
 
 getStepProofBox :: IState (Maybe HBox)
-getStepProofBox = getProofWidget >>= \pfw ->
-                  case getBasicFocus pfw of
+getStepProofBox = getProofWidget >>= \lpw ->
+                  case getSelBasic lpw of
                        Nothing -> return Nothing
                        Just b -> return (Just $ stepBox b)
 
 getAxiomBox :: IState HBox
-getAxiomBox = getProofWidget >>= \pfw ->
-              return (axiomWidget $ fromJust $ getBasicFocus pfw)
+getAxiomBox = getProofWidget >>= \lpw ->
+              return (axiomWidget $ fromJust $ getSelBasic lpw)
 
 getAxiomBox' :: IState (Maybe HBox)
 getAxiomBox' = getProofState >>= \ps ->
@@ -197,8 +257,8 @@ getParentNamed name = go
                          
 -- Funcion que chequea si la prueba en la interfaz está validada
 checkValidProof :: IState Bool
-checkValidProof = getProof >>= \pf ->
-                  return (toProof pf) >>= \pr ->
+checkValidProof = getProof >>= \lp ->
+                  return (toProof (pFocus lp)) >>= \pr ->
                   io (debug ("la prueba es " ++ show pr)) >>
                   getValidProof >>= \vp ->
                   io (debug ("la prueba valida es " ++ show vp))  >>

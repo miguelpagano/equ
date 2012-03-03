@@ -54,8 +54,8 @@ redoAction action p ps = setNoUndoing >>
                          setUndoing
 
 -- TODO: Tiene sentido que estas funciones estén acá?
-recreateProof pf cbox tbox expr_w = createNewProof (Just $ toProof pf) cbox tbox expr_w
+recreateProof pf cbox tbox expr_w = createNewProof (Just $ listedToProof pf) cbox tbox expr_w
 
 recreateExpr cbox expr_w expr = removeAllChildren cbox >>
                               initExprState expr >>
-                              runEnvBox (reloadExpr (toExpr expr)) (expr_w,id,ProofMove $ Just)
+                              runEnvBox (reloadExpr (toExpr expr)) (expr_w,id,0)

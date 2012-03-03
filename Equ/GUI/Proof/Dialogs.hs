@@ -7,6 +7,7 @@ import Equ.GUI.Settings
 import Equ.GUI.Proof 
 import Equ.GUI.Widget
 import Equ.Proof
+import Equ.Proof.ListedProof
 
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
 
@@ -16,23 +17,45 @@ import qualified Data.Foldable as F (mapM_)
 
 dialogLoadProof :: GRef -> VBox -> VBox -> ExprWidget -> IO ()
 dialogLoadProof ref centralBox truthBox expr_w = do
-        dialogLoad "Cargar prueba"
-                   equFileFilter
-                   (loadProof)
-        return ()
-    where
-        loadProof :: Proof -> IO ()
-        loadProof p = evalStateT (createNewProof (Just p) centralBox 
-                                                 truthBox expr_w) ref
+    dialog <- fileChooserDialogNew (Just "Cargar Prueba") 
+                                  Nothing 
+                                  FileChooserActionOpen
+                                  [ ("Cargar",ResponseAccept)
+                                  , ("Cancelar",ResponseCancel)]
 
-saveProofDialog :: IState ()
-saveProofDialog = getProofState >>= \pf ->
-               case pf of
-                   Nothing -> makeErrWindow "Ninguna prueba para guardar."
-                   Just _ -> getProof >>= \p ->
-                             saveDialog "Guardar ejercicio"
-                                        ""
-                                        equFileFilter
-                                        (toProof p) >> return ()
+    equFileFilter dialog 
+    response <- io $ dialogRun dialog
+    
+    case response of
+         ResponseAccept -> do
+             selected <- io $ fileChooserGetFilename dialog
+             io $ debug ("aceptar clicked. Selected is " ++ show selected)
+             flip F.mapM_ selected (\ filepath -> 
+                                    decodeFile filepath >>= \proof ->
+                                    evalStateT (createNewProof (Just proof) centralBox truthBox expr_w) ref >>
+                                    widgetDestroy dialog)
+         _ -> io $ widgetDestroy dialog
+
+saveProofDialog :: IRG
+saveProofDialog = do
+    pf <- getProofState
+    when (isJust pf) $ do 
+      dialog <- io $ fileChooserDialogNew (Just "Guardar Prueba") 
+                                         Nothing 
+                                         FileChooserActionSave 
+                                         [ ("Guardar",ResponseAccept)
+                                         , ("Cancelar",ResponseCancel)]
+                                   
+      equFileFilter dialog                                   
+      response <- io $ dialogRun dialog
+    
+      case response of
+        ResponseAccept -> io (fileChooserGetFilename dialog) >>= F.mapM_ saveProof
+        _ -> return ()
+      io $ widgetDestroy dialog
+                         
+saveProof :: FilePath -> IRG
+saveProof filepath = getProof >>= io . encodeFile filepath . listedToProof
 
 equFileFilter dialog = io $ setFileFilter dialog "*.equ" "Prueba de Equ"
+

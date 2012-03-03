@@ -36,17 +36,7 @@ setNoUndoing = update $ \gst -> gst { undoing = False }
 updateUndoList :: UndoList -> IRG
 updateUndoList ulist = update $ \gst -> gst { gUndo = ulist }
                                  
-updateRedoList :: RedoList -> IRG
-updateRedoList rlist = update $ \gst -> gst { gRedo = rlist }
-             
-addToRedoList :: URMove -> IRG
-addToRedoList m = getRedoList >>= \rlist ->
-                  updateRedoList (m:rlist)
-
-addToUndoListFromRedo :: URMove -> IRG
-addToUndoListFromRedo m = getUndoList >>= \ulist ->
-                          updateUndoList (m:ulist)
-
+                                 
 addToUndoList :: IRG
 addToUndoList = getProofState >>= \ps ->
                     case ps of
@@ -58,7 +48,6 @@ addToUndoList = getProofState >>= \ps ->
                                     addURMove (urmove (Just p,Nothing))
                 
     where addURMove urm= getUndoing >>= \u -> when u $
-                            getProof >>= \p ->
                             getUndoList >>= \ulist ->
                             updateUndoList (urm:ulist) >>
                             getUndoList >>= \ulist' ->
@@ -66,3 +55,14 @@ addToUndoList = getProofState >>= \ps ->
                             cleanRedoList
           urmove (proof,expr) = URMove { urProof = proof
                                        , urExpr = expr}          
+             
+addToUndoListFromRedo :: URMove -> IRG
+addToUndoListFromRedo m = getUndoList >>= \ulist ->
+                          updateUndoList (m:ulist)
+             
+updateRedoList :: RedoList -> IRG
+updateRedoList rlist = update $ \gst -> gst { gRedo = rlist }
+             
+addToRedoList :: URMove -> IRG
+addToRedoList m = getRedoList >>= \rlist ->
+                  updateRedoList (m:rlist)

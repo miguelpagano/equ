@@ -15,8 +15,8 @@ import Equ.Proof.Proof
 import Equ.Proof.Error(errEmptyProof)
 import Equ.Proof(ProofFocus,ProofFocus',ProofFocusAnnots,updateStartFocus,updateEndFocus,PM,validateProof,
                  toProof,goFirstLeft,updateMiddleFocus,goUp',getEndFocus,goRight,goEnd,goDownL',
-                  getBasicFocus, validateProofFocus, goNextStep, goPrevStep)
-
+                  getBasicFocus, validateListedProof,validateStepProof, goNextStep, goPrevStep)
+import Equ.Proof.ListedProof
 
 import Graphics.UI.Gtk (HBox,StockId,imageSetFromStock,IconSize(IconSizeSmallToolbar))
 import Data.Maybe (fromJust)
@@ -27,10 +27,11 @@ import Control.Arrow(first,(&&&))
 getProofState :: IState (Maybe ProofState)
 getProofState = getStatePartDbg "getProofState" gProof
 
-getProof :: IState ProofFocus
+
+getProof :: IState ListedProof
 getProof = getStatePartDbg "getProof" (proof . fromJust . gProof)
 
-getProofWidget :: IState ProofFocusWidget
+getProofWidget :: IState ListedProofWidget
 getProofWidget = getStatePartDbg "getProofWidget" (proofWidget . fromJust . gProof)
 
 
@@ -45,35 +46,31 @@ updateImageValid icon = getStatePart imageValid >>= \validImage ->
 restoreValidProofImage :: IRG
 restoreValidProofImage = updateImageValid iconUnknownProof
 
+
 -- Las siguientes funciones validan el paso en el que la prueba está enfocada.
 validateStep :: IState ()
 validateStep = getProofState >>= 
-               F.mapM_ (\ps -> getProof >>= \pf ->
-               case validateProofFocus pf of
+               F.mapM_ (\ps -> getProof >>= \lp ->
+               case validateStepProof lp of
                     Left _ -> updateStepWidgetImage iconErrorProof
                     Right _ -> updateStepWidgetImage iconValidProof
                    )
+
                    
 updateStepWidgetImage :: StockId -> IState ()
 updateStepWidgetImage icon = getProofState >>= 
                         F.mapM_ (\ps -> getProofWidget >>= \pfw ->
-                        let image = validImage (fromJust $ getBasicFocus pfw) in
+                        let image = validImage (fromJust $ getSelBasic pfw) in
                              io (imageSetFromStock image icon IconSizeSmallToolbar)
                         )
 
-updateProof' :: ProofFocus -> GState -> GState
-updateProof' (p,path) gst = case (gProof gst,gExpr gst) of
-                              (Just gpr,Just gexpr) -> upd gpr gexpr
-                              (_,_) -> gst
-    where upd gpr gexpr = gst { gProof = Just gpr { proof = (p,path)
-                                                  }
-                              , gExpr = Just $ gexpr { fExpr = fromJust $ getEnd p }
+updateProof' :: ListedProof -> GState -> GState
+updateProof' lp gst = case (gProof gst,gExpr gst) of
+                           (Just gpr,Just gexpr) -> upd gpr gexpr
+                           (_,_) -> gst
+    where upd gpr gexpr = gst { gProof = Just gpr { proof = lp}
+                              , gExpr = Just $ gexpr { fExpr = getSelExpr lp}
                               }
-              where pr = proof gpr
-                    e = fExpr gexpr
-
-updateProof :: ProofFocus -> IState ()
-updateProof = update . updateProof'
 
 -- | Valida la prueba y actualiza el campo "validProof" del ProofState
 updateValidProof :: IState ()
@@ -82,7 +79,7 @@ updateValidProof = getValidProof >>= \vp -> update (updateValidProof' vp)
           updateValidProof' vp gst = case gProof gst of
                                        Just gpr -> gst { gProof = Just $ updPrf gpr }
                                        Nothing -> gst
-          updPrf gpr = gpr { validProof = validateProof (toProof $ proof gpr) }
+          updPrf gpr = gpr { validProof = validateListedProof (proof gpr) }
 
 updateProofWidget pfw = update (\gst -> case gProof gst of
                                              Nothing -> gst
@@ -97,10 +94,6 @@ showProof = withRefValue $ uncurry putMsg . (status &&& show . proof . fromJust 
 
 showProof' = getProof >>= io . debug . show
 
-
-updateRelation :: Relation -> IState ()
-updateRelation r = getProof >>= \(p,path) ->
-                   updateProof (updateRel p r,path)
                    
 updateAxiomBox :: HBox -> IState ()
 updateAxiomBox b = update $ \gst -> gst {gProof = Just $ ((fromJust . gProof) gst) {axiomBox = b}}
@@ -118,7 +111,7 @@ getRelPF = getProofState >>= \ps ->
             case ps of
                  Nothing -> return relEq
                  Just ps' -> 
-                    getStatePart $ fromJust . getRel . fst . proof . fromJust . gProof
+                    getStatePart $ getRelLP . proof . fromJust . gProof
 
 
 updateProofAnnots :: ProofFocusAnnots -> IState ()
@@ -130,8 +123,10 @@ updateProofAnnots' pfa gst = case gProof gst of
                                 Just gpr -> upd gpr
     where
         upd :: ProofState -> GState
-        upd gpr = gst {gProof = Just gpr {proofAnnots = pfa}}
+        upd gpr = undefined --  gst {gProof = Just gpr {proofAnnots = pfa}}
 
 
 getProofAnnots :: IState ProofFocusAnnots
 getProofAnnots = getStatePartDbg "getProof" (proofAnnots . fromJust . gProof)
+
+

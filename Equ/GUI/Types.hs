@@ -3,16 +3,18 @@
 module Equ.GUI.Types where
 
 import Equ.PreExpr
-import Equ.Exercise (Exercise)
-import Equ.Proof (Proof,PM,ProofFocus, ProofFocusAnnots
-                 ,Theorem,Hypothesis,Proof',ProofFocus')
-import Equ.Proof.Proof (Ctx)
+import Equ.Exercise
+
+import Equ.Proof (Proof,PM,ProofFocus,Theorem,Hypothesis,Proof',ProofFocus')
+import Equ.Proof.Proof (Ctx,Proof'(..))
+import Equ.Proof.ListedProof
+import Equ.Proof.Annot
 import Equ.Rule(Relation)
 
 import Graphics.UI.Gtk ( WidgetClass, Statusbar, ContextId, HBox, TreeView
                        , EventBox, Label, Button, Notebook, HPaned, IconView
                        , Window, Image, ToggleButton, ComboBox, ListStore
-                       , ConnectId
+                       , GObjectClass, ConnectId, VBox
                        )
 
 import Equ.Types
@@ -21,7 +23,6 @@ import Control.Monad.State.Strict
 import Control.Monad.Reader
 import Data.Reference
 import Data.IORef
-
 
 -- | Un movimiento es simplemente cambiar el foco.
 type Move = Focus -> Focus
@@ -38,11 +39,11 @@ type StatusPlace = (Statusbar, ContextId)
 
 type UndoList = [URMove]
 type RedoList = [URMove]
-data URMove = URMove { urProof :: Maybe ProofFocus -- ^ Si guardamos una prueba. 
+data URMove = URMove { urProof :: Maybe ListedProof -- ^ Si guardamos una prueba. 
                      , urExpr :: Maybe Focus
                      }
 instance Show URMove where
-    show u = show (urProof u)
+    show u = show (urProof u,urExpr u)
 
 data Accion = Undo | Redo | InvalidCheck | ValidCheck 
  
@@ -78,10 +79,10 @@ data ExprState = ExprState { fExpr :: Focus
                                              -- formCtrl es hijo de (formBox exprWidget)
                            }
 
-data ProofState = ProofState { proof :: ProofFocus   -- ^ La prueba que estamos construyendo
+data ProofState = ProofState { proof :: ListedProof   -- ^ La prueba que estamos construyendo
+                             , proofWidget :: ListedProofWidget -- ^ navegacion de la interfaz
                              , validProof :: PM Proof
                              , axiomBox :: HBox -- ^ El contenedor para mostrar el axioma aplicado
-                             , proofWidget :: ProofFocusWidget -- ^ Focus para navegar la interfaz de prueba
                              , proofAnnots :: ProofFocusAnnots
                              }
 
@@ -106,9 +107,20 @@ data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , annotButton :: ToggleButton -- ^ Botón para anotaciones.
                              , typeButton  :: ToggleButton -- ^ Botón para árbol de tipado.
                              , imgStatus   :: Image      -- ^ Imagen para estado.
+                             , exprEventsIds :: [Connectable]
+                             , exprProofIndex :: Int    -- ^ Indice dentro de la prueba, correspondiente al paso en el que se encuentra a la derecha.
+                             , ewId :: String
                              }
-             
+
+instance Show ExprWidget where
+    show e = "EWidget- id="++ewId e
+                             
+                             
 -- WIDGET PARA PRUEBAS
+-- Estructura de cajas:
+{- centerBox -> stepBox -> eventBoxAxiom -> axiomWidget -}
+
+
 data ProofStepWidget = ProofStepWidget {
                         relation :: (ComboBox,ListStore Relation)
                       , axiomWidget :: HBox
@@ -116,26 +128,40 @@ data ProofStepWidget = ProofStepWidget {
                       , addStepButton :: Button
                       , validImage :: Image
                       , stepBox :: HBox
-                      -- ids de los manejadores de eventos click izquierdo y derecho sobre la caja de axioma:
-                      --, eventsId :: (ConnectId EventBox,ConnectId EventBox) 
+                      , centerBox :: VBox
+                      , stepEventsIds :: [Connectable]
+                      , stepProofIndex :: Int  -- ^ Indice del paso dentro de la prueba.
+                      , pswId :: String
                       }
 
 type ProofWidget = Proof' () () ProofStepWidget ExprWidget
 
-type ProofFocusWidget = ProofFocus' () () ProofStepWidget ExprWidget
+instance Show ProofWidget where
+    show (Simple _ _ e1 e2 step) = "PWidget- Ei -> id=" ++ ewId e1 ++ ", ind=" ++ show (exprProofIndex e1) ++
+                                   ", E2 -> id=" ++ ewId e2 ++ ", ind=" ++ show (exprProofIndex e2) ++
+                                   ", STEP -> id=" ++ pswId step ++", ind=" ++ show (stepProofIndex step)
+    show _ = ""
+
+type ListedProofWidget = ListedProof' () () ProofStepWidget ExprWidget
+
+instance Show ListedProofWidget where
+    show lProof = show (pList lProof) ++ " | index: " ++ show (selIndex lProof)
 
 type IExpr a = Move -> IState a
 
 data Env = Env { ew :: ExprWidget
                , mv :: Move
-               , pme :: ProofMove
+               , pme :: Int
                , bx :: HBox
                }
 
 type IExpr' a = ReaderT Env  IState a
 type SynItem = (String, HBox -> IExpr' ())
 
-newtype ProofMove = ProofMove { pm ::  forall ctxTy relTy proofTy exprTy . ProofFocus' ctxTy relTy proofTy exprTy -> 
-                                      Maybe (ProofFocus' ctxTy relTy proofTy exprTy)}
+-- tipo para poder crear lista heterogénea de objetos conectables a una señal.
+data Connectable = forall w . GObjectClass w => Connectable (ConnectId w)
 
 data ExprStatus =  Unknown | Parsed | NotParsed | TypeChecked
+
+
+

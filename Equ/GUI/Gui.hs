@@ -4,6 +4,7 @@ module Equ.GUI.Gui where
 import Equ.GUI.Exercise
 import Equ.GUI.Types
 import Equ.GUI.State
+import Equ.GUI.State.SymbolList
 import Equ.GUI.State.Expr
 import Equ.GUI.Utils
 import Equ.GUI.Widget
@@ -185,6 +186,8 @@ main = do
     flip evalStateT gRef $ do
         axioms <- getAxiomCtrl
         eventsTruthList axioms aListStore
+        symbols <- getSymCtrl
+        runEnvBox (eventsSymbolList symbols sListStore) (initExprWidget,id,0)
         hidePane errPane
 
     widgetShowAll window

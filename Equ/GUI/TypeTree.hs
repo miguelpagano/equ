@@ -41,7 +41,7 @@ typeTreeWidget eb btree =  io $ do
 -- arbol construido con @buildTreeExpr'@. 
 buildTreeExpr :: VBox -> HBox -> IExpr' [(ExprState,Move)]
 buildTreeExpr bTreeExpr we = do moveFocus <- getProofMove
-                                lift (changeProofFocus (pm moveFocus) (pm moveFocus) (pm moveFocus) Nothing)
+                                lift (changeProofFocus moveFocus)
                                 f <- lift getExpr
                                 io $ debug $ show f
                                 ws <- io (containerGetChildren we)
@@ -181,7 +181,7 @@ onTypeEdited :: Entry -> VBox -> HBox -> EventBox -> ExprState -> Move -> IExpr'
 onTypeEdited eText extBTree b tb es p' = ask >>= \ env -> 
             lift (withState (onEntryActivate eText) (flip runReaderT env $ 
                         getProofMove >>= \moveFocus ->
-                        lift (changeProofFocus (pm moveFocus) (pm moveFocus) (pm moveFocus) Nothing) >>
+                        lift (changeProofFocus moveFocus) >>
                         lift getExpr >>= \f ->
                         io (entryGetText eText) >>= \text -> 
                         lift (checkInType text) >>= \checkText ->

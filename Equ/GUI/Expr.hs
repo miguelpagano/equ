@@ -31,6 +31,8 @@ import Control.Monad.Reader
 import Control.Monad.Trans(lift)
 import Control.Arrow((***))
 
+import System.Random
+
 import qualified Data.Foldable as F
 
 
@@ -226,7 +228,7 @@ frameExp e@(Quant q v e1 e2) emask = lift newBox >>= \box ->
                                    return . parserVar >>=
                                    either (reportErrWithErrPaned . show) 
                                            (\v -> replaceEntry box v p >>
-                                                 updateQVar v >>
+--                                                 updateQVar v >>
                                                  showExpr >>
                                                  return ())) >>
                          entryDim entry entryVarLength >>
@@ -401,11 +403,12 @@ annotBuffer iST s =
             set v [widgetWidthRequest := 500, widgetHeightRequest := 300] >>
             return v
 
--- | Crea un widget para una expresión. El argumento indica si es inicial.
--- En ese caso no se crea el botón para ver posibles reescrituras. Notar
--- que ese botón tampoco se crea si así lo indica el ejercicio.
-createExprWidget :: Bool -> IState ExprWidget
-createExprWidget initial = do
+-- | Crea un widget para una expresión. El argumento "initial" indica si es inicial.
+-- En ese caso no se crea el botón para ver posibles reescrituras.
+-- El argumento "proofIndex" indica el paso de prueba en la cual este widget de expresion
+-- se encuentra (a la derecha de tal paso).
+createExprWidget :: Bool -> Int -> IState ExprWidget
+createExprWidget initial proofIndex = do
 
     boxExpr <- io $ hBoxNew False 2    
     formBox <- io $ hBoxNew False 2
@@ -433,12 +436,17 @@ createExprWidget initial = do
       boxPackStart boxExpr bType PackNatural 2
       widgetSetSizeRequest formBox 400 (-1)
            
+    ran <- io $ randomIO
+           
     return $ ExprWidget { formBox = formBox
                         , extBox = boxExpr
                         , choicesButton = choices
                         , annotButton = bAnnot
                         , typeButton = bType
                         , imgStatus = bInfo
+                        , exprEventsIds = []
+                        , exprProofIndex = proofIndex
+                        , ewId = show (mod (ran :: Int) 200)
                         }
 
 makeButtonBox :: String -> IO ToggleButton
@@ -455,8 +463,9 @@ createInitExprWidget expr p = do
     s <- get
     win <- getWindow
 
-    expr_w <- createExprWidget True
-    flip runEnvBox (expr_w,p,ProofMove Just) $ 
+    expr_w <- createExprWidget True 0
+    flip runEnvBox (expr_w,p,0) $ 
+         setupForm (formBox expr_w) Editable >>
          writeExprWidget (formBox expr_w) expr >>
          setupOptionInitExprWidget win
                
@@ -519,7 +528,7 @@ loadAnnot = ask >>= \env ->
             return $ getAnnot p env
     where
         getAnnot :: P.ProofFocusAnnots -> Env -> String
-        getAnnot pfa env = getAnnotFromFocus $ pm (pme env) pfa
+        getAnnot pfa env = undefined -- getAnnotFromFocus pme env pfa
         getAnnotFromFocus :: Maybe P.ProofFocusAnnots -> String
         getAnnotFromFocus = unpack . fromJust . PP.getEnd . fst . fromJust
 
@@ -532,7 +541,7 @@ saveAnnot s =
         updateAnnot pfa
     where
         moveProofFocus :: P.ProofFocusAnnots -> Env -> IExpr' P.ProofFocusAnnots
-        moveProofFocus pfa env = return . fromJust $ pm (pme env) pfa
+        moveProofFocus pfa env = undefined -- return . fromJust $ (pme env) pfa
         updateAnnot :: P.ProofFocusAnnots -> IExpr' ()
         updateAnnot pfa = lift $
             updateProofAnnots $ P.replace pfa $ P.updateEnd (fst pfa) (pack s)
@@ -562,7 +571,7 @@ newExprState expr expr_w hbox2 = return $
 
 initExprState expr = do 
   hbox2 <- io $ hBoxNew False 2
-  expr_w <- createExprWidget True
+  expr_w <- createExprWidget True 0
   -- Ponemos un ExprWidget sin sentido para iniciar el estado. ESTO PODRIA REVISARSE
   expr' <- newExprState expr expr_w hbox2
   updateExprState expr' 
