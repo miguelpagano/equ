@@ -22,6 +22,7 @@ import Equ.GUI.Expr ( writeExprWidget,setupForm
                     , createExprWidget
                     , setupOptionExprWidget 
                     )
+import Equ.GUI.State.SymbolList(eventsSymbolList)
 import Equ.Parser
 import Equ.Types
 
@@ -81,6 +82,7 @@ loadProof p ret_box truthBox initExprWidget proofStepW = do
     empty_box1 <- io $ hBoxNew False 2
     proof <- newProofState (Just p) empty_box1 initExprWidget newExpr_w proofStepW
     updateProofState proof
+    unsetExprState
     
     -- Expresión inicial:
     removeAllChildren (formBox initExprWidget)
@@ -173,6 +175,7 @@ initState expr1W expr2W proofW = do
     initExpr <- getExpr
     proof' <- newProofState (Just $ pr initExpr) empty_box1 expr1W expr2W proofW
     updateProofState proof'
+    unsetExprState
 
     where pr e= flip newProofWithStart e $ head $ relationList
     
@@ -368,7 +371,7 @@ eventsExprWidget' exprWidget = let stepIndex = exprProofIndex exprWidget in
                     flip eventWithState s $
                     -- movemos el proofFocus hasta donde está esta expresión.
                          liftIO (debug $ "Expresión clickeada con indice: " ++ show stepIndex) >>
-                         updateExprWidget exprWidget  >>
+                         --updateExprWidget exprWidget  >>
                          changeProofFocus' stepIndex
                     io (widgetShowAll hb)
                     return True
@@ -377,8 +380,8 @@ eventsExprWidget' exprWidget = let stepIndex = exprProofIndex exprWidget in
                         eventWithState (changeProofFocus' stepIndex >> showChoices stepIndex) s
             return (cid1,cid2)
 
-          changeProofFocus' stepIndex = changeProofFocusAndShow stepIndex >>
-                                        updateSelectedExpr -- Actualizamos la expresion seleccionada
+          changeProofFocus' stepIndex = changeProofFocusAndShow stepIndex 
+                                        -- >> updateSelectedExpr -- Actualizamos la expresion seleccionada
                         
           showChoices stepIndex = do
             menu <- io menuNew
@@ -475,4 +478,8 @@ discardProof centralBox expr_w = unsetProofState >>
                                         
 changeProofFocusAndShow ind = unSelectBox >>
                               changeProofFocus ind >>
-                              selectBox focusBg
+                              selectBox focusBg >>
+                              getExprWidget >>= \ew -> 
+                              getSymCtrl >>= \symbols ->
+                              getSymStore >>= \sListStore ->
+                              runEnvBox (eventsSymbolList symbols sListStore) (ew,id,ind)

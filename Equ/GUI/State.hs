@@ -35,6 +35,7 @@ module Equ.GUI.State ( -- * Proyeccion de componentes del estado
                      , module Equ.GUI.State.TypeTree
                      -- * Funciones relacionadas con pruebas
                      , updateProofState 
+                     , unsetExprState
                      , unsetProofState
                      , changeProofFocus
                      , module Equ.GUI.State.Internal
@@ -76,7 +77,7 @@ import qualified Graphics.UI.Gtk as G
 import Control.Arrow(first,(&&&))
 import Data.Maybe(fromJust)
 
-import qualified Data.Foldable as F (mapM_,forM_) 
+import qualified Data.Foldable as F (mapM_,forM_)
 
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
 updateExpr :: PreExpr -> Move -> IState ()
@@ -110,6 +111,9 @@ updateProofState :: ProofState -> IState ()
 updateProofState ps = update (\gst -> gst {gProof = Just ps}) >>
                       addToUndoList >> 
                       restoreValidProofImage
+                      
+unsetExprState :: IState ()
+unsetExprState = update (\gst -> gst {gExpr = Nothing})
 
 -- | Descarta la prueba actual.    
 unsetProofState :: IState ()
@@ -159,8 +163,7 @@ changeProofFocus i = getProofState >>=
                         getProofWidget >>= \lpw' ->
                         return (getSelExpr lpw') >>= \ew ->
                         io (debug $ "Ewidget seleccionado es: "++show ew) >>
-                        getExprState >>= \es ->
-                        io (debug $ "Ewidget en ExprState es: "++ show (exprWidget $ fromJust es))
+                        showProof
                         )
                         
                         
@@ -195,8 +198,13 @@ getExprProof = getValidProof >>= either (const (return holeExpr)) (return . getE
 getFrmCtrl :: IState HBox
 getFrmCtrl = getStatePartDbg "getFrmCtrl" $ formCtrl . fromJust . gExpr
 
+-- Funcion para obtener el widget de expresion seleccionada en la prueba:
 getExprWidget :: IState ExprWidget
-getExprWidget = getStatePartDbg "getExprWidget" $ exprWidget . fromJust . gExpr
+getExprWidget = getProofState >>= \ps ->
+                case ps of
+                     Nothing -> getStatePartDbg "getExprWidget" $ exprWidget . fromJust . gExpr
+                     Just ps' -> return $ getSelExpr (proofWidget ps')
+-- getExprWidget = getStatePartDbg "getExprWidget" $ exprWidget . fromJust . gExpr
 
 
 getWindow :: IState Window

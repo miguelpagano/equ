@@ -45,7 +45,10 @@ getExprWidget :: IState ExprWidget
 getExprWidget = getStatePartDbg "getExprWidget" $ exprWidget . fromJust . gExpr
 
 getExpr :: IState Focus
-getExpr = getStatePartDbg "getExpr" $ fExpr . fromJust . gExpr
+getExpr = getProofState >>= \ps ->
+          case ps of
+               Nothing -> getStatePartDbg "getExpr" $ fExpr . fromJust . gExpr
+               Just ps' -> return $ getSelExpr $ proof ps'
 
 getFocusedExpr :: Move -> IState Focus
 getFocusedExpr p = getExpr >>= return . p . goTop
@@ -102,22 +105,27 @@ updateExprState es = update (\gst -> gst {gExpr = Just es}) >> showExpr
 -- | Actualiza la expresión que se muestra en el área de estado;
 -- esta es una función que puede dejar de tener sentido más adelante.
 showExpr :: IState ()
-showExpr = withRefValue $ uncurry putMsg . (status &&& show . toExpr . (fExpr . fromJust . gExpr) )
+showExpr = getExprState >>= \es ->
+           case es of
+                Nothing -> return ()
+                Just es' -> withRefValue $ uncurry putMsg . (status &&& show . toExpr . (fExpr . fromJust . gExpr) )
 
 updateExpr'' :: Move -> (PreExpr -> PreExpr) -> GState -> GState
 updateExpr'' g change gst = case (gProof gst,gExpr gst) of
-                                  (Just gpr, Just gexpr) -> upd gpr gexpr 
+                                  (Just gpr, _) -> upd gpr 
                                   (Nothing, Just gexpr) ->  gst {gExpr = Just gexpr {fExpr = newExpr gexpr}} 
                                   (_,_) -> gst
-    where upd gpr gexpr = gst { gProof = Just gpr' }
+    where upd gpr = gst { gProof = Just gpr' }
                 -- Para actualizar la expresión dentro de la prueba, asumimos que el foco se encuentra
                 -- en la prueba simple que deja a dicha expresión a la derecha.
-            where  gpr' = gpr { proof = updateSelExpr (newExpr gexpr) (proof gpr) }
+            where  gpr' = gpr { proof = updateSelExpr (newExpr' gpr) (proof gpr) }
                        --gexpr' = gexpr {fExpr = newExpr gexpr}
-                     
+               
           newExpr gexpr = first change . g . goTop . fExpr $ gexpr
-
-
+          newExpr' gpr = let fexpr = getSelExpr (proof gpr) in
+                        first change . g . goTop $ fexpr
+              
+              
 updateExpr' :: PreExpr -> Move -> GState -> GState
 updateExpr' e p = updateExpr'' p (const e)
 
