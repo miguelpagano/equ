@@ -148,11 +148,11 @@ setExprFocus box entry  = lift getExercise >>= \exer ->
                     else
                         lift getExerciseConfTypeCheck >>= \tc -> 
                         case tc of
-                            Auto -> configExprStatus e TypeChecked >> 
-                                    return e
-                            _ -> configExprStatus e Parsed >> 
-                                 (return . toExpr)
+                            Manual -> configExprStatus e Parsed >> 
+                                    (return . toExpr)
                                     (PE.resetTypeAllAtoms $ toFocus e)
+                            _ -> configExprStatus e TypeChecked >> return e
+                            
           parse :: String -> Bool -> IExpr' ()
           parse s exerFlag = 
                     liftIO (debug "parsing expr") >>
