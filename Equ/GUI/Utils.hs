@@ -30,7 +30,6 @@ import Data.Either(rights)
 
 import Data.Reference
 import Control.Arrow(first,second,(***),(&&&))
-import Data.Maybe(fromJust)
 import Control.Monad(liftM)
 import Control.Monad.State(get,put,evalStateT)
 import Control.Monad.Trans(MonadIO,liftIO)

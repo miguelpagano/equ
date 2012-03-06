@@ -33,14 +33,7 @@ eventsSymbolList tv list = do s <- get
 -- lista de símbolos.
 oneSelection :: ListStore SynItem -> TreePath -> IExpr' ()
 oneSelection list path = io (getElem list path) >>= 
-                         F.mapM_ (\(_,acc) -> 
-                                  getProofMove >>= \i ->
-                                  io (debug $ "SYMBOL-LIST: el indice seleccionado es " ++ show i) >>
-                                  getFormBox >>= \box ->
-                                  io (debug "ejecutando accion..:") >> 
-                                  acc box >>
-                                  io (debug "accion ejecutada")
-                                  )
+                         F.mapM_ (\(_,acc) -> getFormBox >>= acc)
 
 getElem :: ListStore a -> TreePath -> IO (Maybe a)
 getElem l p = treeModelGetIter l p >>= \i ->

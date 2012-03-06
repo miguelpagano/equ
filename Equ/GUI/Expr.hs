@@ -355,11 +355,8 @@ instance ExpWriter Quantifier where
                      writeQuantifier s box
     
 instance ExpWriter Operator where
-    writeExp s box = io (debug "before removeAllChildren") >>
-                     lift (removeAllChildren box) >>
-                     io (debug $ "Falla aca")
---                      io (debug "before write operator") >>
---                      writeOperator s box
+    writeExp s box = lift (removeAllChildren box) >>
+                     writeOperator s box
 
 instance ExpWriter Constant where
     writeExp s box = lift (removeAllChildren box) >>

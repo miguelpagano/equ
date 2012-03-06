@@ -15,7 +15,6 @@ import qualified Graphics.UI.Gtk as G
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
 import Data.Text (pack)
 import qualified Data.Foldable as F (mapM_)
-import Data.Maybe (fromJust)
 
 import Control.Monad(liftM, when)
 import Control.Monad.Trans(liftIO)

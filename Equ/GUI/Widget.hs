@@ -23,7 +23,6 @@ import qualified Graphics.UI.Gtk as G
 import Graphics.UI.Gtk.Gdk.EventM
 import Graphics.UI.Gtk.Glade (GladeXML,xmlGetWidget)
 import Data.Reference
-import Data.Maybe(fromJust)
 import Data.Text(unpack)
 import Data.List (deleteBy)
 
@@ -203,13 +202,13 @@ addToBox b w = liftIO $ boxPackStart b w PackNatural 3
 -- | Elimina todos los controles contenidos en una caja (también
 -- destruye los hijos para liberar memoria -- está bien hacer esto?).
 removeAllChildren :: ContainerClass b => b -> IRG
-removeAllChildren = liftIO . removeAllChildren'
+removeAllChildren = io . removeAllChildren' 
 
 -- | Elimina todos los controles contenidos en una caja (también
 -- destruye los hijos para liberar memoria -- está bien hacer esto?).
 removeAllChildren' :: ContainerClass b => b -> IO ()
 removeAllChildren' b = containerForeach b $ 
-                         \x -> containerRemove b x >> widgetDestroy x
+                       \x -> containerRemove b x >> widgetDestroy x
 
 {- Las siguientes funciones son los manejadores de eventos. -}
 

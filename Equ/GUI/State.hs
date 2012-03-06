@@ -195,18 +195,6 @@ getExprProof = getValidProof >>= either (const (return holeExpr)) (return . getE
                                    (toExpr $ fromJust $ getEnd p)
                                      
 
-getFrmCtrl :: IState HBox
-getFrmCtrl = getStatePartDbg "getFrmCtrl" $ formCtrl . fromJust . gExpr
-
--- Funcion para obtener el widget de expresion seleccionada en la prueba:
-getExprWidget :: IState ExprWidget
-getExprWidget = getProofState >>= \ps ->
-                case ps of
-                     Nothing -> getStatePartDbg "getExprWidget" $ exprWidget . fromJust . gExpr
-                     Just ps' -> return $ getSelExpr (proofWidget ps')
--- getExprWidget = getStatePartDbg "getExprWidget" $ exprWidget . fromJust . gExpr
-
-
 getWindow :: IState Window
 getWindow = getStatePart gWindow
 

@@ -36,13 +36,16 @@ updateExprWidget e = update (\gst -> case gExpr gst of
                                         Just es -> gst { gExpr = Just $ es {exprWidget = e
                                                                           , formCtrl = formBox e
                                                                           }})
-
-
 getExprState :: IState (Maybe ExprState)
 getExprState = getStatePartDbg "getExprState" gExpr
 
+-- Funcion para obtener el widget de expresion seleccionada en la prueba:
 getExprWidget :: IState ExprWidget
-getExprWidget = getStatePartDbg "getExprWidget" $ exprWidget . fromJust . gExpr
+getExprWidget = getProofState >>= \ps ->
+                case ps of
+                     Nothing -> getStatePartDbg "getExprWidget" $ exprWidget . fromJust . gExpr
+                     Just ps' -> return $ getSelExpr (proofWidget ps')
+
 
 getExpr :: IState Focus
 getExpr = getProofState >>= \ps ->
