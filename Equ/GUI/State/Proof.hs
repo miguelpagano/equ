@@ -24,6 +24,7 @@ import Data.Maybe (fromJust)
 import qualified Data.Foldable as F
 
 import Control.Arrow(first,(&&&))
+import Control.Monad.Trans(liftIO)
 
 getProofState :: IState (Maybe ProofState)
 getProofState = getStatePartDbg "getProofState" gProof
@@ -67,11 +68,10 @@ updateStepWidgetImage icon = getProofState >>=
 
 updateProof' :: ListedProof -> GState -> GState
 updateProof' lp gst = case (gProof gst,gExpr gst) of
-                           (Just gpr,Just gexpr) -> upd gpr gexpr
+                           (Just gpr,_) -> upd gpr
                            (_,_) -> gst
-    where upd gpr gexpr = gst { gProof = Just gpr { proof = lp}
-                              , gExpr = Just $ gexpr { fExpr = getSelExpr lp}
-                              }
+    where upd gpr = gst { gProof = Just gpr { proof = lp}
+                        }
 
 -- | Valida la prueba y actualiza el campo "validProof" del ProofState
 updateValidProof :: IState ()
@@ -90,7 +90,8 @@ updateProofWidget pfw = update (\gst -> case gProof gst of
 
 
 showProof :: IState ()
-showProof = withRefValue $ uncurry putMsg . (status &&& show . proof . fromJust . gProof )
+showProof = (withRefValue $ uncurry putMsg . (status &&& show . proof . fromJust . gProof ) ) >>
+            io (debug "showProof") >> showProof'
 
 
 showProof' = getProof >>= io . debug . show

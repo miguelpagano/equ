@@ -100,7 +100,9 @@ writeExpr pre box = lift newEntry >>= \entry ->
                     F.mapM_ (lift . exprInEntry entry) pre >>
                      ask >>= \env ->
                      lift (withState (onEntryActivate entry) 
-                                      (runEnv (setExprFocus box entry) env) >>
+                                      (liftIO (debug "writing Expr:") >>
+                                       runEnv (setExprFocus box entry) env) >>
+                           liftIO (debug "expr writed") >>
                            removeAllChildren box >>
                            addToBox box entry) >>
                     -- manejamos evento "button release" para que se propague al padre
@@ -153,11 +155,14 @@ setExprFocus box entry  = lift getExercise >>= \exer ->
                                     (PE.resetTypeAllAtoms $ toFocus e)
           parse :: String -> Bool -> IExpr' ()
           parse s exerFlag = 
+                    liftIO (debug "parsing expr") >>
                     getPath >>= \p ->
                     case parseFromString s of
                         Right expr -> 
                             typeCheckConfigExpr exerFlag expr >>= \expr' ->
+                            liftIO (debug "updatingExpr expr") >>
                             lift (updateExpr expr' p) >>
+                            liftIO (debug "writing Expr:") >>
                             writeExprWidget box expr'
                         Left err -> 
                             lift (setErrMessage (show err)) >>
@@ -310,7 +315,8 @@ un constructor de la sintáxis. -}
 
 -- | Operadores.
 writeOperator :: Operator -> HBox -> IExpr' ()
-writeOperator o box = expOp o >>= \(WExpr b e) ->
+writeOperator o box = liftIO (debug "writing operator") >>
+                      expOp o >>= \(WExpr b e) ->
                       getPath >>= \p ->
                       lift (updateExpr e p) >>
                       lift (addToBox box b) >>
@@ -349,8 +355,11 @@ instance ExpWriter Quantifier where
                      writeQuantifier s box
     
 instance ExpWriter Operator where
-    writeExp s box = lift (removeAllChildren box) >>
-                     writeOperator s box
+    writeExp s box = io (debug "before removeAllChildren") >>
+                     lift (removeAllChildren box) >>
+                     io (debug $ "Falla aca")
+--                      io (debug "before write operator") >>
+--                      writeOperator s box
 
 instance ExpWriter Constant where
     writeExp s box = lift (removeAllChildren box) >>
