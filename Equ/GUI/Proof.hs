@@ -5,6 +5,7 @@ module Equ.GUI.Proof where
 import Equ.GUI.Types hiding (GState)
 import Equ.GUI.State
 import Equ.GUI.State.Expr
+import Equ.GUI.State.Exercise(showChoicesButton)
 import Equ.GUI.Utils
 import Equ.GUI.Proof.RelationList
 
@@ -372,14 +373,13 @@ eventsExprWidget' exprWidget = let stepIndex = exprProofIndex exprWidget in
     liftIO $ debug $ "Seteando eventos para eWidget :"++ show exprWidget ++" con indice "++ show stepIndex
     s <- get
     win <- getWindow
-    (cid1,cid2) <- io (setupFocusEvent s stepIndex)
+    cids <- io (setupFocusEvent s stepIndex)
     (cid3,cid4) <-  flip runEnvBox (exprWidget,id,stepIndex) (setupOptionExprWidget win)
-    return $ exprWidget {exprEventsIds = [Connectable cid1,Connectable cid2,Connectable cid3,Connectable cid4]}
+    return $ exprWidget {exprEventsIds = cids++[Connectable cid3,Connectable cid4]}
     
     where hb = extBox exprWidget
-          setupFocusEvent :: GRef -> Int -> IO (ConnectId HBox,ConnectId Button)
+          setupFocusEvent :: GRef -> Int -> IO [Connectable]
           setupFocusEvent s stepIndex = do
-            let Just choices = choicesButton exprWidget
             cid1 <- hb `on` buttonReleaseEvent $ do
                     flip eventWithState s $
                     -- movemos el proofFocus hasta donde está esta expresión.
@@ -388,10 +388,16 @@ eventsExprWidget' exprWidget = let stepIndex = exprProofIndex exprWidget in
                          changeProofFocus' stepIndex
                     io (widgetShowAll hb)
                     return True
-                    
-            cid2 <- choices `on` buttonPressEvent $ tryEvent $
-                        eventWithState (changeProofFocus' stepIndex >> showChoices stepIndex) s
-            return (cid1,cid2)
+
+            listRw <- evalStateT showChoicesButton s
+            if listRw 
+            then do 
+              let Just choices = choicesButton exprWidget
+            
+              cid2 <- choices `on` buttonPressEvent $ tryEvent $
+                          eventWithState (changeProofFocus' stepIndex >> showChoices stepIndex) s
+              return [Connectable cid1,Connectable cid2]
+            else return [Connectable cid1]
 
           changeProofFocus' stepIndex = changeProofFocusAndShow stepIndex 
                                         -- >> updateSelectedExpr -- Actualizamos la expresion seleccionada
