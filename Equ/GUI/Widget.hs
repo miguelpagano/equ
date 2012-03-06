@@ -335,3 +335,16 @@ makeWindowPop box width isModal = io $
                     windowSetPosition w WinPosCenterAlways
                     widgetShowAll w
                     return w
+
+
+popupWin :: Window -> IO Window
+popupWin w = windowNew >>= \pop ->
+             set pop  [ windowDecorated := False
+                      , windowHasFrame := False
+                      , windowTypeHint := WindowTypeHintDialog
+                      , windowTransientFor := w
+                      , windowGravity := GravityCenter
+                      , windowOpacity := 0.8
+                      ] >>
+             windowSetPosition pop WinPosCenterAlways >>
+             return pop

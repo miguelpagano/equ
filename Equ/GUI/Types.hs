@@ -82,8 +82,7 @@ data ExprState = ExprState { fExpr :: Focus
 data ProofState = ProofState { proof :: ListedProof   -- ^ La prueba que estamos construyendo
                              , proofWidget :: ListedProofWidget -- ^ navegacion de la interfaz
                              , validProof :: PM Proof
-                             , axiomBox :: HBox -- ^ El contenedor para mostrar el axioma aplicado
-                             , proofAnnots :: ProofFocusAnnots
+                             , proofAnnots :: ListedAnnots
                              }
 
 type GRef = IORef GState

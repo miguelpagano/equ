@@ -493,7 +493,7 @@ saveExercise = getExercise >>= \mexer ->
         takeProof :: Maybe ProofState -> Proof
         takeProof = toProof . fromJust . goTop . pFocus . proof . fromJust
         takeAnnots :: Maybe ProofState -> ProofAnnotation
-        takeAnnots = toProof . fromJust . goTop . proofAnnots . fromJust
+        takeAnnots = toProof . fromJust . goTop . pFocus . proofAnnots . fromJust
         setupExerciseToSave :: IState Exercise
         setupExerciseToSave = do
                     mps <- getProofState 
@@ -529,7 +529,7 @@ setupProofFromExercise centralBox truthBox initExprWidget = do
                  (createNewProof mproof centralBox truthBox initExprWidget) 
             mAnnots <- getExerciseAnnots
             when (isJust mAnnots)
-                 (updateProofAnnots $ toProofFocus $ fromJust mAnnots)
+                 (updateProofAnnots . fromJust . createListedProof . toProofFocus . fromJust $ mAnnots)
 
 
 -- Crea un ejercicio.

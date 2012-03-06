@@ -3,7 +3,8 @@ module Equ.Proof.ListedProof
     (ListedProof'(..),ListedProof,createListedProof
     ,addStepOnPosition,updateSelExpr, updateRelLP, updateBasicLP
     ,moveToPosition,moveToNextPosition, moveToPrevPosition
-    ,getSelExpr,getSelBasic,getRelLP, getStartExpr
+    ,getSelExpr,getSelBasic,getRelLP, getStartExpr, getBasicAt
+    , updateExprAt, updateFirstExpr
     ,resetStep, listedToProof, runActionLP
     ) where
 
@@ -62,19 +63,8 @@ createListedProof' ps pf = let mpf = goNextStep' pf in
                                case mpf of
                                     Nothing -> ps
                                     Just pf' -> createListedProof' (ps++[fst pf']) pf'
-                                    
-{- Transforma una prueba simple o hueco, que tenemos en la lista, en dos nuevos huecos y 
-   actualiza el proofFocus, creando la nueva transitividad correspondiente.
-   La función fNewProofs toma el paso de la prueba que queremos transformar y devuelve
-   una nueva expresion y dos nuevos pasos, así se puede construir la transitividad.
-   Dejamos enfocado la parte derecha de esa transitividad.
-   Las funciones fUpIndexExpr y fUpIndexBasic toman las expresiones y el basic de un paso
-   de prueba respectivamente, el nuevo indice que tiene ese paso, y debe actualizar
-   algun componente relacionado con el indice del paso en la lista.-}
-
    
-   
-{- Transforma una prueba simple o hueco, que tenemos en la lista, en dos nuevos huecos y 
+{-| Transforma una prueba simple o hueco, que tenemos en la lista, en dos nuevos huecos y 
 actualiza el proofFocus, creando la nueva transitividad correspondiente.
 La función fNewProofs toma el paso de la prueba que queremos transformar y devuelve
 una nueva expresion y dos nuevos pasos, así se puede construir la transitividad.
@@ -103,16 +93,15 @@ addStepOnPosition ind fNewProofs fUpIndexExpr fUpIndexBasic lProof =
                                   
     where nPFocus = (moveToPos ind $ pFocus lProof)
           
-          newSteps pf = [snd' (fNewProofs $ fst pf),third (fNewProofs $ fst pf)]
-                                  
+          newSteps pf = [pf',pf'']
+              where (_,pf',pf'') = fNewProofs $ fst pf
+
           newFocus (p,path) = goDownR' (Trans ctx rel expr1 newExpr expr2 p1 p2,path)
             where   ctx = fromJust $ getCtx p
                     rel = fromJust $ getRel p
                     expr1 = fromJust $ getStart p
                     expr2 = fromJust $ getEnd p
-                    newExpr = fst' $ fNewProofs p
-                    p1 = snd' $ fNewProofs p
-                    p2 = third $ fNewProofs p
+                    (newExpr,p1,p2) = fNewProofs p
    
 updateStepIndexes :: (exprTy -> Int -> exprTy) -> (proofTy -> Int -> proofTy) ->
                      Int ->  ListedProof' ctxTy relTy proofTy exprTy -> 
@@ -163,6 +152,20 @@ runActionLP lProof ind action = (runActionLP' lProof ind action) >>= \lp ->
                         then runActionLP' lp (ind+1) action
                         else return lp
            
+
+-- -- Reemplaza la expresión izquierda del primer paso.
+updateFirstExpr :: exprTy -> ListedProof' ctxTy relTy proofTy exprTy ->
+                  ListedProof' ctxTy relTy proofTy exprTy
+updateFirstExpr expr lProof = let ind = selIndex lProof in
+                            ListedProof' {
+                                pList = newList ind
+                              , pFocus = nPFocus
+                              , selIndex = ind
+                            }
+                            
+    where newList i = updateStart (head (pList lProof)) expr:tail (pList lProof)        
+          nPFocus = let pf = pFocus lProof 
+                    in fromJust $ updateStartFocus (goTop' pf) expr
                                     
 -- Reemplaza la expresión derecha de un paso de la prueba. Deja enfocado el paso.
 updateSelExpr :: exprTy -> ListedProof' ctxTy relTy proofTy exprTy ->
@@ -201,6 +204,13 @@ getStartExpr lProof = fromJust $ getStart ((pList lProof)!!(selIndex lProof))
 getSelBasic :: ListedProof' ctxTy relTy proofTy exprTy -> Maybe proofTy
 getSelBasic lProof = getBasic ((pList lProof)!!(selIndex lProof))
 
+getBasicAt :: Int -> ListedProof' ctxTy relTy proofTy exprTy -> exprTy 
+getBasicAt i = getSelExpr . moveToPosition i
+
+updateExprAt :: Int -> exprTy -> ListedProof' ctxTy relTy proofTy exprTy ->
+               ListedProof' ctxTy relTy proofTy exprTy
+updateExprAt i e p =  (moveToPosition oldIdx . updateSelExpr e . moveToPosition i) p
+    where oldIdx = selIndex p
 
 -- | Transforma el paso enfocado en un Hole.
 resetStep :: ListedProof' ctxTy relTy proofTy exprTy ->
@@ -274,20 +284,20 @@ moveToPosition i lProof = if i < 0 || i >= length (pList lProof)
 moveToNextPosition :: ListedProof' ctxTy relTy proofTy exprTy ->
                       ListedProof' ctxTy relTy proofTy exprTy
 moveToNextPosition lProof = if selIndex lProof >= (length (pList lProof)) - 1
-                               then lProof
-                               else let newInd = (selIndex lProof) + 1 in
-                                        lProof { selIndex = newInd
-                                               , pFocus = moveToPos newInd (pFocus lProof)
-                                                }
+                            then lProof
+                            else let newInd = (selIndex lProof) + 1 in
+                                     lProof { selIndex = newInd
+                                            , pFocus = moveToPos newInd (pFocus lProof)
+                                            }
                                
 moveToPrevPosition :: ListedProof' ctxTy relTy proofTy exprTy ->
                       ListedProof' ctxTy relTy proofTy exprTy
 moveToPrevPosition lProof = if selIndex lProof == 0
-                               then lProof
-                               else let newInd = (selIndex lProof) - 1 in
-                                        lProof { selIndex = newInd
-                                               , pFocus = moveToPos newInd (pFocus lProof)
-                                                }
+                            then lProof
+                            else let newInd = (selIndex lProof) - 1 in
+                                     lProof { selIndex = newInd
+                                            , pFocus = moveToPos newInd (pFocus lProof)
+                                            }
     
 moveToLastPosition :: ListedProof' ctxTy relTy proofTy exprTy ->
                       ListedProof' ctxTy relTy proofTy exprTy
@@ -302,17 +312,9 @@ moveToPos 0 pf = goLeftLeaf $ goTop' pf
 moveToPos n pf = goNextStep (moveToPos (n-1) pf)
                       
                       
-fst' :: (a,b,c) -> a
-fst' (a,_,_) = a
-
-snd' :: (a,b,c) -> b
-snd' (_,b,_) = b
-
-third :: (a,b,c) -> c
-third (_,_,c) = c
-                                    
                                     
 type ListedProof = ListedProof' Ctx Relation Basic PE.Focus
                                     
 instance Show ListedProof where
     show lProof = show (pList lProof) ++ " | Index: " ++ show (selIndex lProof)
+

@@ -1,3 +1,4 @@
+{-# Language OverloadedStrings #-}
 -- | Modulo de muestra y control de eventos sobre pruebas.
 module Equ.GUI.Proof where
 
@@ -14,6 +15,7 @@ import Equ.Theories
 import Equ.Proof
 import qualified Equ.Proof.Proof as P(getStart,getEnd,getBasic,getRel,getCtx)
 import Equ.Proof.ListedProof
+import Equ.Proof.Annot
 import Equ.PreExpr hiding (goDownL,goDownR,goRight,goUp,goTop)
 import qualified Equ.PreExpr.Show as PS
 import Equ.GUI.Widget
@@ -32,7 +34,7 @@ import Graphics.UI.Gtk.Glade (GladeXML,xmlGetWidget)
 import Graphics.UI.Gtk.Display.Image
 
 import Data.Maybe(fromJust)
-import Data.Text(unpack)
+import Data.Text(unpack,pack)
 import Data.Map(empty)
 import Data.List(elemIndex)
 
@@ -53,6 +55,7 @@ newProofState (Just p) axiom_box expr1W expr2W proofW= return pr
         pr = ProofState { proof = fromJust $ createListedProof (toProofFocus p)
                         , validProof = validateProof p
                         , proofWidget = fromJust $ createListedProof (pw,Top)
+                        , proofAnnots = fromJust . createListedProof $ emptyProofAnnots
                         }
                         
         pw = Simple () () expr1W expr2W proofW
@@ -65,6 +68,7 @@ newProofState Nothing axiom_box expr1W expr2W proofW = getGlobalCtx >>=
         pr c = ProofState { proof = fromJust $ createListedProof $ p c
                           , validProof = validateProof $ toProof (p c)
                           , proofWidget = fromJust $ createListedProof (pw,Top)
+                          , proofAnnots = fromJust . createListedProof $ emptyProofAnnots
                         }
         p c = emptyProof c $ head $ relationList
         
@@ -269,7 +273,8 @@ newStepProof expr stepIndex container = do
     
     lp <- getProof
     lpw <- getProofWidget
-    
+    lpa <- getProofAnnots
+
     updateProofUndo (addStepOnPosition stepIndex fProof (\e i -> e) (\p i -> p) lp) 
     
     relation <- getRelPF
@@ -291,12 +296,15 @@ newStepProof expr stepIndex container = do
     lpw' <- return $ addStepOnPosition stepIndex (fProofWidget expr_w newStepWL newStepWR)
                                     fUpIndexExprW fUpIndexProofW lpw
 
+    lpa' <- return $ addStepOnPosition stepIndex fProofAnnot const const lpa
+
     liftIO $ debug $ "ProofWidget despues de agregar: " ++ show lpw'
                                     
     lpw'' <- runActionLP lpw' (stepIndex+1) resetSignalsStep
     -- Nota: queda enfocado el paso stepIndex+1
     
     updateProofWidget lpw''
+    updateProofAnnots lpa'
 
     return (centerBoxL,centerBoxR)
     
@@ -319,6 +327,11 @@ newStepProof expr stepIndex container = do
             fProofWidget expr_w newStepWL newStepWR p = 
                   (expr_w,Simple () () (fromJust $ P.getStart p) expr_w newStepWL,
                             Simple () () expr_w (fromJust $ P.getEnd p) newStepWR)
+
+            fProofAnnot p = ( annot
+                            , Simple () () (fromJust . P.getStart $ p) annot ()
+                            , Simple () () annot (fromJust . P.getEnd $ p) ())
+                where annot = pack ""
                             
             fUpIndexExprW :: ExprWidget -> Int -> ExprWidget
             fUpIndexExprW expr_w ind = expr_w { exprProofIndex = ind }
@@ -345,9 +358,7 @@ eventsExprWidget :: ExprWidget -> IState ExprWidget
 eventsExprWidget exprWidget = let stepIndex = exprProofIndex exprWidget in
     do
     s <- get 
-    win <- getWindow
-    runEnvBox (setupOptionExprWidget win >>
-               setupForm (formBox exprWidget) Editable "") (exprWidget,id,stepIndex)
+    runEnvBox (setupForm (formBox exprWidget) Editable "") (exprWidget,id,stepIndex)
 
     expw <- eventsExprWidget' exprWidget
     return expw
@@ -357,8 +368,10 @@ eventsExprWidget' exprWidget = let stepIndex = exprProofIndex exprWidget in
     do
     liftIO $ debug $ "Seteando eventos para eWidget :"++ show exprWidget ++" con indice "++ show stepIndex
     s <- get
+    win <- getWindow
     (cid1,cid2) <- io (setupFocusEvent s stepIndex)
-    return $ exprWidget {exprEventsIds = [Connectable cid1,Connectable cid2]}
+    (cid3,cid4) <-  flip runEnvBox (exprWidget,id,stepIndex) (setupOptionExprWidget win)
+    return $ exprWidget {exprEventsIds = [Connectable cid1,Connectable cid2,Connectable cid3,Connectable cid4]}
     
     where hb = extBox exprWidget
           setupFocusEvent :: GRef -> Int -> IO (ConnectId HBox,ConnectId Button)

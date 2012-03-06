@@ -5,6 +5,7 @@ module Equ.Proof.Annot where
 import Equ.Expr
 import Equ.Proof.Proof
 import Equ.Proof.Zipper (ProofFocus',toProofFocus)
+import Equ.Proof.ListedProof
 import qualified Equ.Rule as R
 
 import Data.Text hiding (null)
@@ -20,6 +21,8 @@ type Annotation = Text
 type ProofAnnotation = Proof' () () () Annotation
 
 type ProofFocusAnnots = ProofFocus' () () () Annotation
+
+type ListedAnnots = ListedProof' () () () Annotation
 
 instance Show ProofAnnotation where
     show (Hole _ _ a a') = "Hole " ++ show a ++ " " ++ show a'
@@ -40,3 +43,6 @@ addEmptyStepAnnots (p@(Hole _ _ a a'),path) =
 addEmptyStepAnnots (p@(Simple _ _ a a' _),path) = 
     (Trans () () a empty a' (Hole () () a empty) (Hole () () empty a'),path)
 addEmptyStepAnnots p = p
+
+instance Show ListedAnnots where
+    show lProof = show (pList lProof) ++ " | Index: " ++ show (selIndex lProof)

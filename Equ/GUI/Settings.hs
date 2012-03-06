@@ -89,3 +89,7 @@ fontBold :: IO FontDescription
 fontBold = fontDescriptionNew >>= \fd ->
            fontDescriptionSetWeight fd WeightBold >>
            return fd
+
+
+-- | Mensaje para cuando no hay una prueba cargada.
+msgAnnotWithoutProof = "No se puede anotar la expresión si no hay una prueba cargada."

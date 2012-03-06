@@ -13,10 +13,11 @@ import Equ.Rule (Relation, relEq)
 
 import Equ.Proof.Proof
 import Equ.Proof.Error(errEmptyProof)
-import Equ.Proof(ProofFocus,ProofFocus',ProofFocusAnnots,updateStartFocus,updateEndFocus,PM,validateProof,
+import Equ.Proof(ProofFocus,ProofFocus',updateStartFocus,updateEndFocus,PM,validateProof,
                  toProof,goFirstLeft,updateMiddleFocus,goUp',getEndFocus,goRight,goEnd,goDownL',
                   getBasicFocus, validateListedProof,validateStepProof, goNextStep, goPrevStep)
 import Equ.Proof.ListedProof
+import Equ.Proof.Annot
 
 import Graphics.UI.Gtk (HBox,StockId,imageSetFromStock,IconSize(IconSizeSmallToolbar))
 import Data.Maybe (fromJust)
@@ -94,10 +95,6 @@ showProof = withRefValue $ uncurry putMsg . (status &&& show . proof . fromJust 
 
 showProof' = getProof >>= io . debug . show
 
-                   
-updateAxiomBox :: HBox -> IState ()
-updateAxiomBox b = update $ \gst -> gst {gProof = Just $ ((fromJust . gProof) gst) {axiomBox = b}}
-
 addTheorem :: Theorem -> IState Theorem
 addTheorem th = (update $ \gst -> gst { theorems = (th:theorems gst) }) >>
                 return th
@@ -114,19 +111,19 @@ getRelPF = getProofState >>= \ps ->
                     getStatePart $ getRelLP . proof . fromJust . gProof
 
 
-updateProofAnnots :: ProofFocusAnnots -> IState ()
+updateProofAnnots :: ListedAnnots -> IState ()
 updateProofAnnots pfa = update (updateProofAnnots' pfa)
 
-updateProofAnnots' :: ProofFocusAnnots -> GState -> GState
+updateProofAnnots' :: ListedAnnots -> GState -> GState
 updateProofAnnots' pfa gst = case gProof gst of
                                 Nothing -> gst
                                 Just gpr -> upd gpr
     where
         upd :: ProofState -> GState
-        upd gpr = undefined --  gst {gProof = Just gpr {proofAnnots = pfa}}
+        upd gpr = gst {gProof = Just gpr {proofAnnots = pfa}}
 
 
-getProofAnnots :: IState ProofFocusAnnots
+getProofAnnots :: IState ListedAnnots
 getProofAnnots = getStatePartDbg "getProof" (proofAnnots . fromJust . gProof)
 
 

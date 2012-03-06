@@ -15,6 +15,8 @@ import Equ.Expr
 import Equ.Exercise.Conf
 import qualified Equ.Proof as P
 import qualified Equ.Proof.Proof as PP
+import Equ.Proof.Annot (ListedAnnots)
+import Equ.Proof.ListedProof (getBasicAt,updateExprAt,getStartExpr,updateFirstExpr)
 import Equ.PreExpr hiding (goDown,goUp,goDownR)
 import qualified Equ.PreExpr as PE
 import Equ.PreExpr.Eval
@@ -354,23 +356,13 @@ instance ExpWriter Constant where
     writeExp s box = lift (removeAllChildren box) >>
                      writeConstant s box
 
-popupWin :: Window -> IO Window
-popupWin w = windowNew >>= \pop ->
-             set pop  [ windowDecorated := False
-                      , windowHasFrame := False
-                      , windowTypeHint := WindowTypeHintDialog
-                      , windowTransientFor := w
-                      , windowGravity := GravityCenter
-                      , windowOpacity := 0.8
-                      ] >>
-             windowSetPosition pop WinPosCenterAlways >>
-             return pop
-
 typeTreeWindow :: Window -> IExpr' Window
 typeTreeWindow w = io (popupWin w) >>= \pop -> 
                    io (vBoxNew False 0) >>= \bTree -> 
                    io (hBoxNew False 0) >>= \we -> 
-                   lift getExpr >>= \f ->
+                   getProofMove >>= \idx ->
+                   lift getProof >>= \prf ->
+                   return (getBasicAt idx prf) >>= \f ->
                    writeExprTreeWidget we (fst f)  >>
                    buildTreeExpr bTree we >>
                    io (containerAdd pop bTree) >>
@@ -378,21 +370,21 @@ typeTreeWindow w = io (popupWin w) >>= \pop ->
 
 -- | Pone el tooltip y configura la acciones para el boton de anotaciones 
 -- del exprWidget.
-configAnnotTB :: IState String -> (String -> IState ()) -> GRef -> Window -> IExpr' ()
+configAnnotTB :: IState String -> (String -> IState ()) -> GRef -> Window -> IExpr' (ConnectId ToggleButton)
 configAnnotTB iST act s w = getAnnotButton >>= \tb ->
                             io $ setToolTip tb "Anotaciones" >>
                             actTBOn tb w (io . annotWindow iST act s)
+                            
 
 -- | Pone el tooltip y configura la acciones para el boton del árbol
 -- de tipado del exprWidget.
-configTypeTreeTB :: Window -> IExpr' ()
+configTypeTreeTB :: Window -> IExpr' (ConnectId ToggleButton)
 configTypeTreeTB w = lift get >>= \s ->
                      getTypeButton >>= \tb ->
                      io (setToolTip tb "Árbol de tipado") >>
                      ask >>= \env ->
                      io (actTBOn tb w $ \w' -> flip evalStateT s $
-                                     runReaderT (typeTreeWindow w') env) >>
-                     return ()
+                                     runReaderT (typeTreeWindow w') env)
 
 -- | El primer argumento indica la acción a realizar con el contenido del 
 -- buffer al momento de cerrar el popup.
@@ -408,7 +400,7 @@ annotWindow iST act s w = popupWin w >>= \pop ->
                     return pop
 
 -- | Define la acción para cuando no está activado.
-actTBOn :: ToggleButton -> Window -> (Window -> IO Window) -> IO ()
+actTBOn :: ToggleButton -> Window -> (Window -> IO Window) -> IO (ConnectId ToggleButton)
 actTBOn tb w f = do rec {
                        cid <- tb `on` toggled $ io 
                              (f w >>= \pop ->
@@ -417,13 +409,13 @@ actTBOn tb w f = do rec {
                               signalDisconnect cid >>
                               actTBOff tb w f pop)
                     } ;
-                    return ()
+                    return cid
 
 actTBOff :: ToggleButton -> Window -> (Window -> IO Window) -> Window -> IO ()
 actTBOff tb w f pop = do rec {
                           cid <- tb `on` toggled $ io ( widgetDestroy pop >>
                                                        signalDisconnect cid >>
-                                                       actTBOn tb w f)
+                                                       actTBOn tb w f >> return ())
                          }
                          return ()
 
@@ -443,6 +435,7 @@ exprChangeStatus ew es = io $
                     do
                     imageSetFromStock (imgStatus ew) (imgState es) IconSizeMenu
                     setToolTip (imgStatus ew) (show es)
+
 -- | Crea un widget para una expresión. El argumento "initial" indica si es inicial.
 -- En ese caso no se crea el botón para ver posibles reescrituras.
 -- El argumento "proofIndex" indica el paso de prueba en la cual este widget de expresion
@@ -513,79 +506,60 @@ createInitExprWidget expr p = do
     return expr_w
     
 
-setupOptionInitExprWidget :: Window -> IExpr' ()
+setupOptionInitExprWidget :: Window -> IExpr' (ConnectId ToggleButton, ConnectId ToggleButton)
 setupOptionInitExprWidget win = ask >>= \env ->
                                 lift get >>= \s ->
                                 configAnnotTB (loadAnnotation env) 
-                                              (saveAnnotation env) s win >> 
-                                 configTypeTreeTB win
+                                              (saveAnnotation env) s win >>= \cid1 ->
+                                configTypeTreeTB win >>= \ cid2 -> 
+                                return (cid1,cid2)
+                                
     where
         loadAnnotation :: Env -> IState String
         loadAnnotation env = getProofState >>= \mps ->
                              case mps of
-                                Nothing -> return "No existe una prueba para asociar la anotaci´on." 
-                                Just _ -> runReaderT (loadInitAnnot) env
+                                Nothing -> return msgAnnotWithoutProof
+                                Just _ -> loadInitAnnot
         saveAnnotation :: Env -> String -> IState ()
         saveAnnotation env s = getProofState >>= \mps ->
                                case mps of
                                     Nothing -> return ()
-                                    Just _ -> runReaderT (saveInitAnnot s) env
+                                    Just _ -> saveInitAnnot s
 
--- | Carga la anotaci´on de una expresi´on en base al entorno.
-loadInitAnnot :: IExpr' String
-loadInitAnnot = lift getProofAnnots >>= \p ->
-                return $ getAnnot p
-    where
-        getAnnot :: P.ProofFocusAnnots -> String
-        getAnnot = unpack . fromJust . PP.getStart . P.toProof
+-- | Carga la anotación de una expresión en base al entorno.
+loadInitAnnot :: IState String
+loadInitAnnot = getProofAnnots >>= return . unpack . getStartExpr
         
-saveInitAnnot :: String -> IExpr' ()
-saveInitAnnot s = lift getProofAnnots >>= \p ->
-                  updateAnnot p
-    where
-        pfaTop :: P.ProofFocusAnnots -> P.ProofFocusAnnots
-        pfaTop pfa= fromJust $ P.goTop pfa
-        updateAnnot :: P.ProofFocusAnnots -> IExpr' ()
-        updateAnnot pfa = lift $
-            updateProofAnnots $ P.replace (pfaTop pfa) $ P.updateStart (fst $ pfaTop pfa) (pack s)
+saveInitAnnot :: String -> IState ()
+saveInitAnnot s = getProofAnnots >>= updateProofAnnots . updateFirstExpr (pack s)
 
-setupOptionExprWidget :: Window -> IExpr' ()
+setupOptionExprWidget :: Window -> IExpr' (ConnectId ToggleButton,ConnectId ToggleButton)
 setupOptionExprWidget win  = ask >>= \env ->
                              lift get >>= \s ->
                              configAnnotTB (loadAnnotation env)
                                            (saveAnnotation env)
-                                           s win >>
-                             configTypeTreeTB win
+                                           s win >>= \cid1 ->
+                             configTypeTreeTB win >>= \ cid2 ->
+                             return (cid1,cid2)
     where
         loadAnnotation :: Env -> IState String
-        loadAnnotation = runReaderT (loadAnnot)
+        loadAnnotation = runReaderT loadAnnot
         saveAnnotation :: Env -> String -> IState ()
         saveAnnotation env = flip runReaderT env . saveAnnot
 
+getAnnot :: ListedAnnots -> Env -> String
+getAnnot pfa env = unpack $ getBasicAt (pme env) pfa
+
 -- | Carga la anotaci´on de una expresi´on en base al entorno.
 loadAnnot :: IExpr' String
-loadAnnot = ask >>= \env ->
-            lift getProofAnnots >>= \p ->
-            return $ getAnnot p env
-    where
-        getAnnot :: P.ProofFocusAnnots -> Env -> String
-        getAnnot pfa env = undefined -- getAnnotFromFocus pme env pfa
-        getAnnotFromFocus :: Maybe P.ProofFocusAnnots -> String
-        getAnnotFromFocus = unpack . fromJust . PP.getEnd . fst . fromJust
+loadAnnot = lift getProofAnnots >>= \p ->
+            ask >>= return . getAnnot p
 
 -- | Guarda la anotaci´on para una expresi´on en base al entorno.
 saveAnnot :: String -> IExpr' ()
-saveAnnot s = 
-        ask >>= \env ->
-        lift getProofAnnots >>= \p ->
-        moveProofFocus p env >>= \pfa ->
-        updateAnnot pfa
-    where
-        moveProofFocus :: P.ProofFocusAnnots -> Env -> IExpr' P.ProofFocusAnnots
-        moveProofFocus pfa env = undefined -- return . fromJust $ (pme env) pfa
-        updateAnnot :: P.ProofFocusAnnots -> IExpr' ()
-        updateAnnot pfa = lift $
-            updateProofAnnots $ P.replace pfa $ P.updateEnd (fst pfa) (pack s)
+saveAnnot s = lift getProofAnnots >>= \pfa ->
+              ask >>= \env -> 
+              lift . updateProofAnnots $ updateExprAt (pme env) (pack s) pfa
             
 
 loadExpr :: HBox -> PreExpr -> IExpr ExprWidget 
