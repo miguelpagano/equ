@@ -371,12 +371,12 @@ typeTreeWindow w initial =
                     io (hBoxNew False 0) >>= \we -> 
                     (if initial then
                         lift getInitialExpr >>= \(Just (Expr e)) ->
-                        writeExprTreeWidget we e >>
+                        writeExprTreeWidget we e
                     else
                         getProofMove >>= \idx ->
                         lift getProof >>= \prf ->
                         return (getBasicAt idx prf) >>= \f ->
-                        writeExprTreeWidget we (toExpr f) >>
+                        writeExprTreeWidget we (toExpr f)) >>
                     buildTreeExpr bTree we initial >>
                     io (containerAdd pop bTree) >>
                     return pop
