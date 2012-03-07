@@ -493,11 +493,14 @@ discardProof centralBox expr_w = unsetProofState >>
                                  runEnvBox (reloadExpr (toExpr e)) (expr_w,id,0)
 
 
-changeProofFocusAndShow ind = unSelectBox >>
-                              changeProofFocus ind >>
-                              selectBox focusBg >>
-                              getExprWidget >>= \ew -> 
-                              getSymCtrl >>= \symbols ->
-                              getSymStore >>= \sListStore ->
-                              --runEnvBox (eventsSymbolList symbols sListStore) (ew,id,ind)
-                              return ()
+changeProofFocusAndShow ind = getSelIndexProof >>= \i ->
+                              if i==ind
+                                 then return ()
+                                 else unSelectBox >>
+                                      changeProofFocus ind >>
+                                      selectBox focusBg >>
+                                      getExprWidget >>= \ew -> 
+                                      getSymCtrl >>= \symbols ->
+                                      getSymStore >>= \sListStore ->
+                                      runEnvBox (eventsSymbolList symbols sListStore) (ew,id,ind)
+                                      
