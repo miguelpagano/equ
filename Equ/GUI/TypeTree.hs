@@ -20,6 +20,7 @@ import Control.Monad.Reader
 import Control.Monad (when, unless) 
 
 import Data.List (find)
+import Data.Maybe (fromJust)
 import qualified Data.Foldable as F
 
 updateAtPlace = flip (updateExpr . fst)
@@ -39,11 +40,10 @@ typeTreeWidget eb btree =  io $ do
 -- | Función principal que construye el arbol de tipado.
 -- Esencialmente, esta función construye una caja donde se muestra el
 -- arbol construido con @buildTreeExpr'@. 
-buildTreeExpr :: VBox -> HBox -> IExpr' [(ExprState,Move)]
-buildTreeExpr bTreeExpr we = do moveFocus <- getProofMove
-                                lift (changeProofFocus moveFocus)
-                                f <- lift getExpr
-                                io $ debug $ show f
+buildTreeExpr :: VBox -> HBox -> Bool -> IExpr' [(ExprState,Move)]
+buildTreeExpr bTreeExpr we initial = 
+                                do 
+                                f <- getExpr'
                                 ws <- io (containerGetChildren we)
                                 if (length ws < 1) 
                                 then error "buildTreeExpr: unexpected short we"
@@ -59,11 +59,21 @@ buildTreeExpr bTreeExpr we = do moveFocus <- getProofMove
                                   io $ boxPackStart bTreeExpr we PackGrow 5
                                   -- Configura los eventos en las hojas para poder editar los tipos.
                                   let l' = (mes,p):l --map (\(e,p') -> (e,p')) l
-                                  configTypeEntry bTreeExpr l'
+                                  configTypeEntry bTreeExpr l' initial
                                   return l'
 
-    where makeMainExprState f we  = io (chkPreExp f) >>= \t -> 
-                                    makeExprState f t we 
+    where 
+        makeMainExprState f we  = io (chkPreExp f) >>= \t -> makeExprState f t we 
+        getExpr' :: IExpr' Focus
+        getExpr' = do
+                if initial then
+                    lift getInitialFocus >>= return . fromJust
+                else
+                    do
+                    moveFocus <- getProofMove
+                    lift (changeProofFocus moveFocus)
+                    f <- lift getExpr
+                    return f
 
 makeExprState :: Focus -> Type -> HBox -> IExpr' ExprState
 makeExprState f t eb  = io (setupEventExpr f t eb) >>= \ev_type ->
@@ -153,8 +163,8 @@ typedCheckType f ess = either (\err -> paintBranchErr ((fst . fst) err) (map fst
 --                         Right _   -> undefined
 
 -- | Define el manejador de eventos de la caja para editar typos.
-setupEventsLeaf :: VBox -> (ExprState,Move) -> IExpr' ()
-setupEventsLeaf extBTree (es,p') = do 
+setupEventsLeaf :: VBox -> (ExprState,Move) -> Bool -> IExpr' ()
+setupEventsLeaf extBTree (es,p') initial = do 
   let b = eventType es
   [tb'] <- io $ containerGetChildren b
   tb <- return $ castToEventBox tb'
@@ -170,15 +180,15 @@ setupEventsLeaf extBTree (es,p') = do
                       containerRemove b tb >>
                       boxPackStart b eText PackGrow 0 >> 
                       widgetShowAll b) >>
-                  onTypeEdited eText extBTree b tb es p')
+                  onTypeEdited eText extBTree b tb es p' initial)
   return ()
 
 -- | Manejo del evento Activate en las cajas de texto de tipos:
 -- sólo se hace algo si el parseo es exitoso. Si el parseo falla,
 -- el error se muestra en la función @checkInType@. Si el parseo
 -- es exitoso, se elimina el entryBox y se pone una etiqueta.
-onTypeEdited :: Entry -> VBox -> HBox -> EventBox -> ExprState -> Move -> IExpr' ()
-onTypeEdited eText extBTree b tb es p' = ask >>= \ env -> 
+onTypeEdited :: Entry -> VBox -> HBox -> EventBox -> ExprState -> Move -> Bool -> IExpr' ()
+onTypeEdited eText extBTree b tb es p' initial = ask >>= \ env -> 
             lift (withState (onEntryActivate eText) (flip runReaderT env $ 
                         getProofMove >>= \moveFocus ->
                         lift (changeProofFocus moveFocus) >>
@@ -203,16 +213,17 @@ onTypeEdited eText extBTree b tb es p' = ask >>= \ env ->
                         lift (removeAllChildren extBTree) >>
                         return (castToHBox $ head wl) >>= \we ->
                         lift getExpr >>= \f' ->
-                        buildTreeExpr extBTree we >>= \l ->
+                        buildTreeExpr extBTree we initial >>= \l ->
                         lift (typedCheckType f' l) >>
                         return ()))) >>
             return ()
 
 -- | Aplica la función para transformar los labels de tipos
 -- atómicos en entryBoxes para poder cambiarlos.
-configTypeEntry :: VBox -> [(ExprState,Move)] -> IExpr' ()
-configTypeEntry extBTree ess = mapM_ (\es ->  when ((checkIsAtom . fExpr) (fst es))
-                                                          (setupEventsLeaf extBTree es)) ess
+configTypeEntry :: VBox -> [(ExprState,Move)] -> Bool -> IExpr' ()
+configTypeEntry extBTree ess initial = 
+                    mapM_ (\es ->  when ((checkIsAtom . fExpr) (fst es))
+                          (setupEventsLeaf extBTree es initial)) ess
 
 -- Configuración general para los botones. 
 -- (Coloreo y desColoreo al pasar por encima)

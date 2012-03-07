@@ -364,17 +364,22 @@ instance ExpWriter Constant where
     writeExp s box = lift (removeAllChildren box) >>
                      writeConstant s box
 
-typeTreeWindow :: Window -> IExpr' Window
-typeTreeWindow w = io (popupWin w) >>= \pop -> 
-                   io (vBoxNew False 0) >>= \bTree -> 
-                   io (hBoxNew False 0) >>= \we -> 
-                   getProofMove >>= \idx ->
-                   lift getProof >>= \prf ->
-                   return (getBasicAt idx prf) >>= \f ->
-                   writeExprTreeWidget we (fst f)  >>
-                   buildTreeExpr bTree we >>
-                   io (containerAdd pop bTree) >>
-                   return pop
+typeTreeWindow :: Window -> Bool -> IExpr' Window
+typeTreeWindow w initial = 
+                    io (popupWin w) >>= \pop -> 
+                    io (vBoxNew False 0) >>= \bTree -> 
+                    io (hBoxNew False 0) >>= \we -> 
+                    (if initial then
+                        lift getInitialExpr >>= \(Just (Expr e)) ->
+                        writeExprTreeWidget we e >>
+                    else
+                        getProofMove >>= \idx ->
+                        lift getProof >>= \prf ->
+                        return (getBasicAt idx prf) >>= \f ->
+                        writeExprTreeWidget we (toExpr f) >>
+                    buildTreeExpr bTree we initial >>
+                    io (containerAdd pop bTree) >>
+                    return pop
 
 -- | Pone el tooltip y configura la acciones para el boton de anotaciones 
 -- del exprWidget.
@@ -386,13 +391,13 @@ configAnnotTB iST act s w = getAnnotButton >>= \tb ->
 
 -- | Pone el tooltip y configura la acciones para el boton del árbol
 -- de tipado del exprWidget.
-configTypeTreeTB :: Window -> IExpr' (ConnectId ToggleButton)
-configTypeTreeTB w = lift get >>= \s ->
+configTypeTreeTB :: Window -> Bool -> IExpr' (ConnectId ToggleButton)
+configTypeTreeTB w initial = lift get >>= \s ->
                      getTypeButton >>= \tb ->
                      io (setToolTip tb "Árbol de tipado") >>
                      ask >>= \env ->
                      io (actTBOn tb w $ \w' -> flip evalStateT s $
-                                     runReaderT (typeTreeWindow w') env)
+                                     runReaderT (typeTreeWindow w' initial) env)
 
 -- | El primer argumento indica la acción a realizar con el contenido del 
 -- buffer al momento de cerrar el popup.
@@ -519,7 +524,7 @@ setupOptionInitExprWidget win = ask >>= \env ->
                                 lift get >>= \s ->
                                 configAnnotTB (loadAnnotation env) 
                                               (saveAnnotation env) s win >>= \cid1 ->
-                                configTypeTreeTB win >>= \ cid2 -> 
+                                configTypeTreeTB win True >>= \ cid2 -> 
                                 return (cid1,cid2)
                                 
     where
@@ -547,7 +552,7 @@ setupOptionExprWidget win  = ask >>= \env ->
                              configAnnotTB (loadAnnotation env)
                                            (saveAnnotation env)
                                            s win >>= \cid1 ->
-                             configTypeTreeTB win >>= \ cid2 ->
+                             configTypeTreeTB win False >>= \ cid2 ->
                              return (cid1,cid2)
     where
         loadAnnotation :: Env -> IState String
@@ -593,8 +598,9 @@ newExprState expr expr_w hbox2 = return $
                                            }                                 
 
 initExprState expr = do 
-  hbox2 <- io $ hBoxNew False 2
-  expr_w <- createExprWidget True 0
-  -- Ponemos un ExprWidget sin sentido para iniciar el estado. ESTO PODRIA REVISARSE
-  expr' <- newExprState expr expr_w hbox2
-  updateExprState expr' 
+            hbox2 <- io $ hBoxNew False 2
+
+            expr_w <- createExprWidget True 0
+            -- Ponemos un ExprWidget sin sentido para iniciar el estado. ESTO PODRIA REVISARSE
+            expr' <- newExprState expr expr_w hbox2
+            updateExprState expr' 

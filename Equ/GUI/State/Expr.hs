@@ -8,7 +8,7 @@ import Equ.GUI.State.Proof
 import Equ.GUI.Utils
 import Equ.Expr (Expr (..))
 import Equ.Syntax (Variable)
-import Equ.PreExpr (toExpr,goTop,Focus,PreExpr'(..),PreExpr)
+import Equ.PreExpr (toExpr,goTop,Focus,PreExpr'(..),PreExpr,toFocus)
 
 import Equ.Proof(getStart, toProof,getEnd,getRel)
 import Equ.Proof.ListedProof
@@ -56,6 +56,11 @@ getExpr = getProofState >>= \ps ->
 getFocusedExpr :: Move -> IState Focus
 getFocusedExpr p = getExpr >>= return . p . goTop
 
+getInitialFocus :: IState (Maybe Focus)
+getInitialFocus = getInitialExpr >>= \initExpr ->
+                  case initExpr of
+                      Nothing -> return Nothing
+                      Just (Expr e) -> return $ Just $ toFocus e
 
 getInitialExpr :: IState (Maybe Expr)
 getInitialExpr = getProofState >>= \mps ->

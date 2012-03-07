@@ -54,7 +54,7 @@ validateStep :: IState ()
 validateStep = getProofState >>= 
                F.mapM_ (\ps -> getProof >>= \lp ->
                case validateStepProof lp of
-                    Left _ -> updateStepWidgetImage iconErrorProof
+                    Left er -> updateStepWidgetImage iconErrorProof
                     Right _ -> updateStepWidgetImage iconValidProof
                    )
 
