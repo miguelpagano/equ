@@ -23,6 +23,7 @@ import Equ.PreExpr.Eval
 import qualified Equ.PreExpr.Show as PS
 import Equ.Syntax
 import Equ.Parser
+import Equ.TypeChecker(checkPreExpr)
 import Equ.Types
 
 import qualified Graphics.UI.Gtk as G (get)
@@ -129,29 +130,30 @@ setExprFocus box entry  = lift getExercise >>= \exer ->
           hole = preExprHole ""
           putHole :: IExpr' ()
           putHole = getPath >>= \p -> lift (updateExpr hole p) >> 
-                    configExprStatus hole Unknown >>
+                    configExprStatus hole >>
                     writeExprWidget box hole
           isHole :: PreExpr -> Bool
           isHole = isPreExprHole . toFocus
-          configExprStatus :: PreExpr -> ExprStatus -> IExpr' ()
-          configExprStatus e es = 
-                            ask >>= \env -> 
-                            if isHole e then
-                                exprChangeStatus (ew env) Unknown
-                            else
-                                exprChangeStatus (ew env) es
+          configExprStatus :: PreExpr -> IExpr' ()
+          configExprStatus e = 
+                    ask >>= \env -> 
+                    case (isHole e, checkPreExpr e) of
+                        (True,_) -> exprChangeStatus (ew env) Unknown
+                        (_,Left _) -> exprChangeStatus (ew env) Parsed
+                        (_,Right _) -> exprChangeStatus (ew env) TypeChecked
+          reset :: PreExpr -> PreExpr
+          reset = toExpr . PE.resetTypeAllAtoms . toFocus
           typeCheckConfigExpr :: Bool -> PreExpr -> IExpr' PreExpr
           typeCheckConfigExpr exerFlag e = 
                     if not exerFlag then 
-                        configExprStatus e TypeChecked >>
+                        configExprStatus e >>
                         return e
                     else
                         lift getExerciseConfTypeCheck >>= \tc -> 
                         case tc of
-                            Manual -> configExprStatus e Parsed >> 
-                                    (return . toExpr)
-                                    (PE.resetTypeAllAtoms $ toFocus e)
-                            _ -> configExprStatus e TypeChecked >> return e
+                            Manual -> let e' = reset e
+                                      in configExprStatus e' >> return e'
+                            _ -> configExprStatus e >> return e
                             
           parse :: String -> Bool -> IExpr' ()
           parse s exerFlag = 
