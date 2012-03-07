@@ -488,12 +488,11 @@ eventsProofStep psw = do
 
 -- | Descarta la prueba actual.
 discardProof centralBox expr_w = unsetProofState >>
-                                  removeAllChildren centralBox >>
-                                  getExpr >>= \e ->
-                                  runEnvBox (reloadExpr (toExpr e)) (expr_w,id,0)
+                                 removeAllChildren centralBox >>
+                                 getExpr >>= \e ->
+                                 runEnvBox (reloadExpr (toExpr e)) (expr_w,id,0)
 
 
-                                        
 changeProofFocusAndShow ind = unSelectBox >>
                               changeProofFocus ind >>
                               selectBox focusBg >>

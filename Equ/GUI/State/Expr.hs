@@ -8,7 +8,7 @@ import Equ.GUI.State.Proof
 import Equ.GUI.Utils
 import Equ.Expr (Expr (..))
 import Equ.Syntax (Variable)
-import Equ.PreExpr (toExpr,goTop,Focus,PreExpr'(..),PreExpr,toFocus)
+import Equ.PreExpr (toExpr,goTop,Focus,PreExpr'(..),PreExpr,toFocus,holePreExpr)
 
 import Equ.Proof(getStart, toProof,getEnd,getRel)
 import Equ.Proof.ListedProof
@@ -46,11 +46,13 @@ getExprWidget = getProofState >>= \ps ->
                      Nothing -> getStatePartDbg "getExprWidget" $ exprWidget . fromJust . gExpr
                      Just ps' -> return $ getSelExpr (proofWidget ps')
 
-
 getExpr :: IState Focus
 getExpr = getProofState >>= \ps ->
           case ps of
-               Nothing -> getStatePartDbg "getExpr" $ fExpr . fromJust . gExpr
+               Nothing -> getStatePartDbg "getExpr" $ 
+                          (\g -> case gExpr g of
+                                    Nothing -> toFocus holePreExpr
+                                    Just es -> fExpr es)
                Just ps' -> return $ getSelExpr $ proof ps'
 
 getFocusedExpr :: Move -> IState Focus

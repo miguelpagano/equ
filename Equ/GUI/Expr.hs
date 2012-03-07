@@ -177,7 +177,7 @@ writeExprTreeWidget :: HBox -> PreExpr -> IExpr' ()
 writeExprTreeWidget =  writeExprWidget' NotEditable
 
 writeExprWidget' :: EditMask -> HBox -> PreExpr -> IExpr' ()
-writeExprWidget' emask box expr = frameExp expr emask  >>= \(WExpr box' _) ->                              
+writeExprWidget' emask box expr = frameExp expr emask  >>= \(WExpr box' _) ->
                                   lift (removeAllChildren box >>
                                         addToBox box box') >>
                                   io (widgetShowAll box)
