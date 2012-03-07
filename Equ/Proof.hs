@@ -85,12 +85,16 @@ whenEqWithDefault def a b = whenPM (==a) def b >> return ()
 notValidSimpleProof :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Proof
 notValidSimpleProof f1 f2 r t = Simple beginCtx r f1 f2 $ truthBasic t
 
+whenEqRelWithDefault :: Eq a => ProofError -> a -> a -> [a] -> PM ()
+whenEqRelWithDefault def a b rs = whenPM (\b -> b==a || b `elem` rs) def b >> 
+                                  return ()
+
 -- | Comprueba que el uso de una regla sea correcto. La relación que se
 -- pasa como argumento es el de la prueba.
 checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Rule
                              -> (ProofFocus -> ProofFocus) -> PM ()
 checkSimpleStepFromRule f1 f2 rel t rule fMove = 
-    whenEqWithDefault errRel rel (truthRel t) >>
+    whenEqRelWithDefault errRel rel (truthRel t) [relEquiv,relEq]>>
     case partitionEithers $ rewriteAllFocuses (PE.toExpr f1) rule of
          (_,[]) -> Left err
          (_,ls) -> case partitionEithers $ map (flip (whenEqWithDefault err) (PE.goTop f2) . PE.goTop) ls of
