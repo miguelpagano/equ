@@ -191,8 +191,7 @@ checkProof validImage top_box = getProofState >>= (F.mapM_ $ \ps ->
                                 then updateImageValid iconValidProof
                                 else getValidProof >>= \(Left errorProof) ->
                                         io (putStrLn (show errorProof)) >>
-                                        updateImageValid iconErrorProof >>
-                                        reportErrWithErrPaned (show errorProof))
+                                        updateImageValid iconErrorProof)
                                        
 
 -- | Creación de línea de justificación de paso en una prueba.
