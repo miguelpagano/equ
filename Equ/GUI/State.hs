@@ -21,6 +21,7 @@ module Equ.GUI.State ( -- * Proyeccion de componentes del estado
                      , getAxiomBox
                      , getAxiomBox'
                      , getStepProofBox
+                     , getSelIndexProof
                      -- * Modificacion del estado.
                      , updateExpr
                      , updateRelation
@@ -81,14 +82,29 @@ import qualified Data.Foldable as F (mapM_,forM_)
 
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
 updateExpr :: PreExpr -> Move -> IState ()
-updateExpr e' p = update (updateExpr' e' p) >> 
-                  showExpr >> 
-                  addToUndoList >> 
-                  restoreValidProofImage >>
-                  -- validamos el paso en el que esta la expresion y el siguiente, si lo tiene
-                  validateStep >> moveNextProofStep >> validateStep >>
-                  movePrevProofStep
-                  
+updateExpr e' p = getProofState >>= \ps ->
+                  case ps of
+                       Nothing -> upd e' p
+                       Just ps' -> debuging >> upd e' p
+                
+    where upd e' p = update (updateExpr' e' p) >> 
+                     showExpr >> 
+                     addToUndoList >> 
+                     restoreValidProofImage >>
+                     -- validamos el paso en el que esta la expresion y el siguiente, si lo tiene
+                     validateStep >> 
+                     getProofState >>=
+                     F.mapM_ (\ps -> getProof >>= return . isLastSelected >>= \b ->
+                     if not b 
+                        then moveNextProofStep >> validateStep >> movePrevProofStep
+                        else return ()
+                     )  
+          debuging = getProof >>=
+                  return . selIndex >>= \ip ->
+                  getProofWidget >>=
+                  return . selIndex >>= \ipw ->
+                  io (debug $ "updating Expr, indice seleccionado: Proof = " ++ (show ip) ++
+                            " ProofWidget = " ++ (show ipw))
 
 -- | Pone una nueva expresión en el lugar indicado por la función de ida-vuelta.
 updateFocus :: Focus -> GoBack -> IState ()
@@ -193,7 +209,13 @@ getExprProof = getValidProof >>= either (const (return holeExpr)) (return . getE
     where getExpr p = Expr $ BinOp (relToOp (fromJust $ getRel p))
                                    (toExpr $ fromJust $ getStart p)
                                    (toExpr $ fromJust $ getEnd p)
-                                     
+                             
+getSelIndexProof :: IState Int
+getSelIndexProof = getProofState >>= \ps ->
+                   case ps of
+                        Nothing -> return 0
+                        Just ps' -> getProof >>= return . selIndex
+                             
 
 getWindow :: IState Window
 getWindow = getStatePart gWindow

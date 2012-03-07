@@ -6,6 +6,7 @@ module Equ.Proof.ListedProof
     ,getSelExpr,getSelBasic,getRelLP, getStartExpr, getBasicAt
     , updateExprAt, updateFirstExpr
     ,resetStep, listedToProof, runActionLP
+    , isLastSelected
     ) where
 
 import Equ.Proof.Proof
@@ -289,6 +290,7 @@ moveToNextPosition lProof = if selIndex lProof >= (length (pList lProof)) - 1
                                      lProof { selIndex = newInd
                                             , pFocus = moveToPos newInd (pFocus lProof)
                                             }
+
                                
 moveToPrevPosition :: ListedProof' ctxTy relTy proofTy exprTy ->
                       ListedProof' ctxTy relTy proofTy exprTy
@@ -298,11 +300,16 @@ moveToPrevPosition lProof = if selIndex lProof == 0
                                      lProof { selIndex = newInd
                                             , pFocus = moveToPos newInd (pFocus lProof)
                                             }
+
     
 moveToLastPosition :: ListedProof' ctxTy relTy proofTy exprTy ->
                       ListedProof' ctxTy relTy proofTy exprTy
 moveToLastPosition lProof = let lind = length (pList lProof) - 1 in
                                 moveToPosition lind lProof
+                    
+isLastSelected :: ListedProof' ctxTy relTy proofTy exprTy -> Bool
+isLastSelected lProof = selIndex lProof == (length (pList lProof)) - 1
+                    
                     
 -- Mueve un proofFocus hasta la hoja indicada por el indice. 
 -- NOTA: Si el indice es mayor a la cantidad de hojas devuelve la ultima.

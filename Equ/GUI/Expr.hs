@@ -85,12 +85,16 @@ editExpr b env s = do
                    LeftButton <- eventButton
                    DoubleClick <- eventClick
                    flip eventWithState s $ 
-                       flip runReaderT env $ 
+                       getSelIndexProof >>= \i ->
+                       liftIO (debug $ "editando expresion con environment pme = "++ show i) >>
+                       (flip runReaderT (env {pme=i}) $ 
                            exprChangeStatus (ew env) NotParsed >>
                            getPath >>= \p ->
                            lift (getFocusedExpr p) >>= \(e,_) ->
+                           io (debug $ "expresion seleccionada: " ++ show e) >>
                            newFocusToSym >>
                            writeExpr (Just e) b
+                       )
                    io $ widgetShowAll b
 
 -- | Pone una caja de texto para ingresar una expresión; cuando se

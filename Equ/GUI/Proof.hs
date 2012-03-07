@@ -499,4 +499,5 @@ changeProofFocusAndShow ind = unSelectBox >>
                               getExprWidget >>= \ew -> 
                               getSymCtrl >>= \symbols ->
                               getSymStore >>= \sListStore ->
-                              runEnvBox (eventsSymbolList symbols sListStore) (ew,id,ind)
+                              --runEnvBox (eventsSymbolList symbols sListStore) (ew,id,ind)
+                              return ()
