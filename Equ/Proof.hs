@@ -180,9 +180,11 @@ validateProof' proof@(Deduc ctx p q prf) mvFocus =
 validateProof' _ _ = undefined
 
 
-possibleExpr :: Truth t => PE.PreExpr -> t -> [PE.PreExpr]
-possibleExpr p t = map PE.toExpr $ rights $ concat $ map (rewriteAllFocuses p) (truthRules t)
-          
+possibleExpr :: PE.PreExpr -> Basic -> [PE.PreExpr]
+possibleExpr p basic = case basic of
+                         Evaluate -> filter (/= p) [evalExpr p]
+                         _ -> map PE.toExpr $ rights $ concat $ map (rewriteAllFocuses p) (truthRules basic)
+
 
 {- | Comenzamos una prueba dados dos focus y una relaci&#243;n entre ellas, de 
         la cual no tenemos una prueba.
