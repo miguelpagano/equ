@@ -33,7 +33,10 @@ import Equ.Rule
 import Equ.TypeChecker
 import Equ.Types
 
-import Data.Text (Text, unpack)
+import qualified Equ.Theories.Arith as A (varNat)
+import qualified Equ.Theories.Common as C (equal)
+ 
+import Data.Text (Text, unpack,pack)
 
 import qualified Data.Map as M (Map (..), fromList, findMax, null, insert, lookup)
 
@@ -85,8 +88,7 @@ data Axiom = Axiom {
     deriving Eq
 
 instance Show Axiom where
-    --show ax = (show . unpack . axName) ax ++ ": " ++ (show . axExpr) ax
-    show ax = (unpack . axName) ax
+    show  = unpack . axName
     
 instance Arbitrary Axiom where
     arbitrary = Axiom <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
@@ -189,22 +191,34 @@ data Basic where
     Ax  :: Axiom -> Basic    -- Un axioma de cierta teor&#237;a.
     Theo :: Theorem -> Basic  -- Un teorema ya probado.
     Hyp :: Hypothesis -> Basic   --  Una hip&#243;tesis que aparece en el contexto.               
-    deriving (Show, Eq)
+    Evaluate :: Basic
+           deriving Eq
     
 instance Truth Basic where
     truthName (Ax a) = axName a
     truthName (Theo t) = thName t
     truthName (Hyp h) = hypName h
+    truthName Evaluate = "Evaluar"
+
     truthExpr (Ax a) = axExpr a
     truthExpr (Theo t) = thExpr t
     truthExpr (Hyp h) = hypExpr h
+    truthExpr Evaluate = C.equal (A.varNat "x") (A.varNat "x")
+
     truthRel (Ax a) = axRel a
     truthRel (Theo t) = thRel t
     truthRel (Hyp h) = hypRel h
+    truthRel Evaluate = relEq
+
     truthRules (Ax a) = axRules a
     truthRules (Theo t) = thRules t
     truthRules (Hyp h) = hypRule h
+    truthRules Evaluate = []
+
     truthBasic b = b
+
+instance Show Basic where
+    show = unpack . truthName
     
 -- 
 instance Arbitrary Basic where

@@ -31,11 +31,15 @@ type TruthItem = (String, HBox -> IRG)
 -- una expresión en una caja de texto y parsearla.
 listTruths :: [TheoryName] -> [Theorem] -> IO (TreeStore TruthItem)
 listTruths available theoremList = treeStoreNew $ forest axioms 
+                                      ++ forest eval
                                       ++ forest theorems 
                                       ++ forest hypothesis
     where theorems = [(pack "Teoremas", theoremList)]
           hypothesis :: Grouped Hypothesis
           hypothesis = [(pack "Hipótesis", [])]
+
+          eval :: Grouped Basic
+          eval = [(pack "Aritmética", [Evaluate])]
 
           forest ::  (Truth t, Show t) => Grouped t -> Forest TruthItem
           forest = toForest (\x -> (unpack x, const $ return ())) addItem  

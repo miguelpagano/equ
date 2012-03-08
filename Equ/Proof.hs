@@ -51,6 +51,7 @@ import Equ.Theories.Common
 
 import qualified Equ.PreExpr as PE hiding (replace)
 import Equ.Expr
+import Equ.PreExpr.Eval (evalExpr)
 import Equ.Rule
 import Equ.Rewrite
 
@@ -72,6 +73,12 @@ firstWithDef def f xs = head $ filter f xs ++ [def]
 firstRight :: Either a b -> [Either a b] -> Either a b
 firstRight def = firstWithDef def isRight
                  
+
+-- | Determina si dos expresiones son iguales al evaluar
+-- todas las expresiones aritméticas.
+checkEval :: PE.Focus -> PE.Focus -> Bool
+checkEval e e' = evalExpr (PE.toExpr e) == evalExpr (PE.toExpr e')
+
 
 -- Funcion para checkear igualdad, con la variante importante que en caso de
 -- no cumplirse devolvemos un resultado por default.
@@ -119,19 +126,16 @@ proofFromRule f1 f2 rel t r fMove = checkSimpleStepFromRule f1 f2 rel t r fMove 
 -- | Dados dos focuses f1 y f2, una relacion rel y un axioma o
 -- teorema, intenta crear una prueba para f1 rel f2, utilizando el
 -- paso simple de aplicar el axioma o teorema.
-proofFromTruth :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> 
-                             (ProofFocus -> ProofFocus) -> PM Proof
-proofFromTruth f f' r t fMove = case partitionEithers $
-                                map (flip (proofFromRule f f' r t) fMove) 
-                                   (truthRules t)
-                                of
-                                  -- Devolvemos el primer error, esto tal vez se
-                                  -- podr&#237;a mejorar un poco devolviendo la lista de
-                                  -- errores.
-                                  ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
-                                  (_, p:ps) -> Right p
-                                  (er, []) -> Left $ head er
-    where 
+proofFromTruth :: PE.Focus -> PE.Focus -> Relation -> Basic -> (ProofFocus -> ProofFocus) -> PM Proof
+proofFromTruth f f' r basic fMove = case basic of
+                                      Evaluate -> if checkEval f f' 
+                                                 then Right $ Simple beginCtx r f f' Evaluate
+                                                 else Left $ ProofError (BasicNotApplicable Evaluate) fMove
+                                      _ -> case partitionEithers $ map (flip simples fMove) (truthRules basic) of
+                                            ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
+                                            (_, p:ps) -> Right p
+                                            (er, []) -> Left $ head er
+    where simples = proofFromRule f f' r basic
 
 
 validateProofFocus :: ProofFocus -> PM Proof
