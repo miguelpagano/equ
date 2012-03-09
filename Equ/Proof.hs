@@ -61,6 +61,7 @@ import Data.Maybe
 import Data.Either (partitionEithers,rights)
 
 import Control.Monad
+import Control.Arrow
 
 -- | Funciones auxiliares que podrían ir a su propio módulo.
 isRight :: Either a b -> Bool
@@ -86,8 +87,11 @@ checkEqWithDefault :: Eq a => d -> a -> a -> Either d ()
 checkEqWithDefault def a b | a /= b = Left def
                            | otherwise = Right ()
 
-whenEqWithDefault :: Eq a => ProofError -> a -> a -> PM ()
-whenEqWithDefault def a b = whenPM (==a) def b >> return ()
+whenEqWithDefault :: Eq a => ProofError -> a -> a -> PM a
+whenEqWithDefault def a b = whenPM (==a) def b >> return b
+
+whenEqWithDefault' :: Eq a => ProofError -> a -> (b -> a) -> b -> PM b
+whenEqWithDefault' def a f b = whenPM (==a) def (f b) >> return b
 
 notValidSimpleProof :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Proof
 notValidSimpleProof f1 f2 r t = Simple beginCtx r f1 f2 $ truthBasic t
@@ -99,20 +103,21 @@ whenEqRelWithDefault def a b rs = whenPM (\b -> b==a || b `elem` rs) def b >>
 -- | Comprueba que el uso de una regla sea correcto. La relación que se
 -- pasa como argumento es el de la prueba.
 checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Rule
-                             -> (ProofFocus -> ProofFocus) -> PM ()
+                             -> (ProofFocus -> ProofFocus) -> PM PE.Focus
 checkSimpleStepFromRule f1 f2 rel t rule fMove = 
     whenEqRelWithDefault errRel rel (truthRel t) [relEquiv,relEq]>>
     case partitionEithers $ rewriteAllFocuses (PE.toExpr f1) rule of
          (_,[]) -> Left err
-         (_,ls) -> case partitionEithers $ map (flip (whenEqWithDefault err) (PE.goTop f2) . PE.goTop) ls of
+         (_,ls) -> case partitionEithers $ map checkeq ls of
                         (errors,[]) -> Left $ head errors
-                        (_,xs) -> return ()
-    
-    where errRel :: ProofError
-          errRel = ProofError (ClashRel rel (truthRel t)) fMove
-          err :: ProofError
-          err = ProofError (BasicNotApplicable $ truthBasic t) fMove
-
+                        (_,xs) -> return . snd $ head xs
+    where 
+        errRel :: ProofError
+        errRel = ProofError (ClashRel rel (truthRel t)) fMove
+        err :: ProofError
+        err = ProofError (BasicNotApplicable $ truthBasic t) fMove
+        checkeq :: PE.Focus -> PM (PE.Focus,PE.Focus)
+        checkeq = whenEqWithDefault' err (PE.goTop f2) fst . (PE.goTop &&& id)
 {- 
 Funciones para construir y manipular pruebas.
 Este kit de funciones deber&#237;a proveer todas las herramientas
@@ -120,9 +125,10 @@ necesarias para desarrollar pruebas en equ.
 -}
 proofFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> 
                             Rule -> (ProofFocus -> ProofFocus) -> PM Proof
-proofFromRule f1 f2 rel t r fMove = checkSimpleStepFromRule f1 f2 rel t r fMove >>
-                                      (return $ Simple beginCtx rel f1 f2 $ truthBasic t)
-
+proofFromRule f1 f2 rel t r fMove = 
+                        checkSimpleStepFromRule f1 f2 rel t r fMove >>= 
+                        \f -> return $ Simple beginCtx rel f f2 $ truthBasic t
+                                    
 -- | Dados dos focuses f1 y f2, una relacion rel y un axioma o
 -- teorema, intenta crear una prueba para f1 rel f2, utilizando el
 -- paso simple de aplicar el axioma o teorema.
@@ -136,7 +142,6 @@ proofFromTruth f f' r basic fMove = case basic of
                                             (_, p:ps) -> Right p
                                             (er, []) -> Left $ head er
     where simples = proofFromRule f f' r basic
-
 
 validateProofFocus :: ProofFocus -> PM Proof
 validateProofFocus (pr,path) = validateProof pr
@@ -156,8 +161,8 @@ validateProof p = validateProof' p goTop'
 validateProof' :: Proof -> (ProofFocus -> ProofFocus) -> PM Proof
 validateProof' (Hole ctx rel f1 f2) moveFocus = Left $ ProofError HoleProof moveFocus
 validateProof' proof@(Simple ctx rel f1 f2 b) moveFocus = 
-    proofFromTruth f1 f2 rel b moveFocus >>
-    return proof
+    proofFromTruth f1 f2 rel b moveFocus >>= \p ->
+    return p
 validateProof' proof@(Trans ctx rel f1 f f2 p1 p2) moveFocus = 
     getStart p1 >>= whenEqWithDefault err f1 >>
     getEnd p1 >>= whenEqWithDefault err f >>

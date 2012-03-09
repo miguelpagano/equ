@@ -412,17 +412,19 @@ eventsExprWidget' exprWidget = let stepIndex = exprProofIndex exprWidget in
                 io (widgetShowAll menu >> menuPopup menu Nothing)
             
           addToMenu m stepIndex = mapM_ addItem
-            where addItem e = do
-                    item <- io $ menuItemNewWithLabel $ PS.showExpr e
+            where 
+                addItem e = do
+                    item <- io $ menuItemNewWithLabel $ show e
                     io $ menuShellAppend m item
                     s' <- get
                     io $ item `on` buttonPressEvent $ tryEvent $
-                             flip eventWithState s' $ 
-                                  -- Actualizamos la expresion
-                                  changeProofFocus' stepIndex >>
-                                  updateExprWidget exprWidget >>
-                                  runEnvBox (writeExprWidget (formBox exprWidget) e) (exprWidget, id,stepIndex) >>
-                                  updateExpr e id
+                        flip eventWithState s' $ 
+                            -- Actualizamos la expresion
+                            changeProofFocus' stepIndex >>
+                            updateExprWidget exprWidget >>
+                            runEnvBox (writeExprWidget (formBox exprWidget) e) 
+                                      (exprWidget, id,stepIndex) >>
+                            updateExpr e id
 
           
 -- | Funcion para resetear los manejadores de eventos de expresiones y pasos de prueba.
