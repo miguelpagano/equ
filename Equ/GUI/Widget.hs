@@ -347,3 +347,25 @@ popupWin w = windowNew >>= \pop ->
                       ] >>
              windowSetPosition pop WinPosCenterAlways >>
              return pop
+             
+             
+                        
+unSelectBox :: IRG      
+unSelectBox = getStepProofBox >>= F.mapM_ (\box -> unlightBox box (Just axiomBg))
+
+selectBox :: Color -> IRG
+selectBox color = getStepProofBox >>= F.mapM_ (\box -> highlightBox box color)
+
+
+
+changeProofFocusAndShow ind = getSelIndexProof >>= \i ->
+                              if i==ind
+                                 then return ()
+                                 else unSelectBox >>
+                                      changeProofFocus ind >>
+                                      selectBox focusBg >>
+                                      getExprWidget >>= \ew -> 
+                                      getSymCtrl >>= \symbols ->
+                                      getSymStore >>= \sListStore ->
+                                      runEnvBox (eventsSymbolList symbols sListStore) (ew,id,ind)
+             

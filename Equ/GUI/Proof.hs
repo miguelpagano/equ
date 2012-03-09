@@ -152,6 +152,8 @@ createNewProof proof ret_box truthBox initExprWidget = do
     
     s <- get    
     io $ widgetShowAll ret_box
+    
+    showSelectedStep
 
     where emptyProof box initExprW firstStepW = do
             --hboxInit <- createExprWidget holePreExpr goTopbox
@@ -254,14 +256,7 @@ addStepProof center_box stepIndex maybe_basic = do
     psw' <- eventsProofStep psw
     
     return psw'                 
-      
-unSelectBox :: IRG      
-unSelectBox = getStepProofBox >>= F.mapM_ (\box -> unlightBox box (Just axiomBg))
-
-selectBox :: Color -> IRG
-selectBox color = getStepProofBox >>= F.mapM_ (\box -> highlightBox box color)
-                          
-                                 
+                                       
 newStepProof :: PreExpr -> Int -> VBox -> IState (VBox,VBox)
 newStepProof expr stepIndex container = do
     removeAllChildren container
@@ -308,6 +303,8 @@ newStepProof expr stepIndex container = do
     
     updateProofWidget lpw''
     updateProofAnnots lpa'
+    
+    showSelectedStep
 
     return (centerBoxL,centerBoxR)
     
@@ -492,17 +489,12 @@ eventsProofStep psw = do
 discardProof centralBox expr_w = unsetProofState >>
                                  removeAllChildren centralBox >>
                                  getExpr >>= \e ->
+                                 io (debug $ "discardingProof, expresion = "++ show e) >>
+                                 io (hBoxNew False 2) >>=
+                                 newExprState e expr_w >>=
+                                 updateExprState >>
                                  runEnvBox (reloadExpr (toExpr e)) (expr_w,id,0)
 
-
-changeProofFocusAndShow ind = getSelIndexProof >>= \i ->
-                              if i==ind
-                                 then return ()
-                                 else unSelectBox >>
-                                      changeProofFocus ind >>
-                                      selectBox focusBg >>
-                                      getExprWidget >>= \ew -> 
-                                      getSymCtrl >>= \symbols ->
-                                      getSymStore >>= \sListStore ->
-                                      runEnvBox (eventsSymbolList symbols sListStore) (ew,id,ind)
+                    
                                       
+showSelectedStep = selectBox focusBg                 

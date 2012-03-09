@@ -105,15 +105,16 @@ writeExpr pre box = lift newEntry >>= \entry ->
                     F.mapM_ (lift . exprInEntry entry) pre >>
                      ask >>= \env ->
                      lift (withState (onEntryActivate entry) 
-                                      (liftIO (debug "writing Expr:") >>
-                                       runEnv (setExprFocus box entry) env) >>
+                                       (runEnv (setExprFocus box entry) env) >>
+                           get >>= \s ->
+                           io (entry `on` buttonReleaseEvent $ tryEvent $ (eventWithState (changeProofFocusAndShow (pme env)) s)) >>
                            liftIO (debug "expr writed") >>
                            removeAllChildren box >>
                            addToBox box entry) >>
                     -- manejamos evento "button release" para que se propague al padre
                      io (entry `on` buttonPressEvent $ return False) >>
                      io (widgetGrabFocus entry >> widgetShowAll box)
-
+                     
 -- | Poné la representación de una expresión en una caja de texto.
 -- Podría ser útil si queremos que se pueda transformar la expresión
 -- que está siendo construida en algo que el usuario pueda editar 
@@ -607,4 +608,5 @@ initExprState expr = do
             expr_w <- createExprWidget True 0
             -- Ponemos un ExprWidget sin sentido para iniciar el estado. ESTO PODRIA REVISARSE
             expr' <- newExprState expr expr_w hbox2
-            updateExprState expr' 
+            updateExprState expr'
+            

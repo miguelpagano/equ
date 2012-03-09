@@ -71,7 +71,7 @@ buildTreeExpr bTreeExpr we initial =
                 else
                     do
                     moveFocus <- getProofMove
-                    lift (changeProofFocus moveFocus)
+                    lift (changeProofFocusAndShow moveFocus)
                     f <- lift getExpr
                     return f
 
@@ -191,7 +191,7 @@ onTypeEdited :: Entry -> VBox -> HBox -> EventBox -> ExprState -> Move -> Bool -
 onTypeEdited eText extBTree b tb es p' initial = ask >>= \ env -> 
             lift (withState (onEntryActivate eText) (flip runReaderT env $ 
                         getProofMove >>= \moveFocus ->
-                        lift (changeProofFocus moveFocus) >>
+                        lift (changeProofFocusAndShow moveFocus) >>
                         lift getExpr >>= \f ->
                         io (entryGetText eText) >>= \text -> 
                         lift (checkInType text) >>= \checkText ->
