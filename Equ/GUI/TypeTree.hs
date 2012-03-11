@@ -155,12 +155,10 @@ paintBranchErr f ess = F.mapM_ paint (find (\e -> fExpr e == f) ess)
 -- | Aplica el type-checker a la expresión seleccionada.
 typedCheckType :: Focus -> [(ExprState,Move)] -> IState ()
 typedCheckType f ess = either (\err -> paintBranchErr ((fst . fst) err) (map fst ess) >>
-                                      (reportErrWithErrPaned $ show err))
+                                      (reportErrWithErrPaned $ fmtError err))
                               (const $ return ())
                               (checkPreExpr (toExpr f))
---                         case unify checkedType (getTypeFocus f) emptySubst of
---                         Left err' -> reportErrWithErrPaned $ show err'
---                         Right _   -> undefined
+    where fmtError ((foc,msg),subst) = show msg
 
 -- | Define el manejador de eventos de la caja para editar typos.
 setupEventsLeaf :: VBox -> (ExprState,Move) -> Bool -> IExpr' ()

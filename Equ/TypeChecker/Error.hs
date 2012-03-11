@@ -24,6 +24,6 @@ instance Eq TyErr where
     _ == _ = False
 
 instance Show TyErr where
-    show (ErrNotExpected t t') = "[ERR] Expected " ++ show t ++ ", inferred " ++ show t'
-    show (ErrClashTypes s ts) = "[ERR] " ++ show (tRepr s) ++ " has more than one type: " ++ show ts
-    show (ErrUnification t t' s) = "[ERR] Non-unifiable types: " ++ show t ++ " and " ++ show t' ++ "Subst: " ++ show s
+    show (ErrNotExpected t t') = "Se esperaba el tipo " ++ show t ++ " y no el tipo " ++ show t'
+    show (ErrClashTypes s ts) = show (tRepr s) ++ " sólo puede tener un tipo"
+    show (ErrUnification t t' s) = "Los tipos " ++ show t ++ " y " ++ show t' ++ " no se pueden unificar"
