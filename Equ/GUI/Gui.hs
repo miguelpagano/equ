@@ -71,8 +71,8 @@ main = do
     itemUndo <- xmlGetWidget xml castToImageMenuItem "undoMenuItem"
     itemRedo <- xmlGetWidget xml castToImageMenuItem "redoMenuItem"
     
-    exerciseEditToolBarBox <- xmlGetWidget xml castToHBox "exerciseEditToolBarBox"
-    exerciseToolBarBox <- xmlGetWidget xml castToHBox "exerciseToolBarBox"
+    exerciseEditToolBarBox <- xmlGetWidget xml castToToolbar "exerciseEditToolBarBox"
+    exerciseToolBarBox <- xmlGetWidget xml castToToolbar "exerciseToolBarBox"
     
     itemMakeExercise <- xmlGetWidget xml castToImageMenuItem "itemMakeExercise"
     itemSaveExercise <- xmlGetWidget xml castToImageMenuItem "itemSaveExercise"
@@ -83,8 +83,6 @@ main = do
     
     -- toolbuttons
     newProofTool <- xmlGetWidget xml castToToolButton "newProof"
-    loadProofTool <- xmlGetWidget xml castToToolButton "loadProof"
-    saveProofTool <- xmlGetWidget xml castToToolButton "saveProof"
     discardProofTool <- xmlGetWidget xml castToToolButton "discardProof"
     saveTheoremTool <- xmlGetWidget xml castToToolButton "saveTheoremTool"
     saveHypothesisTool <- xmlGetWidget xml castToToolButton "saveHypothesisTool"
@@ -92,15 +90,10 @@ main = do
     unDo <- xmlGetWidget xml castToToolButton "undoTool"
     reDo <- xmlGetWidget xml castToToolButton "redoTool"
     
-    toolbarBox <- xmlGetWidget xml castToHBox "toolbarBox"
-    
     fieldProofFaceBox <- xmlGetWidget xml castToHBox "fieldProofFaceBox"
     
     proofFaceBox <- xmlGetWidget xml castToHBox "proofFaceBox"
-    
-    showProofItem <- xmlGetWidget xml castToImageMenuItem "showProofPanelItem"
-    showTypesItem <- xmlGetWidget xml castToImageMenuItem "showTypesPanelItem"
-    
+            
     -- Expresión inicial
     initExprBox <- xmlGetWidget xml castToHBox "initExprBox"
     
@@ -142,7 +135,7 @@ main = do
 
     setActionMenuTool itemNewProof newProofTool (createNewProof Nothing centralBox truthBox initExprWidget) gRef    
 
-    setActionMenuTool itemSaveProof saveProofTool saveProofDialog gRef    
+    onActivateLeaf itemSaveProof $ evalStateT saveProofDialog gRef    
     setActionMenuTool itemDiscardProof discardProofTool (discardProof centralBox initExprWidget) gRef
     setActionMenuTool itemValidateProof validTool (checkProof imageValidProof truthBox) gRef
     
@@ -152,8 +145,7 @@ main = do
     onActivateLeaf itemMakeExercise $ 
                    evalStateT (showAllItemTool exerciseEditToolBarBox >> 
                                makeExercise) gRef 
-    onActivateLeaf itemSaveExercise $ 
-                   evalStateT (saveExercise) gRef 
+    onActivateLeaf itemSaveExercise $ evalStateT saveExercise gRef 
     onActivateLeaf itemLoadForEditExercise $ 
                    evalStateT (loadExercise >>= \flag ->
                                when (flag) (setupProofFromExercise
@@ -178,8 +170,6 @@ main = do
     
     onActivateLeaf itemSaveAsTheorem $ saveTheorem gRef aListStore
     onToolButtonClicked saveTheoremTool $ saveTheorem gRef aListStore
-
-    onToolButtonClicked loadProofTool $ dialogLoadProof gRef centralBox truthBox initExprWidget
 
     onActivateLeaf itemLoadProof $ dialogLoadProof gRef centralBox truthBox initExprWidget
     

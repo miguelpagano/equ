@@ -252,7 +252,7 @@ makeButtonWithImage s = buttonNew >>= \b ->
                         containerAdd b >>
                         return b
 
-showAllItemTool :: HBox -> IState ()
+showAllItemTool :: WidgetClass w => w -> IState ()
 showAllItemTool tb = io $ 
                     do
                     widgetSetNoShowAll tb False 

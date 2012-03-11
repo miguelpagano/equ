@@ -255,7 +255,7 @@ getAxiomFrame = getAxiomCtrl >>= getParentNamed "axiomFrame" . toWidget >>=
 -- TODO: Queda muy fea la parte de la lista con tres elementos.
 getErrPane :: IState Paned
 getErrPane = getSymFrame >>= io . widgetGetParent >>= \(Just w) ->
-             io (containerGetChildren (castToContainer w)) >>= \[_,m,_] ->
+             io (containerGetChildren (castToContainer w)) >>= \[m,_] ->
              return $ castToPaned m
 
 -- | Devuelve el label que reporta los errores.

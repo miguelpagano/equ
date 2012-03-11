@@ -35,7 +35,8 @@ addHypothesisUI tl = getExpr >>=
 
 
 saveTheorem :: GRef -> TreeStore (String, HBox -> IRG) -> IO ()
-saveTheorem ref aListStore = evalStateT (updateValidProof >> checkValidProof) ref >>= \valid ->
+saveTheorem ref aListStore = evalStateT (getProofState >>= 
+                                         maybe (return False) (\_ -> updateValidProof >> checkValidProof)) ref >>= \valid ->
                              debug ("valid is " ++ show valid) >>
                              if valid then saveTheoremDialog ref aListStore
                                       else debug "La prueba no es válida"

@@ -38,7 +38,7 @@ import Control.Monad.IO.Class (MonadIO)
 
 -- Configura los botones para las ventanas de configuraci´on de ejercicio y
 -- enunciado.
-setupExerciseEditToolbar :: HBox -> IState ()
+setupExerciseEditToolbar :: Toolbar -> IState ()
 setupExerciseEditToolbar b = do
             (exerConfButton, statementButton) <- io makeToolButtons
             s <- get
@@ -53,15 +53,15 @@ setupExerciseEditToolbar b = do
             sep <- separatorToolItemNew
             exerConfButton <- toolButtonNewFromStock stockProperties
             statementButton <- toolButtonNewFromStock stockSelectAll
-            
-            boxPackStart b sep PackNatural 0
-            boxPackStart b exerConfButton PackNatural 0
-            boxPackStart b statementButton PackNatural 0
+            toolButtonSetLabel exerConfButton (Just "Configuración")
+            toolButtonSetLabel statementButton (Just "Enunciado")
+            toolbarInsert b exerConfButton 0
+            toolbarInsert b statementButton 1
             
             widgetSetNoShowAll b True 
             return (exerConfButton, statementButton)
 
-setupExerciseToolbar :: HBox -> IState ()
+setupExerciseToolbar :: Toolbar -> IState ()
 setupExerciseToolbar b = do
                     statementButton <- io makeToolButtons
                     s <- get
@@ -73,9 +73,8 @@ setupExerciseToolbar b = do
         makeToolButtons = do
             sep <- separatorToolItemNew
             statementButton <- toolButtonNewFromStock stockSelectAll
-            
-            boxPackStart b sep PackNatural 0
-            boxPackStart b statementButton PackNatural 0
+            toolButtonSetLabel statementButton (Just "Enunciado")
+            toolbarInsert b statementButton 0
             
             widgetSetNoShowAll b True
             return statementButton
