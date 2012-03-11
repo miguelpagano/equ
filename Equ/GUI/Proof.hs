@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings #-}
+{-# Language OverloadedStrings,DoAndIfThenElse #-}
 -- | Modulo de muestra y control de eventos sobre pruebas.
 module Equ.GUI.Proof where
 
