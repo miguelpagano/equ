@@ -3,7 +3,7 @@ los términos de las (pre-)expresiones. Como en las pre-expresiones,
 declaramos un tipo de datos general que nos permite utilizar muchas
 funciones e idiomas estándares de Haskell.  -}
 
-{-# Language TypeSynonymInstances #-}
+{-# Language TypeSynonymInstances,FlexibleInstances #-}
 module Equ.Types where
 
 import Data.Text (Text, pack, unpack)
