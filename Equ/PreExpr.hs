@@ -260,7 +260,8 @@ flatten _ e = [e]
 -- un conectivo asociativo a partir de una lista de sus
 -- subexpresiones asociables
 glue :: Operator -> [PreExpr] -> [PreExpr]
+glue _ [] = []
 glue _ [e]    = return e
 glue op [e,e'] = return $ BinOp op e e'
 glue op es = concat [(uncurry (zipWith (BinOp op)) . (glue op *** glue op)) ps 
-                    | ps <- [splitAt i es | i <- [2..length es-1]]]                   
+                    | ps <- [splitAt i es | i <- [1..length es-1]]]     
