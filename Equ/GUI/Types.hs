@@ -1,5 +1,5 @@
 {-# Language Rank2Types, ExistentialQuantification, TypeSynonymInstances, MultiParamTypeClasses,
-    ImpredicativeTypes #-}
+    ImpredicativeTypes,FlexibleInstances #-}
 module Equ.GUI.Types where
 
 import Equ.PreExpr

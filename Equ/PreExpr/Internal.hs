@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE TypeSynonymInstances,FlexibleInstances #-}
 module Equ.PreExpr.Internal where
 
 import Equ.Syntax
