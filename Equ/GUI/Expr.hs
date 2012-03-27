@@ -35,7 +35,7 @@ import Data.Text (unpack,pack)
 import Data.Maybe (fromJust,isJust)
 import Control.Monad.Reader
 import Control.Monad.Trans(lift)
-import Control.Arrow((***))
+import Control.Arrow((***),(&&&))
 
 import System.Random
 
@@ -110,13 +110,27 @@ editExpr b env s = do
                     writeExpr (Just f) b
                 )
             SingleClick -> flip eventWithState s $ 
-                getIndexBasic (ew env) >>= \i ->
-                io (debug $ "Indice single click: " ++ show i) >>
-                getProof >>= \lp ->
-                return (mv env $ goTop $ getBasicAt i lp) >>= \f ->
-                getProofWidget >>= \lpw ->
-                findExprBox f (getBasicAt i lpw) >>= \focusB ->
+                getFocusAt >>= \(fi,ewi) ->
+                findExprBox fi ewi >>= \focusB ->
                 flip runReaderT (env {bx = focusB}) $ newFocusToSym
+    where
+        getP :: Int -> IState Focus
+        getP i = getProof >>= \p -> return $ mv env $ goTop $ getBasicAt i p
+        getPW :: Int -> IState ExprWidget
+        getPW i = getProofWidget >>= \p -> return $ getBasicAt i p
+        getFocusAt :: IState (Focus,ExprWidget)
+        getFocusAt = do
+                    mi <- getIndexBasic (ew env)
+                    case mi of
+                        Nothing -> io (debug $ "Indice single click: InitExpr") >>
+                                   getExpr >>= \f ->
+                                   getExprWidget >>= \ew ->
+                                   return (goTop f,ew)
+                        Just i -> io (debug $ "Indice single click: " ++ show i) >>
+                                  return ((getP &&& getPW) i) >>= \(mp,mpw) ->
+                                  mp >>= \p ->
+                                  mpw >>= \pw ->
+                                  return (p,pw)
 
 -- | Pone una caja de texto para ingresar una expresión; cuando se
 -- activa (presionando Enter) parsea el texto de la caja como una
@@ -151,7 +165,7 @@ exprInEntry entry = io . entrySetText entry . PS.showExpr . fst
 -- | Dada una caja de texto, parsea el contenido como una expresión
 -- y construye un widget con toda la expresión.
 setExprFocus :: HBox -> Entry -> Maybe Focus -> IExpr' ()
-setExprFocus box entry (Just f@(_,path)) = 
+setExprFocus box entry (Just (_,path)) = 
                         lift getExercise >>= \exer ->
                         io (entryGetText entry) >>= \s ->
                         if null s then putHole else parse s (isJust exer)
@@ -191,13 +205,7 @@ setExprFocus box entry (Just f@(_,path)) =
                     case parseFromString s of
                         Right expr -> 
                             typeCheckConfigExpr exerFlag expr >>= \expr' ->
-                            lift (getSelectedExpr) >>= \se ->
-                            io (debug $ "SelectExpr: " ++ show se) >>
-                            liftIO (debug "updatingExpr expr") >>
                             lift (updateExpr expr' p) >>
-                            lift (getSelectedExpr) >>= \se ->
-                            io (debug $ "UpSelectExpr: " ++ show se) >>
-                            io (debug $ "Focus: " ++ show f) >>
                             liftIO (debug "writing Expr:") >>
                             writeFocusWidget (expr',path) >> 
                             return ()
