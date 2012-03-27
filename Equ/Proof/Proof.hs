@@ -454,7 +454,7 @@ instance Eq Proof where
 instance Show Proof where
     show Reflex = ""
     show (Hole _ r f f') = "Hole " ++ show r ++ " " ++ show (toExpr f) ++ " " ++ show (toExpr f')
-    show (Simple _ r f f' b) = "Simple " ++ show r ++ " " ++ show (toExpr f) ++ " " ++ show (toExpr f') ++ " { " ++ show b ++" } "
+    show (Simple _ r f f' b) = "Simple " ++ show r ++ " " ++ show  f ++ " " ++ show  f' ++ " { " ++ show b ++" } "
     show (Trans _ r f f' f'' p p') = "Trans " ++ show r ++ " " ++ show (toExpr f) ++ " " ++ 
                                                  show (toExpr f') ++ " " ++ show (toExpr f'') ++ " { " ++ show p ++ " } " ++
                                                  " { " ++ show p' ++ " } "

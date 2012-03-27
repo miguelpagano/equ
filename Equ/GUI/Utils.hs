@@ -112,4 +112,5 @@ iconErrorProof = stockCancel
 iconUnknownProof :: StockId
 iconUnknownProof = stockDialogQuestion
 
-
+ctw :: GObjectClass obj => obj -> Widget
+ctw = castToWidget

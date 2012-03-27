@@ -14,7 +14,7 @@ import Equ.Rule(Relation)
 import Graphics.UI.Gtk ( WidgetClass, Statusbar, ContextId, HBox, TreeView
                        , EventBox, Label, Button, Notebook, HPaned, IconView
                        , Window, Image, ToggleButton, ComboBox, ListStore
-                       , GObjectClass, ConnectId, VBox
+                       , GObjectClass, ConnectId, VBox, Widget
                        )
 
 import Equ.Types
@@ -89,9 +89,19 @@ type GRef = IORef GState
 type IState = StateT GRef IO
 type IRG = IState () 
 
-data WExpr w = WExpr { widget :: WidgetClass w => w
-                     , wexpr :: PreExpr
-                     }
+-- data WExpr w = WExpr { widget :: WidgetClass w => w
+--                      , wexpr :: PreExpr
+--                      }
+
+data WExpr = WExpr { wSugar :: Maybe Widget
+                   , wKernel :: Widget
+                   , wExpr :: Focus
+                   }
+
+instance Show WExpr where
+    show = show . wExpr
+
+type WExprList = [WExpr]
 
 instance Reference IORef IState where
     readRef = liftIO . readRef
@@ -100,7 +110,8 @@ instance Reference IORef IState where
 
 -- WIDGET PARA EXPRESIONES
 data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
-                             , formBox :: HBox      -- ^ Box donde se ingresa la formula
+                             , formBox :: HBox -- ^ Box donde se ingresa la formula
+                             , wExprL :: WExprList
                              , choicesButton :: Maybe Button -- ^ Botón para ver las expresiones que matchean 
                                                             -- en la prueba (la expresion inicial no lo tiene).
                              , annotButton :: ToggleButton -- ^ Botón para anotaciones.
@@ -110,6 +121,9 @@ data ExprWidget = ExprWidget { extBox :: HBox       -- ^ Widget más externo.
                              , exprProofIndex :: Int    -- ^ Indice dentro de la prueba, correspondiente al paso en el que se encuentra a la derecha.
                              , ewId :: String
                              }
+
+instance Eq ExprWidget where
+    ew == ew' = extBox ew == extBox ew'
 
 instance Show ExprWidget where
     show e = "EWidget- id="++ewId e

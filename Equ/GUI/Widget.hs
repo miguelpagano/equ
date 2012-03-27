@@ -368,4 +368,3 @@ changeProofFocusAndShow ind = getSelIndexProof >>= \i ->
                                       getSymCtrl >>= \symbols ->
                                       getSymStore >>= \sListStore ->
                                       runEnvBox (eventsSymbolList symbols sListStore) (ew,id,ind)
-             

@@ -146,13 +146,6 @@ updateFrmCtrl l = update (\gst -> case gExpr gst of
                                         Just es -> gst { gExpr = Just $ es {formCtrl = l }})
                                         
                                         
--- | Actualiza el widget de expresión donde tenemos foco de entrada.                                        
-updateExprWidget :: ExprWidget -> IState ()
-updateExprWidget e = update (\gst -> case gExpr gst of
-                                        Nothing -> gst
-                                        Just es -> gst { gExpr = Just $ es {exprWidget = e
-                                                                           , formCtrl = formBox e
-                                                                           }})
             
 
 -- | Actualiza la lista de símbolos para construir expresiones.

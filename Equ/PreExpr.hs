@@ -17,6 +17,7 @@ module Equ.PreExpr ( freeVars, freshVar
                    , resetTypeAllAtoms
                    , getQAndVarFromQuant 
                    , createPairs
+                   , subExprQuant
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
@@ -80,6 +81,9 @@ freeVars (BinOp _ e1 e2) = freeVars e1 `union` freeVars e2
 freeVars (App e1 e2) = freeVars e1 `union` freeVars e2
 freeVars (Quant _ v e1 e2) = delete v $ freeVars e1 `union` freeVars e2
 freeVars (Paren e) = freeVars e
+
+subExprQuant :: Focus -> Int
+subExprQuant = (1+) . length . focusToFocuses . Just
 
 -- | Esta funci&#243;n devuelve una variable fresca con respecto a un conjunto de variables
 freshVar :: Set Variable -> Variable

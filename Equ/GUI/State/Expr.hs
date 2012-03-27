@@ -13,8 +13,7 @@ import Equ.PreExpr (toExpr,goTop,Focus,PreExpr'(..),PreExpr,toFocus,holePreExpr)
 import Equ.Proof(getStart, toProof,getEnd,getRel)
 import Equ.Proof.ListedProof
 
-
-import Graphics.UI.Gtk (HBox,ToggleButton,Image)
+import Graphics.UI.Gtk (HBox,ToggleButton,Image, castToHBox)
 
 import Control.Monad.Reader
 import Control.Arrow(first,(&&&))
@@ -27,8 +26,7 @@ updateFocus' (e,p) (f,g) gst = case gExpr gst of
                                  Just gexpr -> gst { gExpr = Just $ upd gexpr }
                                  Nothing -> gst
     where upd gexpr = gexpr { fExpr = (e,p) }
-                                        
-                                        
+
 -- | Actualiza el widget de expresión donde tenemos foco de entrada.                                        
 updateExprWidget :: ExprWidget -> IState ()
 updateExprWidget e = update (\gst -> case gExpr gst of

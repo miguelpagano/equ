@@ -345,11 +345,13 @@ newExprWidget :: PreExpr -> Int -> IState ExprWidget
 newExprWidget expr stepIndex = do
 
     exprWidget <- createExprWidget False stepIndex
-   
-    exprWidget' <- eventsExprWidget exprWidget
-    flip runEnvBox (exprWidget',id,stepIndex) (writeExprWidget (formBox exprWidget') expr) 
-    
-    return exprWidget'
+    io (debug $ "Indice: " ++ show stepIndex)
+    exprWidget' <- flip runEnvBox (exprWidget,id,stepIndex) 
+                        (writeExprWidget expr >>= 
+                        \wes -> return (exprWidget {wExprL = wes}))
+    exprWidget'' <- eventsExprWidget exprWidget'
+    io (debug $ "Test: " ++ show (wExprL exprWidget''))
+    return exprWidget''
 
     
 -- | Setea los eventos de un widget de expresion. La funcion f es la
@@ -357,48 +359,41 @@ newExprWidget expr stepIndex = do
 eventsExprWidget :: ExprWidget -> IState ExprWidget
 eventsExprWidget exprWidget = let stepIndex = exprProofIndex exprWidget in
     do
-    s <- get 
-    runEnvBox (setupForm (formBox exprWidget) Editable "") (exprWidget,id,stepIndex)
-
-    expw <- eventsExprWidget' exprWidget
-    return expw
-
-eventsExprWidget' :: ExprWidget -> IState ExprWidget
-eventsExprWidget' exprWidget = let stepIndex = exprProofIndex exprWidget in
-    do
-    liftIO $ debug $ "Seteando eventos para eWidget :"++ show exprWidget ++" con indice "++ show stepIndex
+    io (debug $ "Indice: " ++ show stepIndex)
+    io $ debug $ "Seteando eventos para eWidget :"++ show exprWidget ++" con indice "++ show stepIndex
     s <- get
     win <- getWindow
     cids <- io (setupFocusEvent s stepIndex)
     (cid3,cid4) <-  flip runEnvBox (exprWidget,id,stepIndex) (setupOptionExprWidget win)
     return $ exprWidget {exprEventsIds = cids++[Connectable cid3,Connectable cid4]}
     
-    where hb = extBox exprWidget
-          setupFocusEvent :: GRef -> Int -> IO [Connectable]
-          setupFocusEvent s stepIndex = do
+    where 
+        hb = extBox exprWidget
+        setupFocusEvent :: GRef -> Int -> IO [Connectable]
+        setupFocusEvent s stepIndex = do
             cid1 <- hb `on` buttonReleaseEvent $ do
                     flip eventWithState s $
                     -- movemos el proofFocus hasta donde está esta expresión.
-                         liftIO (debug $ "Expresión clickeada con indice: " ++ show stepIndex) >>
-                         --updateExprWidget exprWidget  >>
-                         changeProofFocus' stepIndex
+                            io (debug $ "Expresión clickeada con indice: " ++ show stepIndex) >>
+                            --updateExprWidget exprWidget  >>
+                            changeProofFocus' stepIndex
                     io (widgetShowAll hb)
                     return True
 
             listRw <- evalStateT showChoicesButton s
             if listRw 
             then do 
-              let Just choices = choicesButton exprWidget
+                let Just choices = choicesButton exprWidget
             
-              cid2 <- choices `on` buttonPressEvent $ tryEvent $
-                          eventWithState (changeProofFocus' stepIndex >> showChoices stepIndex) s
-              return [Connectable cid1,Connectable cid2]
+                cid2 <- choices `on` buttonPressEvent $ tryEvent $
+                            eventWithState (changeProofFocus' stepIndex >> showChoices stepIndex) s
+                return [Connectable cid1,Connectable cid2]
             else return [Connectable cid1]
 
-          changeProofFocus' stepIndex = changeProofFocusAndShow stepIndex 
-                                        -- >> updateSelectedExpr -- Actualizamos la expresion seleccionada
-                        
-          showChoices stepIndex = do
+        changeProofFocus' stepIndex = changeProofFocusAndShow stepIndex 
+                                    -- >> updateSelectedExpr -- Actualizamos la expresion seleccionada
+                    
+        showChoices stepIndex = do
             menu <- io menuNew
             pf <- getProof
             exp1 <- return $ getStartExpr pf
@@ -407,10 +402,10 @@ eventsExprWidget' exprWidget = let stepIndex = exprProofIndex exprWidget in
                 return (possibleExpr (toExpr exp1) axiom) >>=
                 addToMenu menu stepIndex >>
                 io (widgetShowAll menu >> menuPopup menu Nothing)
-            
-          addToMenu m stepIndex = mapM_ addItem
+        
+        addToMenu m stepIndex = mapM_ addItem
             where 
-                addItem e = do
+                addItem (e, mf) = do
                     item <- io $ menuItemNewWithLabel $ show e
                     io $ menuShellAppend m item
                     s' <- get
@@ -419,10 +414,9 @@ eventsExprWidget' exprWidget = let stepIndex = exprProofIndex exprWidget in
                             -- Actualizamos la expresion
                             changeProofFocus' stepIndex >>
                             updateExprWidget exprWidget >>
-                            runEnvBox (writeExprWidget (formBox exprWidget) e) 
-                                      (exprWidget, id,stepIndex) >>
+                            runEnvBox (writeExprWidget e) 
+                                        (exprWidget, id,stepIndex) >>
                             updateExpr e id
-
           
 -- | Funcion para resetear los manejadores de eventos de expresiones y pasos de prueba.
 -- Solo se realiza con las expresiones derechas. Las expresiones izquierdas se encuentran
@@ -435,7 +429,7 @@ resetSignalsStep pw = case pw of
                                let ls2 = stepEventsIds b
                                io $ mapM_ signalDisconnect' ls1
                                io $ mapM_ signalDisconnect' ls2
-                               e' <- eventsExprWidget' e
+                               e' <- eventsExprWidget e
                                b' <- eventsProofStep b
                                return (e',b')
                                
@@ -486,6 +480,7 @@ eventsProofStep psw = do
         
 
 -- | Descarta la prueba actual.
+discardProof :: ContainerClass c => c -> ExprWidget -> IState ()
 discardProof centralBox expr_w = unsetProofState >>
                                  removeAllChildren centralBox >>
                                  getExpr >>= \e ->
@@ -493,7 +488,8 @@ discardProof centralBox expr_w = unsetProofState >>
                                  io (hBoxNew False 2) >>=
                                  newExprState e expr_w >>=
                                  updateExprState >>
-                                 runEnvBox (reloadExpr (toExpr e)) (expr_w,id,0)
+                                 runEnvBox (reloadExpr (toExpr e)) (expr_w,id,0) >>
+                                 return ()
 
                     
                                       

@@ -4,7 +4,7 @@
 module Equ.PreExpr.Zipper 
     ( Focus
     , Path
-    , toExpr, toFocus, toFocuses, toFocusesWithGo
+    , toExpr, toFocus, toFocuses, toFocusesWithGo, focusToFocuses
     , replace
     , goDown, goUp, goLeft, goRight, goDownR, goDownL, goTop
     ) where
