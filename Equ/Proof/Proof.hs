@@ -1,4 +1,4 @@
-{-# Language GADTs, TypeSynonymInstances,OverloadedStrings #-}
+{-# Language GADTs, TypeSynonymInstances,OverloadedStrings,FlexibleInstances #-}
 
 {-| Este m&#243;dulo define la noci&#243;n de una prueba. -}
 module Equ.Proof.Proof (

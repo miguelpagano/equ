@@ -1,4 +1,4 @@
-{-# Language Rank2Types,TypeSynonymInstances #-}
+{-# Language Rank2Types,FlexibleInstances,TypeSynonymInstances #-}
 module Equ.Proof.ListedProof
     (ListedProof'(..),ListedProof,createListedProof
     ,addStepOnPosition,updateSelExpr, updateRelLP, updateBasicLP

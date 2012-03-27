@@ -1,4 +1,4 @@
-{-# Language TypeSynonymInstances #-}
+{-# Language FlexibleInstances,TypeSynonymInstances #-}
 -- | Este m´odulo define la noci´on de las anotaciones para una prueba en equ.
 module Equ.Proof.Annot where
 
