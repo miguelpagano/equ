@@ -125,7 +125,7 @@ editExpr b env s = do
                         Nothing -> io (debug $ "Indice single click: InitExpr") >>
                                    getExpr >>= \f ->
                                    getExprWidget >>= \ew ->
-                                   return (goTop f,ew)
+                                   return (mv env $ goTop f,ew)
                         Just i -> io (debug $ "Indice single click: " ++ show i) >>
                                   return ((getP &&& getPW) i) >>= \(mp,mpw) ->
                                   mp >>= \p ->
@@ -226,18 +226,24 @@ writeExprWidget' :: EditMask -> (Maybe HBox) -> Focus -> IExpr' WExprList
 writeExprWidget' emask mhbox f@(e,p) = 
             ask >>= \env ->
             getBox mhbox >>= \box ->
-            local (\env -> env {mv = id}) (frameExp (toExpr f) emask)  >>= \wes ->
+            local (\env -> env {mv = id}) (frameExp (toExpr f) emask) >>= \wes ->
             lift (removeAllChildren box >> addToBox box (bestBox wes)) >>
             io (widgetShowAll box) >>
             lift (safeGetProofWidget) >>= \mlpw ->
             ask >>= \env ->
             case mlpw of
-                Nothing -> return wes
+                Nothing -> lift getExprState >>= \(Just es) ->
+                           updateEs es wes >>
+                           return wes
                 Just lpw -> (updateW wes lpw) >>= \uew ->
                             mUpdateExprAt (pme env) uew lpw >>= \ulpw ->
                             lift (updateProofWidget ulpw) >> 
                             return wes
     where
+        upEs :: ExprState -> WExprList -> ExprState
+        upEs es wes = (es {exprWidget = (exprWidget es) {wExprL = wes}})
+        updateEs :: ExprState -> WExprList -> IExpr' ()
+        updateEs es wes = lift . updateExprState $ upEs es wes
         getBox :: Maybe HBox -> IExpr' HBox
         getBox = maybe (ask >>= \env -> return (formBox $ ew env)) (return)
         mUpdateExprAt :: Int -> ExprWidget -> ListedProofWidget -> 
