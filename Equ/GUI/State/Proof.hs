@@ -57,24 +57,16 @@ updateImageValid icon = getStatePart imageValid >>= \validImage ->
 restoreValidProofImage :: IRG
 restoreValidProofImage = updateImageValid iconUnknownProof
 
-{- Proximas a borrar. -}
-testhighlight :: WidgetClass w => Color -> w -> IO ()
-testhighlight bg w = widgetModifyBg w (toEnum 0) bg
-
-testhighlightBox b bg = liftIO $ containerForeach b (testhighlight bg)
-{- \Proximas a borrar. -}
-
 -- Las siguientes funciones validan el paso en el que la prueba está enfocada.
 validateStep :: IState ()
 validateStep = getProofState >>= 
                F.mapM_ (\ps -> getProof >>= \lp ->
                case validateStepProof lp of
                     Left er -> updateStepWidgetImage iconErrorProof
-                    Right p -> {-getProofWidget >>= \lpw ->
+                    Right p -> getProofWidget >>= \lpw ->
                                return (getStartExpr lpw) >>= \sew ->
                                findExprBox (fromJust $ getStart p) sew >>= \focusBox ->
-                               testhighlightBox focusBox focusBg >>
-                               updateFocus focusBox sew (fromJust (getStart p)) >>-}
+                               --flip runReaderT (Env sew id (fromJust $ getIndexBasic sew) focusBox) $ newFocusToSym >>
                                updateStepWidgetImage iconValidProof
                     )
     where
@@ -90,7 +82,6 @@ validateStep = getProofState >>=
                             Nothing -> error $ "No se encontro la expresi´on seleccionada en la lista de ExprWidget." 
                                              ++ (show (wExprL ew) ++ " " ++  show f)
                             Just we -> (return . castToHBox . wKernel) we
-                           
                    
 updateStepWidgetImage :: StockId -> IState ()
 updateStepWidgetImage icon = getProofState >>= 

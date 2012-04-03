@@ -35,6 +35,8 @@ type MGoBack = (Focus -> Maybe Focus,Focus -> Maybe Focus)
 
 data EditMask = Editable | NotEditable
 
+data ViewMask = Sugar | Kernel
+
 type StatusPlace = (Statusbar, ContextId)
 
 type UndoList = [URMove]

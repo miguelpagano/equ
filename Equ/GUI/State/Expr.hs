@@ -13,11 +13,12 @@ import Equ.PreExpr (toExpr,goTop,Focus,PreExpr'(..),PreExpr,toFocus,holePreExpr)
 import Equ.Proof(getStart, toProof,getEnd,getRel)
 import Equ.Proof.ListedProof
 
-import Graphics.UI.Gtk (HBox,ToggleButton,Image, castToHBox)
+import Graphics.UI.Gtk (HBox,ToggleButton,Image, castToHBox,Widget)
 
 import Control.Monad.Reader
 import Control.Arrow(first,(&&&))
 import Data.Maybe
+import Data.List(find)
 import qualified Data.Foldable as F
 
 
@@ -155,5 +156,26 @@ updateSelectedExpr = getExprState >>= F.mapM_
                        (\es -> getProof >>= \ lp -> 
                               updateExprState (es {fExpr= getSelExpr lp }))
 
+findExprKernelBox :: Focus -> ExprWidget -> IState HBox
+findExprKernelBox = findExprBox' (castToHBox . wKernel)
 
-
+findExprBox :: Focus -> ExprWidget -> IState HBox
+findExprBox = findExprBox' (castToHBox . best)
+    where
+        best :: WExpr -> Widget
+        best we = maybe (wKernel we) id (wSugar we)
+        
+findExprBox' :: (WExpr -> HBox) -> Focus -> ExprWidget -> IState HBox
+findExprBox' func f ew = case find (\we -> (wExpr we) == f) $ wExprL ew of
+                            Nothing -> io (debug $ "finExprBox: Nothing!") >> 
+                                       return (formBox ew)
+                            Just we -> (return . func) we
+        
+focusHasSugar :: Focus -> ExprWidget -> IState Bool
+focusHasSugar f ew = case find (\we -> (wExpr we) == f) $ wExprL ew of
+                        Nothing -> io (debug $ "focusHasSugar: Nothing!") >> 
+                                      return False
+                        Just we -> return $ hasSugar we
+    where
+        hasSugar :: WExpr -> Bool
+        hasSugar we = maybe False (const True) (wSugar we)
