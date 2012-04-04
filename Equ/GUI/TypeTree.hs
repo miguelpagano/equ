@@ -40,8 +40,8 @@ typeTreeWidget eb btree =  io $ do
 -- | Función principal que construye el arbol de tipado.
 -- Esencialmente, esta función construye una caja donde se muestra el
 -- arbol construido con @buildTreeExpr'@. 
-buildTreeExpr :: VBox -> WExprList -> Bool -> IExpr' [(ExprState,Move)]
-buildTreeExpr bTreeExpr wes initial = 
+buildTreeExpr :: VBox -> HBox ->WExprList -> Bool -> IExpr' [(ExprState,Move)]
+buildTreeExpr bTreeExpr exprBox wes initial = 
             do 
             f <- getExpr' >>= return . goTop
             p <- getPath
@@ -51,9 +51,12 @@ buildTreeExpr bTreeExpr wes initial =
             typeTreeWidget (eventType mes) bTreeExpr
             -- Construye el árbol propiamente dicho.
             l <- buildTreeExpr' mes bTreeExpr wes
+            -- Agrega la expresión en el extremo superior de la caja
+            -- de tipado
+            io (boxPackStart bTreeExpr exprBox PackGrow 5)
             -- Configura los eventos en las hojas para poder editar los tipos.
             let l' = (mes,p):l --map (\(e,p') -> (e,p')) l
-            configTypeEntry bTreeExpr l' wes initial
+            configTypeEntry bTreeExpr l' exprBox wes initial
             return l'
 
     where 
@@ -145,8 +148,9 @@ typedCheckType f ess = either (\err -> paintBranchErr ((fst . fst) err) (map fst
     where fmtError ((foc,msg),subst) = show msg
 
 -- | Define el manejador de eventos de la caja para editar typos.
-setupEventsLeaf :: VBox -> (ExprState,Move) -> WExprList -> Bool -> IExpr' ()
-setupEventsLeaf extBTree (es,p') wes initial = do 
+setupEventsLeaf :: VBox -> (ExprState,Move) -> HBox -> WExprList -> Bool -> 
+                   IExpr' ()
+setupEventsLeaf extBTree (es,p') exprBox wes initial = do 
   let b = eventType es
   [tb'] <- io $ containerGetChildren b
   tb <- return $ castToEventBox tb'
@@ -162,15 +166,16 @@ setupEventsLeaf extBTree (es,p') wes initial = do
                       containerRemove b tb >>
                       boxPackStart b eText PackGrow 0 >> 
                       widgetShowAll b) >>
-                  onTypeEdited eText extBTree b tb es p' wes initial)
+                  onTypeEdited eText extBTree b tb es p' exprBox wes initial)
   return ()
 
 -- | Manejo del evento Activate en las cajas de texto de tipos:
 -- sólo se hace algo si el parseo es exitoso. Si el parseo falla,
 -- el error se muestra en la función @checkInType@. Si el parseo
 -- es exitoso, se elimina el entryBox y se pone una etiqueta.
-onTypeEdited :: Entry -> VBox -> HBox -> EventBox -> ExprState -> Move -> WExprList -> Bool -> IExpr' ()
-onTypeEdited eText extBTree b tb es p' wes initial = ask >>= \ env -> 
+onTypeEdited :: Entry -> VBox -> HBox -> EventBox -> ExprState -> Move -> 
+                HBox -> WExprList -> Bool -> IExpr' ()
+onTypeEdited eText extBTree b tb es p' exprBox wes initial = ask >>= \ env -> 
             lift (withState (onEntryActivate eText) (flip runReaderT env $ 
                         getProofMove >>= \moveFocus ->
                         lift (changeProofFocusAndShow moveFocus) >>
@@ -195,17 +200,18 @@ onTypeEdited eText extBTree b tb es p' wes initial = ask >>= \ env ->
                         lift (removeAllChildren extBTree) >>
                         return (castToHBox $ head wl) >>= \we ->
                         lift getExpr >>= \f' ->
-                        buildTreeExpr extBTree wes initial >>= \l ->
+                        buildTreeExpr extBTree exprBox wes initial >>= \l ->
                         lift (typedCheckType f' l) >>
                         return ()))) >>
             return ()
 
 -- | Aplica la función para transformar los labels de tipos
 -- atómicos en entryBoxes para poder cambiarlos.
-configTypeEntry :: VBox -> [(ExprState,Move)] -> WExprList -> Bool -> IExpr' ()
-configTypeEntry extBTree ess wes initial = 
+configTypeEntry :: VBox -> [(ExprState,Move)] -> HBox -> WExprList -> Bool -> 
+                   IExpr' ()
+configTypeEntry extBTree ess exprBox wes initial = 
                     mapM_ (\es ->  when ((checkIsAtom . fExpr) (fst es))
-                          (setupEventsLeaf extBTree es wes initial)) ess
+                          (setupEventsLeaf extBTree es exprBox wes initial)) ess
 
 -- Configuración general para los botones. 
 -- (Coloreo y desColoreo al pasar por encima)

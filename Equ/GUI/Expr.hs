@@ -468,10 +468,7 @@ typeTreeWindow w initial =
                         return (getBasicAt idx prf) >>= \f ->
                         writeExprTreeWidget we (toExpr f) >>=
                         return) >>= \wes ->
-                    -- Agrega la expresión en el extremo superior de la caja
-                    -- de tipado
-                    io (boxPackStart bTree we PackGrow 5) >>
-                    buildTreeExpr bTree wes initial >>
+                    buildTreeExpr bTree we wes initial >>
                     io (containerAdd pop bTree) >>
                     return pop
 
