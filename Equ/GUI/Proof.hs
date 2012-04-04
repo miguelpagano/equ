@@ -345,12 +345,10 @@ newExprWidget :: PreExpr -> Int -> IState ExprWidget
 newExprWidget expr stepIndex = do
 
     exprWidget <- createExprWidget False stepIndex
-    io (debug $ "Indice: " ++ show stepIndex)
     exprWidget' <- flip runEnvBox (exprWidget,id,stepIndex) 
                         (writeExprWidget expr >>= 
                         \wes -> return (exprWidget {wExprL = wes}))
     exprWidget'' <- eventsExprWidget exprWidget'
-    io (debug $ "Test: " ++ show (wExprL exprWidget''))
     return exprWidget''
 
     

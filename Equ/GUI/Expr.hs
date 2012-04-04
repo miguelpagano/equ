@@ -66,19 +66,20 @@ setupFormEv b c e emask = io eventBoxNew >>= \eb ->
 -- | Define los manejadores de eventos para una caja que tiene el
 -- widget para construir expresiones.
 setupEvents :: HBox -> EventBox -> PreExpr -> EditMask -> IExpr' ()
-setupEvents b eb e emask = lift get >>= \s ->
-                           localBox b (
-                             ask >>= \ env ->
-                             lift (addHandler eb enterNotifyEvent (highlightBox b hoverBg)) >>
-                             lift (addHandler eb leaveNotifyEvent (unlightBox b Nothing)) >>
-                             -- manejamos evento "button release" para que se propague al padre
-                             io (b `on` buttonPressEvent $ return False) >>
-                             io (eb `on` buttonPressEvent $ return False) >>
-                             lift (addHandler eb buttonPressEvent (editExpr b env s)) >>= 
-                             \c -> case emask of
-                                    Editable -> return ()
-                                    NotEditable -> io $ signalDisconnect c
-                                      )
+setupEvents b eb e emask = 
+        lift get >>= \s ->
+        localBox b (
+            ask >>= \ env ->
+            lift (addHandler eb enterNotifyEvent (highlightBox b hoverBg)) >>
+            lift (addHandler eb leaveNotifyEvent (unlightBox b Nothing)) >>
+            -- manejamos evento "button release" para que se propague al padre
+            io (b `on` buttonPressEvent $ return False) >>
+            io (eb `on` buttonPressEvent $ return False) >>
+            lift (addHandler eb buttonPressEvent (editExpr b env s)) >>= 
+            \c -> case emask of
+                Editable -> return ()
+                NotEditable -> io $ signalDisconnect c
+        )
 
 -- | Si hacemos doble-click, entonces editamos la expresión enfocada.
 editExpr :: HBox -> Env -> GRef -> EventM EButton ()
@@ -100,7 +101,7 @@ editExpr b env s = do
             SingleClick -> flip eventWithState s $ 
                 getFocusAt >>= \(fi,ewi) ->
                 findExprBox fi ewi >>= \focusB ->
-                flip runReaderT (env {bx = focusB}) $ newFocusToSym
+                flip runReaderT (env {bx = focusB}) newFocusToSym
     where
         pairM :: (IState Focus, IState ExprWidget) -> IState (Focus, ExprWidget)
         pairM (mf,mew) = mf >>= \f -> mew >>= \ew -> return (f,ew)
@@ -207,9 +208,11 @@ writeFocusWidget :: Focus -> IExpr' WExprList
 writeFocusWidget = writeExprWidget' Editable Sugar Nothing
 
 writeExprTreeWidget :: HBox -> PreExpr -> IExpr' WExprList
-writeExprTreeWidget b e =  writeExprWidget' NotEditable Kernel (Just b) (toFocus e)
+writeExprTreeWidget b e = writeExprWidget' NotEditable Kernel 
+                                           (Just b) (toFocus e)
 
-writeExprWidget' :: EditMask -> ViewMask -> (Maybe HBox) -> Focus -> IExpr' WExprList
+writeExprWidget' :: EditMask -> ViewMask -> (Maybe HBox) -> Focus -> 
+                    IExpr' WExprList
 writeExprWidget' emask vmask mhbox f@(e,p) = 
         ask >>= \env ->
         getBox mhbox >>= \box ->
@@ -218,11 +221,12 @@ writeExprWidget' emask vmask mhbox f@(e,p) =
         io (widgetShowAll box) >>
         lift (safeGetProofWidget) >>= \mlpw ->
         ask >>= \env ->
-        case mlpw of
-            Nothing -> lift getExprState >>= \(Just es) ->
+        case (emask, mlpw) of
+            (NotEditable,_) -> return wes
+            (_,Nothing) -> lift getExprState >>= \(Just es) ->
                         updateEs es wes >>
                         return wes
-            Just lpw -> (updateW wes lpw) >>= \uew ->
+            (_,Just lpw) -> (updateW wes lpw) >>= \uew ->
                         mUpdateExprAt (pme env) uew lpw >>= \ulpw ->
                         lift (updateProofWidget ulpw) >> 
                         return wes
@@ -460,8 +464,7 @@ typeTreeWindow w initial =
                     io (hBoxNew False 0) >>= \we -> 
                     (if initial then
                         lift getInitialExpr >>= \(Just (Expr e)) ->
-                        writeExprTreeWidget we e >>=
-                        return
+                        writeExprTreeWidget we e >>= return
                     else
                         getProofMove >>= \idx ->
                         lift getProof >>= \prf ->
