@@ -161,30 +161,30 @@ setExprFocus box entry (Just (_,path)) =
           hole = preExprHole ""
           putHole :: IExpr' ()
           putHole = getPath >>= \p -> lift (updateExpr hole p) >> 
-                    configExprStatus hole >>
+                    configExprStatus hole path >>
                     writeExprWidget hole >> return ()
           isHole :: PreExpr -> Bool
           isHole = isPreExprHole . toFocus
-          configExprStatus :: PreExpr -> IExpr' ()
-          configExprStatus e = 
+          configExprStatus :: PreExpr -> Path -> IExpr' ()
+          configExprStatus e path = 
                     ask >>= \env -> 
-                    case (isHole e, checkPreExpr e) of
+                    case (isHole e, checkPreExpr $ toExpr (e,path)) of
                         (True,_) -> exprChangeStatus (ew env) Unknown
                         (_,Left _) -> exprChangeStatus (ew env) Parsed
                         (_,Right _) -> exprChangeStatus (ew env) TypeChecked
           reset :: PreExpr -> PreExpr
           reset = toExpr . PE.resetTypeAllAtoms . toFocus
-          typeCheckConfigExpr :: Bool -> PreExpr -> IExpr' PreExpr
-          typeCheckConfigExpr exerFlag e = 
+          typeCheckConfigExpr :: Bool -> PreExpr -> Path -> IExpr' PreExpr
+          typeCheckConfigExpr exerFlag e path = 
                     if not exerFlag then 
-                        configExprStatus e >>
+                        configExprStatus e path >>
                         return e
                     else
                         lift getExerciseConfTypeCheck >>= \tc -> 
                         case tc of
                             Manual -> let e' = reset e
-                                      in configExprStatus e' >> return e'
-                            _ -> configExprStatus e >> return e
+                                      in configExprStatus e' path >> return e'
+                            _ -> configExprStatus e path >> return e
                             
           parse :: String -> Bool -> IExpr' ()
           parse s exerFlag = 
@@ -192,7 +192,7 @@ setExprFocus box entry (Just (_,path)) =
                     getPath >>= \p ->
                     case parseFromString s of
                         Right expr -> 
-                            typeCheckConfigExpr exerFlag expr >>= \expr' ->
+                            typeCheckConfigExpr exerFlag expr path >>= \expr' ->
                             lift (updateExpr expr' p) >>
                             liftIO (debug "writing Expr:") >>
                             writeFocusWidget (expr',path) >> 
@@ -362,7 +362,7 @@ frameExp' f@(e@(Quant q v e1 e2),_) emask vmask wes =
                                    return . parserVar >>=
                                    either (reportErrWithErrPaned . show) 
                                            (\v -> replaceEntry box v p >>
---                                                 updateQVar v >>
+                                                 updateQVar v p >>
                                                  showExpr >>
                                                  return ())) >>
                          entryDim entry entryVarLength >>
