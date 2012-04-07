@@ -269,9 +269,10 @@ newProofWithCases r f f' c lc = Cases ctx r f f' c lp
           lp = [] -- map (\fi@(ei,_) -> (fi, Hole (beginCtx ei) r f f')) lc
 
 
--- | Función para convertir una prueba Simple en un Hole
+-- | Función para convertir una prueba en un Hole
 toHoleProof :: ProofFocus -> ProofFocus
 toHoleProof (p@(Simple ctx r f f' b),path) = (Hole ctx r f f',path)
+toHoleProof (p@(Trans ctx r f f' f'' p1 p2),path) = (Hole ctx r f f'',path)
 toHoleProof pf = pf
 
 {- Funciones para pasar de una prueba vacía a una prueba con más contenido.

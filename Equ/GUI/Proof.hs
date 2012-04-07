@@ -85,8 +85,12 @@ loadProof p ret_box truthBox initExprWidget proofStepW = do
     newExpr_w  <- newExprWidget (toExpr $ fromRight $ getEnd p) 0
     
     empty_box1 <- io $ hBoxNew False 2
-    proof <- newProofState (Just p) empty_box1 initExprWidget newExpr_w proofStepW
+    (l_proof,_) <- return $ toHoleProof (p,Top)
+    proof <- newProofState (Just l_proof) empty_box1 initExprWidget newExpr_w proofStepW
     updateProofState proof
+    
+    pstate <- getProof
+    
     unsetExprState
     
     -- Expresión inicial:
@@ -148,7 +152,8 @@ createNewProof proof ret_box truthBox initExprWidget = do
     io $ debug $ "Pude crear el widget de paso de prueba"
         
     maybe (emptyProof truthBox initExprWidget firstStepProof) 
-          (\p -> loadProof p ret_box truthBox initExprWidget firstStepProof) proof
+          (\p -> loadProof p ret_box truthBox initExprWidget firstStepProof >>
+                 getProof >>= \pf -> io (debug $ "prueba despues de loadProof:"++show pf)) proof
     
     s <- get    
     io $ widgetShowAll ret_box
@@ -273,7 +278,7 @@ newStepProof expr stepIndex container = do
     lpw <- getProofWidget
     lpa <- getProofAnnots
 
-    updateProofUndo (addStepOnPosition stepIndex fProof (\e i -> e) (\p i -> p) lp) 
+    updateProofUndo (addStepOnPosition stepIndex (fProof (toFocus expr)) (\e i -> e) (\p i -> p) lp) 
     
     relation <- getRelPF
     
@@ -314,13 +319,13 @@ newStepProof expr stepIndex container = do
        con el zipper
        -}
        where 
-            fProof :: Proof -> (Focus,Proof,Proof)
-            fProof proof = let (ctx,rel,f1,f2) = (fromJust $ P.getCtx proof,
+            fProof :: Focus -> Proof -> (Focus,Proof,Proof)
+            fProof expr proof = let (ctx,rel,f1,f2) = (fromJust $ P.getCtx proof,
                                                fromJust $ P.getRel proof,
                                                fromJust $ P.getStart proof,
                                                fromJust $ P.getEnd proof) in
-                                (emptyExpr,(Hole ctx rel f1 emptyExpr),
-                                    (Hole ctx rel emptyExpr f2))
+                                (expr,(Hole ctx rel f1 expr),
+                                    (Hole ctx rel expr f2))
                 
             fProofWidget :: ExprWidget -> ProofStepWidget -> ProofStepWidget ->
                             ProofWidget -> (ExprWidget,ProofWidget,ProofWidget)

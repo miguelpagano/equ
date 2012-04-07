@@ -25,7 +25,11 @@ undoEvent centralBox truthBox expr_w =
           p':p:ps -> case urProof p of
                       Nothing -> F.forM_ (urExpr p) $ \f_expr -> 
                                 undoAction (recreateExpr centralBox expr_w f_expr) p' p ps
-                      Just pf -> undoAction (recreateProof pf centralBox truthBox expr_w) p' p ps
+                      Just pf -> do
+                        io $ debug $ "Restableciendo prueba: "++show pf
+                        undoAction (recreateProof pf centralBox truthBox expr_w) p' p ps
+                        new_proof <- getProof
+                        io $ debug $ "La nueva prueba es: "++show new_proof
                                                         
           >>
           getUndoList >>= io . debug . ("UndoList es " ++) . show
@@ -54,7 +58,10 @@ redoAction action p ps = setNoUndoing >>
                          setUndoing
 
 -- TODO: Tiene sentido que estas funciones estén acá?
-recreateProof pf cbox tbox expr_w = createNewProof (Just $ listedToProof pf) cbox tbox expr_w
+recreateProof pf cbox tbox expr_w = do
+                 p <- return $ listedToProof pf
+                 io $ debug $ "restableciendo prueba: "++show p
+                 createNewProof (Just $ listedToProof pf) cbox tbox expr_w
 
 recreateExpr cbox expr_w expr = removeAllChildren cbox >>
                               initExprState expr >>
