@@ -33,7 +33,24 @@ eventsSymbolList tv list = do s <- get
 -- lista de símbolos.
 oneSelection :: ListStore SynItem -> TreePath -> IExpr' ()
 oneSelection list path = io (getElem list path) >>= 
-                         F.mapM_ (\(_,acc) -> getFormBox >>= acc)
+                         F.mapM_ (\(repr,acc) -> getFormBox >>= symbolOrBox repr acc)
+
+-- | Si el primer hijo de la caja enfocada es un entry-box, entonces
+-- insertamos el símbolo al final, en vez de remplazar ese entry-box
+-- por una caja.
+symbolOrBox :: ContainerClass self => String -> (self -> IExpr' ()) -> self -> IExpr' ()
+symbolOrBox r replace box = liftIO (containerGetChildren box) >>= \chlds ->
+                     if length chlds > 0
+                     then if isA (head chlds) gTypeEntry
+                          then liftIO (return (castToEntry (head chlds)) >>= \entry ->
+                                       entryGetText entry >>= \expr ->
+                                       widgetGrabFocus entry >>
+                                       editableSelectRegion entry (length expr) (length expr) >>
+                                       editableInsertText entry r (length expr) >>
+                                       set entry [ editablePosition := (-1) ] >>
+                                       return ())
+                          else replace box
+                     else replace box
 
 getElem :: ListStore a -> TreePath -> IO (Maybe a)
 getElem l p = treeModelGetIter l p >>= \i ->
