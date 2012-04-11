@@ -130,17 +130,21 @@ createTheorem th_name proof = Theorem {
     , thExpr = Expr $ BinOp (relToOp rel) exp1 exp2
     , thRel = fromRight $ getRel proof
     , thProof = proof
-    , thRules = createRules exp1 exp2 rel
+    , thRules = createRulesAssoc expr
+        --createRules exp1 exp2 rel
     }
     
     where exp1 = (toExpr $ fromRight $ getStart proof)
           exp2 = (toExpr $ fromRight $ getEnd proof)          
           fromRight = head . rights . return
           rel = fromRight $ getRel proof
+          expr = BinOp (relToOp rel) exp1 exp2
      
 createRules :: PreExpr -> PreExpr -> Relation -> [Rule]
-createRules pe1 pe2 rel = (mkrule (Expr pe1) (Expr pe2) rel):metaRules expr
+createRules pe1 pe2 rel = (createRulesAssoc pexpr)++metaRules expr
+    --(mkrule (Expr pe1) (Expr pe2) rel):metaRules expr
     where expr = Expr $ BinOp (relToOp rel) pe1 pe2
+          Expr pexpr = expr
 
 -- | Siempre que tenemos un axioma, tenemos dos reglas: @e ≡ True@ y @True ≡ e@.
 metaRules :: Expr -> [Rule]

@@ -65,7 +65,7 @@ validateStep = getProofState >>=
                     Left er -> updateStepWidgetImage iconErrorProof
                     Right p -> getProofWidget >>= \lpw ->
                                return (getStartExpr lpw) >>= \sew ->
-                               findExprBox (fromJust $ getStart p) sew >>= \focusBox ->
+                               --findExprBox (fromJust $ getStart p) sew >>= \focusBox ->
                                --flip runReaderT (Env sew id (fromJust $ getIndexBasic sew) focusBox) $ newFocusToSym >>
                                updateStepWidgetImage iconValidProof
                     )
