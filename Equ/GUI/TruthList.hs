@@ -59,6 +59,7 @@ writeTruth basic b = do
     io $ boxPackStart b label PackNatural 0
     lProof <- getProof
     updateProofUndo (updateBasicLP lProof basic)
+    io $ debug "Prueba actualizada"
     validateStep
     io $ widgetShowAll b
 

@@ -409,7 +409,7 @@ eventsExprWidget exprWidget = let stepIndex = exprProofIndex exprWidget in
         addToMenu m stepIndex = mapM_ addItem
             where 
                 addItem (e, mf) = do
-                    item <- io $ menuItemNewWithLabel $ showFocus $ toFocus e
+                    item <- io $ menuItemNewWithLabel $ show e
                     io $ menuShellAppend m item
                     s' <- get
                     io $ item `on` buttonPressEvent $ tryEvent $

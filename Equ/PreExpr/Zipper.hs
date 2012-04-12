@@ -7,7 +7,6 @@ module Equ.PreExpr.Zipper
     , toExpr, toFocus, toFocuses, toFocusesWithGo, focusToFocuses
     , replace
     , goDown, goUp, goLeft, goRight, goDownR, goDownL, goTop
-    , showFocus
     ) where
 
 import Equ.PreExpr.Internal
@@ -204,36 +203,36 @@ goTop (e,Top) = (e,Top)
 goTop f = goTop $ fromJust $ goUp f
 
 
-showFocus :: Focus -> String
-showFocus f = showFocus' $ goTop f
-
-    where showFocus' f'@(BinOp op _ _,_) = 
-                            let (Just izq,Just der) = (goDownL f',goDownR f') in
-                                let (izqStr,derStr) = (showWithParentsBin izq op,showWithParentsBin der op) in
-                                    izqStr ++" "++show op++" "++derStr
-          showFocus' f'@(UnOp op _,_) = 
-                            let (Just down) = goDown f' in
-                                let downStr = showWithParentsUn down op in
-                                    show op++" "++ downStr
-          showFocus' f'@(App _ _,_) = (showFocus' $ fromJust $ goDownL f')++"@"++
-                                      (showFocus' $ fromJust $ goDownR f')
-          showFocus' f'@(Quant q v _ _,_) = "〈" ++ show q ++ show v ++ ":" 
-                                        ++ (showFocus' $ fromJust $ goDownL f') ++ ":" 
-                                        ++ (showFocus' $ fromJust $ goDownR f') ++ "〉"
-          showFocus' f'@(Paren _,_) = "["++(showFocus' $ fromJust $ goDownL f')++"]"
-          showFocus' f' = show $ fst f'
-                                    
-          showWithParentsBin f'' oper = case f'' of
-                                         (BinOp op' _ _,_) -> if opPrec oper >= opPrec op'
-                                                                 then "("++showFocus' f''++")"
-                                                                 else showFocus' f''                        
-                                         otherwise -> showFocus' f''
-         
-          showWithParentsUn f'' oper = case f'' of
-                                            (BinOp _ _ _,_) -> "("++showFocus' f''++")"
-                                            (App _ _,_) -> "("++showFocus' f''++")"
-                                            (Quant _ _ _ _,_) -> "("++showFocus' f''++")"
-                                            otherwise -> showFocus' f''
+-- showFocus :: Focus -> String
+-- showFocus f = showFocus' $ goTop f
+-- 
+--     where showFocus' f'@(BinOp op _ _,_) = 
+--                             let (Just izq,Just der) = (goDownL f',goDownR f') in
+--                                 let (izqStr,derStr) = (showWithParentsBin izq op,showWithParentsBin der op) in
+--                                     izqStr ++" "++show op++" "++derStr
+--           showFocus' f'@(UnOp op _,_) = 
+--                             let (Just down) = goDown f' in
+--                                 let downStr = showWithParentsUn down op in
+--                                     show op++" "++ downStr
+--           showFocus' f'@(App _ _,_) = (showFocus' $ fromJust $ goDownL f')++"@"++
+--                                       (showFocus' $ fromJust $ goDownR f')
+--           showFocus' f'@(Quant q v _ _,_) = "〈" ++ show q ++ show v ++ ":" 
+--                                         ++ (showFocus' $ fromJust $ goDownL f') ++ ":" 
+--                                         ++ (showFocus' $ fromJust $ goDownR f') ++ "〉"
+--           showFocus' f'@(Paren _,_) = "["++(showFocus' $ fromJust $ goDownL f')++"]"
+--           showFocus' f' = show $ fst f'
+--                                     
+--           showWithParentsBin f'' oper = case f'' of
+--                                          (BinOp op' _ _,_) -> if opPrec oper >= opPrec op'
+--                                                                  then "("++showFocus' f''++")"
+--                                                                  else showFocus' f''                        
+--                                          otherwise -> showFocus' f''
+--          
+--           showWithParentsUn f'' oper = case f'' of
+--                                             (BinOp _ _ _,_) -> "("++showFocus' f''++")"
+--                                             (App _ _,_) -> "("++showFocus' f''++")"
+--                                             (Quant _ _ _ _,_) -> "("++showFocus' f''++")"
+--                                             otherwise -> showFocus' f''
                                             
                                             
 

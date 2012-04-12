@@ -74,7 +74,7 @@ constGroup :: Grouped Constant
 constGroup = mkGrouped theories [F.theoryConstantsList, A.theoryConstantsList, L.theoryConstantsList]
 
 axiomGroup :: Grouped Axiom
-axiomGroup = mkGrouped theories $ map (map (uncurry createAxiom)) 
+axiomGroup = mkGrouped theories $ map (map (uncurry createAxiom))
                                 [ F.theoryAxiomList
                                 , A.theoryAxiomList
                                 , L.theoryAxiomList]

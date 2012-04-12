@@ -291,7 +291,7 @@ distEqOrAxiom = ("Distributividad de ≡ con ∨"
 @
 -}
 excludThirdAxiom :: (Text,Expr)
-excludThirdAxiom = ("Tercero excluido", or varP (neg varP))
+excludThirdAxiom = ("Tercero excluido", equiv (or varP (neg varP)) true)
 
 -- ===========
 -- CONJUNCION

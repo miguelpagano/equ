@@ -73,17 +73,52 @@ instance Arbitrary PreExpr where
 
 -- | Pretty print para las preExpresiones.
 instance Show PreExpr where
-    show (Var x) = show x
-    show (Con k) = show k
-    show (Fun f) = show f
-    show (PrExHole h) = show h
-    show (UnOp op preExp) = show op ++ " " ++ show preExp
-    show (BinOp op preExp0 preExp1) = show preExp0 ++ show op ++ show preExp1
-    show (App preExp0 preExp1) = show preExp0 ++ "@" ++ show preExp1
-    show (Quant qua v preExp0 preExp1) = "〈" ++ show qua ++ show v ++ ":" 
-                                        ++ show preExp0 ++ ":" 
-                                        ++ show preExp1 ++ "〉"
-    show (Paren e) = "(" ++ show e ++ ")"
+    show p = showExpr' p
+--     show (Var x) = show x
+--     show (Con k) = show k
+--     show (Fun f) = show f
+--     show (PrExHole h) = show h
+--     show (UnOp op preExp) = show op ++ " " ++ show preExp
+--     show (BinOp op preExp0 preExp1) = show preExp0 ++ show op ++ show preExp1
+--     show (App preExp0 preExp1) = show preExp0 ++ "@" ++ show preExp1
+--     show (Quant qua v preExp0 preExp1) = "〈" ++ show qua ++ show v ++ ":" 
+--                                         ++ show preExp0 ++ ":" 
+--                                         ++ show preExp1 ++ "〉"
+--     show (Paren e) = "(" ++ show e ++ ")"
+    
+    
+    
+showExpr' :: PreExpr -> String
+showExpr' (BinOp op e1 e2) =
+            let (izq,der)=(showWithParentsBin e1 op,showWithParentsBin e2 op) in
+                izq ++ show op ++ der
+                
+    where showWithParentsBin e oper = case e of
+           (BinOp op' _ _) -> if opPrec oper >= opPrec op'
+                                    then "("++showExpr' e++")"
+                                    else showExpr' e
+           otherwise -> showExpr' e
+           
+showExpr' (UnOp op e) =
+                let down = showWithParentsUn e op in
+                    show op ++ " "++down
+                    
+    where showWithParentsUn e oper = case e of
+            (BinOp _ _ _) -> "("++showExpr' e++")"
+            (App _ _) -> "("++showExpr' e++")"
+            (Quant _ _ _ _) -> "(" ++ showExpr' e++")"
+            otherwise -> showExpr' e
+                    
+showExpr' (App e1 e2) = showExpr' e1 ++ "@" ++ showExpr' e2
+showExpr' (Quant q v e1 e2) = "〈" ++ show q ++ show v ++ ":" 
+                                        ++ showExpr' e1 ++ ":" 
+                                        ++ showExpr' e2 ++ "〉"
+showExpr' (Paren e) = "{" ++ showExpr' e ++ "}"
+showExpr' (Var x) = show x
+showExpr' (Con k) = show k
+showExpr' (Fun f) = show f
+showExpr' (PrExHole h) = show h
+
 
 
 -- | Substitucion de variable por variable en preExpresiones.

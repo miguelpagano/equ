@@ -145,7 +145,7 @@ writeExpr pre box =
 -- que está siendo construida en algo que el usuario pueda editar 
 -- como una string.
 exprInEntry :: Entry -> Focus -> IState ()
-exprInEntry entry = io . entrySetText entry . PS.showExpr . fst
+exprInEntry entry = io . entrySetText entry . show . fst
 
 -- TODO: manejar errores del parser.
 -- Ale: Empece a hacer algo, lo principal es que muestra el error (no se rompe),

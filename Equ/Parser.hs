@@ -148,7 +148,7 @@ convertAssoc ARight = PE.AssocRight
 -- Una expresion puede ser una expresion con parentesis, una constante, una expresion cuantificada,
 -- una variable, una funci&#243;n o una expresion que viene desde un parseo por syntactic sugar
 subexpr :: Parser' PreExpr
-subexpr = Paren <$> parens lexer parsePreExpr
+subexpr = parens lexer parsePreExpr
           <|> Con <$> parseConst
           <|> parseSugarPreExpr parsePreExpr
           <|> parseQuant 
