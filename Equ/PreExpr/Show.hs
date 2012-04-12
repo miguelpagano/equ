@@ -4,7 +4,9 @@ module Equ.PreExpr.Show where
 import Equ.Syntax
 import Equ.PreExpr.Internal
 import Equ.PreExpr.Eval
+import Equ.PreExpr.Zipper
 import Equ.Theories.AbsName
+
 -- import Control.Applicative ((<$>), (<*>),Applicative(..))
 
 -- data PreExpr' a = Var a
@@ -51,5 +53,3 @@ showExpr (Quant q v r t) = "〈" ++ show q ++ show v ++ ":"
                            ++ showExpr r ++ ":" 
                            ++ showExpr t ++ "〉"
 showExpr (Paren e) = "(" ++ showExpr e ++ ")"
-
-
