@@ -33,12 +33,13 @@ import Equ.Expr
 import Equ.PreExpr
 import Equ.PreExpr.Show
 
-import Data.Text hiding (head,zip,concatMap,map)
+import Data.Text hiding (head,zip,concatMap,map,tail)
 import Data.Either(rights)
 import Data.Maybe(isJust,fromJust)
 import Data.Tree
 import qualified Data.Foldable as DF  (mapM_) 
 import Control.Monad
+import Control.Arrow ((&&&))
 
 type TheoryName = Text
 
@@ -74,10 +75,11 @@ constGroup :: Grouped Constant
 constGroup = mkGrouped theories [F.theoryConstantsList, A.theoryConstantsList, L.theoryConstantsList]
 
 axiomGroup :: Grouped Axiom
-axiomGroup = mkGrouped theories $ map (map (uncurry createAxiom))
-                                [ F.theoryAxiomList
-                                , A.theoryAxiomList
-                                , L.theoryAxiomList]
+axiomGroup = mkGrouped theories . uncurry (:) . ((F.assocEquivAx:) . head &&& tail) $
+             map (map (uncurry createAxiom))
+                     [ F.theoryAxiomList
+                     , A.theoryAxiomList
+                     , L.theoryAxiomList]
 
 operatorsList :: [Operator]
 operatorsList = ungroup opGroup

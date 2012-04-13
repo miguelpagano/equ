@@ -9,6 +9,7 @@ module Equ.Theories.FOL
     , theoryOperatorsList
     , theoryQuantifiersList
     -- ** Lista de axiomas de la teoria
+    , assocEquivAx
     , theoryAxiomList
     -- * Versión tipada de operadores.
     , true, false, equal, equiv, discrep
@@ -24,6 +25,7 @@ import Equ.Types
 import Equ.Expr
 import Equ.PreExpr
 import Equ.Rule
+import Equ.Proof
 import Equ.Theories.AbsName
 import Equ.Theories.Common
 
@@ -200,9 +202,22 @@ varR= Expr $ Var $ var "r" tyBool
 -- Aca hay solo dos opciones, el equivalente del medio es siempre el de "relacion".
 -- Las dos formas posibles son conmutar ambos miembros.
 
-assocEquivAx :: (Text,Expr)
-assocEquivAx = ("Asociatividad de la Equivalencia", 
-                associativityEquiv equiv varP varQ varR)
+-- assocEquivAx :: (Text,Expr)
+-- assocEquivAx = ("Asociatividad de la Equivalencia", 
+--                 associativityEquiv equiv varP varQ varR)
+
+
+-- | Asociatividad de la equivalencia; este axioma no puede
+-- generarse de la misma manera que los demás.
+assocEquivAx = Axiom {  axName = "Asociatividad de la Equivalencia"
+                      , axExpr = expr
+                      , axRel = relEquiv
+                      , axRules = map mkr [(lhs,rhs),(rhs,lhs),(expr,true),(true,expr)]
+                     }
+    where lhs = (varP `equiv` varR) `equiv` varQ
+          rhs = varP `equiv` (varR `equiv` varQ)
+          mkr (l,r) = mkrule l r relEquiv
+          expr = associativityEquiv equiv varP varQ varR
 
 -- Axioma Conmutatividad de la equivalencia:
 conmEquivAxiom :: (Text,Expr)
