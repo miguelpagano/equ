@@ -185,12 +185,12 @@ labelStr s = io (labelNew (return s) >>= \ lbl ->
                  widgetTriggerTooltipQuery lbl >>
                  return lbl)
                  
-setLabelColor :: Label -> IState ()
-setLabelColor l = io $ do
+setLabelColor :: Label -> Color -> IState ()
+setLabelColor l color = io $ do
                     text <- labelGetText l
                     attributes <- return $ AttrForeground { paStart = 0
                                                  , paEnd = length text
-                                                 , paColor = falseParenColor
+                                                 , paColor = color
                                                  }
                     labelSetAttributes l [attributes]
 

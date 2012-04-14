@@ -433,7 +433,9 @@ frameExp' f@(e@(Paren e'),_) emask vmask wes =
             lift newBox >>= \boxK ->
             localPath (goDown .) (frameExp' (goDown f) emask vmask wes) >>= \wes' ->
             lift (labelStr "(") >>= \lblOpen ->
+            lift (setLabelColor lblOpen parenColor) >>
             lift (labelStr ")") >>= \lblClose -> 
+            lift (setLabelColor lblClose parenColor) >>
             setupFormEv boxK lblOpen e emask >>
             lift (addToBox boxK (takeBox vmask wes')) >>
             setupFormEv boxK  lblClose e emask >>
@@ -443,9 +445,9 @@ frameExpWithFalseParens f@(e,_) emask vmask wes =
             lift newBox >>= \boxK ->
             frameExp' f emask vmask wes >>= \wes' ->
             lift (labelStr "(") >>= \lblOpen ->
-            lift (setLabelColor lblOpen) >>
+            --lift (setLabelColor lblOpen fakeParenColor) >>
             lift (labelStr ")") >>= \lblClose -> 
-            lift (setLabelColor lblClose) >>
+            --lift (setLabelColor lblClose fakeParenColor) >>
             setupFormEv boxK lblOpen e emask >>
             lift (addToBox boxK (takeBox vmask wes')) >>
             setupFormEv boxK  lblClose e emask >>
