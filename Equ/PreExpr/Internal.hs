@@ -130,7 +130,7 @@ unParen :: PreExpr -> PreExpr
 unParen (BinOp op e1 e2) = BinOp op (checkParen e1 op) (checkParen e2 op)
     where checkParen e o = case e of
             (Paren (BinOp op_e e1' e2')) -> if opPrec o >= opPrec op_e
-                                                then BinOp op_e (unParen e1') (unParen e2')
+                                                then unParen (BinOp op_e e1' e2')
                                                 else unParen e
             otherwise -> unParen e
             
