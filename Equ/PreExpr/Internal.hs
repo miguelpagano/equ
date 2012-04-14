@@ -73,7 +73,7 @@ instance Arbitrary PreExpr where
 
 -- | Pretty print para las preExpresiones.
 instance Show PreExpr where
-    show p = showExpr' p
+     show p = showExpr' p
 --     show (Var x) = show x
 --     show (Con k) = show k
 --     show (Fun f) = show f
@@ -113,11 +113,39 @@ showExpr' (App e1 e2) = showExpr' e1 ++ "@" ++ showExpr' e2
 showExpr' (Quant q v e1 e2) = "〈" ++ show q ++ show v ++ ":" 
                                         ++ showExpr' e1 ++ ":" 
                                         ++ showExpr' e2 ++ "〉"
-showExpr' (Paren e) = "{" ++ showExpr' e ++ "}"
+showExpr' (Paren e) = "(" ++ showExpr' e ++ ")"
 showExpr' (Var x) = show x
 showExpr' (Con k) = show k
 showExpr' (Fun f) = show f
 showExpr' (PrExHole h) = show h
+
+{-- | Funcion que, dada una PreExpr, elimina las expresiones "Paren" que son necesarias
+    para desambiguar expresiones. Ejemplo:
+    unParen ( Paren ( or (Paren $ equiv p q) r ) ) = Paren ( or ( equiv p q ) r )
+    El parentesis que estaba en la expresión (equiv p q) fue necesario introducirlo
+    para poder diferenciar la expresión " or (equiv p q) r " de la expresión
+    equiv p (or (q r)).
+    --}
+unParen :: PreExpr -> PreExpr
+unParen (BinOp op e1 e2) = BinOp op (checkParen e1 op) (checkParen e2 op)
+    where checkParen e o = case e of
+            (Paren (BinOp op_e e1' e2')) -> if opPrec o >= opPrec op_e
+                                                then BinOp op_e (unParen e1') (unParen e2')
+                                                else unParen e
+            otherwise -> unParen e
+            
+unParen (UnOp op e) = UnOp op (checkParen e op)
+    where checkParen e' o = case e' of
+            (Paren e'') -> case e'' of
+                            (BinOp _ _ _) -> unParen e''
+                            (App _ _) -> unParen e''
+                            (Quant _ _ _ _) -> unParen e''  -- VER SI HACE FALTA ESTE CASO
+                            otherwise -> unParen e'
+            _ -> e'
+unParen (App e1 e2) = App (unParen e1) (unParen e2)
+unParen (Quant q v e1 e2) = Quant q v (unParen e1) (unParen e2)
+unParen (Paren e) = Paren (unParen e)
+unParen e = e
 
 
 

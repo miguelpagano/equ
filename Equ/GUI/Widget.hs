@@ -184,6 +184,15 @@ labelStr s = io (labelNew (return s) >>= \ lbl ->
                  on lbl queryTooltip (\w p t -> windowPresent win >> return True) >>
                  widgetTriggerTooltipQuery lbl >>
                  return lbl)
+                 
+setLabelColor :: Label -> IState ()
+setLabelColor l = io $ do
+                    text <- labelGetText l
+                    attributes <- return $ AttrForeground { paStart = 0
+                                                 , paEnd = length text
+                                                 , paColor = falseParenColor
+                                                 }
+                    labelSetAttributes l [attributes]
 
 
 newTTwin = windowNewPopup >>= \win ->

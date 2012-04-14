@@ -36,20 +36,34 @@ showExpr (Var x) = show x
 showExpr (Con k) = show k
 showExpr (Fun f) = show f
 showExpr (PrExHole h) = show h
-showExpr e@(UnOp op e') = case evalNat e of
-                         Nothing -> show op ++ " " ++ showExpr e'
-                         Just n -> show n
-showExpr l@(BinOp op e e') = case showL l "" of 
-                               Nothing -> case (evalNat e, evalNat e') of
-                                 (Nothing, Nothing) -> showExpr e ++  " " ++ show op ++ " " ++ showExpr e'
-                                 (Just n,Nothing) -> show n ++ " " ++ show op ++ " " ++ showExpr e'
-                                 (Nothing, Just n) -> showExpr e ++ " " ++ show op ++ " " ++ show n
-                                 (Just m,Just n) ->  show m ++ " " ++ show op ++ " " ++ show n
-                               Just l' -> l'
-showExpr (App e e') = case evalNat e' of
-                        Nothing -> showExpr e ++ "@" ++ showExpr e'
-                        Just n ->  showExpr e ++ "@" ++ show n
+showExpr e@(UnOp op e') = 
+    case evalNat e of
+        Nothing -> let down = showWithParentsUn e' op in
+                    show op ++ down
+        Just n -> show n
+        
+    where showWithParentsUn e oper = case e of
+            (BinOp _ _ _) -> "("++showExpr e++")"
+            (App _ _) -> "("++showExpr e++")"
+            (Quant _ _ _ _) -> "(" ++ showExpr e++")"
+            otherwise -> showExpr e
+        
+showExpr l@(BinOp op e1 e2) = 
+    case showL l "" of 
+        Nothing -> let (izq,der)=(showWithParentsBin e1 op,showWithParentsBin e2 op) in
+                        izq ++ show op ++ der
+        Just l' -> l'
+        
+    where showWithParentsBin e oper = case e of
+           (BinOp op' _ _) -> if opPrec oper >= opPrec op'
+                                    then "("++showExpr e++")"
+                                    else showExpr e
+           otherwise -> showExpr e
+           
+showExpr (App e e') = showExpr e ++ "@" ++ showExpr e'
 showExpr (Quant q v r t) = "〈" ++ show q ++ show v ++ ":" 
                            ++ showExpr r ++ ":" 
                            ++ showExpr t ++ "〉"
 showExpr (Paren e) = "(" ++ showExpr e ++ ")"
+
+

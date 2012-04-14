@@ -145,7 +145,7 @@ writeExpr pre box =
 -- que está siendo construida en algo que el usuario pueda editar 
 -- como una string.
 exprInEntry :: Entry -> Focus -> IState ()
-exprInEntry entry = io . entrySetText entry . show . fst
+exprInEntry entry = io . entrySetText entry . (PS.showExpr) . fst
 
 -- TODO: manejar errores del parser.
 -- Ale: Empece a hacer algo, lo principal es que muestra el error (no se rompe),
@@ -285,8 +285,9 @@ frameExp' f@(e@(Fun fun),_) emask vmask wes =
                                 return (WExpr Nothing (ctw box) f : wes)
 
 frameExp' f@(e@(UnOp op e'),p) emask vmask wes =                
+            let f1' = goDown f in
                 lift newBox >>= \boxK ->
-                localPath (goDown .) (frameExp' (goDown f) emask vmask wes) >>= 
+                createDownWidget f1' >>=
                 \wes' -> (lift . labelStr . repr) op >>= 
                 \lblOp -> setupFormEv boxK lblOp e emask >>
                 setupFormEv boxK (takeBox vmask wes') e emask >>
@@ -296,13 +297,27 @@ frameExp' f@(e@(UnOp op e'),p) emask vmask wes =
                               (lift . labelStr . show) n >>= \lblInt ->
                               setupFormEv boxS lblInt e emask >> 
                               return (WExpr (Just $ ctw boxS) (ctw boxK) f : wes ++ wes')
+                              
+    where createDownWidget f' =
+            if parentNeeded f' op
+               then localPath (goDown .) (frameExpWithFalseParens (goDown f) emask vmask wes)
+               else localPath (goDown .) (frameExp' (goDown f) emask vmask wes)
+               
+          parentNeeded (e,_) op = case e of
+                                       (BinOp _ _ _) -> True
+                                       (App _ _) -> True
+                                       (Quant _ _ _ _) -> True
+                                       otherwise -> False
 
-frameExp' f@(e@(BinOp op e1 e2),p) emask vmask wes = 
+frameExp' f@(e@(BinOp op e1 e2),p) emask vmask wes =
+    -- tenemos que ver si en e1 o en e2 hay que poner parentesis desambiguadores.
+        let (f1',f2') = (goDown f,goDownR f) in
             lift newBox >>= \boxK ->
-            localPath (goDown .) 
-                (frameExp' (goDown f) emask vmask wes) >>= \leftwes ->
-            localPath (goDownR .) 
-                (frameExp' (goDownR f) emask vmask wes) >>= \rightwes ->
+            
+            createLeftWidget f1' >>= \leftwes ->
+                        
+            createRightWidget f2' >>= \rightwes ->
+                        
             (lift . labelStr . repr) op >>= \lblOp ->
             lift (addToBox boxK (takeBox vmask leftwes)) >>
             setupFormEv boxK lblOp e emask >>
@@ -314,6 +329,27 @@ frameExp' f@(e@(BinOp op e1 e2),p) emask vmask wes =
                              setupFormEv boxS lblList e emask >> 
                              return (WExpr (Just $ ctw boxS) (ctw boxK) f : wes ++ leftwes ++ rightwes)
 
+    where parentNeeded (e,_) op = case e of
+                                    (BinOp op' _ _) -> if opPrec op >= opPrec op' 
+                                                          then True
+                                                          else False
+                                    _ -> False
+                                    
+          createLeftWidget f1' =            
+                if parentNeeded f1' op 
+                    then localPath (goDown .) 
+                            (frameExpWithFalseParens (goDown f) emask vmask wes)
+                    else localPath (goDown .) 
+                            (frameExp' (goDown f) emask vmask wes)
+          
+          createRightWidget f2' =
+                if parentNeeded f2' op
+                    then localPath (goDownR .) 
+                                (frameExpWithFalseParens (goDownR f) emask vmask wes)
+                    else localPath (goDownR .) 
+                                (frameExp' (goDownR f) emask vmask wes)
+          
+                             
 frameExp' f@(e@(App e1 e2),p) emask vmask wes = 
             lift newBox >>= \boxK ->
             localPath (goDown .) 
@@ -398,6 +434,18 @@ frameExp' f@(e@(Paren e'),_) emask vmask wes =
             localPath (goDown .) (frameExp' (goDown f) emask vmask wes) >>= \wes' ->
             lift (labelStr "(") >>= \lblOpen ->
             lift (labelStr ")") >>= \lblClose -> 
+            setupFormEv boxK lblOpen e emask >>
+            lift (addToBox boxK (takeBox vmask wes')) >>
+            setupFormEv boxK  lblClose e emask >>
+            return (WExpr Nothing (ctw boxK) f : wes ++ wes')
+            
+frameExpWithFalseParens f@(e,_) emask vmask wes =
+            lift newBox >>= \boxK ->
+            frameExp' f emask vmask wes >>= \wes' ->
+            lift (labelStr "(") >>= \lblOpen ->
+            lift (setLabelColor lblOpen) >>
+            lift (labelStr ")") >>= \lblClose -> 
+            lift (setLabelColor lblClose) >>
             setupFormEv boxK lblOpen e emask >>
             lift (addToBox boxK (takeBox vmask wes')) >>
             setupFormEv boxK  lblClose e emask >>

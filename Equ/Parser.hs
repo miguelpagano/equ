@@ -148,7 +148,7 @@ convertAssoc ARight = PE.AssocRight
 -- Una expresion puede ser una expresion con parentesis, una constante, una expresion cuantificada,
 -- una variable, una funci&#243;n o una expresion que viene desde un parseo por syntactic sugar
 subexpr :: Parser' PreExpr
-subexpr = parens lexer parsePreExpr
+subexpr = Paren <$> parens lexer parsePreExpr
           <|> Con <$> parseConst
           <|> parseSugarPreExpr parsePreExpr
           <|> parseQuant 
@@ -254,8 +254,13 @@ parseIntPreExpr = intToCon <$> parseInt
 -- //////// Parser de syntax sugar ////////
 
 -- | Funcion principal de parseo desde string.
+parseFromString' :: String -> Either ParseError PreExpr
+parseFromString' = runParser parsePreExpr (0,M.empty) "TEST" 
+
 parseFromString :: String -> Either ParseError PreExpr
-parseFromString = runParser parsePreExpr (0,M.empty) "TEST" 
+parseFromString s = case parseFromString' s of
+                         Left er -> Left er
+                         Right pe -> Right $ unParen pe
 
 -- | Gramatica de parseo.
 --

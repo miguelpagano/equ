@@ -33,6 +33,9 @@ successfulBg = Color 0 65000 2000
 genericBg :: Color
 genericBg = Color 61500 61500 61500
 
+falseParenColor :: Color
+falseParenColor = Color 0 30000 65000
+
 -- | Tamaño de entry-var para variables.
 entryVarLength :: Int
 entryVarLength = 10
