@@ -128,9 +128,7 @@ makeTable = map makeSubList . group . reverse . sort
 
 -- Genera un ParserOper de un operador.
 makeOp :: Operator -> [ParserOper]
-makeOp op = if null (opGlyphs op) 
-            then return $ mkop (opRepr op)
-            else mkop (opRepr op) : map mkop (opGlyphs op)
+makeOp op = map mkop $ opRepr op : opGlyphs op
     where mkop s = case opNotationTy op of 
                      NInfix   -> PE.Infix   (BinOp op <$ parseOp s) assoc
                      NPrefix  -> PE.Prefix  $ UnOp op <$ parseOp s
