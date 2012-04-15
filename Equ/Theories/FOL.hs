@@ -63,6 +63,7 @@ folDiscrep = Operator { opRepr = "/≡"
                       , opAssoc = ALeft
                       , opNotationTy = NInfix
                       , opPrec = 1
+                      , opGlyphs = ["/="]
                       }
 
 -- | Conjuncion &#8743;
@@ -73,6 +74,7 @@ folAnd = Operator { opRepr = "∧"
                   , opAssoc = ALeft
                   , opNotationTy = NInfix
                   , opPrec = 3
+                  , opGlyphs = ["&&","/\\"]
                   }
 
 -- | Disyuncion &#8744;
@@ -83,6 +85,7 @@ folOr = Operator { opRepr = "∨"
                  , opAssoc = ALeft
                  , opNotationTy = NInfix
                  , opPrec = 3
+                 , opGlyphs = ["||","\\/"]
                  }
      
 -- | Negacion &#172;
@@ -93,6 +96,7 @@ folNeg = Operator { opRepr = "¬"
                   , opAssoc = None
                   , opNotationTy = NPrefix
                   , opPrec = 4
+                  , opGlyphs = []
                   }
 
 -- | Implicaci&#243;n &#8658;
@@ -103,6 +107,7 @@ folImpl = Operator { opRepr = "⇒"
                    , opAssoc = ARight
                    , opNotationTy = NInfix
                    , opPrec = 2
+                   , opGlyphs = ["=>"]
                    }
 
 -- | Consecuencia &#8656;
@@ -113,6 +118,7 @@ folConseq = Operator { opRepr = "⇐"
                      , opAssoc = ALeft
                      , opNotationTy = NInfix
                      , opPrec = 2
+                     , opGlyphs = ["<="]
                      }
 
 -- | Constantes de FOL.

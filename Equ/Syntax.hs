@@ -46,6 +46,7 @@ data Operator = Operator {
     , opAssoc :: Assoc
     , opNotationTy :: NotationType
     , opPrec :: Int
+    , opGlyphs :: [Text]
     } 
     deriving Eq
     
@@ -175,7 +176,8 @@ instance Arbitrary Constant where
 instance Arbitrary Operator where
     arbitrary = Operator <$> arbitrary <*> 
                 arbitrary <*> arbitrary <*> 
-                arbitrary <*> arbitrary <*> arbitrary
+                arbitrary <*> arbitrary <*> 
+                arbitrary <*> arbitrary
 
 -- | Instancia arbitrary para las funciones.
 instance Arbitrary Func where
@@ -210,10 +212,10 @@ instance Serialize Constant where
     get = Constant <$> get <*> get <*> get
 
 instance Serialize Operator where
-    put (Operator r n t a nt p) = put r >> put n >> put t >> 
-                                    put a >> put nt >> put p
+    put (Operator r n t a nt p ops) = put r >> put n >> put t >> 
+                                    put a >> put nt >> put p >> put ops
     
-    get = Operator <$> get <*> get <*> get <*> get <*> get <*> get 
+    get = Operator <$> get <*> get <*> get <*> get <*> get <*> get <*> get
 
 instance Serialize Assoc where
     put None = putWord8 0

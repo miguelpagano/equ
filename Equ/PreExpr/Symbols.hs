@@ -25,6 +25,7 @@ natSucc = Operator { opRepr = "succ"
                    , opAssoc = None
                    , opNotationTy = NPrefix
                    , opPrec = 23 -- Analizar.
+                   , opGlyphs = []
                    }
 
 -- | Operador suma.
@@ -35,6 +36,7 @@ natSum = Operator { opRepr = "+"
                   , opAssoc = ALeft
                   , opNotationTy = NInfix
                   , opPrec = 21
+                  , opGlyphs = []
                   }
 
 -- | Operador producto.
@@ -45,6 +47,7 @@ natProd = Operator { opRepr = "*"
                    , opAssoc = ALeft
                    , opNotationTy = NInfix
                    , opPrec = 22
+                   , opGlyphs = []
                    }
 
 
@@ -68,6 +71,7 @@ listApp = Operator { opRepr = "▹"
                    , opAssoc = ARight
                    , opNotationTy = NInfix
                    , opPrec = 12
+                   , opGlyphs = ["|>"]
                    }  
 
 -- | Tomar el n-esimo elemento de la lista.
@@ -78,7 +82,9 @@ listIndex = Operator { opRepr = "."
                      , opAssoc = ALeft
                      , opNotationTy = NInfix
                      , opPrec = 11
+                     , opGlyphs = []
                      }
+
 -- | Concatenacion de listas.                     
 listConcat :: Operator
 listConcat = Operator { opRepr = "++"
@@ -87,17 +93,19 @@ listConcat = Operator { opRepr = "++"
                       , opAssoc = ALeft
                       , opNotationTy = NInfix
                       , opPrec = 10
+                      , opGlyphs = []
                       }
 
 -- | Cardinal de la lista.
 listLength :: Operator
 listLength = Operator { opRepr = "#"
-                    , opName = Length
-                    , opTy = tyListVar "A" :-> TyAtom ATyNat
-                    , opAssoc = None
-                    , opNotationTy = NPrefix
-                    , opPrec = 10
-                    }
+                      , opName = Length
+                      , opTy = tyListVar "A" :-> TyAtom ATyNat
+                      , opAssoc = None
+                      , opNotationTy = NPrefix
+                      , opPrec = 10
+                      , opGlyphs = []
+                      }
 
 -- | Toma los primeros n elementos de una lista.
 listTake :: Operator
@@ -107,6 +115,7 @@ listTake = Operator { opRepr = "↑"
                     , opAssoc = ALeft
                     , opNotationTy = NInfix
                     , opPrec = 10
+                    , opGlyphs = ["^"]
                     }
 
 -- | Tira los primeros n elementos de una lista.
@@ -117,4 +126,5 @@ listDrop = Operator { opRepr = "↓"
                     , opAssoc = ALeft
                     , opNotationTy = NInfix
                     , opPrec = 10
+                    , opGlyphs = ["%"]
                     }

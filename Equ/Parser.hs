@@ -49,7 +49,7 @@ import Control.Applicative ((<$>),(<$),(<*>))
 import Equ.Syntax
 import Equ.PreExpr hiding (setType)
 import Equ.Types
-import Equ.Theories
+import Equ.Theories (operatorsList,constantsList,quantifiersList)
 import Equ.Theories.List(listApp, listEmpty)
 import Equ.Theories.Arith(intToCon)
 import Equ.Parser.Types(listAtomTy, parseTyFromString)
@@ -91,7 +91,8 @@ equLang = LangDef {
 
 -- | Representantes de los operadores. (Salvo para aplicación)
 rOpNames :: [String]
-rOpNames = map ($ equLang) [opApp, opHole, opUnCurriedApp] ++ map (unpack . opRepr) operatorsList
+rOpNames = map ($ equLang) [opApp, opHole, opUnCurriedApp] 
+        ++ map (unpack . opRepr) operatorsList
 
 -- | Representantes de las constantes y cuantificadores.
 -- Adem&#225;s de los caracteres para representar expresiones cuantificadas.
@@ -126,17 +127,19 @@ makeTable :: [Operator] -> ParserTable
 makeTable = map makeSubList . group . reverse . sort 
 
 -- Genera un ParserOper de un operador.
-makeOp :: Operator -> ParserOper
-makeOp op = case opNotationTy op of 
-              NInfix   -> PE.Infix   (BinOp op <$ parseOp) assoc
-              NPrefix  -> PE.Prefix  $ UnOp op <$ parseOp
-              NPostfix -> PE.Postfix $ UnOp op <$ parseOp
-    where parseOp = (reservedOp lexer . unpack . opRepr $ op)
---                    putState (UnOp op $ PrExHole . hole . pack $ "")
+makeOp :: Operator -> [ParserOper]
+makeOp op = if null (opGlyphs op) 
+            then return $ mkop (opRepr op)
+            else mkop (opRepr op) : map mkop (opGlyphs op)
+    where mkop s = case opNotationTy op of 
+                     NInfix   -> PE.Infix   (BinOp op <$ parseOp s) assoc
+                     NPrefix  -> PE.Prefix  $ UnOp op <$ parseOp s
+                     NPostfix -> PE.Postfix $ UnOp op <$ parseOp s
+          parseOp = reservedOp lexer . unpack
           assoc = convertAssoc . opAssoc $ op
 
 makeSubList :: [Operator] -> [ParserOper]
-makeSubList = map makeOp
+makeSubList = concatMap makeOp
 
 -- Convierte el nuestro tipo de asociaci&#243;n al tipo de asociaci&#243;n de parsec.
 convertAssoc :: Assoc -> PE.Assoc

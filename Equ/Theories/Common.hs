@@ -33,6 +33,7 @@ folEquiv = Operator { opRepr = "≡"
                     , opAssoc = ALeft
                     , opNotationTy = NInfix
                     , opPrec = 1
+                    , opGlyphs = ["=="]
                     }
 
 -- | Igualdad =
@@ -43,6 +44,7 @@ folEqual = Operator { opRepr = "="
                     , opAssoc = ALeft
                     , opNotationTy = NInfix
                     , opPrec = 5
+                    , opGlyphs = []
                     }
 
 -- | Igualdad

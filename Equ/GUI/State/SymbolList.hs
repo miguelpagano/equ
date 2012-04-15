@@ -40,17 +40,18 @@ oneSelection list path = io (getElem list path) >>=
 -- por una caja.
 symbolOrBox :: ContainerClass self => String -> (self -> IExpr' ()) -> self -> IExpr' ()
 symbolOrBox r replace box = liftIO (containerGetChildren box) >>= \chlds ->
-                     if length chlds > 0
-                     then if isA (head chlds) gTypeEntry
-                          then liftIO (return (castToEntry (head chlds)) >>= \entry ->
-                                       entryGetText entry >>= \expr ->
-                                       widgetGrabFocus entry >>
-                                       editableSelectRegion entry (length expr) (length expr) >>
-                                       editableInsertText entry r (length expr) >>
-                                       set entry [ editablePosition := (-1) ] >>
-                                       return ())
-                          else replace box
+                     if length chlds > 0 && isA (head chlds) gTypeEntry
+                     then io $ addSymbolEntry r (castToEntry (head chlds))
                      else replace box
+
+-- addSymbolEntry :: Entry -> 
+addSymbolEntry sym entry = entryGetText entry >>= \expr ->
+                           widgetGrabFocus entry >>
+                           G.get entry entryCursorPosition >>= \pos ->
+                           -- editableSelectRegion entry (length expr) (length expr) >>
+                           editableInsertText entry sym pos >>
+                           -- set entry [ editablePosition := (-1) ] >>
+                           return ()
 
 getElem :: ListStore a -> TreePath -> IO (Maybe a)
 getElem l p = treeModelGetIter l p >>= \i ->
