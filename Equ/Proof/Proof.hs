@@ -449,14 +449,13 @@ instance Eq Proof where
     _ == Reflex = False
     p1 == p2 = (fromJust $ getStart p1) == (fromJust $ getStart p2) &&
                (fromJust $ getEnd p1) == (fromJust $ getEnd p2)-}
-    
 
 instance Show Proof where
     show Reflex = ""
-    show (Hole _ r f f') = "Hole " ++ show r ++ " " ++ show (toExpr f) ++ " " ++ show (toExpr f')
+    show (Hole _ r f f') = "Hole " ++ show r ++ " " ++ show f ++ " " ++ show f'
     show (Simple _ r f f' b) = "Simple " ++ show r ++ " " ++ show  f ++ " " ++ show  f' ++ " { " ++ show b ++" } "
-    show (Trans _ r f f' f'' p p') = "Trans " ++ show r ++ " " ++ show (toExpr f) ++ " " ++ 
-                                                 show (toExpr f') ++ " " ++ show (toExpr f'') ++ " { " ++ show p ++ " } " ++
+    show (Trans _ r f f' f'' p p') = "Trans " ++ show r ++ " " ++ show f ++ " " ++ 
+                                                 show f' ++ " " ++ show f'' ++ " { " ++ show p ++ " } " ++
                                                  " { " ++ show p' ++ " } "
     show _ = "prueba no implementada"
 

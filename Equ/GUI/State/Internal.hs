@@ -49,7 +49,6 @@ update f = get >>= \r -> readRef r >>=
 local :: (GState -> IO a) -> IState a
 local f = askRef >>= \s -> io (f s) >>= \a -> update (const s) >> return a
 
-
 -- | Realiza una acción en un estado modificado y luego vuelve al estado
 -- anterior; devuelve el resultado de la acción.
 local' :: (GState -> IState a) -> IState a
@@ -65,9 +64,6 @@ getStatePart part = askRef >>= return . part
 getStatePartDbg :: String -> (GState -> a) -> IState a
 getStatePartDbg msg part = (io $ debug msg) >> getStatePart part
 
-
 -- | Actualiza el mensaje que se muestra en el área de estado.
 updateStatus :: String -> IState ()
 updateStatus msg = withRefValue (\s -> putMsg (status s) msg) 
-
-

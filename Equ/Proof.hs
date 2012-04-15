@@ -102,8 +102,8 @@ whenEqRelWithDefault def a b rs = whenPM (\b -> b==a || b `elem` rs) def b >>
 
 -- | Comprueba que el uso de una regla sea correcto. La relación que se
 -- pasa como argumento es el de la prueba.
-checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> Rule
-                             -> (ProofFocus -> ProofFocus) -> PM PE.Focus
+checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> 
+                           Rule -> (ProofFocus -> ProofFocus) -> PM PE.Focus
 checkSimpleStepFromRule f1 f2 rel t rule fMove = 
     whenEqRelWithDefault errRel rel (truthRel t) [relEquiv,relEq]>>
     case partitionEithers $ rewriteAllFocuses (PE.toExpr f1) rule of
@@ -132,15 +132,19 @@ proofFromRule f1 f2 rel t r fMove =
 -- | Dados dos focuses f1 y f2, una relacion rel y un axioma o
 -- teorema, intenta crear una prueba para f1 rel f2, utilizando el
 -- paso simple de aplicar el axioma o teorema.
-proofFromTruth :: PE.Focus -> PE.Focus -> Relation -> Basic -> (ProofFocus -> ProofFocus) -> PM Proof
-proofFromTruth f f' r basic fMove = case basic of
-                                      Evaluate -> if checkEval f f' 
-                                                 then Right $ Simple beginCtx r f f' Evaluate
-                                                 else Left $ ProofError (BasicNotApplicable Evaluate) fMove
-                                      _ -> case partitionEithers $ map (flip simples fMove) (truthRules basic) of
-                                            ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
-                                            (_, p:ps) -> Right p
-                                            (er, []) -> Left $ head er
+proofFromTruth :: PE.Focus -> PE.Focus -> Relation -> Basic -> 
+                  (ProofFocus -> ProofFocus) -> PM Proof
+proofFromTruth f f' r basic fMove = 
+    case basic of
+        Evaluate -> 
+                if checkEval f f' 
+                then Right $ Simple beginCtx r f f' Evaluate
+                else Left $ ProofError (BasicNotApplicable Evaluate) fMove
+        _ -> case partitionEithers $ 
+                map (flip simples fMove) (truthRules basic) of
+                    ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
+                    (_, p:ps) -> Right p
+                    (er, []) -> Left $ head er
     where simples = proofFromRule f f' r basic
 
 validateProofFocus :: ProofFocus -> PM Proof
@@ -161,16 +165,15 @@ validateProof p = validateProof' p goTop'
 validateProof' :: Proof -> (ProofFocus -> ProofFocus) -> PM Proof
 validateProof' (Hole ctx rel f1 f2) moveFocus = Left $ ProofError HoleProof moveFocus
 validateProof' proof@(Simple ctx rel f1 f2 b) moveFocus = 
-    proofFromTruth f1 f2 rel b moveFocus >>= \p ->
-    return p
+    proofFromTruth f1 f2 rel b moveFocus >>= return
 validateProof' proof@(Trans ctx rel f1 f f2 p1 p2) moveFocus = 
     getStart p1 >>= whenEqWithDefault err f1 >>
     getEnd p1 >>= whenEqWithDefault err f >>
     getStart p2 >>= whenEqWithDefault err f >>
     getEnd p2 >>= whenEqWithDefault err f2 >>
-    validateProof' p1 (goDownL' . moveFocus) >> 
-    validateProof' p2 (goDownR' . moveFocus) >>
-    return proof
+    validateProof' p1 (goDownL' . moveFocus) >>= \p1' ->
+    validateProof' p2 (goDownR' . moveFocus) >>= \p2' ->
+    return (mappend p1' p2')
     
     where err :: ProofError
           err = ProofError (TransInconsistent proof) moveFocus

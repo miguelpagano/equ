@@ -9,14 +9,12 @@ import Equ.Rule
 import Equ.Theories
 import Equ.Proof hiding (goDownL, goDownR)
 
-
 import Equ.GUI.Types
 import Equ.GUI.State
 import Equ.GUI.State.Expr
 import Equ.GUI.State.SymbolList
 import Equ.GUI.Utils
 import Equ.GUI.Settings
-
 
 import Graphics.UI.Gtk hiding (eventButton, eventSent,get)
 import qualified Graphics.UI.Gtk as G
@@ -27,6 +25,7 @@ import Data.Text(unpack)
 import Data.List (deleteBy)
 
 import qualified Data.Foldable as F
+import Data.Maybe (fromJust)
 import Control.Monad.Trans(lift,liftIO)
 import Control.Monad.Reader(ask)
 import Control.Monad.State(get,evalStateT)
@@ -231,8 +230,7 @@ newFocusToSym = getFormBox >>= \box ->
                 ask >>= \env ->
                 lift getSymCtrl >>= \symbols ->
                 lift getSymStore >>= \sListStore ->
-                lift (runEnv (eventsSymbolList symbols sListStore) env) >>
-                lift (highlightBox box focusBg)
+                lift (runEnv (eventsSymbolList symbols sListStore) env)
 
 -- | Resalta todos los controles que están dentro de una caja.
 highlightBox b bg = liftIO $ containerForeach b (highlight bg)
@@ -344,7 +342,6 @@ makeWindowPop box width isModal = io $
                     widgetShowAll w
                     return w
 
-
 popupWin :: Window -> IO Window
 popupWin w = windowNew >>= \pop ->
              set pop  [ windowDecorated := False
@@ -356,16 +353,12 @@ popupWin w = windowNew >>= \pop ->
                       ] >>
              windowSetPosition pop WinPosCenterAlways >>
              return pop
-             
-             
-                        
+                       
 unSelectBox :: IRG      
 unSelectBox = getStepProofBox >>= F.mapM_ (\box -> unlightBox box (Just axiomBg))
 
 selectBox :: Color -> IRG
 selectBox color = getStepProofBox >>= F.mapM_ (\box -> highlightBox box color)
-
-
 
 changeProofFocusAndShow ind = getSelIndexProof >>= \i ->
                               if i==ind

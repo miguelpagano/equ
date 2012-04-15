@@ -89,7 +89,8 @@ editExpr b env s = do
         case click of
             DoubleClick -> flip eventWithState s $ 
                 getSelIndexProof >>= \i ->
-                io (debug $ "editando expresion con environment pme = "++ show i) >>
+                io (debug $ 
+                    "editando expresion con environment pme = "++ show i) >>
                 (flip runReaderT (env {pme=i}) $ 
                     exprChangeStatus (ew env) NotParsed >>
                     getPath >>= \p ->
@@ -99,26 +100,29 @@ editExpr b env s = do
                     writeExpr (Just f) b
                 )
             SingleClick -> flip eventWithState s $ 
-                getFocusAt >>= \(fi,ewi) ->
+                getFocusAt >>= \(fi@(ei,_),ewi) ->
+                updateExpr ei (mv env) >>
                 findExprBox fi ewi >>= \focusB ->
-                flip runReaderT (env {bx = focusB}) newFocusToSym
+                flip runReaderT (env {bx = focusB}) newFocusToSym >>
+                lift (highlightBox focusB focusBg)
     where
         pairM :: (IState Focus, IState ExprWidget) -> IState (Focus, ExprWidget)
         pairM (mf,mew) = mf >>= \f -> mew >>= \ew -> return (f,ew)
         getP :: Int -> IState Focus
-        getP i = getProof >>= \p -> return $ mv env $ goTop $ getBasicAt i p
+        getP i = getProof >>= \p -> return (mv env $ goTop $ getBasicAt i p)
         getPW :: Int -> IState ExprWidget
         getPW i = getProofWidget >>= \p -> return $ getBasicAt i p
         getFocusAt :: IState (Focus,ExprWidget)
         getFocusAt = do
-                    mi <- getIndexBasic (ew env)
-                    case mi of
-                        Nothing -> io (debug $ "Indice single click: InitExpr") >>
-                                   getExpr >>= \f ->
-                                   getExprWidget >>= \ew ->
-                                   return (mv env $ goTop f,ew)
-                        Just i -> io (debug $ "Indice single click: " ++ show i) >>
-                                  pairM ((getP &&& getPW) i)
+                mi <- getIndexBasic (ew env)
+                case mi of
+                    Nothing -> io (debug $ "Indice single click: InitExpr") >>
+                               getExpr >>= \f ->
+                               getExprWidget >>= \ew ->
+                               return (mv env $ goTop f,ew)
+                    Just i -> io (debug $ "Indice single click: " ++ show i) >>
+                              changeProofFocusAndShow i >>
+                              pairM ((getP &&& getPW) i)
 
 -- | Pone una caja de texto para ingresar una expresión; cuando se
 -- activa (presionando Enter) parsea el texto de la caja como una
@@ -207,6 +211,9 @@ writeExprWidget = writeExprWidget' Editable Sugar Nothing . toFocus
 writeFocusWidget :: Focus -> IExpr' WExprList
 writeFocusWidget = writeExprWidget' Editable Sugar Nothing
 
+writeInitExprWidget :: PreExpr -> IExpr' WExprList
+writeInitExprWidget = writeExprWidget' NotEditable Sugar Nothing . toFocus
+
 writeExprTreeWidget :: HBox -> PreExpr -> IExpr' WExprList
 writeExprTreeWidget b e = writeExprWidget' NotEditable Kernel 
                                            (Just b) (toFocus e)
@@ -227,9 +234,9 @@ writeExprWidget' emask vmask mhbox f@(e,p) =
                         updateEs es wes >>
                         return wes
             (_,Just lpw) -> (updateW wes lpw) >>= \uew ->
-                        mUpdateExprAt (pme env) uew lpw >>= \ulpw ->
-                        lift (updateProofWidget ulpw) >> 
-                        return wes
+                            mUpdateExprAt (pme env) uew lpw >>= \ulpw ->
+                            lift (updateProofWidget ulpw) >> 
+                            return wes
     where
         upEs :: ExprState -> WExprList -> ExprState
         upEs es wes = (es {exprWidget = (exprWidget es) {wExprL = wes}})
@@ -243,61 +250,52 @@ writeExprWidget' emask vmask mhbox f@(e,p) =
         updateW :: WExprList -> ListedProofWidget -> IExpr' ExprWidget
         updateW wes lpw = return $ (getSelExpr lpw) {wExprL = wes}
 
-takeBox :: ViewMask -> WExprList -> Widget
-takeBox vmask wes = case vmask of
-                        Sugar -> bestBox wes
-                        Kernel -> kernelBox wes
-
-kernelBox :: WExprList -> Widget
-kernelBox = wKernel . head
-
-bestBox :: WExprList -> Widget
-bestBox wes = maybe (wKernel $ head wes) id (ws wes)
-    where
-        ws :: WExprList -> Maybe Widget
-        ws = wSugar . head
-
 frameExp :: PreExpr -> EditMask -> ViewMask -> IExpr' WExprList
-frameExp e emask vmask = frameExp' (toFocus e) emask vmask []
+frameExp e emask vmask = frameExp' (toFocus e) emask vmask emptyWExprList
 
 -- | Esta es la función principal: dada una expresión, construye un
 -- widget con la expresión.
 frameExp' :: Focus -> EditMask -> ViewMask -> WExprList -> IExpr' WExprList
 frameExp' f@(PrExHole h,_) emask vmask wes = 
-                                    lift newBox >>= \box -> 
-                                    setupForm box emask (unpack $ info h) >>
-                                    return (WExpr Nothing (ctw box) f : wes)
+                        lift newBox >>= \box -> 
+                        setupForm box emask (unpack $ info h) >>
+                        return (appendWExprList (WExpr Nothing (ctw box) f) wes)
 
-frameExp' f@(e@(Var v),_) emask vmask wes = lift newBox >>= \box ->
-                                  (lift . labelStr . repr) v >>= \lblVar ->
-                                  setupFormEv box lblVar e emask >> 
-                                  return (WExpr Nothing (ctw box) f : wes)
+frameExp' f@(e@(Var v),_) emask vmask wes = 
+                        lift newBox >>= \box ->
+                        (lift . labelStr . repr) v >>= \lblVar ->
+                        setupFormEv box lblVar e emask >> 
+                        return (appendWExprList (WExpr Nothing (ctw box) f) wes)
 
-frameExp' f@(e@(Con c),_) emask vmask wes = lift newBox >>= \box ->
-                                  (lift . labelStr . repr) c >>= \lblConst ->
-                                  setupFormEv box lblConst e emask >> 
-                                  return (WExpr Nothing (ctw box) f : wes)
+frameExp' f@(e@(Con c),_) emask vmask wes = 
+                        lift newBox >>= \box ->
+                        (lift . labelStr . repr) c >>= \lblConst ->
+                        setupFormEv box lblConst e emask >> 
+                        return (appendWExprList (WExpr Nothing (ctw box) f) wes)
 
 frameExp' f@(e@(Fun fun),_) emask vmask wes = 
-                                lift newBox >>= \box ->
-                                (lift . labelStr . repr) fun >>= \lblConst ->
-                                setupFormEv box lblConst e emask >> 
-                                return (WExpr Nothing (ctw box) f : wes)
+                        lift newBox >>= \box ->
+                        (lift . labelStr . repr) fun >>= \lblConst ->
+                        setupFormEv box lblConst e emask >> 
+                        return (appendWExprList (WExpr Nothing (ctw box) f) wes)
 
 frameExp' f@(e@(UnOp op e'),p) emask vmask wes =                
-            let f1' = goDown f in
-                lift newBox >>= \boxK ->
-                createDownWidget f1' >>=
-                \wes' -> (lift . labelStr . repr) op >>= 
-                \lblOp -> setupFormEv boxK lblOp e emask >>
-                setupFormEv boxK (takeBox vmask wes') e emask >>
-                case evalNat e of
-                    Nothing -> return (WExpr Nothing (ctw boxK) f : wes ++ wes')
-                    Just n -> lift newBox >>= \boxS ->
-                              (lift . labelStr . show) n >>= \lblInt ->
-                              setupFormEv boxS lblInt e emask >> 
-                              return (WExpr (Just $ ctw boxS) (ctw boxK) f : wes ++ wes')
-                              
+        let f1' = goDown f in
+            lift newBox >>= \boxK ->
+            createDownWidget f1' >>=
+            \wes' -> (lift . labelStr . repr) op >>= 
+            \lblOp -> setupFormEv boxK lblOp e emask >>
+            setupFormEv boxK (takeBox vmask wes') e emask >>
+            case evalNat e of
+                Nothing -> return 
+                           (appendWExprList (WExpr Nothing (ctw boxK) f) 
+                                            (concatWExprList wes wes'))
+                Just n -> lift newBox >>= \boxS ->
+                        (lift . labelStr . show) n >>= \lblInt ->
+                        setupFormEv boxS lblInt e emask >> 
+                        return 
+                        (appendWExprList (WExpr (Just $ ctw boxS) (ctw boxK) f) 
+                                         (concatWExprList wes wes'))
     where createDownWidget f' =
             if parentNeeded f' op
                then localPath (goDown .) (frameExpWithFalseParens (goDown f) emask vmask wes)
@@ -323,12 +321,16 @@ frameExp' f@(e@(BinOp op e1 e2),p) emask vmask wes =
             setupFormEv boxK lblOp e emask >>
             lift (addToBox boxK (takeBox vmask rightwes)) >>
             case PS.showL e "" of 
-                Nothing -> return (WExpr Nothing (ctw boxK) f : wes ++ leftwes ++ rightwes)
+                Nothing -> return (appendWExprList (WExpr Nothing (ctw boxK) f) 
+                                  (concatWExprList wes $ 
+                                            concatWExprList leftwes rightwes))
                 Just list -> lift newBox >>= \boxS -> 
                              (lift . labelStr) list >>= \lblList ->
-                             setupFormEv boxS lblList e emask >> 
-                             return (WExpr (Just $ ctw boxS) (ctw boxK) f : wes ++ leftwes ++ rightwes)
-
+                             setupFormEv boxS lblList e emask >>
+                             return 
+                             (appendWExprList (WExpr (Just $ ctw boxS) (ctw boxK) f) 
+                                  (concatWExprList wes $ 
+                                            concatWExprList leftwes rightwes))
     where parentNeeded (e,_) op = case e of
                                     (BinOp op' _ _) -> if opPrec op >= opPrec op' 
                                                           then True
@@ -360,7 +362,9 @@ frameExp' f@(e@(App e1 e2),p) emask vmask wes =
             lift (addToBox boxK (takeBox vmask leftwes)) >>
             setupFormEv boxK lblApp e emask >>
             lift (addToBox boxK (takeBox vmask rightwes)) >>
-            return (WExpr Nothing (ctw boxK) f : wes ++ leftwes ++ rightwes)
+            return (appendWExprList (WExpr Nothing (ctw boxK) f) 
+                                  (concatWExprList wes $ 
+                                            concatWExprList leftwes rightwes))
 
 -- Este caso tiene un hack medio feo; nos fijamos en el texto de
 -- variable para ver si la construimos nosotros o no.
@@ -383,7 +387,9 @@ frameExp' f@(e@(Quant q v e1 e2),_) emask vmask wes =
                 setupFormEv boxK lblTrm e emask >>
                 lift (addToBox boxK (takeBox vmask rightwes)) >>
                 setupFormEv boxK lblEnd e emask >>
-                return (WExpr Nothing (ctw boxK) f : wes ++ leftwes ++ rightwes)
+                return (appendWExprList (WExpr Nothing (ctw boxK) f) 
+                                  (concatWExprList wes $ 
+                                            concatWExprList leftwes rightwes))
     where 
         quantVar :: Variable -> Move -> IState HBox
         quantVar v p = newBox >>= \box ->
@@ -439,7 +445,8 @@ frameExp' f@(e@(Paren e'),_) emask vmask wes =
             setupFormEv boxK lblOpen e emask >>
             lift (addToBox boxK (takeBox vmask wes')) >>
             setupFormEv boxK  lblClose e emask >>
-            return (WExpr Nothing (ctw boxK) f : wes ++ wes')
+            return (appendWExprList (WExpr Nothing (ctw boxK) f) 
+                                    (concatWExprList wes wes'))
             
 frameExpWithFalseParens f@(e,_) emask vmask wes =
             lift newBox >>= \boxK ->
@@ -451,7 +458,8 @@ frameExpWithFalseParens f@(e,_) emask vmask wes =
             setupFormEv boxK lblOpen e emask >>
             lift (addToBox boxK (takeBox vmask wes')) >>
             setupFormEv boxK  lblClose e emask >>
-            return (WExpr Nothing (ctw boxK) f : wes ++ wes')
+            return (appendWExprList (WExpr Nothing (ctw boxK) f) 
+                                    (concatWExprList wes wes'))
 
 {- Las siguientes funciones construyen expresiones con huecos a partir de
 un constructor de la sintáxis. -}
@@ -631,7 +639,7 @@ createExprWidget initial proofIndex = do
     
     return $ ExprWidget { formBox = formBox
                         , extBox = boxExpr
-                        , wExprL = []
+                        , wExprL = emptyWExprList
                         , choicesButton = choices
                         , annotButton = bAnnot
                         , typeButton = bType

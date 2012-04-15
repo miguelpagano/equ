@@ -103,7 +103,10 @@ data WExpr = WExpr { wSugar :: Maybe Widget
 instance Show WExpr where
     show = show . wExpr
 
-type WExprList = [WExpr]
+-- | Lista de WExpr.
+data WExprList = WExprList { weList :: [WExpr]
+                           , weMarked :: Maybe WExpr
+                           }
 
 instance Reference IORef IState where
     readRef = liftIO . readRef
@@ -129,12 +132,10 @@ instance Eq ExprWidget where
 
 instance Show ExprWidget where
     show e = "EWidget- id="++ewId e
-                             
-                             
+
 -- WIDGET PARA PRUEBAS
 -- Estructura de cajas:
 {- centerBox -> stepBox -> eventBoxAxiom -> axiomWidget -}
-
 
 data ProofStepWidget = ProofStepWidget {
                         relation :: (ComboBox,ListStore Relation)

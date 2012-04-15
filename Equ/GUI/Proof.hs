@@ -20,7 +20,8 @@ import Equ.Proof.Annot
 import Equ.PreExpr hiding (goDownL,goDownR,goRight,goUp,goTop)
 import qualified Equ.PreExpr.Show as PS
 import Equ.GUI.Widget
-import Equ.GUI.Expr ( writeExprWidget,setupForm
+import Equ.GUI.Expr ( writeExprWidget, writeInitExprWidget
+                    , setupForm
                     , newExprState, reloadExpr
                     , createExprWidget
                     , setupOptionExprWidget 
@@ -84,28 +85,27 @@ loadProof p ret_box truthBox initExprWidget proofStepW = do
     --newExpr_w  <- newExprWidget (toExpr $ fromRight $ getEnd p) (ProofMove moveToEnd) truthBox
     newExpr_w  <- newExprWidget (toExpr $ fromRight $ getEnd p) 0
     
+    -- Expresión inicial:
+    removeAllChildren (formBox initExprWidget)
+    initExpr <- return . fromRight $ getStart p
+    
+    initExprWidget' <- flip runEnvBox (initExprWidget,id,0) 
+                            (writeInitExprWidget (toExpr initExpr) >>= 
+                            \wes -> return (initExprWidget {wExprL = wes}))
+    
     empty_box1 <- io $ hBoxNew False 2
     (l_proof,_) <- return $ toHoleProof (p,Top)
-    proof <- newProofState (Just l_proof) empty_box1 initExprWidget newExpr_w proofStepW
+    proof <- newProofState (Just l_proof) empty_box1 initExprWidget' newExpr_w proofStepW
     updateProofState proof
     
     pstate <- getProof
     
     unsetExprState
     
-    -- Expresión inicial:
-    removeAllChildren (formBox initExprWidget)
-    initExpr <- return . fromRight $ getStart p
-    
-    labelInitExpr <- io $ labelNew (Just $ PS.showExpr $ toExpr initExpr)
-    io $ boxPackStart (formBox initExprWidget) labelInitExpr PackNatural 2
-    io $ widgetShowAll (formBox initExprWidget)
-    
     io (boxPackStart ret_box truthBox PackNatural 2 >>
         boxPackStart ret_box (extBox newExpr_w) PackNatural 2)
     
-    completeProof p truthBox 0
-    
+    completeProof p truthBox 0    
     
 completeProof :: Proof -> VBox -> Int -> IState ()
 completeProof p@(Trans _ rel f1 fm f2 p1 p2) center_box ind = do
@@ -139,9 +139,9 @@ createNewProof proof ret_box truthBox initExprWidget = do
     removeAllChildren (formBox initExprWidget)
     initExpr <- getExpr
     
-    labelInitExpr <- io $ labelNew (Just $ PS.showExpr $ toExpr initExpr)
-    io $ boxPackStart (formBox initExprWidget) labelInitExpr PackNatural 2 >>
-         widgetShowAll (formBox initExprWidget)
+    initExprWidget' <- flip runEnvBox (initExprWidget,id,0) 
+                            (writeInitExprWidget (toExpr initExpr) >>= 
+                            \wes -> return (initExprWidget {wExprL = wes}))
     
     -- truthBox es la caja central para colocar la relacion y el axioma aplicado. La
     -- funcion para mover el foco es ir hasta el tope.
@@ -151,8 +151,8 @@ createNewProof proof ret_box truthBox initExprWidget = do
     
     io $ debug $ "Pude crear el widget de paso de prueba"
         
-    maybe (emptyProof truthBox initExprWidget firstStepProof) 
-          (\p -> loadProof p ret_box truthBox initExprWidget firstStepProof >>
+    maybe (emptyProof truthBox initExprWidget' firstStepProof) 
+          (\p -> loadProof p ret_box truthBox initExprWidget' firstStepProof >>
                  getProof >>= \pf -> io (debug $ "prueba despues de loadProof:"++show pf)) proof
     
     s <- get    
@@ -418,7 +418,7 @@ eventsExprWidget exprWidget = let stepIndex = exprProofIndex exprWidget in
                             changeProofFocus' stepIndex >>
                             updateExprWidget exprWidget >>
                             runEnvBox (writeExprWidget e) 
-                                        (exprWidget, id,stepIndex) >>
+                                      (exprWidget, id,stepIndex) >>
                             updateExpr e id
           
 -- | Funcion para resetear los manejadores de eventos de expresiones y pasos de prueba.
@@ -480,7 +480,6 @@ eventsProofStep psw = do
             newRel <- io $ listStoreGetValue list ind
             updateRelation newRel
             validateStep
-        
 
 -- | Descarta la prueba actual.
 discardProof :: ContainerClass c => c -> ExprWidget -> IState ()

@@ -110,34 +110,34 @@ runEnvBox c (e,m,p) = runReaderT c (Env e m p (formBox e))
 updateExprState :: ExprState -> IState ()
 updateExprState es = update (\gst -> gst {gExpr = Just es}) >> showExpr
 
-
 -- | Actualiza la expresión que se muestra en el área de estado;
 -- esta es una función que puede dejar de tener sentido más adelante.
 showExpr :: IState ()
-showExpr = getExprState >>= \es ->
-           case es of
-                Nothing -> return ()
-                Just es' -> withRefValue $ uncurry putMsg . (status &&& show . toExpr . (fExpr . fromJust . gExpr) )
+showExpr = 
+    getExprState >>= \es ->
+    case es of
+        Nothing -> return ()
+        Just es' -> withRefValue $ uncurry putMsg . 
+                        (status &&& show . toExpr . (fExpr . fromJust . gExpr))
 
 updateExpr'' :: Move -> (PreExpr -> PreExpr) -> GState -> GState
-updateExpr'' g change gst = case (gProof gst,gExpr gst) of
-                                  (Just gpr, _) -> upd gpr 
-                                  (Nothing, Just gexpr) ->  gst {gExpr = Just gexpr {fExpr = newExpr gexpr}} 
-                                  (_,_) -> gst
+updateExpr'' g change gst = 
+    case (gProof gst,gExpr gst) of
+        (Just gpr, _) -> upd gpr 
+        (Nothing, Just gexpr) -> gst {gExpr =Just gexpr {fExpr = newExpr gexpr}} 
+        (_,_) -> gst
     where upd gpr = gst { gProof = Just gpr' }
-                -- Para actualizar la expresión dentro de la prueba, asumimos que el foco se encuentra
-                -- en la prueba simple que deja a dicha expresión a la derecha.
-            where  gpr' = gpr { proof = updateSelExpr (newExpr' gpr) (proof gpr) }
+            -- Para actualizar la expresión dentro de la prueba, asumimos que el foco se encuentra
+            -- en la prueba simple que deja a dicha expresión a la derecha.
+            where  gpr' = gpr {proof = updateSelExpr (newExpr' gpr) (proof gpr)}
                        --gexpr' = gexpr {fExpr = newExpr gexpr}
                
           newExpr gexpr = first change . g . goTop . fExpr $ gexpr
           newExpr' gpr = let fexpr = getSelExpr (proof gpr) in
                         first change . g . goTop $ fexpr
               
-              
 updateExpr' :: PreExpr -> Move -> GState -> GState
 updateExpr' e p = updateExpr'' p (const e)
-
 
 -- -- | Devuelve la expresión que está enfocada en un momento dado.
 getSelectedExpr :: IState Focus
@@ -145,10 +145,9 @@ getSelectedExpr = getProof >>= return . getSelExpr
  
 -- TODO: debemos hacer renombre si la variable está ligada?
 -- | Actualización de la variable de cuantificación.
-updateQVar v p = update (updateExpr'' id putVar) 
+updateQVar v p = update (updateExpr'' p putVar) 
     where putVar (Quant q _ r t) = Quant q v r t
           putVar e = e
-
 
 -- | Funcion que actualiza la expresion seleccionada por el usuario al mover el proofFocus.
 updateSelectedExpr :: IState ()
@@ -156,26 +155,106 @@ updateSelectedExpr = getExprState >>= F.mapM_
                        (\es -> getProof >>= \ lp -> 
                               updateExprState (es {fExpr= getSelExpr lp }))
 
-findExprKernelBox :: Focus -> ExprWidget -> IState HBox
-findExprKernelBox = findExprBox' (castToHBox . wKernel)
+-- | En base a un modo de vista retorna la caja.
+takeBox :: ViewMask -> WExprList -> Widget
+takeBox vmask wes = case vmask of
+                        Sugar -> bestBox wes
+                        Kernel -> kernelBox wes
 
-findExprBox :: Focus -> ExprWidget -> IState HBox
-findExprBox = findExprBox' (castToHBox . best)
+-- | Retorna la caja sin sugar.
+kernelBox :: WExprList -> Widget
+kernelBox = wKernel . head . weList
+
+-- | Retorna la caja que mejor represente a un focus. Donde con mejor represente
+-- nos referimos a la caja con Sugar.
+bestBox :: WExprList -> Widget
+bestBox wes = maybe (wKernel $ head $ weList wes) id (ws wes)
+    where
+        ws :: WExprList -> Maybe Widget
+        ws = wSugar . head . weList
+
+-- | En base a un focus retorna la caja, sin Sugar, correspondiente en la prueba.
+findExprKernelBox :: Focus -> ExprWidget -> IState HBox
+findExprKernelBox = findExprBox' (\f -> \we -> (wExpr we) == f) (castToHBox . wKernel)
+
+-- | En base a un path retorna la caja correspondiente en la prueba.
+findPathBox :: Focus -> ExprWidget -> IState HBox
+findPathBox = findExprBox' (\f -> \we -> (snd $ wExpr we) == snd f) (castToHBox . best)
     where
         best :: WExpr -> Widget
         best we = maybe (wKernel we) id (wSugar we)
-        
-findExprBox' :: (WExpr -> HBox) -> Focus -> ExprWidget -> IState HBox
-findExprBox' func f ew = case find (\we -> (wExpr we) == f) $ wExprL ew of
+
+-- | En base a un focus retorna la caja correspondiente en la prueba.
+findExprBox :: Focus -> ExprWidget -> IState HBox
+findExprBox = findExprBox' (\f -> \we -> (wExpr we) == f) (castToHBox . best)
+    where
+        best :: WExpr -> Widget
+        best we = maybe (wKernel we) id (wSugar we)
+
+-- Función auxiliar para encontrar la caja correspondiente a un focus.
+findExprBox' :: (Focus -> WExpr -> Bool) -> (WExpr -> HBox) -> Focus -> ExprWidget -> 
+                IState HBox
+findExprBox' condition func f ew = 
+                        case find (condition f) $ weList $ wExprL ew of
                             Nothing -> io (debug $ "finExprBox: Nothing!") >> 
                                        return (formBox ew)
                             Just we -> (return . func) we
-        
+
+-- | Dado un focus y un exprWidget(correspondiente a este focus en la prueba)
+-- retorna si esta escrito con Sugar o no.
 focusHasSugar :: Focus -> ExprWidget -> IState Bool
-focusHasSugar f ew = case find (\we -> (wExpr we) == f) $ wExprL ew of
+focusHasSugar f ew = case find (\we -> (wExpr we) == f) $ weList $ wExprL ew of
                         Nothing -> io (debug $ "focusHasSugar: Nothing!") >> 
                                       return False
                         Just we -> return $ hasSugar we
     where
         hasSugar :: WExpr -> Bool
         hasSugar we = maybe False (const True) (wSugar we)
+
+-- | Lista vacia.
+emptyWExprList :: WExprList
+emptyWExprList = WExprList [] Nothing
+
+-- | Agrega un WExpr a la lista.
+appendWExprList :: WExpr -> WExprList -> WExprList
+appendWExprList we wes = WExprList (we: weList wes) $ weMarked wes
+
+-- TODO: Tiene un detalle importante. Que pasa si hacemos concat de listas que
+-- tiene cajas con markup. Deberíamos borrar el markup de las cajas, poner
+-- Nothing y listo. De momento no lo hago :D Acomodar!
+concatWExprList :: WExprList -> WExprList -> WExprList
+concatWExprList wes wes' = WExprList (weList wes ++ weList wes') Nothing
+
+-- | Obtiene la caja que tiene el focus de re-escritura, si no, Nothing.
+getFocusBox :: ExprWidget -> Maybe HBox
+getFocusBox ew = case weMarked $ wExprL ew of
+                  Nothing -> Nothing
+                  Just wem -> return $ castToHBox $ best wem
+    where
+        best :: WExpr -> Widget
+        best we = maybe (wKernel we) id (wSugar we)
+
+-- | Hace un update de la caja que tiene el focus de re-escritura.
+-- Es decir, que tiene el subrayado de la expresión que se re-escribio,
+-- al aplicar un axioma exitosamente.
+updateFocusBoxExprWidget :: Widget -> ExprWidget -> IState ()
+updateFocusBoxExprWidget b ew = do 
+                    lpw <- getProofWidget
+                    uew <- updateW ew
+                    ulpw <- updateE uew lpw
+                    updateProofWidget ulpw
+    where
+        updateE :: ExprWidget -> ListedProofWidget -> IState ListedProofWidget
+        updateE uew lpw =  do
+                    i <- return $ selIndex lpw
+                    if i == 0 then
+                        return $ updateFirstExpr uew lpw
+                    else
+                        return $ updateExprAt (i-1) uew lpw
+        updateW :: ExprWidget -> IState ExprWidget
+        updateW ew = 
+            case find (\we -> ((wSugar we) == (Just b)) || (wKernel we == b)) $ 
+                        weList $ wExprL ew of
+                Nothing -> io (debug $ "updateFocusBoxExprWidget: Nothing!") >>
+                           return ew
+                Just we -> return $ ew {wExprL = (wExprL ew) {weMarked = Just we}}

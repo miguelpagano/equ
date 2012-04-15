@@ -192,7 +192,7 @@ updateSelExpr expr lProof = let ind = selIndex lProof in
                         case goRight (fromJust up1) of
                              Nothing -> goEnd (fromJust up1)
                              Just pf' -> goEnd $ goDownL' $ fromJust $ updateMiddleFocus (goUp' $ fromJust $ updateStartFocus pf' expr) expr
-                
+
 {- | Devuelve la expresión seleccionada dentro de la prueba, ésta es siempre la de la
 derecha del paso que tenemos enfocado. -}
 getSelExpr :: ListedProof' ctxTy relTy proofTy exprTy -> exprTy

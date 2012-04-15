@@ -28,8 +28,6 @@ import qualified Data.Foldable as F
 import Control.Arrow(first,(&&&))
 import Control.Monad.Trans(liftIO)
 
-import Equ.PreExpr
-
 getProofState :: IState (Maybe ProofState)
 getProofState = getStatePartDbg "getProofState" gProof
 
@@ -41,10 +39,12 @@ getProofWidget :: IState ListedProofWidget
 getProofWidget = getStatePartDbg "getProofWidget" (proofWidget . fromJust . gProof)
 
 safeGetProofWidget :: IState (Maybe ListedProofWidget)
-safeGetProofWidget = askRef >>= \s ->
-                     case isJust $ gProof s of
-                        True -> getStatePartDbg "getProofWidget" (proofWidget . fromJust . gProof) >>= \p -> return $ Just p
-                        False -> return Nothing
+safeGetProofWidget = 
+        askRef >>= \s ->
+        case isJust $ gProof s of
+        True -> getStatePartDbg "getProofWidget" 
+                (proofWidget . fromJust . gProof) >>= return . Just 
+        False -> return Nothing
 
 getValidProof :: IState (PM Proof)
 getValidProof = getStatePart (maybe (Left errEmptyProof) validProof . gProof)
@@ -52,37 +52,19 @@ getValidProof = getStatePart (maybe (Left errEmptyProof) validProof . gProof)
 updateImageValid :: StockId -> IRG
 updateImageValid icon = getStatePart imageValid >>= \validImage ->
                         io (imageSetFromStock validImage icon IconSizeSmallToolbar)
-                    
 
 restoreValidProofImage :: IRG
 restoreValidProofImage = updateImageValid iconUnknownProof
 
 -- Las siguientes funciones validan el paso en el que la prueba está enfocada.
-validateStep :: IState ()
-validateStep = getProofState >>= 
+validateStep :: (Proof -> IState ()) -> IState ()
+validateStep accion = getProofState >>= 
                F.mapM_ (\ps -> getProof >>= \lp ->
                case validateStepProof lp of
                     Left er -> updateStepWidgetImage iconErrorProof
-                    Right p -> getProofWidget >>= \lpw ->
-                               return (getStartExpr lpw) >>= \sew ->
-                               --findExprBox (fromJust $ getStart p) sew >>= \focusBox ->
-                               --flip runReaderT (Env sew id (fromJust $ getIndexBasic sew) focusBox) $ newFocusToSym >>
-                               updateStepWidgetImage iconValidProof
+                    Right p -> accion p >> updateStepWidgetImage iconValidProof
                     )
-    where
-        updateFocus :: HBox -> ExprWidget -> Focus -> IState ()
-        updateFocus focusBox ew f = update (\gst -> case gExpr gst of
-                                        Nothing -> gst
-                                        Just es -> gst { gExpr = Just $ es {fExpr = f
-                                                                          , exprWidget = ew
-                                                                          , formCtrl = focusBox
-                                                                          }})
-        findExprBox :: Focus -> ExprWidget -> IState HBox
-        findExprBox f ew = case find (\we -> snd (wExpr we) == snd f) $ wExprL ew of
-                            Nothing -> error $ "No se encontro la expresi´on seleccionada en la lista de ExprWidget." 
-                                             ++ (show (wExprL ew) ++ " " ++  show f)
-                            Just we -> (return . castToHBox . wKernel) we
-                   
+
 updateStepWidgetImage :: StockId -> IState ()
 updateStepWidgetImage icon = getProofState >>= 
                         F.mapM_ (\ps -> getProofWidget >>= \pfw ->
@@ -112,11 +94,9 @@ updateProofWidget pfw = update (\gst -> case gProof gst of
                                                      proofWidget = pfw}
                                              })
 
-
 showProof :: IState ()
 showProof = (withRefValue $ uncurry putMsg . (status &&& show . proof . fromJust . gProof ) ) >>
             io (debug "showProof") >> showProof'
-
 
 showProof' = getProof >>= io . debug . show
 
@@ -142,7 +122,6 @@ getRelPF = getProofState >>= \ps ->
                  Just ps' -> 
                     getStatePart $ getRelLP . proof . fromJust . gProof
 
-
 updateProofAnnots :: ListedAnnots -> IState ()
 updateProofAnnots pfa = update (updateProofAnnots' pfa)
 
@@ -157,5 +136,3 @@ updateProofAnnots' pfa gst = case gProof gst of
 
 getProofAnnots :: IState ListedAnnots
 getProofAnnots = getStatePartDbg "getProof" (proofAnnots . fromJust . gProof)
-
-

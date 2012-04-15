@@ -27,6 +27,10 @@ axiomBg = Color 60000 58000 59000
 errBg :: Color
 errBg = Color 58000 18000 20000
 
+-- | Color del subrayado de expresiones.
+underlineBg :: Color
+underlineBg = Color 58000 18000 20000
+
 successfulBg :: Color
 successfulBg = Color 0 65000 2000
 
