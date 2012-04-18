@@ -47,11 +47,11 @@ rewriteInformative (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) =
 -- | Dado un focus y una regla, aplicamos re-escrituda con la regla a la 
 --  expresi&#243;n focalizada, en caso de exito reemplazamos la expresi&#243;n inicial
 --  por la expresi&#243;n resultante dentro del focus.
-focusedRewrite :: Focus -> Rule -> RM Focus
+focusedRewrite :: Focus -> Rule -> RM (Focus,Focus)
 focusedRewrite f@(pe, p) r = exprRewrite (Expr pe) r >>= 
-                             \(Expr pe')-> return $ replace f pe'
+                             \(Expr pe')-> return $ (replace f pe',f)
                              
-rewriteAllFocuses :: PreExpr -> Rule -> [RM Focus]
+rewriteAllFocuses :: PreExpr -> Rule -> [RM (Focus,Focus)]
 rewriteAllFocuses e r = map (flip focusedRewrite r) (toFocuses e)
 
 {- 

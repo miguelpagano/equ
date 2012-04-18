@@ -110,14 +110,14 @@ checkSimpleStepFromRule f1 f2 rel t rule fMove =
          (_,[]) -> Left err
          (_,ls) -> case partitionEithers $ map checkeq ls of
                         (errors,[]) -> Left $ head errors
-                        (_,xs) -> return . snd $ head xs
+                        (_,xs) -> return . fst $ head xs
     where 
         errRel :: ProofError
         errRel = ProofError (ClashRel rel (truthRel t)) fMove
         err :: ProofError
         err = ProofError (BasicNotApplicable $ truthBasic t) fMove
-        checkeq :: PE.Focus -> PM (PE.Focus,PE.Focus)
-        checkeq = whenEqWithDefault' err (PE.goTop f2) fst . (PE.goTop &&& id)
+        checkeq :: (PE.Focus,PE.Focus) -> PM (PE.Focus,PE.Focus)
+        checkeq = whenEqWithDefault' err (PE.goTop f2) fst . (PE.goTop *** id)
 {- 
 Funciones para construir y manipular pruebas.
 Este kit de funciones deber&#237;a proveer todas las herramientas
@@ -192,8 +192,7 @@ possibleExpr :: PE.PreExpr -> Basic -> [(PE.PreExpr, Maybe PE.Focus)]
 possibleExpr p basic = 
             case basic of
                 Evaluate -> filter (flip ((/=) . fst) p) [(evalExpr p,Nothing)]
-                _ -> map (PE.toExpr &&& Just) $ rights $ concat $ map (rewriteAllFocuses p) (truthRules basic)
-
+                _ -> map ((PE.toExpr &&& Just) . fst) . rights $ concatMap (rewriteAllFocuses p) (truthRules basic)
 
 {- | Comenzamos una prueba dados dos focus y una relaci&#243;n entre ellas, de 
         la cual no tenemos una prueba.

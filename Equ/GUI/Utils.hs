@@ -97,8 +97,8 @@ fromRight = head . rights . return
 
 -- | Funcion para emitir mensajes de debugging.
 debug :: String -> IO ()
--- debug = const $ return ()
-debug = putStrLn
+debug = const $ return ()
+-- debug = putStrLn
 
 io :: MonadIO m => IO a -> m a
 io = liftIO
