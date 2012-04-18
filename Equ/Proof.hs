@@ -110,7 +110,7 @@ checkSimpleStepFromRule f1 f2 rel t rule fMove =
          (_,[]) -> Left err
          (_,ls) -> case partitionEithers $ map checkeq ls of
                         (errors,[]) -> Left $ head errors
-                        (_,xs) -> return . fst $ head xs
+                        (_,xs) -> return . snd $ head xs
     where 
         errRel :: ProofError
         errRel = ProofError (ClashRel rel (truthRel t)) fMove
