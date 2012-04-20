@@ -106,24 +106,25 @@ loadProof p ret_box truthBox initExprWidget proofStepW = do
         boxPackStart ret_box (extBox newExpr_w) PackNatural 2)
     
     completeProof p truthBox 0    
+    return ()
     
-completeProof :: Proof -> VBox -> Int -> IState ()
+completeProof :: Proof -> VBox -> Int -> IState Int
 completeProof p@(Trans _ rel f1 fm f2 p1 p2) center_box ind = do
     (boxL,boxR) <- newStepProof (toExpr fm) ind center_box
     
-    completeProof p1 boxL ind
-    completeProof p2 boxR (ind+1)
+    ind' <- completeProof p1 boxL ind
+    completeProof p2 boxR (ind'+1)
 
 completeProof (Hole _ rel f1 f2) center_box ind =
     --addStepProof center_box top_box moveFocus Nothing >>
-    return ()
+    return ind
 
 completeProof p@(Simple _ rel f1 f2 b) center_box ind =
-    --addStepProof center_box top_box moveFocus (Just b) >>
+    -- addStepProof center_box top_box moveFocus (Just b) >>
     changeProofFocusAndShow ind >>
     getProofWidget >>= \lpw ->
     writeTruth b (axiomWidget $ fromJust $ getSelBasic lpw) >>
-    return ()
+    return ind
 
 
 -- | Crea toda la estructura necesaria para una nueva prueba.  Si el
@@ -243,7 +244,7 @@ addStepProof center_box stepIndex maybe_basic = do
     
     flip F.mapM_ maybe_basic $ flip writeTruth axiom_box
     
-    ran <- io $ randomIO
+    -- ran <- io $ randomIO
     
     psw <- return ProofStepWidget {
                     relation = (combo_rel,store_rel) 
@@ -255,7 +256,7 @@ addStepProof center_box stepIndex maybe_basic = do
                   , centerBox = center_box
                   , stepEventsIds = []
                   , stepProofIndex = stepIndex
-                  , pswId = show (mod (ran :: Int) 200)
+                  , pswId = show 0 -- show (mod (ran :: Int) 200)
     }
     
     psw' <- eventsProofStep psw
