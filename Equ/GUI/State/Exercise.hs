@@ -7,7 +7,7 @@ import Equ.Proof
 import Equ.Theories (Grouped (..))
 import Equ.Proof.Proof(Axiom (..))
 
-import Equ.GUI.State
+import Equ.GUI.State.Internal
 import Equ.GUI.Types
 
 import Data.Maybe

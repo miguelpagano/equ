@@ -12,6 +12,7 @@ import Equ.GUI.Widget
 import Equ.GUI.Types
 import Equ.GUI.State 
 import Equ.GUI.State.Expr
+import Equ.GUI.State.Exercise
 import Equ.GUI.Settings
 
 import Graphics.UI.Gtk hiding (get,UpdateType)
@@ -20,7 +21,7 @@ import Control.Monad.Reader
 import Control.Monad (when, unless) 
 
 import Data.List (find)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust,isJust)
 import qualified Data.Foldable as F
 
 updateAtPlace = flip (updateExpr . fst)
@@ -36,6 +37,11 @@ typeTreeWidget eb btree =  io $ do
                              boxPackEnd btree bb PackNatural 2
                              widgetShowAll bb
 
+getExprOrInit:: Bool -> IExpr' Focus
+getExprOrInit initial = lift $
+                        case initial of
+                            True -> getInitialFocus >>= return . fromJust
+                            False -> getExpr >>= return
 
 -- | Función principal que construye el arbol de tipado.
 -- Esencialmente, esta función construye una caja donde se muestra el
@@ -141,33 +147,35 @@ paintBranchErr f ess = F.mapM_ paint (find (\e -> fExpr e == f) ess)
 
 -- | Aplica el type-checker a la expresión seleccionada.
 typedCheckType :: Focus -> [(ExprState,Move)] -> IState ()
-typedCheckType f ess = either (\err -> paintBranchErr ((fst . fst) err) (map fst ess) >>
-                                      (reportErrWithErrPaned $ fmtError err))
+typedCheckType f ess = either (const $ return ())
                               (const $ return ())
                               (checkPreExpr (toExpr f))
     where fmtError ((foc,msg),subst) = show msg
+-- Esta Desactivada el panel de errores. Para volverlo a tener es con esto,
+-- \err -> paintBranchErr ((fst . fst) err) (map fst ess) >>
+--        (reportErrWithErrPaned $ fmtError err)
 
 -- | Define el manejador de eventos de la caja para editar typos.
 setupEventsLeaf :: VBox -> (ExprState,Move) -> HBox -> WExprList -> Bool -> 
                    IExpr' ()
 setupEventsLeaf extBTree (es,p') exprBox wes initial = do 
-  let b = eventType es
-  [tb'] <- io $ containerGetChildren b
-  tb <- return $ castToEventBox tb'
-  s <- get
-  env <- ask
-  io (tb `on` buttonPressEvent $ tryEvent $ flip eventWithState s $
-         flip runReaderT env $
-                  getPath >>= \p ->
-                  lift getExpr >>=
-                  return . show . getTypeFocus . p' . p . goTop >>= \ty ->
-                  io entryNew >>= \eText ->
-                  io (entrySetText eText ty >>
-                      containerRemove b tb >>
-                      boxPackStart b eText PackGrow 0 >> 
-                      widgetShowAll b) >>
-                  onTypeEdited eText extBTree b tb es p' exprBox wes initial)
-  return ()
+            let b = eventType es
+            [tb'] <- io $ containerGetChildren b
+            tb <- return $ castToEventBox tb'
+            s <- get
+            env <- ask
+            io (tb `on` buttonPressEvent $ tryEvent $ flip eventWithState s $
+                flip runReaderT env $
+                    getPath >>= \p ->
+                    getExprOrInit initial >>= \f -> 
+                    (return . show . getTypeFocus . p' . p . goTop) f >>= \ty ->
+                    io entryNew >>= \eText ->
+                    io (entrySetText eText ty >>
+                        containerRemove b tb >>
+                        boxPackStart b eText PackGrow 0 >> 
+                        widgetShowAll b) >>
+                    onTypeEdited eText extBTree b tb es p' exprBox wes initial)
+            return ()
 
 -- | Manejo del evento Activate en las cajas de texto de tipos:
 -- sólo se hace algo si el parseo es exitoso. Si el parseo falla,
@@ -179,7 +187,7 @@ onTypeEdited eText extBTree b tb es p' exprBox wes initial = ask >>= \ env ->
             lift (withState (onEntryActivate eText) (flip runReaderT env $ 
                         getProofMove >>= \moveFocus ->
                         lift (changeProofFocusAndShow moveFocus) >>
-                        lift getExpr >>= \f ->
+                        getExprOrInit initial >>= \f ->
                         io (entryGetText eText) >>= \text -> 
                         lift (checkInType text) >>= \checkText ->
                         flip F.mapM_ checkText (\t ->
@@ -192,9 +200,14 @@ onTypeEdited eText extBTree b tb es p' exprBox wes initial = ask >>= \ env ->
                                widgetShowAll b) >>
                         getPath >>= \p ->
                         getProofMove >>= \moveFocus ->
-                        lift (updateAtPlace (p' . p) (setAtomType f (p' . p . goTop) t)) >>
-                        lift (getFocusedExpr p) >>= \(e,_) -> 
-                        lift (updateExpr e p) >>
+                        return (setAtomType f (p' . p .goTop) t) >>= \setAF ->
+                        (if not initial then
+                            lift (updateAtPlace (p' . p) setAF) >>
+                            lift (getFocusedExpr p) >>= \(e,_) -> 
+                            lift (updateExpr e p) >>
+                            configExprStatus setAF
+                        else
+                            return ()) >>
                         io (containerGetChildren extBTree) >>= \wl ->
                         io (containerRemove extBTree (head wl)) >>
                         lift (removeAllChildren extBTree) >>
@@ -229,7 +242,8 @@ goTypedExpr :: (Focus -> Maybe Focus) -> Focus -> IO (Maybe (Focus, Type, Move))
 goTypedExpr go te = case go te of
                       Nothing -> return Nothing
                       Just f ->  chkPreExp f >>= \t -> return (Just (f, t, fromJust' . go))
-    where fromJust' = maybe (error "unexpected nothing at goTypedExpr") id
+    where fromJust' = maybe 
+                    (error $ "unexpected nothing at goTypedExpr" ++ show te) id
 
 -- Setea el par expresión, tipo para construir el árbol de tipado.
 setupEventExpr :: Focus -> Type -> HBox -> IO HBox

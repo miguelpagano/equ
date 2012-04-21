@@ -349,7 +349,7 @@ newStepProof expr stepIndex container = do
             
 newExprWidget :: PreExpr -> Int -> IState ExprWidget              
 newExprWidget expr stepIndex = do
-
+    
     exprWidget <- createExprWidget False stepIndex
     exprWidget' <- flip runEnvBox (exprWidget,id,stepIndex) 
                         (writeExprWidget expr >>= 

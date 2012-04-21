@@ -158,69 +158,52 @@ exprInEntry entry = io . entrySetText entry . (PS.showExpr) . fst
 -- y construye un widget con toda la expresión.
 setExprFocus :: HBox -> Entry -> Maybe Focus -> IExpr' ()
 setExprFocus box entry (Just (_,path)) = 
-                        lift getExercise >>= \exer ->
                         io (entryGetText entry) >>= \s ->
-                        if null s then putHole else parse s (isJust exer)
+                        if null s then putHole else parse s
     where hole :: PreExpr
           hole = preExprHole ""
           putHole :: IExpr' ()
           putHole = getPath >>= \p -> lift (updateExpr hole p) >> 
-                    configExprStatus hole path >>
+                    configExprStatus (hole,path) >>
                     writeExprWidget hole >> return ()
-          isHole :: PreExpr -> Bool
-          isHole = isPreExprHole . toFocus
-          configExprStatus :: PreExpr -> Path -> IExpr' ()
-          configExprStatus e path = 
-                    ask >>= \env -> 
-                    case (isHole e, checkPreExpr $ toExpr (e,path)) of
-                        (True,_) -> exprChangeStatus (ew env) Unknown
-                        (_,Left _) -> exprChangeStatus (ew env) Parsed
-                        (_,Right _) -> exprChangeStatus (ew env) TypeChecked
-          reset :: PreExpr -> PreExpr
-          reset = toExpr . PE.resetTypeAllAtoms . toFocus
-          typeCheckConfigExpr :: Bool -> PreExpr -> Path -> IExpr' PreExpr
-          typeCheckConfigExpr exerFlag e path = 
-                    if not exerFlag then 
-                        configExprStatus e path >>
-                        return e
-                    else
-                        lift getExerciseConfTypeCheck >>= \tc -> 
-                        case tc of
-                            Manual -> let e' = reset e
-                                      in configExprStatus e' path >> return e'
-                            _ -> configExprStatus e path >> return e
-                            
-          parse :: String -> Bool -> IExpr' ()
-          parse s exerFlag = 
-                    liftIO (debug "parsing expr") >>
+          parse :: String -> IExpr' ()
+          parse s = liftIO (debug "parsing expr") >>
                     getPath >>= \p ->
                     case parseFromString s of
                         Right expr -> 
-                            typeCheckConfigExpr exerFlag expr path >>= \expr' ->
-                            lift (updateExpr expr' p) >>
                             liftIO (debug "writing Expr:") >>
-                            writeFocusWidget (expr',path) >> 
+                            writeFocusWidget (expr,path) >> 
                             return ()
                         Left err -> 
                             lift (setErrMessage (show err)) >>
                             io (widgetShowAll box)
 
+checkAndUpdateType :: Focus -> IExpr' ()
+checkAndUpdateType f = lift getExercise >>= \exer ->
+                       typeCheckConfigExpr (isJust exer) f >>= \e' ->
+                       getPath >>= \p ->
+                       lift (updateExpr e' p)
+
 writeExprWidget :: PreExpr ->  IExpr' WExprList
-writeExprWidget = writeExprWidget' Editable Sugar Nothing . toFocus
+writeExprWidget e = let f = toFocus e in
+                        configExprStatus f >>
+                        writeExprWidget' Editable Sugar Nothing f
 
 writeFocusWidget :: Focus -> IExpr' WExprList
-writeFocusWidget = writeExprWidget' Editable Sugar Nothing
+writeFocusWidget f = checkAndUpdateType f >>
+                     writeExprWidget' Editable Sugar Nothing f
 
 writeInitExprWidget :: PreExpr -> IExpr' WExprList
-writeInitExprWidget = writeExprWidget' NotEditable Sugar Nothing . toFocus
+writeInitExprWidget e = let f = toFocus e in
+                        configExprStatus f >>
+                        writeExprWidget' NotEditable Sugar Nothing f
 
 writeExprTreeWidget :: HBox -> PreExpr -> IExpr' WExprList
-writeExprTreeWidget b e = writeExprWidget' NotEditable Kernel 
-                                           (Just b) (toFocus e)
+writeExprTreeWidget b e = writeExprWidget' NotEditable Kernel (Just b)$toFocus e
 
 writeExprWidget' :: EditMask -> ViewMask -> (Maybe HBox) -> Focus -> 
                     IExpr' WExprList
-writeExprWidget' emask vmask mhbox f@(e,p) = 
+writeExprWidget' emask vmask mhbox f@(e,_) = 
         ask >>= \env ->
         getBox mhbox >>= \box ->
         local (\env -> env {mv = id}) (frameExp (toExpr f) emask vmask) >>= 
@@ -522,6 +505,7 @@ typeTreeWindow w initial =
                     io (hBoxNew False 0) >>= \we -> 
                     (if initial then
                         lift getInitialExpr >>= \(Just (Expr e)) ->
+                        io (debug $ "------------------> typeTreeWindow: " ++ show e)>>
                         writeExprTreeWidget we e >>= return
                     else
                         getProofMove >>= \idx ->
@@ -594,12 +578,6 @@ annotBuffer iST s =
             textBufferInsert b startIter text >>
             set v [widgetWidthRequest := 500, widgetHeightRequest := 300] >>
             return v
-
-exprChangeStatus :: ExprWidget -> ExprStatus -> IExpr' ()
-exprChangeStatus ew es = io $
-                    do
-                    imageSetFromStock (imgStatus ew) (imgState es) IconSizeMenu
-                    setToolTip (imgStatus ew) (show es)
 
 -- | Crea un widget para una expresión. El argumento "initial" indica si es inicial.
 -- En ese caso no se crea el botón para ver posibles reescrituras.

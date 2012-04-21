@@ -33,6 +33,9 @@ module Equ.GUI.State ( -- * Proyeccion de componentes del estado
                      , checkValidProof
                      , validateStep
                      , initialState
+                     , typeCheckConfigExpr
+                     , exprChangeStatus
+                     , configExprStatus
                      -- * Funciones relacionadas con arbol de tipos
                      , module Equ.GUI.State.TypeTree
                      -- * Funciones relacionadas con pruebas
@@ -54,16 +57,19 @@ import Equ.GUI.State.Ctx
 import Equ.GUI.State.SymbolList
 import Equ.GUI.State.Undo
 import Equ.GUI.State.TypeTree
+import Equ.GUI.State.Exercise(getExerciseConfTypeCheck)
 import Equ.GUI.Types
 import Equ.GUI.Utils
 import Equ.GUI.Settings
 
-import Equ.PreExpr (Focus,PreExpr,PreExpr'(BinOp),toExpr)
+import Equ.PreExpr (Focus,PreExpr,PreExpr'(BinOp),Path,toExpr,isPreExprHole,toFocus,resetTypeAllAtoms)
+import Equ.TypeChecker(checkPreExpr)
 import Equ.Expr
 import Equ.Syntax
 import Equ.Theories (getExprProof,relToOp)
 
 import Equ.Exercise(Exercise)
+import Equ.Exercise.Conf(TypeCheck(Manual))
 
 import Equ.Proof.Proof
 import Equ.Proof.Error(errEmptyProof)
@@ -78,6 +84,7 @@ import qualified Graphics.UI.Gtk as G
 
 import Control.Arrow(first,(&&&))
 import Data.Maybe(fromJust)
+import Control.Monad.Reader(ask,lift)
 
 import qualified Data.Foldable as F (mapM_,forM_)
 
@@ -348,3 +355,41 @@ initialState win sl ss al me sb ce valid = GState
                                     True -- undoing
                                     valid -- image
 
+-- | Cambia el estado de una expresión.
+-- Desconocida, No parseada, Parseada y no tipada, Parseada y tipeada.
+exprChangeStatus :: ExprWidget -> ExprStatus -> IExpr' ()
+exprChangeStatus ew es = io $
+                    do
+                    imageSetFromStock (imgStatus ew) (imgState es) IconSizeMenu
+                    setToolTip (imgStatus ew) (show es)
+    where
+        setToolTip :: WidgetClass w => w -> String -> IO ()
+        setToolTip w s = tooltipsNew >>= \t -> tooltipsSetTip t w s ""
+
+-- | Configura el estado de una expresión.
+configExprStatus :: Focus -> IExpr' ()
+configExprStatus (e,path) = 
+        ask >>= \env -> 
+        case (isHole e, checkPreExpr $ toExpr (e,path)) of
+            (True,_) -> exprChangeStatus (ew env) Unknown
+            (_,Left _) -> exprChangeStatus (ew env) Parsed
+            (_,Right _) -> exprChangeStatus (ew env) TypeChecked
+    where
+        isHole :: PreExpr -> Bool
+        isHole = isPreExprHole . toFocus
+
+-- | Configura el estado de una expresión, en base a un tipo de ejercicio.
+typeCheckConfigExpr :: Bool -> Focus -> IExpr' PreExpr
+typeCheckConfigExpr exerFlag f@(e,path) = 
+        if not exerFlag then 
+            configExprStatus f >>
+            return e
+        else
+            lift getExerciseConfTypeCheck >>= \tc -> 
+            case tc of
+                Manual -> let e' = reset e
+                            in configExprStatus (e',path) >> return e'
+                _ -> configExprStatus f >> return e
+    where
+        reset :: PreExpr -> PreExpr
+        reset = toExpr . resetTypeAllAtoms . toFocus
