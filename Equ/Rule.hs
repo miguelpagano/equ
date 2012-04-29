@@ -42,7 +42,7 @@ data Relation = Relation {
     deriving Eq
     
 instance Show Relation where
-    show (Relation _ n _ _) = show n
+    show = unpack . relRepr
 
 instance Arbitrary Relation where
     arbitrary = Relation <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
@@ -88,6 +88,7 @@ data Rule = Rule {
     , desc :: Text
     }
     deriving (Show, Eq)
+
 
 
 mkrule e e' rel = Rule e e' rel "" ""

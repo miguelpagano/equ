@@ -78,10 +78,10 @@ decodeFile f = L.readFile f >>=
                                 S.isEmpty >>= \m ->
                                 m `seq` return v)
                                                          
-setFileFilter :: FileChooserClass f => f -> String -> String -> IO ()
-setFileFilter fChooser pattern title = do
+setFileFilter :: FileChooserClass f => f -> [String] -> String -> IO ()
+setFileFilter fChooser patterns title = do
     hsfilt <- fileFilterNew
-    fileFilterAddPattern hsfilt pattern
+    mapM_ (fileFilterAddPattern hsfilt) patterns
     fileFilterSetName hsfilt title
     fileChooserAddFilter fChooser hsfilt
 

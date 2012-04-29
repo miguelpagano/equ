@@ -48,7 +48,9 @@ data Operator = Operator {
     , opPrec :: Int
     , opGlyphs :: [Text]
     } 
-    deriving Eq
+
+instance Eq Operator where
+    a == b = opName a == opName b
     
 instance Ord Operator where
     compare a b = opPrec a `compare` opPrec b

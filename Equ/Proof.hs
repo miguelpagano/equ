@@ -38,6 +38,7 @@ module Equ.Proof (newProof
                  , addBoolHypothesis
                  , Name
                  , Ctx
+                 , printProof
                  ) where
 
 import Equ.Proof.Annot

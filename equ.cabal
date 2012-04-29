@@ -35,6 +35,7 @@ Executable equ
   buildable: True
   HS-Source-Dirs: .
   main-is: Equ/Main.hs
+  GHC-options: -O3
 
 Library
   -- Modules exported by the library.
@@ -53,7 +54,7 @@ Library
   -- Last three for test.
   Build-depends:        base >= 4.2, text >= 0.11.0.8, ordered, random, either, 
                         transformers, mtl >= 2.0, QuickCheck, test-framework-quickcheck2,
-                        test-framework, containers >= 0.4, test-framework-hunit, HUnit,parsec, 
+                        test-framework, containers >= 0.4, test-framework-hunit, HUnit,parsec, strict, 
                         cereal >= 0.3.3.0, gtk >= 0.12, glade, reference, bytestring, glib, cairo, pango
 
   GHC-Options:         -Odph -Wall

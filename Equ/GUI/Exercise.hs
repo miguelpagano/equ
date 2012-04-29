@@ -472,7 +472,7 @@ makeAssocProofWindow = do
                                 exer {exerProof = Just $ listedToProof $ proof ps }
 
 exerciseFileFilter :: (FileChooserClass f, MonadIO m) => f -> m ()
-exerciseFileFilter dialog = io $ setFileFilter dialog "*.exer" "Ejercicio de equ"
+exerciseFileFilter dialog = io $ setFileFilter dialog ["*.exer"] "Ejercicio de equ"
 
 -- Guarda un ejercicio.
 saveExercise :: IState ()

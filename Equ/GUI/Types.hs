@@ -55,6 +55,7 @@ data TreeExpr = TreeExpr { mainExpr :: ExprState
                          , quantExpr :: [ExprState]
                          }
 
+
 data GState = GState { gWindow :: Window
                      , gProof :: Maybe ProofState -- ^ Prueba en progreso.
                      , gExpr :: Maybe ExprState -- ^ Expresión seleccionada.

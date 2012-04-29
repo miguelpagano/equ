@@ -1,4 +1,4 @@
-
+{-# Language DoAndIfThenElse #-}
 module Equ.GUI.State.Expr where
 
 import Equ.GUI.Types

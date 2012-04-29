@@ -31,7 +31,7 @@ data OpName = Append    -- ^ Lista: agregar por la izquierda
               | Or      -- ^ FOL: "o" lógico
               | Neg     -- ^ FOL: Negación
               | Equal
-                 deriving (Eq,Ord)
+                 deriving (Eq,Ord,Enum)
 
               
 -- | Nombres de cuantificadores

@@ -25,6 +25,7 @@ module Equ.Proof.Proof (
                  , addHypothesis
                  , addHypothesisProof
                  , getHypothesis
+                 , printProof
                  ) where
 
 import Equ.Expr
@@ -37,6 +38,7 @@ import qualified Equ.Theories.Arith as A (varNat)
 import qualified Equ.Theories.Common as C (equal)
  
 import Data.Text (Text, unpack,pack)
+import Data.List (intersperse)
 
 import qualified Data.Map as M (Map (..), fromList, findMax, null, insert, lookup)
 
@@ -80,9 +82,9 @@ class Truth t where
 -- | Un axioma es una expresi&#243;n que puede ser interpretada como varias
 -- reglas de re-escritura.
 data Axiom = Axiom {
-      axName  :: Text 
-    , axExpr  :: Expr
-    , axRel   :: Relation
+      axName  :: !Text 
+    , axExpr  :: !Expr
+    , axRel   :: !Relation
     , axRules :: [Rule] 
     }
     deriving Eq
@@ -459,6 +461,15 @@ instance Show Proof where
                                                  " { " ++ show p' ++ " } "
     show _ = "prueba no implementada"
 
+printPf :: Proof -> [String]
+printPf Reflex = [""]
+printPf (Hole _ r f f') = [showExpr' (toExpr f),show r,  showExpr' (toExpr f')]
+printPf (Simple _ r f f' b) = [showExpr' (toExpr f),show r ++ " { " ++ show b ++ " }",showExpr' (toExpr f')]
+printPf (Trans _ r f f' f'' p p') = init (printPf p) ++ printPf p'
+
+
+printProof = concat . intersperse "¿\n" . printPf
+                                    
 -- Hace falta mejorar esta instancia.
 -- instance Show Proof where
 --     show Reflex = ""

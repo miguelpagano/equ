@@ -8,13 +8,13 @@ import Test.QuickCheck(Arbitrary, arbitrary, oneof)
 import Data.Serialize(Serialize, get, getWord8, put, putWord8)
 
 data PreExpr' a = Var a
-                | Con Constant
-                | Fun Func
-                | PrExHole Hole
-                | UnOp Operator (PreExpr' a)
-                | BinOp Operator (PreExpr' a) (PreExpr' a)
+                | Con !Constant
+                | Fun !Func
+                | PrExHole !Hole
+                | UnOp !Operator (PreExpr' a)
+                | BinOp !Operator (PreExpr' a) (PreExpr' a)
                 | App (PreExpr' a) (PreExpr' a)
-                | Quant Quantifier a (PreExpr' a) (PreExpr' a)
+                | Quant !Quantifier a (PreExpr' a) (PreExpr' a)
                 | Paren (PreExpr' a)
                   deriving Eq
 

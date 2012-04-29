@@ -20,19 +20,14 @@ undoEvent centralBox truthBox expr_w =
     io (debug "Undo event") >>
     getUndoList >>= \ulist ->
         case ulist of
-          [] -> io (debug "No hay pasos.") >> return ()
-          [p] -> io (debug "No hay pasos previos.") >> return ()
+          [] -> return ()
+          [p] -> return ()
           p':p:ps -> case urProof p of
                       Nothing -> F.forM_ (urExpr p) $ \f_expr -> 
                                 undoAction (recreateExpr centralBox expr_w f_expr) p' p ps
                       Just pf -> do
-                        io $ debug $ "Restableciendo prueba: "++show pf
+                        -- io $ debug $ "Restableciendo prueba: "++show pf
                         undoAction (recreateProof pf centralBox truthBox expr_w) p' p ps
-                        new_proof <- getProof
-                        io $ debug $ "La nueva prueba es: "++show new_proof
-                                                        
-          >>
-          getUndoList >>= io . debug . ("UndoList es " ++) . show
                         
 undoAction action p' p ps = setNoUndoing >>
                             action >>
