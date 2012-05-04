@@ -2,18 +2,17 @@ Name:                equ
 Category:            Proof Checker
 Version:             0.1
 Synopsis:            A proof checker for propositional calculus.
-Description:         
-  equ is a program for checking derivations of propositional
-  calculus.
+Description:         equ is a program for checking derivations of propositional
+                     calculus.
 License:             GPL
 License-file:        LICENSE
 Author:              Renato Cherini, Alejandro Gadea, Emmanuel Gunther, Miguel Pagano
 Maintainer:          Miguel Pagano <pagano@famaf.unc.edu.ar>
 Build-Type:          Simple
 Cabal-Version:       >=1.2
-tested-with:         GHC==6.10.1
-build-type:          Simple
-bug-reports:         https://github.com/miguelpagano/equ/issues
+Tested-with:         GHC==6.10.1
+Build-type:          Simple
+Bug-reports:         https://github.com/miguelpagano/equ/issues
 
 
 Flag coverage
@@ -24,54 +23,76 @@ Flag tests
      Description: Generate test.
      Default:     False
 
-
 Source-repository this
-  type:     git
-  location: http://github.com/miguelpagano/equ
-  branch:   master
-
-
-Executable equ
-  buildable: True
-  HS-Source-Dirs: .
-  main-is: Equ/Main.hs
-  GHC-options: -O3
+  Type:     git
+  Location: http://github.com/miguelpagano/equ
+  Branch:   master
 
 Library
-  -- Modules exported by the library.
-  Exposed-modules:     Equ.PreExpr,
-                       Equ.PreExpr.Internal,
-                       Equ.PreExpr.Monad,
-                       Equ.PreExpr.Zipper,
-                       Equ.Expr,
-                       Equ.Matching,
-                       Equ.Rewrite,
-                       Equ.TypeChecker,
-                       Equ.Theories,
-                       Equ.Proof
+    -- Modules exported by the library.
+    Exposed-modules:    Equ.Expr,
+                        Equ.Exercise,
+                        Equ.Exercise.Conf,
+                        Equ.Parser,
+                        Equ.Parser.Proof,
+                        Equ.PreExpr,
+                        Equ.PreExpr.Eval,
+                        Equ.PreExpr.Show,
+                        Equ.Proof,
+                        Equ.Proof.Annot,
+                        Equ.Proof.Error,
+                        Equ.Proof.Proof,
+                        Equ.Proof.ListedProof,
+                        Equ.Rule,
+                        Equ.Syntax,
+                        Equ.Theories,
+                        Equ.TypeChecker,
+                        Equ.Types
+    
+    Other-modules:      Equ.Matching,
+                        Equ.Matching.Error
+                        Equ.Parser.Expr,
+                        Equ.Parser.Types,
+                        Equ.PreExpr.Internal,
+                        Equ.PreExpr.Monad,
+                        Equ.PreExpr.Subst,
+                        Equ.PreExpr.Symbols,
+                        Equ.PreExpr.Zipper,
+                        Equ.Proof.Monad,
+                        Equ.Proof.Zipper,
+                        Equ.Rewrite,
+                        Equ.Theories.AbsName,
+                        Equ.Theories.Arith,
+                        Equ.Theories.Common,
+                        Equ.Theories.FOL,
+                        Equ.Theories.List,
+                        Equ.TypeChecker.Error,
+                        Equ.TypeChecker.Unification
 
+  -- Modules not exported by this package.
+  -- 
   -- Packages needed in order to build this package.
   -- Last three for test.
-  Build-depends:        base >= 4.2, text >= 0.11.0.8, ordered, random, either, 
-                        transformers, mtl >= 2.0, QuickCheck, test-framework-quickcheck2,
-                        test-framework, containers >= 0.4, test-framework-hunit, HUnit,parsec, strict, 
-                        cereal >= 0.3.3.0, gtk >= 0.12, glade, reference, bytestring, glib, cairo, pango
+  Build-depends:        base >= 4.2, QuickCheck >= 2.4.1.1, cereal >= 0.3.3.0,
+                        containers >= 0.4.0.0, text >= 0.11.1.5, mtl >= 2.0.1.0,
+                        parsec >= 3.1.1, transformers >= 0.2.2.0, 
+                        either >= 0.2.3, ordered >= 0.1, 
+                        test-framework-quickcheck2 >= 0.2.10,
+                        test-framework >= 0.4.1.1,
+                        test-framework-hunit >= 0.2.6, HUnit >= 1.2.4.2
 
   GHC-Options:         -Odph -Wall
   -- HS-Source-Dirs:
-  
-  -- Modules not exported by this package.
-  -- Other-modules:       
   
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   -- Build-tools:    
 
 Executable test-equ
-  main-is: TestSuite/Test.hs
-  if !flag(tests)
-    buildable: False
-  else
-    if flag(coverage)
-      ghc-options: -fhpc
-      x-hpc: true
-    ghc-options: -Wall
+    main-is: TestSuite/Test.hs
+    if !flag(tests)
+        buildable: False
+    else
+        if flag(coverage)
+            ghc-options: -fhpc
+            x-hpc: true
+        ghc-options: -Wall
