@@ -2,8 +2,8 @@
 module Equ.Parser.Proof (parsePfFromString') where
 
 import Equ.Parser.Expr
-import Equ.PreExpr (toFocus,Focus,unParen)
-import Equ.Proof (validateProof)
+import Equ.PreExpr (PreExpr,toFocus,Focus,unParen)
+import Equ.Proof (validateProof, printProof)
 import Equ.Proof.Proof ( Proof'(..)
                        , Ctx
                        , Basic (..) 
@@ -18,12 +18,15 @@ import Equ.Rule hiding (rel)
 
 import Data.Text(Text,pack,unpack)
 import Text.Parsec
+import Text.Parsec.Error(setErrorPos)
 import Text.Parsec.Token
 import Text.Parsec.Language
 import Text.Parsec.String
+import Text.Parsec.Combinator
 import qualified Text.Parsec.Expr as PE
 
 import Data.Maybe
+import Data.Either(partitionEithers)
 import Data.List (intersperse)
 import qualified Data.Map as M (empty) 
 
@@ -87,8 +90,23 @@ theorem :: [Theorem] -> Parser' Theorem
 theorem = anyText thName
 
 -- | Uso del parser de una expresión definido en 'Equ.Parser.Expr'.
+-- Ale: No esta bonito como manejamos el pasaje de errores con pass
+-- ademas pasa que tenemos que re-acomodar la posición del error.
+-- Algo raro es que la posición de la linea siempre esta un lugar mas "adelante"
 exprLine :: Parser' Focus
-exprLine = spaces >> parsePreExpr >>= return . toFocus . unParen
+exprLine = manyTill anyChar (try (char '\n')) >>= return . exprL >>= pass
+    where
+        pass :: Either ParseError Focus -> Parser' Focus
+        pass ef = case ef of
+                        Right e -> return e
+                        Left per -> getPosition >>= \p -> 
+                                    fail $ show $ flip setErrorPos per $
+                                    setSourceLine (errorPos per)(sourceLine p-1)
+        exprL' :: Parser' Focus
+        exprL' = spaces >> parsePreExpr >>= return . toFocus . unParen
+        exprL :: String -> Either ParseError Focus
+        exprL = runParser exprL' (0,M.empty) ""
+        
 
 -- | Parser de una justificación inmediata de un paso de prueba.
 -- TODO: considerar hipótesis.
@@ -103,33 +121,17 @@ braced = between (string "{" >> spaces) (spaces >> string "}" )
 -- | Parser de un paso de prueba.
 justification :: Parser' (Relation, Maybe Basic)
 justification = rel >>= \r -> spaces >>
-                optionMaybe (braced basic) >>= \j -> return (r, j) -- <$ newLine)
+                optionMaybe (braced basic) >>= \j -> 
+                char '\n' >> return (r, j)
 
--- | Puesto que las expresiones pueden tener múltiples líneas, tomamos
--- como fin de una expresión el string "¿". Este es un horrendo hack,
--- que hay que corregir.
-weirdSep p = p >>= \r -> optional (string "¿\n") >> return r
-
--- | Parser una paso simple. No es necesario, porque lo 
--- tratamos también en 'trans'.
-simple :: Parser' Proof
-simple = do e <- weirdSep exprLine            
-            (r,j) <- weirdSep justification
-            e' <- weirdSep exprLine
-            return (mkSimple beginCtx r e e' j)
-
-
--- | Parser de pruebas con uno o más pasos.
-trans :: Parser' Proof
-trans = weirdSep exprLine >>= \e1 ->
-        many1 (weirdSep justification >>= \j -> 
-               weirdSep exprLine >>= \e -> 
-               return (e,j)) >>=
-        return . mkTrans beginCtx e1
-
--- | Parser de pruebas; se puede simplificar descartando la opción 'simple'.
+-- | Parser de pruebas.
 proof :: Parser' Proof
-proof = try trans <|> simple
+proof = proof'
+    where
+        proof' :: Parser' Proof
+        proof' = exprLine >>= \e1 -> manyExprLine >>= return.mkTrans beginCtx e1
+        manyExprLine :: Parser' [(Focus,(Relation, Maybe Basic))]
+        manyExprLine = many1 (justification >>= \rj -> exprLine >>= \e -> return (e,rj))
 
 -- | Parser de la relación sobre la que estamos haciendo la prueba.
 rel :: Parser' Relation
@@ -139,7 +141,12 @@ rel = foldr ((<|>) . uncurry prel) parserZero relations
 
 -- | Parser de prueba.
 parsePfFromString' :: String -> Either ParseError Proof
-parsePfFromString' = runParser proof (0,M.empty) "TEST" 
+parsePfFromString' = either (handleError) (Right).runParser proof (0,M.empty) "" 
+    where
+        -- Esto esta pensando en que hay que hacer algo para obtener bien
+        -- la posición del error.
+        handleError :: ParseError -> Either ParseError Proof
+        handleError = Left 
 
 {- Pasar estas funciones a Equ.Proof -}
 -- | construcción de una prueba simple.

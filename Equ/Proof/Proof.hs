@@ -468,7 +468,7 @@ printPf (Simple _ r f f' b) = [showExpr' (toExpr f),show r ++ " { " ++ show b ++
 printPf (Trans _ r f f' f'' p p') = init (printPf p) ++ printPf p'
 
 
-printProof = concat . intersperse "¿\n" . printPf
+printProof = (++"\n") . (concat . intersperse "\n" . printPf)
                                     
 -- Hace falta mejorar esta instancia.
 -- instance Show Proof where
