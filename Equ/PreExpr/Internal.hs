@@ -16,6 +16,8 @@ data PreExpr' a = Var a
                 | App (PreExpr' a) (PreExpr' a)
                 | Quant !Quantifier a (PreExpr' a) (PreExpr' a)
                 | Paren (PreExpr' a)
+                | If (PreExpr' a) (PreExpr' a) (PreExpr' a)
+                | Case (PreExpr' a) [((PreExpr' a),(PreExpr' a))]
                   deriving Eq
 
 --  Instancia binary para PreExpr' a.
@@ -29,6 +31,8 @@ instance Serialize a => Serialize (PreExpr' a) where
     put (App pe pe') = putWord8 6 >> put pe >> put pe'
     put (Quant q a pe pe') = putWord8 7 >> put q >> put a >> put pe >> put pe'
     put (Paren pe) = putWord8 8 >> put pe
+    put (If c e1 e2) = putWord8 9 >> put c >> put e1 >> put e2
+    put (Case e patterns) = putWord8 10 >> put e >> put patterns
 
     get = do
     tag_ <- getWord8
@@ -42,6 +46,8 @@ instance Serialize a => Serialize (PreExpr' a) where
         6 -> App <$> get <*> get
         7 -> Quant <$> get <*> get <*> get <*> get
         8 -> Paren <$> get
+        9 -> If <$> get <*> get <*> get
+        10 -> Case <$> get <*> get
         _ -> fail $ "SerializeErr (PreExpr' a) " ++ show tag_
 
 type PreExpr = PreExpr' Variable
@@ -56,6 +62,9 @@ instance Functor PreExpr' where
     fmap f (App e e') = App (fmap f e) (fmap f e')
     fmap f (Quant q a e e') = Quant q (f a) (fmap f e) (fmap f e')
     fmap f (Paren e) = Paren $ fmap f e
+    fmap f (If c e1 e2) = If (fmap f c) (fmap f e1) (fmap f e2)
+    fmap f (Case e patterns) = Case (fmap f e) (map (\(p,e) -> (fmap f p,fmap f e)) patterns) -- TODO: VER ESTO
+    
 
 -- | Instancia arbitrary para las preExpresiones.
 instance Arbitrary PreExpr where
@@ -69,6 +78,8 @@ instance Arbitrary PreExpr where
                 , App <$> arbitrary <*> arbitrary
                 , Quant <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
                 , Paren <$> arbitrary
+                , If <$> arbitrary <*> arbitrary <*> arbitrary
+                -- TODO: VER COMO HACEMOS CON CASE
                 ]
 
 -- | Pretty print para las preExpresiones.
@@ -118,6 +129,10 @@ showExpr' (Var x) = show x
 showExpr' (Con k) = show k
 showExpr' (Fun f) = show f
 showExpr' (PrExHole h) = show h
+showExpr' (If c e1 e2) = "if " ++ showExpr' c ++ " then " ++ showExpr' e1 ++ " else " ++ showExpr' e2
+showExpr' (Case e patterns) = "case " ++ showExpr' e ++ " of\n\t" ++ showPatterns patterns
+    where showPatterns [] = ""
+          showPatterns ((p,e):ps) = showExpr' p ++ " -> " ++ showExpr' e ++ "\n" ++ showPatterns ps
 
 {-- | Funcion que, dada una PreExpr, elimina las expresiones "Paren" que son necesarias
     para desambiguar expresiones. Ejemplo:
@@ -145,6 +160,9 @@ unParen (UnOp op e) = UnOp op (checkParen e op)
 unParen (App e1 e2) = App (unParen e1) (unParen e2)
 unParen (Quant q v e1 e2) = Quant q v (unParen e1) (unParen e2)
 unParen (Paren e) = Paren (unParen e)
+unParen (If c e1 e2) = If (unParen c) (unParen e1) (unParen e2)
+unParen (Case e patterns) = Case (unParen e) (unParenAll patterns)
+    where unParenAll ps = map (\(p,e) -> (unParen p,unParen e)) ps
 unParen e = e
 
 

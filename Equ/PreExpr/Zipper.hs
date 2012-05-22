@@ -28,9 +28,37 @@ data Path = Top
           | AppL Path PreExpr
           | AppR PreExpr Path
           | QuantL Quantifier Variable Path PreExpr
-          | QuantR Quantifier Variable PreExpr Path 
+          | QuantR Quantifier Variable PreExpr Path
           | ParenD Path
+          | IfCond Path PreExpr PreExpr
+          | IfTrue PreExpr Path PreExpr
+          | IfFalse PreExpr PreExpr Path
+          | CaseD Path [(PreExpr,PreExpr)]
+          | CasePatternL PreExpr Path PreExpr [(PreExpr,PreExpr)] [(PreExpr,PreExpr)]
+          | CasePatternR PreExpr Path PreExpr [(PreExpr,PreExpr)] [(PreExpr,PreExpr)]
             deriving (Eq,Show)
+            
+            
+{- El path en una expresion "case" lo definimos: Si estamos enfocados en la expresion sobre la que se hace pattern
+   matching, entonces usamos CaseD.
+   Si queremos enfocarnos en un pattern de la lista de patterns, entonces necesitamos guardar la expresión sobre la
+   que hacemos pattern matching, el path, la expresion que se aplica en caso de que el pattern es correcto (el segundo
+   elemento de la tupla) y dos listas que son la parte izquierda y derecha de la lista original de patterns, tal que
+   el pattern que estoy viendo quede entre ambas.
+   Ejemplo:
+   case e0 of
+        p1 -> e1
+        p2 -> e2
+   
+   Enfocarse en e0 tendria el path:  CaseD Top [(p1,e1),(p2,e2)]
+   Enfocarse en p1 tendria el path:  CasePatternL e0 Top e1 [] [(p2,e2)]
+   Enfocarse en e1 tendria el path:  CasePatternR e0 Top p1 [] [(p2,e2)]
+   Enfocarse en p2 tendria el path:  CasePatternL e0 Top e2 [(p1,e1)] []
+   Enfocarse en e2 tendria el path:  CasePatternR e0 Top p2 [(p1,e1)] []
+-}
+        
+   
+            
 
 instance Arbitrary Path where
     arbitrary =
@@ -87,6 +115,13 @@ toExpr (pe, QuantL qua v path pe0) =
 toExpr (pe, QuantR qua v pe0 path) = 
     toExpr (Quant qua v pe0 pe, path)
 toExpr (pe, ParenD path) = toExpr (Paren pe, path)
+toExpr (pe,IfCond path e1 e2) = toExpr (If pe e1 e2,path)
+toExpr (pe,IfTrue cond path e2) = toExpr (If cond pe e2,path)
+toExpr (pe,IfFalse cond e1 path) = toExpr (If cond e1 pe,path)
+toExpr (pe,CaseD path patterns) = toExpr (Case pe patterns,path)
+toExpr (pe,CasePatternL e path e1 left right) = toExpr (Case e (left++[(pe,e1)]++right),path)
+toExpr (pe,CasePatternR e path p1 left right) = toExpr (Case e (left++[(p1,pe)]++right),path)
+
 
 -- | Dado una expresi&#243;n la enfocamos. Es decir luego de llamar a toFocus con 
 -- preExp queda el focus que tiene a la expresi&#243;n y estamos en el Top.
@@ -160,6 +195,9 @@ goDown (BinOp op pe0 pe1, path) = Just (pe0, BinOpL op path pe1)
 goDown (App pe0 pe1, path) = Just (pe0, AppL path pe1)
 goDown (Quant qua v pe0 pe1, path) = Just (pe0, QuantL qua v path pe1)
 goDown (Paren pe, path) = Just (pe, ParenD path)
+goDown (If c e1 e2,path) = Just (c, IfCond path e1 e2)
+goDown (Case e patterns,path) = Just (e,CaseD path patterns)
+
 
 -- | Subir un nivel en el focus.
 goUp :: Focus -> Maybe Focus
@@ -172,6 +210,12 @@ goUp (pe, AppR pe0 path) = Just (App pe0 pe, path)
 goUp (pe, QuantL qua v path pe0) = Just (Quant qua v pe pe0, path)
 goUp (pe, QuantR qua v pe0 path) = Just (Quant qua v pe0 pe, path)
 goUp (pe, ParenD path) = Just (Paren pe, path)
+goUp (pe, IfCond path e1 e2) = Just (If pe e1 e2,path)
+goUp (pe, IfTrue cond path e2) = Just (If cond pe e2,path)
+goUp (pe, IfFalse cond e1 path) = Just (If cond e1 pe,path)
+goUp (pe, CaseD path patterns) = Just (Case pe patterns,path)
+goUp (pe, CasePatternL e path e1 left right) = Just (Case e (left++[(pe,e1)]++right),path)
+goUp (pe, CasePatternR e path p1 left right) = Just (Case e (left++[(p1,pe)]++right),path)
 
 -- | Ir a la izquierda en un focus, sin cambiar de nivel.
 goLeft :: Focus -> Maybe Focus
@@ -184,6 +228,17 @@ goLeft (pe, AppR pe0 path) = Just (pe0, AppL path pe)
 goLeft (_, QuantL _ _ _ _) = Nothing
 goLeft (pe, QuantR qua v pe0 path) = Just (pe0, QuantL qua v path pe)
 goLeft (_, ParenD _) = Nothing
+goLeft (_,IfCond _ _ _) = Nothing
+goLeft (pe,IfTrue cond path e2) = Just (cond, IfCond path pe e2)
+goLeft (pe,IfFalse cond e1 path) = Just (e1, IfTrue cond path pe)
+goLeft (_,CaseD _ _) = Nothing
+goLeft (pattern,CasePatternL e path e1 [] right) = Just (e,CaseD path ((pattern,e1):right))
+goLeft (pattern,CasePatternL e path e1 left right) = 
+    Just (prevPattern,CasePatternL e path prevExpr (init left) ((pattern,e1):right))
+    where prevPattern = fst . last $ left
+          prevExpr = snd . last $ left
+goLeft (pe,CasePatternR e path pattern left right) =
+    Just (pattern,CasePatternL e path pe left right)
 
 -- | Ir a la derecha en un focus, sin cambiar de nivel.
 goRight :: Focus -> Maybe Focus
@@ -196,6 +251,20 @@ goRight (_, AppR _ _) = Nothing
 goRight (pe, QuantL qua v path pe0) = Just (pe0, QuantR qua v pe path)
 goRight (_, QuantR _ _ _ _) = Nothing
 goRight (_, ParenD _) = Nothing
+goRight (pe, IfCond path e1 e2) = Just (e1, IfTrue pe path e2)
+goRight (pe, IfTrue c path e2) = Just (e2, IfFalse c pe path)
+goRight (_, IfFalse _ _ _) = Nothing
+goRight (pe, CaseD path patterns) = 
+    case patterns of 
+        [] -> Nothing
+        ((p1,e1):ps) -> Just (p1, CasePatternL pe path e1 [] ps)
+goRight (pattern, CasePatternL e path e1 left right) =
+    Just (e1, CasePatternR e path pattern left right)
+goRight (pe, CasePatternR e path pattern left right) =
+    case right of
+         [] -> Nothing
+         ((p2,e2):ps) -> Just (p2, CasePatternL e path e2 (left++[(pattern,pe)]) right)
+
 
 -- | Sube hasta el tope.
 goTop :: Focus -> Focus
