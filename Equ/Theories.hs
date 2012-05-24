@@ -18,6 +18,9 @@ module Equ.Theories
     , TheoryName
     , theories
     , theoriesInGroup
+    , arithAxioms
+    , folAxioms
+    , listAxioms
     )
     where
 
@@ -74,12 +77,23 @@ opGroup = mkGrouped theories [F.theoryOperatorsList, A.theoryOperatorsList, L.th
 constGroup :: Grouped Constant
 constGroup = mkGrouped theories [F.theoryConstantsList, A.theoryConstantsList, L.theoryConstantsList]
 
+
+mkAxiomGroup :: [[(Text,Expr)]] -> Grouped Axiom
+mkAxiomGroup axioms = mkGrouped theories . uncurry (:) . ((F.assocEquivAx:) . head &&& tail) $
+                      map (map (uncurry createAxiom)) axioms
+
 axiomGroup :: Grouped Axiom
 axiomGroup = mkGrouped theories . uncurry (:) . ((F.assocEquivAx:) . head &&& tail) $
              map (map (uncurry createAxiom))
                      [ F.theoryAxiomList
                      , A.theoryAxiomList
                      , L.theoryAxiomList]
+                     
+                                          
+arithAxioms = ungroup $ mkAxiomGroup [A.theoryAxiomList]
+listAxioms = ungroup $ mkAxiomGroup [L.theoryAxiomList]
+folAxioms = ungroup $ mkAxiomGroup [L.theoryAxiomList]
+                     
 
 operatorsList :: [Operator]
 operatorsList = ungroup opGroup

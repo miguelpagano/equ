@@ -38,6 +38,7 @@ Library
                         Equ.PreExpr,
                         Equ.PreExpr.Eval,
                         Equ.PreExpr.Show,
+                        Equ.PreExpr.Symbols,
                         Equ.Proof,
                         Equ.Proof.Annot,
                         Equ.Proof.Error,
@@ -46,6 +47,9 @@ Library
                         Equ.Rule,
                         Equ.Syntax,
                         Equ.Theories,
+                        Equ.Theories.FOL,
+                        Equ.Theories.List,
+                        Equ.Theories.Arith,
                         Equ.TypeChecker,
                         Equ.Types
     
@@ -56,16 +60,12 @@ Library
                         Equ.PreExpr.Internal,
                         Equ.PreExpr.Monad,
                         Equ.PreExpr.Subst,
-                        Equ.PreExpr.Symbols,
                         Equ.PreExpr.Zipper,
                         Equ.Proof.Monad,
                         Equ.Proof.Zipper,
                         Equ.Rewrite,
                         Equ.Theories.AbsName,
-                        Equ.Theories.Arith,
                         Equ.Theories.Common,
-                        Equ.Theories.FOL,
-                        Equ.Theories.List,
                         Equ.TypeChecker.Error,
                         Equ.TypeChecker.Unification
 
