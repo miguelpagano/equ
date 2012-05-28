@@ -65,6 +65,9 @@ data Func = Func {
 
 instance Eq Func where 
     f == f' = tRepr f == tRepr f'
+    
+instance Ord Func where
+    f <= f' = tRepr f <= tRepr f'
 
 data Assoc = None | ALeft | ARight
     deriving Eq
