@@ -25,6 +25,7 @@ module Equ.Proof.Proof (
                  , addHypothesis
                  , addHypothesisProof
                  , getHypothesis
+                 , addHypothesis'
                  , printProof
                  ) where
 
@@ -389,8 +390,10 @@ data Proof' ctxTy relTy proofTy exprTy where
     Cases  :: ctxTy -> relTy -> exprTy -> exprTy -> exprTy -> 
               [(exprTy,Proof' ctxTy relTy proofTy exprTy)] -> 
               Proof' ctxTy relTy proofTy exprTy
-    Ind    :: ctxTy -> relTy -> exprTy -> exprTy -> [exprTy] -> 
-              [([exprTy],Proof' ctxTy relTy proofTy exprTy)] -> 
+    -- Haremos inducción en una sola VARIABLE. Para no modificar tanto, asumimos
+    -- que la expresion donde se hace inducción es de tipo "Var a".
+    Ind    :: ctxTy -> relTy -> exprTy -> exprTy -> exprTy -> 
+              [(exprTy,Proof' ctxTy relTy proofTy exprTy)] -> 
               Proof' ctxTy relTy proofTy exprTy
     Deduc  :: ctxTy -> exprTy -> exprTy -> 
               Proof' ctxTy relTy proofTy exprTy -> 
@@ -441,8 +444,33 @@ instance (Serialize ctxTy, Serialize relTy, Serialize proofTy, Serialize exprTy)
 
 type Proof = Proof' Ctx Relation Basic Focus
 
+-- Igualdad sintáctica entre pruebas. Podríamos definir también una igualdad en donde
+-- si tenemos pruebas iguales salvo renombres de variables cuantificadas, tambien de True.
 instance Eq Proof where
-    p == q = True
+    Reflex == Reflex = True
+    Hole ctx1 rel1 f1 f2 == Hole ctx2 rel2 f3 f4 = 
+        ctx1==ctx2 && rel1==rel2 && f1==f3 && f2==f4
+    Simple ctx1 rel1 f1 f2 basic1 == Simple ctx2 rel2 f3 f4 basic2 =
+        ctx1==ctx2 && rel1==rel2 && f1==f3 && f2==f4 && basic1==basic2
+    Trans ctx rel f1 f2 f3 p1 p2 == Trans ctx' rel' f1' f2' f3' p1' p2' = 
+        ctx==ctx' && rel==rel' && f1==f1' && f2==f2' && f3==f3' && 
+        p1==p1' && p2==p2'
+    Cases ctx rel f1 f2 f cases == Cases ctx' rel' f1' f2' f' cases' =
+        ctx==ctx' && rel==rel' && f1==f1' && f2==f2' && f==f' &&
+        cases== cases'
+    Ind ctx rel f1 f2 f patterns == Ind ctx' rel' f1' f2' f' patterns' =
+        ctx==ctx' && rel==rel' && f1==f1' && f2==f2' && f==f' &&
+        patterns==patterns'
+    Deduc ctx f1 f2 p == Deduc ctx' f1' f2' p' =
+        ctx==ctx' && f1==f1' && f2==f2' && 
+        p==p'
+    Focus ctx rel f1 f2 p == Focus ctx' rel' f1' f2' p' = 
+        ctx==ctx' && rel==rel' && f1==f1' && f2==f2' &&
+        p==p'
+    _==_ = False
+    
+    
+
 
 {-    
 instance Eq Proof where
@@ -569,8 +597,8 @@ instance Arbitrary Proof where
                     listPairFocusProof = vectorOf 2 pairFocusProof
                     pPFocusProof :: Gen ([Focus], Proof)                    
                     pPFocusProof = (,) <$> arbitrary <*> subProof
-                    listPPFocusProof :: Gen [([Focus], Proof)]
-                    listPPFocusProof = vectorOf 2 pPFocusProof
+                    listPPFocusProof :: Gen [(Focus, Proof)]
+                    listPPFocusProof = vectorOf 2 pairFocusProof
 
 instance Serialize Name where
     put (Index i) = putWord8 0 >> put i
@@ -775,3 +803,8 @@ addHypothesisProof e r es pf = getCtx pf >>=
                                return . addHypothesis e r es >>= \(ctx',_) ->
                                setCtx ctx' pf
 
+
+addHypothesis' :: Hypothesis -> Ctx -> (Ctx,Name)
+addHypothesis' hyp ctx = (M.insert n hyp ctx,n)
+    where n = freshName ctx
+                    

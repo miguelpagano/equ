@@ -34,6 +34,7 @@ data ProofError' = Rewrite [RewriteError]
                 | DeducInvalidEnd -- En un uso del meta-teorema de la deducción
                                   -- no coincide el final de la prueba interior
                                   -- con el esperado
+                | Error
     deriving Eq
     
 instance Show ProofError' where
@@ -53,6 +54,7 @@ instance Show ProofError' where
     show (DeducInvalidEnd) = unlines [ "En un uso del meta-teorema de la deducción"
                                      , "no coincide el final de la prueba interior"
                                      , "con el esperado"]
+    show _ = "Error sin especificar"
 
 
 errEmptyProof :: ProofError
@@ -61,5 +63,6 @@ errEmptyProof = ProofError HoleProof id
 getMoveFocus :: ProofError -> (ProofFocus -> ProofFocus)
 getMoveFocus (ProofError _ move) = move
 
-    
+errProof :: ProofError
+errProof = ProofError Error id
     

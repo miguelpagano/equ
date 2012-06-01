@@ -12,6 +12,7 @@ module Equ.Theories
     , relationList
     , relToOp
     , createTheorem
+    , createHypothesis
     , toForest
     , getExprProof
     , Grouped
@@ -35,6 +36,7 @@ import qualified Equ.Proof.Proof as P
 import Equ.Expr
 import Equ.PreExpr
 import Equ.PreExpr.Show
+import Equ.IndTypes
 
 import Data.Text hiding (head,zip,concatMap,map,tail)
 import Data.Either(rights)
@@ -185,6 +187,16 @@ createAxiom name ex = Axiom {
                       , axRel = fromJust $ getRelExp expr
                       , axRules = createRulesAssoc expr} 
     where (Expr expr) = ex
+          
+          
+-- | Dada una expresion, construye una hipotesis, calculando todas las reglas.
+createHypothesis :: Text -> Expr -> Hypothesis
+createHypothesis name ex@(Expr pe) = Hypothesis { 
+                        hypName = name
+                      , hypExpr = ex
+                      , hypRel = fromJust $ getRelExp pe
+                      , hypRule = createRulesAssoc pe
+                    } 
 
 whenZ :: MonadPlus m => (a -> Bool) -> (a -> m b) -> a -> m b
 whenZ p act a = if p a then act a else mzero
@@ -196,3 +208,6 @@ getExprProof = either (const holeExpr) buildExpr
     where buildExpr p = Expr $ BinOp (relToOp . fromJust $ P.getRel p)
                                      (toExpr . fromJust $ P.getStart p)
                                      (toExpr . fromJust $ P.getEnd p)
+                                     
+                                     
+                                     
