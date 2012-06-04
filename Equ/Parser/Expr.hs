@@ -30,6 +30,7 @@ module Equ.Parser.Expr
     -- * Funciones principales de parseo
     , parseFromString
     , parsePreExpr
+    , parseFunc
     , parser
     , parserVar
     , parseTyFromString

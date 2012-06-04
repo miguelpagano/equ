@@ -11,6 +11,7 @@ module Equ.PreExpr ( freeVars, freshVar
                    , agrupOp, agrupNotOp, checkIsAtom, opOfFocus
                    , setType, updateOpType, setAtomType
                    , isPreExprParent, isPreExprQuant
+                   , listOfFun, listOfVar
                    , setQuantType, setVarQType
                    , getVarTypeFromQuantType, getQTypeFromQuantType
                    , resetTypeAllFocus, getTypeFocus
@@ -269,3 +270,23 @@ glue _ [e]    = return e
 glue op [e,e'] = return $ BinOp op e e'
 glue op es = concat [(uncurry (zipWith (BinOp op)) . (glue op *** glue op)) ps 
                     | ps <- [splitAt i es | i <- [1..length es-1]]]     
+
+
+listOf :: Focus -> (Focus -> Bool) -> [Focus]
+listOf f = flip filter (toFocuses $ toExpr f)
+
+-- | Retorna una lista con las variables que aparecen en una expresión.
+listOfVar :: Focus -> [Focus]
+listOfVar = flip listOf isVar
+    where
+        isVar :: Focus -> Bool
+        isVar (Var _,_) = True
+        isVar _ = False
+
+-- | Retorna una lista con los nombres de función que aparecen en una expresión.
+listOfFun :: Focus -> [Focus]
+listOfFun = flip listOf isFun
+    where
+        isFun :: Focus -> Bool
+        isFun (Fun _,_) = True
+        isFun _ = False

@@ -24,8 +24,10 @@ Se permiten comentarios?
 
 module Equ.Parser 
     (-- * Caracteres especiales comunes a todas las teorías
-     module Equ.Parser.Expr
+      module Equ.Parser.Expr
+    , module Equ.Parser.Types
     )
     where
 
 import Equ.Parser.Expr
+import Equ.Parser.Types
