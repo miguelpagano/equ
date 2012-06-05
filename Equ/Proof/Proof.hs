@@ -7,7 +7,7 @@ module Equ.Proof.Proof (
                  , Axiom(..)
                  , Theorem(..)
                  , Truth(..)
-                 , Hypothesis
+                 , Hypothesis(..)
                  , Name
                  -- * Pruebas
                  -- $proofs

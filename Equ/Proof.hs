@@ -43,7 +43,7 @@ module Equ.Proof (newProof
 
 import Equ.Proof.Annot
 import Equ.Proof.Proof hiding (getCtx,getStart,getEnd,getRel,setCtx)
-import qualified Equ.Proof.Proof as P(getStart,getEnd,getBasic)
+import qualified Equ.Proof.Proof as P(getStart,getEnd,getBasic,getRel)
 import Equ.Proof.Zipper
 import Equ.Proof.Monad
 import Equ.Proof.Error
@@ -59,6 +59,7 @@ import Equ.Rewrite
 
 import Equ.IndType
 import Equ.IndTypes
+import Equ.Theories
 
 import Data.Monoid(mappend)
 
@@ -196,14 +197,14 @@ validateProof' proof@(Deduc ctx p q prf) mvFocus =
           
 validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
     -- Primero verificamos que e sea variable:
-    isVar e >>= 
+    isVar (PE.toExpr e) >>= 
     -- Luego vemos que la variable esté en la expresión f1
-    \x -> whenPM' (Set.member x (PE.freeVars f1)) errProof >>
+    \x -> whenPM' (Set.member x (PE.freeVars (PE.toExpr f1))) errProof >>
     -- Chequeamos los casos de inducción:
-    checkPatterns x proof ps >>= 
+    checkPatterns x proof ps >>
     return proof
     
-    where checkPatterns :: Variable -> Proof -> [(PE.Focus,Proof)] -> PM Proof
+    where checkPatterns :: Variable -> Proof -> [(PE.Focus,Proof)] -> PM ()
           checkPatterns x pr ps = 
               return (filter ((flip isConstantPattern (varTy x)).(PE.toExpr).fst) ps) >>= 
               \constPatterns ->
@@ -227,22 +228,22 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
           checkSubProof x pr ((expr,p):ps) = 
                             -- Chequeamos que la prueba p demuestra lo mismo que pr, pero
                             -- aplicando la substitucion correspondiente
-                            sameProofWithSubst p pr (Map.fromList [(x,expr)]) >>
-                            checkContexts pr ps >>
+                            sameProofWithSubst p pr (Map.fromList [(x,PE.toExpr expr)]) >>
+                            checkContexts pr p >>
                             -- Finalmente validamos la prueba p y continuamos chequeando.
-                            validateProof' p >> checkSubProof x pr ps
+                            validateProof' p id >> checkSubProof x pr ps
                              
           
           checkSubProofInd x pr [] = return ()
           checkSubProofInd x pr ((expr,p):ps) =
                 -- Construimos la hipotesis inductiva/s correspondiente a este patrón 
                 -- (puede ser una o dos, dependiendo de si el constructor es unario o binario)
-                case expr of
-                    (PE.UnOp op e) -> return (createHypothesis "Hipótesis Inductiva" (hypIndExpr x e)) >>=
+                case PE.toExpr expr of
+                    (PE.UnOp op e) -> return (createHypothesis "Hipótesis Inductiva" (Expr $ hypIndExpr x e)) >>=
                                       \hyp -> return [hyp]
-                    (PE.BinOp op e1 e2) -> return (createHypothesis "Hipótesis Inductiva" (hypIndExpr x e1)) >>=
+                    (PE.BinOp op e1 e2) -> return (createHypothesis "Hipótesis Inductiva" (Expr $ hypIndExpr x e1)) >>=
                                         \hyp1 -> 
-                                        return (createHypothesis "Hipótesis Inductiva" (hypIndExpr x e2)) >>=
+                                        return (createHypothesis "Hipótesis Inductiva" (Expr $ hypIndExpr x e2)) >>=
                                         \hyp2 ->
                                         return [hyp1,hyp2]
                 >>=
@@ -260,8 +261,8 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
                 checkSubProofInd x pr ps
                             
           -- Expresión que representa la hipótesis inductiva.
-          hypIndExpr x e = PE.BinOp (relToOp rel) (PE.applySubst f1 (Map.fromList [(x,e)]))
-                                              (PE.applySubst f2 (Map.fromList [(x,e)]))
+          hypIndExpr x e = PE.BinOp (relToOp rel) (PE.applySubst (PE.toExpr f1) (Map.fromList [(x,e)]))
+                                              (PE.applySubst (PE.toExpr f2) (Map.fromList [(x,e)]))
           
           
           -- Esta funcion toma una expresión que es un operador aplicado y retorna el operador.
@@ -277,8 +278,8 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
           
           checkAllConstants :: IndType -> [(PE.Focus,Proof)] -> PM ()
           checkAllConstants it ps =
-              extractConstants >>= \constants ->
-              whenPM' (elem constants (permutations $ constants it)) errProof
+              return (extractConstants ps) >>= \cons ->
+              whenPM' (elem cons (permutations $ constants it)) errProof
               
               where extractConstants :: [(PE.Focus,Proof)] -> [Constant]
                     extractConstants [] = []
@@ -289,10 +290,10 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
           checkAllContructors :: (IndType -> [Operator]) ->
                                  IndType -> [(PE.Focus,Proof)] -> PM ()
           checkAllContructors f it ps =
-              extractOperators >>= \opers ->
+              return (extractOperators ps) >>= \opers ->
               whenPM' (elem opers (permutations $ f it)) errProof
               
-              where extractOperators :: [(PE.Focus,Proof)] -> [Constant]
+              where extractOperators :: [(PE.Focus,Proof)] -> [Operator]
                     extractOperators [] = []
                     extractOperators ((f,p):ps) = 
                             case (PE.toExpr f) of
@@ -323,11 +324,11 @@ sameProof p1 p2 =
 -- | Chequea que dos pruebas prueban lo mismo, aplicando en las expresiones de
 --   la segunda la substitución dada.
 sameProofWithSubst :: Proof -> Proof -> PE.ExprSubst -> PM ()
-sameProofWithSubst p1 p2 m_hyp subst = 
-                getStart p2 >>= \p2start -> getEnd p2 >>= \p2end ->
-                return (updateStart p2 (PE.applySubst (PE.toExpr p2start))) >>= \p2' ->
-                return (updateEnd p2 (PE.applySubst (PE.toExpr p2end))) >>= \p2'' ->
-                sameProof p1 p2''
+sameProofWithSubst p1 p2 subst = 
+        getStart p2 >>= \p2start -> getEnd p2 >>= \p2end ->
+        return (updateStart p2 (PE.toFocus $ PE.applySubst (PE.toExpr p2start) subst)) >>= \p2' ->
+        return (updateEnd p2 (PE.toFocus $ PE.applySubst (PE.toExpr p2end) subst)) >>= \p2'' ->
+        sameProof p1 p2''
                 
                 
 checkContexts :: Proof -> Proof -> PM ()
@@ -498,3 +499,13 @@ isCompleteProofFocus p =
 addBoolHypothesis :: PE.PreExpr -> Ctx -> (Ctx,Maybe Name)
 addBoolHypothesis e = addHypothesis e relEquiv [true']
     where Expr true' = true
+          
+          
+          
+-- | Dada una prueba, retorna la expresión que representa a toda la prueba.
+getExprProof :: PM Proof -> Expr
+getExprProof = either (const holeExpr) buildExpr
+    where buildExpr p = Expr $ PE.BinOp (relToOp . fromJust $ P.getRel p)
+                                     (PE.toExpr . fromJust $ P.getStart p)
+                                     (PE.toExpr . fromJust $ P.getEnd p)
+          

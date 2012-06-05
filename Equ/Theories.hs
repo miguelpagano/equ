@@ -14,7 +14,6 @@ module Equ.Theories
     , createTheorem
     , createHypothesis
     , toForest
-    , getExprProof
     , Grouped
     , TheoryName
     , theories
@@ -31,8 +30,8 @@ import qualified Equ.Theories.List as L
 import qualified Equ.Theories.FOL as F
 import Equ.Rule
 import Equ.Syntax (Operator,Constant,Quantifier)
-import Equ.Proof 
-import qualified Equ.Proof.Proof as P
+--import Equ.Proof
+import Equ.Proof.Proof
 import Equ.Expr
 import Equ.PreExpr
 import Equ.PreExpr.Show
@@ -146,16 +145,15 @@ createTheorem :: Text -> Proof -> Theorem
 createTheorem th_name proof = Theorem {
       thName = th_name
     , thExpr = Expr $ BinOp (relToOp rel) exp1 exp2
-    , thRel = fromRight $ getRel proof
+    , thRel = fromJust $ getRel proof
     , thProof = proof
     , thRules = createRulesAssoc expr
         --createRules exp1 exp2 rel
     }
     
-    where exp1 = (toExpr $ fromRight $ getStart proof)
-          exp2 = (toExpr $ fromRight $ getEnd proof)          
-          fromRight = head . rights . return
-          rel = fromRight $ getRel proof
+    where exp1 = (toExpr $ fromJust $ getStart proof)
+          exp2 = (toExpr $ fromJust $ getEnd proof)          
+          rel = fromJust $ getRel proof
           expr = BinOp (relToOp rel) exp1 exp2
      
 createRules :: PreExpr -> PreExpr -> Relation -> [Rule]
@@ -200,14 +198,5 @@ createHypothesis name ex@(Expr pe) = Hypothesis {
 
 whenZ :: MonadPlus m => (a -> Bool) -> (a -> m b) -> a -> m b
 whenZ p act a = if p a then act a else mzero
-
-
-
-getExprProof :: PM Proof -> Expr
-getExprProof = either (const holeExpr) buildExpr
-    where buildExpr p = Expr $ BinOp (relToOp . fromJust $ P.getRel p)
-                                     (toExpr . fromJust $ P.getStart p)
-                                     (toExpr . fromJust $ P.getEnd p)
-                                     
                                      
                                      
