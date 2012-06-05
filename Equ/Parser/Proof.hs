@@ -101,7 +101,7 @@ exprLine = manyTill anyChar (try (char '\n')) >>= return . exprL >>= pass
                         Right e -> return e
                         Left per -> getPosition >>= \p -> 
                                     fail $ show $ flip setErrorPos per $
-                                    setSourceLine (errorPos per)(sourceLine p-1)
+                                    setSourceLine (errorPos per) (sourceLine p-1)
         exprL' :: Parser' Focus
         exprL' = spaces >> parsePreExpr >>= return . toFocus . unParen
         exprL :: String -> Either ParseError Focus
