@@ -1,5 +1,5 @@
 -- | Este modulo es el parser de pruebas.
-module Equ.Parser.Proof (parsePfFromString') where
+module Equ.Parser.Proof (parsePfFromString',rel,proof) where
 
 import Equ.Parser.Expr
 import Equ.PreExpr (PreExpr,toFocus,Focus,unParen)

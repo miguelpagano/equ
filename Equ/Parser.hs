@@ -26,8 +26,10 @@ module Equ.Parser
     (-- * Caracteres especiales comunes a todas las teorías
       module Equ.Parser.Expr
     , module Equ.Parser.Types
+    , module Equ.Parser.Proof
     )
     where
 
 import Equ.Parser.Expr
 import Equ.Parser.Types
+import Equ.Parser.Proof

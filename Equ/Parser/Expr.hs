@@ -33,7 +33,6 @@ module Equ.Parser.Expr
     , parseFunc
     , parser
     , parserVar
-    , parseTyFromString
     )
     where
 
