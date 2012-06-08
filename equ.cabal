@@ -33,6 +33,8 @@ Library
     Exposed-modules:    Equ.Expr,
                         Equ.Exercise,
                         Equ.Exercise.Conf,
+                        Equ.IndType,
+                        Equ.IndTypes,
                         Equ.Parser,
                         Equ.Parser.Proof,
                         Equ.PreExpr,
