@@ -1,3 +1,4 @@
+{-# Language DoAndIfThenElse #-}
 {-| Algoritmo de chequeo e inferencia de tipos para pre-expre-
 siones. Este algoritmo es esencialmente el de Hindley-Milner-Damas
 para el cálculo lambda: si tenemos informacion en la pre-expresion
@@ -34,7 +35,7 @@ import qualified Data.Sequence as S
 import Data.Poset (leq)
 import Control.Monad.Trans.Either (runEitherT, hoistEither)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.RWS.Class (local, ask, tell, get, put)
+import Control.Monad.RWS.Class (ask, tell, get, put)
 import Control.Monad.RWS (runRWS)
 
 
@@ -202,8 +203,38 @@ check ctx (Quant q v r t) = do (_, tyQ) <- checkQuant q ctx
                                                (_,_,False) -> tyerr $ ErrNotExpected t2 tyT
                                                (True,True,True) -> return (addVar ctxT v tysV, tyT)
                                  t1 -> tyerr $ ErrNotExpected (tyV :-> tyT) t1
+check ctx (If b t f) = do (ctx',tb) <- checkAndUpdate ctx b goDown
+                          s <- get 
+                          case unify tb (TyAtom ATyBool) s of
+                            Left err -> tyerr err
+                            Right s' -> put s'
+                          (ctx'',tt) <- checkAndUpdate ctx' t goIfTrue
+                          (ctx''',tf) <- checkAndUpdate ctx'' f goIfFalse
+                          if tt == tf 
+                          then return (ctx''',tb)
+                          else tyerr $ ErrNotExpected tt tf
+check ctx (Case e cs) = do (ctx',texp) <- checkAndUpdate ctx e goDown
+                           -- TODO: qué pasa si cs es vacío?
+                           -- En lo que sigue asumimos cs no vacío.
+                           pats <- mapM (checkCase ctx) cs
+                           s <- get
+                           let subsPat = unifyList (map fst pats) s
+                               subsExp = unifyList (map snd pats) s
+                           case (subsPat,subsExp) of
+                               (Right _,Right s'') -> return (ctx', rewrite s'' . snd $ head pats)
+                               (Left err,_) -> tyerr err
+                               (_,Left err) -> tyerr err
 
 
+-- | Devuelve el tipo de un patrón y de la expresión.
+checkCase :: Ctx -> (PreExpr,PreExpr) -> TyState (Type,Type)
+checkCase ctx (pat,exp) = do s <- get
+                             (ctx',tpat) <- check ctx pat 
+                             put s
+                             (_,texp) <- check ctx' exp
+                             put s
+                             return (tpat,texp)
+                          
 initCtx :: Ctx
 initCtx = Ctx { vars = M.empty
               , funcs = M.empty

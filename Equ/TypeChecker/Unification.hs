@@ -4,6 +4,7 @@ module Equ.TypeChecker.Unification
       -- * Algoritmo de unificaci&#243;n con relaci&#243;n de orden.
     , unify
     , emptySubst
+    , unifyList
     , unifyTest
     , rewrite
     , findVar
@@ -16,7 +17,6 @@ import Equ.Types
 import Equ.TypeChecker.Error
 
 import qualified Data.Map as M
-import qualified Data.Sequence as S
 -- TODO: tener en cuenta subtipado
 -- import Data.Poset (leq) 
 
@@ -45,6 +45,11 @@ unify t@(TyVar v) t' s | t == t' = return s
                        | otherwise = return . M.insert v t' . M.map ((tyreplace v) t') $ s
 unify t (TyVar v) s = unify (TyVar v) t s
 unify t t' s = Left $ ErrUnification t t' (M.toList s)
+
+unifyList :: [Type] -> TySubst -> Either TyErr TySubst
+unifyList [] s = return s
+unifyList [t] s = return s
+unifyList (t:t':ts) s = unify t t' s >>= unifyList ts
 
 -- | Usamos unify para comprobar si existe o no unificaci&#243;n. 
 --   Suponemos que no hay 'TyUnknown'.
