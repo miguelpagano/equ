@@ -30,7 +30,7 @@ module Equ.PreExpr ( freeVars, freshVar
 
 import Equ.Syntax(Variable(..), Operator(..), Constant(..), holeTy
                  , Quantifier (..), Func (..), var, HoleInfo, hole, Assoc(None))
-import Data.Set (Set,union,delete,empty,insert,member)
+import Data.Set (Set,union,delete,empty,insert,member,unions)
 import Equ.Types
 import Equ.PreExpr.Internal
 import Equ.PreExpr.Zipper
@@ -39,8 +39,8 @@ import Equ.PreExpr.Subst
 
 import Data.Text(pack)
 import Data.Serialize(encode, decode)
-
-import Data.Maybe (fromJust)
+import Data.Function(on)
+import Data.Maybe (fromJust,isNothing)
 import Control.Arrow ((***))
 
 -- | Dado un focus de una preExpresion, nos dice si esta es un hueco.
@@ -52,7 +52,7 @@ isPreExprHole (PrExHole _, _) = True
 isPreExprHole _ = False
 
 isPreExprParent :: Focus -> Bool
-isPreExprParent (Paren e,_) = True
+isPreExprParent (Paren _,_) = True
 isPreExprParent _ = False
 
 -- | Checkea si un focus es un atomo de preExpresion.
@@ -71,7 +71,10 @@ isPreExprQuant _ = False
 preExprHole :: HoleInfo -> PreExpr
 preExprHole i = PrExHole $ hole i
 
--- | Esta funci&#243;n devuelve todas las variables libres de una expresion
+-- | Esta funci&#243;n devuelve todas las variables libres de una
+-- expresion TODO: pensar Case; las variables libres que ocurren en
+-- cada patrón deberían estar ligadas en las expresiones del lado
+-- derecho?
 freeVars :: PreExpr -> Set Variable
 freeVars (Var v) = insert v empty
 freeVars (Con _) = empty
@@ -82,6 +85,8 @@ freeVars (BinOp _ e1 e2) = freeVars e1 `union` freeVars e2
 freeVars (App e1 e2) = freeVars e1 `union` freeVars e2
 freeVars (Quant _ v e1 e2) = delete v $ freeVars e1 `union` freeVars e2
 freeVars (Paren e) = freeVars e
+freeVars (If b t f) = freeVars b `union` freeVars t `union` freeVars f
+freeVars (Case e cs) = freeVars e `union` (unions . map (uncurry (union `on` freeVars))) cs
 
 subExprQuant :: Focus -> Int
 subExprQuant = (1+) . length . focusToFocuses . Just
@@ -122,38 +127,36 @@ opOfFocus ((UnOp op _,_),_) = Just $ op
 opOfFocus ((BinOp op _ _,_),_) = Just $ op
 opOfFocus _ = Nothing
 
--- Checkea si un focus es un operador de preExpresion.
-checkIsOp :: (Focus, Focus -> Focus) -> Bool
-checkIsOp = maybe False (const True) . opOfFocus
-
 -- | Dado un focus, un move y un tipo, cambiamos el tipo del focus al que 
 -- nos mueve el move.
 setAtomType :: Focus -> (Focus -> Focus) -> Type -> Focus
-setAtomType f go t = set t (go f)
+setAtomType f go ty = set ty (go f)
     where
         set :: Type -> Focus -> Focus
         set t (Var v,p) = (Var $ v {varTy = t},p)
         set t (Con c,p) = (Con $ c {conTy = t},p)
-        set t (Fun f,p) = (Fun $ f {funcTy = t},p)
+        set t (Fun fun,p) = (Fun $ fun {funcTy = t},p)
         set t (PrExHole h,p) = (PrExHole $ h {holeTy = t},p)
-        set t (_,_) = error "SetAtomType!"
+        set _ (_,_) = error "SetAtomType!"
 
 setQuantType :: Focus -> (Focus -> Focus) -> Type -> Focus
-setQuantType f go t = goTop $ set t (go f)
+setQuantType f go ty = goTop $ set ty (go f)
     where
         set :: Type -> Focus -> Focus
         set t (Quant q v e e',p) = (Quant (q {quantTy = t}) v e e',p)
+        set _ (_,_) = error "SetQuantType"
 
 setVarQType :: Focus -> (Focus -> Focus) -> Type -> Focus
-setVarQType f go t = goTop $ set t (go f)
+setVarQType f go ty = goTop $ set ty (go f)
     where
         set :: Type -> Focus -> Focus
         set t (Quant q v e e',p) = (Quant q v{varTy = t} e e',p)
+        set _ (_,_) = error "SetVarQuantType"
 
 
 -- | Filtra todos los focus que son operadores de preExpresion.
 agrupNotOp :: [(Focus, Focus -> Focus)] -> [(Focus, Focus -> Focus)]
-agrupNotOp = filter (\f -> opOfFocus f == Nothing)
+agrupNotOp = filter (isNothing . opOfFocus)
 
 -- | Filtra todos los focus que son operadores de preExpresion. 
 agrupOp :: [(Focus, Focus -> Focus)] -> [[(Focus, Focus -> Focus)]]
@@ -169,18 +172,20 @@ agrupOp' lf = take': agrupOp' drop'
 -- | Actualiza el tipo de todos los focus a los que nos mueve Move.
 setType :: [(Focus, Focus -> Focus)] -> Type -> Focus -> Focus
 setType [] _ f' = goTop f'
-setType ((_,go):fs) t f' = setType fs t (goTop $ set t (go f'))
+setType ((_,go):fs) ty f' = setType fs ty (goTop $ set ty (go f'))
     where set :: Type -> Focus -> Focus
           set t (UnOp op e, p) = (UnOp (op{opTy = t}) e,p)
           set t (BinOp op e e', p) = (BinOp (op{opTy = t}) e e',p)
+          set _ (_,_) = error "setType!"
           
 -- | Actualiza el tipo de una lista de Focus.
 updateOpType :: [(Focus, Focus -> Focus)] -> Type -> [(Focus, Focus -> Focus)]
 updateOpType [] _ = []
-updateOpType ((f,go):fs) t = ((set t f), go) : updateOpType fs t
+updateOpType ((f,go):fs) ty = ((set ty f), go) : updateOpType fs ty
     where set :: Type -> Focus -> Focus
           set t (UnOp op e, p) = (UnOp (op{opTy = t}) e,p)
           set t (BinOp op e e', p) = (BinOp (op{opTy = t}) e e',p)
+          set _  (_,_) = error "updateOpType!"
 
 resetTypeAllAtoms :: Focus -> Focus
 resetTypeAllAtoms = resetTypeAllFocus' resetTypeAtoms
@@ -192,11 +197,10 @@ resetTypeAllFocus' :: (Focus -> Focus) -> Focus -> Focus
 resetTypeAllFocus' funReset f = reset listReset f
     where
         listReset :: [(Focus, Focus -> Focus)]
-        listReset = map (\f -> (funReset $ fst f, snd f)) $ 
-                                                    toFocusesWithGo $ fst f
+        listReset = map (\(foc,upd) -> (funReset foc, upd)) $ toFocusesWithGo $ fst f
         reset :: [(Focus, Focus -> Focus)] -> Focus -> Focus
-        reset [] f = f
-        reset (fm:fms) f = reset fms $ goTop $ replace (snd fm $ f) (fst $ fst fm)
+        reset [] foc = foc
+        reset (fm:fms) foc = reset fms $ goTop $ replace (snd fm $ foc) (fst $ fst fm)
 
 resetTypeAtoms :: Focus -> Focus
 resetTypeAtoms (Var v, p) = (Var $ v {varTy = TyUnknown}, p)
@@ -217,18 +221,22 @@ resetTypeFocus (Quant q v e e', p) = (Quant (q {quantTy = TyUnknown})
                                                  (v {varTy = TyUnknown}) 
                                                  e e', p)
 resetTypeFocus (Paren e, p) = (Paren e, p)
+resetTypeFocus (If b t f,p) = (If b t f,p)
+resetTypeFocus (Case e cs,p) = (Case e cs,p)
 
 getTypeFocus :: Focus -> Type
 getTypeFocus (Var v, _) = varTy v
 getTypeFocus (Con c, _) = conTy c
 getTypeFocus (Fun f, _) = funcTy f
 getTypeFocus (PrExHole h, _) = holeTy h
-getTypeFocus (UnOp op e, _) = opTy op
-getTypeFocus (BinOp op e e', _) = opTy op
-getTypeFocus f@(App e e', _) = (:->) (getTypeFocus $ fromJust $ goDownL f) 
+getTypeFocus (UnOp op _, _) = opTy op
+getTypeFocus (BinOp op _ _, _) = opTy op
+getTypeFocus f@(App _ _, _) = (:->) (getTypeFocus $ fromJust $ goDownL f) 
                                      (getTypeFocus $ fromJust $ goDownR f)
-getTypeFocus (Quant q v e e', _) = (:->) (varTy v) (quantTy q)
-getTypeFocus f@(Paren e, _) = getTypeFocus $ fromJust $ goDown f
+getTypeFocus (Quant q v _ _, _) = (:->) (varTy v) (quantTy q)
+getTypeFocus f@(Paren _, _) = getTypeFocus $ fromJust $ goDown f
+getTypeFocus foc@(If _ _ _,_) = getTypeFocus . fromJust . goRight . fromJust . goDown $ foc
+getTypeFocus foc@(Case _ _,_) = undefined -- TODO!
 
 getVarTypeFromQuantType :: Type -> Type
 getVarTypeFromQuantType (t :-> _) = t
@@ -248,16 +256,17 @@ getQAndVarFromQuant _ = Nothing
 -- @~@ significa igualdad modulo asociatividad. Si @op@ no es
 -- asociativo, entonces devuelve el singleton @(e,e')@.
 createPairs :: PreExpr -> [(PreExpr,PreExpr)]
-createPairs e@(BinOp op l r) = case opAssoc op of
+createPairs e@(BinOp op _ _) = case opAssoc op of
                                None -> []
                                _ -> map split . glue op $ flatten op e
-    where split e' = case e' of
-                       BinOp op l r -> (l,r)
-                       _ -> error "impossible"
+    where split (BinOp _ l r) =  (l,r)
+          split _ = error "We cannot split with something different from a BinOp"
+createPairs _ = error "We cannot split with something different from a BinOp"
 
 -- | Lista de todos los nodos asociables.
 flatten :: Operator -> PreExpr -> [PreExpr]
-flatten o' e@(BinOp op l r) = if op == o' then flatten op l ++ flatten op r
+flatten o' e@(BinOp op l r) = if op == o' 
+                              then flatten op l ++ flatten op r
                               else [e]
 flatten _ e = [e]
 

@@ -28,20 +28,14 @@ import Equ.Theories.AbsName
 import qualified Equ.Theories.Arith as A
 import qualified Equ.Theories.List as L
 import qualified Equ.Theories.FOL as F
-import Equ.Rule
-import Equ.Syntax (Operator,Constant,Quantifier)
---import Equ.Proof
+import Equ.Rule(mkrule,Relation(..), Rule(..),relImpl,relEquiv,relCons,relEq)
 import Equ.Proof.Proof
 import Equ.Expr
 import Equ.PreExpr
-import Equ.PreExpr.Show
-import Equ.IndTypes
 
 import Data.Text hiding (head,zip,concatMap,map,tail)
-import Data.Either(rights)
 import Data.Maybe(isJust,fromJust)
 import Data.Tree
-import qualified Data.Foldable as DF  (mapM_) 
 import Control.Monad
 import Control.Arrow ((&&&))
 
@@ -58,6 +52,7 @@ arithTheory = "Aritmética"
 listTheory :: TheoryName
 listTheory = "Listas"
 
+theories :: [TheoryName]
 theories = [folTheory,arithTheory,listTheory]
 
 theoriesInGroup :: Grouped a -> [TheoryName]
@@ -90,7 +85,8 @@ axiomGroup = mkGrouped theories . uncurry (:) . ((F.assocEquivAx:) . head &&& ta
                      , A.theoryAxiomList
                      , L.theoryAxiomList]
                      
-                                          
+     
+arithAxioms,listAxioms,folAxioms :: [Axiom]                                     
 arithAxioms = ungroup $ mkAxiomGroup [A.theoryAxiomList]
 listAxioms = ungroup $ mkAxiomGroup [L.theoryAxiomList]
 folAxioms = ungroup $ mkAxiomGroup [L.theoryAxiomList]
@@ -119,6 +115,7 @@ relToOp relation | relation == relEq = F.folEqual
                  | relation == relEquiv = F.folEquiv
                  | relation == relImpl = F.folImpl
                  | relation == relCons = F.folConseq
+relToOp _ = error "relToOp: Unknown relation!"
 
 opToRel :: Operator -> Maybe Relation
 opToRel op = case opName op of 
@@ -144,24 +141,17 @@ getRelExp _ = Nothing
 createTheorem :: Text -> Proof -> Theorem
 createTheorem th_name proof = Theorem {
       thName = th_name
-    , thExpr = Expr $ BinOp (relToOp rel) exp1 exp2
+    , thExpr = Expr $ BinOp (relToOp rel') exp1 exp2
     , thRel = fromJust $ getRel proof
     , thProof = proof
     , thRules = createRulesAssoc expr
-        --createRules exp1 exp2 rel
     }
     
     where exp1 = (toExpr $ fromJust $ getStart proof)
           exp2 = (toExpr $ fromJust $ getEnd proof)          
-          rel = fromJust $ getRel proof
-          expr = BinOp (relToOp rel) exp1 exp2
+          rel' = fromJust $ getRel proof
+          expr = BinOp (relToOp rel') exp1 exp2
      
-createRules :: PreExpr -> PreExpr -> Relation -> [Rule]
-createRules pe1 pe2 rel = (createRulesAssoc pexpr)++metaRules expr
-    --(mkrule (Expr pe1) (Expr pe2) rel):metaRules expr
-    where expr = Expr $ BinOp (relToOp rel) pe1 pe2
-          Expr pexpr = expr
-
 -- | Siempre que tenemos un axioma, tenemos dos reglas: @e ≡ True@ y @True ≡ e@.
 metaRules :: Expr -> [Rule]
 metaRules e = [ mkrule e F.true relEquiv, mkrule F.true e relEquiv]
@@ -170,17 +160,17 @@ metaRules e = [ mkrule e F.true relEquiv, mkrule F.true e relEquiv]
 -- esa expresión. 
 createRulesAssoc :: PreExpr -> [Rule]
 createRulesAssoc e = whenZ isJust rules (getRelExp e) ++ metaRules (Expr e)
-    where rules (Just rel) = createPairs e >>= 
-                             if relSym rel
-                             then \(p,q) -> [mkrule (Expr p) (Expr q) rel, mkrule (Expr q) (Expr p) rel]
-                             else \(p,q) -> return (mkrule (Expr p) (Expr q) rel)
+    where rules (Just rel') = createPairs e >>= 
+                             if relSym rel'
+                             then \(p,q) -> [mkrule (Expr p) (Expr q) rel', mkrule (Expr q) (Expr p) rel']
+                             else \(p,q) -> return (mkrule (Expr p) (Expr q) rel')
           rules _ = []
           
 
 -- | Dado un axioma reconstruye las reglas a partir de su expresión.
 createAxiom :: Text -> Expr -> Axiom
-createAxiom name ex = Axiom { 
-                        axName = name
+createAxiom name' ex = Axiom { 
+                        axName = name'
                       , axExpr = ex
                       , axRel = fromJust $ getRelExp expr
                       , axRules = createRulesAssoc expr} 
@@ -189,8 +179,8 @@ createAxiom name ex = Axiom {
           
 -- | Dada una expresion, construye una hipotesis, calculando todas las reglas.
 createHypothesis :: Text -> Expr -> Hypothesis
-createHypothesis name ex@(Expr pe) = Hypothesis { 
-                        hypName = name
+createHypothesis name' ex@(Expr pe) = Hypothesis { 
+                        hypName = name'
                       , hypExpr = ex
                       , hypRel = fromJust $ getRelExp pe
                       , hypRule = createRulesAssoc pe

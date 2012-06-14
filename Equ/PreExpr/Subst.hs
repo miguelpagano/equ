@@ -10,7 +10,7 @@ import Equ.Syntax
 import Equ.PreExpr.Internal
 
 import qualified Data.Map as M
-
+import Control.Arrow((***))
 -- | Mapa de substituciones de variable - preExpresiones.
 type ExprSubst = M.Map Variable PreExpr
 
@@ -25,3 +25,6 @@ applySubst (Paren e) s = Paren $ applySubst e s
 applySubst (PrExHole h) _ = PrExHole h
 applySubst (Con c) _ = Con c
 applySubst (Fun f) _ = Fun f
+applySubst (If b t f) s = If (applySubst b s) (applySubst t s) (applySubst f s)
+applySubst (Case e cs) s = Case (applySubst e s) (map (flip applySubst s *** flip applySubst s) cs)
+

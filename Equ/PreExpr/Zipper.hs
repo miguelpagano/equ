@@ -7,14 +7,13 @@ module Equ.PreExpr.Zipper
     , toExpr, toFocus, toFocuses, toFocusesWithGo, focusToFocuses
     , replace
     , goDown, goUp, goLeft, goRight, goDownR, goDownL, goTop
+    , goIfTrue, goIfFalse
     ) where
 
 import Equ.PreExpr.Internal
 import Equ.Syntax
 
 import Data.Serialize(Serialize, get, getWord8, put, putWord8)
-import Data.Maybe(fromJust)
-
 import Control.Applicative ((<$>), (<*>),Applicative(..))
 import Test.QuickCheck(Arbitrary, arbitrary, oneof)
 import Data.Maybe(fromJust)
@@ -58,6 +57,43 @@ data Path = Top
 -}
         
    
+instance Serialize Path where
+    put Top = putWord8 0
+    put (UnOpD op p) = putWord8 1 >> put op >> put p
+    put (BinOpL op p pe) = putWord8 2 >> put op >> put p >> put pe
+    put (BinOpR op pe p) = putWord8 3 >> put op >> put pe >> put p
+    put (AppL p pe) = putWord8 4 >> put p >> put pe
+    put (AppR pe p) = putWord8 5 >> put pe >> put p
+    put (QuantL q v p pe) = putWord8 6 >> put q >> put v >> put p >> put pe
+    put (QuantR q v pe p) = putWord8 7 >> put q >> put v >> put pe >> put p
+    put (ParenD p) = putWord8 8 >> put p
+    put (IfCond p e e') = putWord8 9 >> put p >> put e >> put e'
+    put (IfTrue b p e') = putWord8 10 >> put b >> put p >> put e'
+    put (IfFalse b e p) = putWord8 11 >> put b >> put e >> put p
+    put (CaseD p es) = putWord8 12 >> put p >> put es
+    put (CasePatternL c p e es es') = putWord8 13 >> put c >> put p >> put e >> put es >> put es'
+    put (CasePatternR c p e es es') = putWord8 14 >> put c >> put p >> put e >> put es >> put es'
+
+
+    get = do
+    tag_ <- getWord8
+    case tag_ of
+        0 -> return Top
+        1 -> UnOpD <$> get <*> get
+        2 -> BinOpL <$> get <*> get <*> get 
+        3 -> BinOpR <$> get <*> get <*> get
+        4 -> AppL <$> get <*> get
+        5 -> AppR <$> get <*> get
+        6 -> QuantL <$> get <*> get <*> get <*> get
+        7 -> QuantR <$> get <*> get <*> get <*> get
+        8 -> ParenD <$> get
+        9 -> IfCond <$> get <*> get <*> get
+        10 -> IfTrue <$> get <*> get <*> get
+        11 -> IfFalse <$> get <*> get <*> get
+        12 -> CaseD <$> get <*> get
+        13 -> CasePatternL <$> get <*> get <*> get <*> get <*> get
+        14 -> CasePatternR <$> get <*> get <*> get <*> get <*> get
+        _ -> fail $ "SerializeErr Path " ++ show tag_
             
 
 instance Arbitrary Path where
@@ -73,30 +109,6 @@ instance Arbitrary Path where
               , ParenD <$> arbitrary
               ]
 
-instance Serialize Path where
-    put Top = putWord8 0
-    put (UnOpD op p) = putWord8 1 >> put op >> put p
-    put (BinOpL op p pe) = putWord8 2 >> put op >> put p >> put pe
-    put (BinOpR op pe p) = putWord8 3 >> put op >> put pe >> put p
-    put (AppL p pe) = putWord8 4 >> put p >> put pe
-    put (AppR pe p) = putWord8 5 >> put pe >> put p
-    put (QuantL q v p pe) = putWord8 6 >> put q >> put v >> put p >> put pe
-    put (QuantR q v pe p) = putWord8 7 >> put q >> put v >> put pe >> put p
-    put (ParenD p) = putWord8 8 >> put p
-
-    get = do
-    tag_ <- getWord8
-    case tag_ of
-        0 -> return Top
-        1 -> UnOpD <$> get <*> get
-        2 -> BinOpL <$> get <*> get <*> get 
-        3 -> BinOpR <$> get <*> get <*> get
-        4 -> AppL <$> get <*> get
-        5 -> AppR <$> get <*> get
-        6 -> QuantL <$> get <*> get <*> get <*> get
-        7 -> QuantR <$> get <*> get <*> get <*> get
-        8 -> ParenD <$> get
-        _ -> fail $ "SerializeErr Path " ++ show tag_
 
 -- | Un Focus representa la expresi&#243;n que consiste de completar el
 -- hueco denotado por Path con la expresi&#243;n PreExpr (eso es lo que
@@ -154,13 +166,13 @@ focusToFocusesWithGo :: Maybe (Focus, Focus -> Focus) -> [(Focus, Focus -> Focus
 focusToFocusesWithGo Nothing = []
 focusToFocusesWithGo (Just (f, go)) = 
             case (goDownL f, goDownR f) of
-                (glf@(Just lf), grf@(Just rf)) -> 
+                (Just lf, Just rf) -> 
                     ((lf, fromJust . goDownL . go) : 
                     focusToFocusesWithGo (Just (lf, fromJust . goDownL . go))) 
                         ++
                     ((rf, fromJust . goDownR . go) : 
                     focusToFocusesWithGo (Just (rf, fromJust . goDownR . go)))
-                (glf@(Just lf), Nothing) -> 
+                (Just lf, Nothing) -> 
                     ((lf, fromJust . goDownL . go) : 
                     focusToFocusesWithGo (Just (lf, fromJust . goDownL . go)))
                 (Nothing, _) -> []
@@ -263,7 +275,7 @@ goRight (pattern, CasePatternL e path e1 left right) =
 goRight (pe, CasePatternR e path pattern left right) =
     case right of
          [] -> Nothing
-         ((p2,e2):ps) -> Just (p2, CasePatternL e path e2 (left++[(pattern,pe)]) right)
+         ((p2,e2):_) -> Just (p2, CasePatternL e path e2 (left++[(pattern,pe)]) right)
 
 
 -- | Sube hasta el tope.
@@ -272,37 +284,8 @@ goTop (e,Top) = (e,Top)
 goTop f = goTop $ fromJust $ goUp f
 
 
--- showFocus :: Focus -> String
--- showFocus f = showFocus' $ goTop f
--- 
---     where showFocus' f'@(BinOp op _ _,_) = 
---                             let (Just izq,Just der) = (goDownL f',goDownR f') in
---                                 let (izqStr,derStr) = (showWithParentsBin izq op,showWithParentsBin der op) in
---                                     izqStr ++" "++show op++" "++derStr
---           showFocus' f'@(UnOp op _,_) = 
---                             let (Just down) = goDown f' in
---                                 let downStr = showWithParentsUn down op in
---                                     show op++" "++ downStr
---           showFocus' f'@(App _ _,_) = (showFocus' $ fromJust $ goDownL f')++"@"++
---                                       (showFocus' $ fromJust $ goDownR f')
---           showFocus' f'@(Quant q v _ _,_) = "〈" ++ show q ++ show v ++ ":" 
---                                         ++ (showFocus' $ fromJust $ goDownL f') ++ ":" 
---                                         ++ (showFocus' $ fromJust $ goDownR f') ++ "〉"
---           showFocus' f'@(Paren _,_) = "["++(showFocus' $ fromJust $ goDownL f')++"]"
---           showFocus' f' = show $ fst f'
---                                     
---           showWithParentsBin f'' oper = case f'' of
---                                          (BinOp op' _ _,_) -> if opPrec oper >= opPrec op'
---                                                                  then "("++showFocus' f''++")"
---                                                                  else showFocus' f''                        
---                                          otherwise -> showFocus' f''
---          
---           showWithParentsUn f'' oper = case f'' of
---                                             (BinOp _ _ _,_) -> "("++showFocus' f''++")"
---                                             (App _ _,_) -> "("++showFocus' f''++")"
---                                             (Quant _ _ _ _,_) -> "("++showFocus' f''++")"
---                                             otherwise -> showFocus' f''
-                                            
-                                            
 
 
+goIfTrue,goIfFalse :: Focus -> Maybe Focus
+goIfTrue f = goDown f >>= goRight
+goIfFalse f = goDown f >>= goRight >>= goRight
