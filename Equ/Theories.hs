@@ -150,16 +150,11 @@ createTheorem th_name proof = Theorem {
     
     where exp1 = (toExpr $ fromJust $ getStart proof)
           exp2 = (toExpr $ fromJust $ getEnd proof)          
-<<<<<<< HEAD
-          rel = fromJust $ getRel proof
-          expr = BinOp (relToOp rel) exp1 exp2
+          rel' = fromJust $ getRel proof
+          expr = BinOp (relToOp rel') exp1 exp2
           
 theoremAddProof :: Proof -> Theorem -> Theorem
 theoremAddProof p t = t {thProof = p}
-=======
-          rel' = fromJust $ getRel proof
-          expr = BinOp (relToOp rel') exp1 exp2
->>>>>>> d39fe9b63925b10df6d5ac468bbd6deb8bf56975
      
 -- | Siempre que tenemos un axioma, tenemos dos reglas: @e ≡ True@ y @True ≡ e@.
 metaRules :: Expr -> [Rule]
