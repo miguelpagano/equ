@@ -12,6 +12,7 @@ module Equ.Theories
     , relationList
     , relToOp
     , createTheorem
+    , theoremAddProof
     , createHypothesis
     , toForest
     , Grouped
@@ -155,6 +156,9 @@ createTheorem th_name proof = Theorem {
           exp2 = (toExpr $ fromJust $ getEnd proof)          
           rel = fromJust $ getRel proof
           expr = BinOp (relToOp rel) exp1 exp2
+          
+theoremAddProof :: Proof -> Theorem -> Theorem
+theoremAddProof p t = t {thProof = p}
      
 createRules :: PreExpr -> PreExpr -> Relation -> [Rule]
 createRules pe1 pe2 rel = (createRulesAssoc pexpr)++metaRules expr

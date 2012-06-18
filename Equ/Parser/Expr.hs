@@ -33,6 +33,7 @@ module Equ.Parser.Expr
     , parseFunc
     , parser
     , parserVar
+    , VarTy
     )
     where
 
@@ -111,14 +112,13 @@ lexer' = makeTokenParser $
                      , reservedNames = rNames
                      , identStart  = letter
                      , identLetter = alphaNum <|> char '_'
-
                      }
 
 lexer = lexer' { whiteSpace = oneOf " \t" >> return ()}
 
 -- Parser principal de preExpresiones.
 parsePreExpr :: Parser' PreExpr
-parsePreExpr = PE.buildExpressionParser operatorTable subexpr 
+parsePreExpr = PE.buildExpressionParser operatorTable subexpr
                <?> "Parser error: Expresi&#243;n mal formada"
 
 -- Construimos la table que se le pasa a buildExpressionParser:
@@ -154,7 +154,7 @@ convertAssoc ARight = PE.AssocRight
 -- Una expresion puede ser una expresion con parentesis, una constante, una expresion cuantificada,
 -- una variable, una funci&#243;n o una expresion que viene desde un parseo por syntactic sugar
 subexpr :: Parser' PreExpr
-subexpr = Paren <$> parens lexer parsePreExpr
+subexpr =     Paren <$> parens lexer parsePreExpr
           <|> Con <$> parseConst
           <|> parseSugarPreExpr parsePreExpr
           <|> parseQuant 
@@ -164,12 +164,11 @@ subexpr = Paren <$> parens lexer parsePreExpr
 
                             
 -- Parseo de Constantes definidas en la teoria
-
 -- Vamos juntando las opciones de parseo de acuerdo a cada constante en la lista.
 -- En el caso en que la lista es vacia, la opcion es un error
 parseConst :: Parser' Constant
 parseConst = foldr ((<|>) . pConst) (fail "Constante") constantsList
-    where pConst c = c <$ (reserved lexer . unpack . conRepr) c 
+    where pConst c = c <$ (reserved lexer . unpack . conRepr) c
    
 -- Parseo de Cuantificadores definidos en la teoria
 parseQuant ::  Parser' PreExpr

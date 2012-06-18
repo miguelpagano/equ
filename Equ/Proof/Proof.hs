@@ -50,7 +50,6 @@ import Data.Serialize(Serialize, get, getWord8, put, putWord8, encode, decode)
 import Control.Applicative ((<$>), (<*>))
 import Test.QuickCheck
 
-
 -- | Las hip&#243;tesis son nombradas por n&#250;meros.
 data Name = Index Int
     deriving (Show,Ord,Eq)
@@ -487,6 +486,8 @@ instance Show Proof where
     show (Trans _ r f f' f'' p p') = "Trans " ++ show r ++ " " ++ show f ++ " " ++ 
                                                  show f' ++ " " ++ show f'' ++ " { " ++ show p ++ " } " ++
                                                  " { " ++ show p' ++ " } "
+    show (Cases _ r f f' f'' lfp) = "Cases " ++ show r ++ " " ++ show f ++ " " ++ 
+                                                 show f' ++ " " ++ show f'' ++ " { " ++ show lfp ++ " } "
     show _ = "prueba no implementada"
 
 printPf :: Proof -> [String]
