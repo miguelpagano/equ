@@ -54,9 +54,11 @@ evalExpr e@(UnOp op e') = maybe (UnOp op (evalExpr e')) intToCon $ evalN e
 evalExpr e@(BinOp op e1 e2) = maybe e' intToCon $ evalN e
     where e' = case (evalN e1, evalN e2) of
                  (Nothing,Nothing) ->  BinOp op (evalExpr e1) (evalExpr e2)
-                 (Just e', Nothing) -> BinOp op (intToCon e') (evalExpr e2)
-                 (Nothing, Just e') -> BinOp op (evalExpr e1) (intToCon e')
-                 (Just e',Just e'') -> BinOp op (intToCon e') (intToCon e'')
+                 (Just m, Nothing) -> BinOp op (intToCon m) (evalExpr e2)
+                 (Nothing, Just n) -> BinOp op (evalExpr e1) (intToCon n)
+                 (Just m,Just n) -> BinOp op (intToCon m) (intToCon n)
 evalExpr (App e e') = App (evalExpr e) (evalExpr e')
 evalExpr (Quant q v r t) = Quant q v (evalExpr r) (evalExpr t)
 evalExpr (Paren e) = Paren (evalExpr e)
+evalExpr (If b t f) = If (evalExpr b) (evalExpr t) (evalExpr f)
+evalExpr (Case e cs) = Case e cs

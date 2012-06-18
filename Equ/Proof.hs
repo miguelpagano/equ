@@ -18,7 +18,7 @@ module Equ.Proof (newProof
                  , Hypothesis
                  -- * Pruebas
                  -- $proofs
-                 , Proof(..)
+                 , Proof
                  , Proof'(..)
                  , ProofFocusAnnots(..)
                  , ProofAnnotation(..)

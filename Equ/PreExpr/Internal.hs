@@ -6,6 +6,7 @@ import Control.Applicative ((<$>), (<*>),Applicative(..))
 import Test.QuickCheck(Arbitrary, arbitrary, oneof)
 
 import Data.Serialize(Serialize, get, getWord8, put, putWord8)
+import Control.Arrow ((***))
 
 data PreExpr' a = Var a
                 | Con !Constant
@@ -63,7 +64,7 @@ instance Functor PreExpr' where
     fmap f (Quant q a e e') = Quant q (f a) (fmap f e) (fmap f e')
     fmap f (Paren e) = Paren $ fmap f e
     fmap f (If c e1 e2) = If (fmap f c) (fmap f e1) (fmap f e2)
-    fmap f (Case e patterns) = Case (fmap f e) (map (\(p,e) -> (fmap f p,fmap f e)) patterns) -- TODO: VER ESTO
+    fmap f (Case e patterns) = Case (fmap f e) $ map (fmap f *** fmap f) patterns
     
 
 -- | Instancia arbitrary para las preExpresiones.
@@ -79,60 +80,42 @@ instance Arbitrary PreExpr where
                 , Quant <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
                 , Paren <$> arbitrary
                 , If <$> arbitrary <*> arbitrary <*> arbitrary
-                -- TODO: VER COMO HACEMOS CON CASE
+                , Case <$> arbitrary <*> arbitrary
                 ]
 
 -- | Pretty print para las preExpresiones.
 instance Show PreExpr where
-     show p = showExpr' p
---     show (Var x) = show x
---     show (Con k) = show k
---     show (Fun f) = show f
---     show (PrExHole h) = show h
---     show (UnOp op preExp) = show op ++ " " ++ show preExp
---     show (BinOp op preExp0 preExp1) = show preExp0 ++ show op ++ show preExp1
---     show (App preExp0 preExp1) = show preExp0 ++ "@" ++ show preExp1
---     show (Quant qua v preExp0 preExp1) = "〈" ++ show qua ++ show v ++ ":" 
---                                         ++ show preExp0 ++ ":" 
---                                         ++ show preExp1 ++ "〉"
---     show (Paren e) = "(" ++ show e ++ ")"
-    
-    
-    
+     show = showExpr' 
+
+-- | Pretty-printing con parentizado de expresiones.
 showExpr' :: PreExpr -> String
-showExpr' (BinOp op e1 e2) =
-            let (izq,der)=(showWithParentsBin e1 op,showWithParentsBin e2 op) in
-                izq ++ show op ++ der
-                
-    where showWithParentsBin e oper = case e of
+showExpr' (BinOp op e1 e2) = showParentised op e1 ++ show op ++ showParentised op e2                
+    where showParentised oper e = case e of
            (BinOp op' _ _) -> if opPrec oper >= opPrec op'
-                                    then "("++showExpr' e++")"
-                                    else showExpr' e
-           otherwise -> showExpr' e
+                             then "("++showExpr' e++")"
+                             else showExpr' e
+           _ -> showExpr' e
            
-showExpr' (UnOp op e) =
-                let down = showWithParentsUn e op in
-                    show op ++ " "++down
-                    
-    where showWithParentsUn e oper = case e of
-            (BinOp _ _ _) -> "("++showExpr' e++")"
-            (App _ _) -> "("++showExpr' e++")"
-            (Quant _ _ _ _) -> "(" ++ showExpr' e++")"
-            otherwise -> showExpr' e
-                    
+showExpr' (UnOp op e) = show op ++ " " ++ showParentised e 
+    where showParentised e' = case e of
+            (BinOp _ _ _) -> "(" ++ showExpr' e' ++ ")"
+            (App _ _) -> "(" ++ showExpr' e' ++ ")"
+            (Quant _ _ _ _) -> "(" ++ showExpr' e' ++ ")"
+            _ -> showExpr' e'
+                        
 showExpr' (App e1 e2) = showExpr' e1 ++ "@" ++ showExpr' e2
 showExpr' (Quant q v e1 e2) = "〈" ++ show q ++ show v ++ ":" 
-                                        ++ showExpr' e1 ++ ":" 
-                                        ++ showExpr' e2 ++ "〉"
+                              ++ showExpr' e1 ++ ":" 
+                              ++ showExpr' e2 ++ "〉"
 showExpr' (Paren e) = "(" ++ showExpr' e ++ ")"
 showExpr' (Var x) = show x
 showExpr' (Con k) = show k
 showExpr' (Fun f) = show f
 showExpr' (PrExHole h) = show h
 showExpr' (If c e1 e2) = "if " ++ showExpr' c ++ " then " ++ showExpr' e1 ++ " else " ++ showExpr' e2
-showExpr' (Case e patterns) = "case " ++ showExpr' e ++ " of\n\t" ++ showPatterns patterns
-    where showPatterns [] = ""
-          showPatterns ((p,e):ps) = showExpr' p ++ " -> " ++ showExpr' e ++ "\n" ++ showPatterns ps
+showExpr' (Case e patterns) = "case " ++ showExpr' e ++ " of\n" ++ showPatterns patterns
+    where showPatterns = unlines . map showPattern
+          showPattern (p,e') = "\t" ++ showExpr' p ++ " -> " ++ showExpr' e'
 
 {-- | Funcion que, dada una PreExpr, elimina las expresiones "Paren" que son necesarias
     para desambiguar expresiones. Ejemplo:
@@ -145,24 +128,24 @@ unParen :: PreExpr -> PreExpr
 unParen (BinOp op e1 e2) = BinOp op (checkParen e1 op) (checkParen e2 op)
     where checkParen e o = case e of
             (Paren (BinOp op_e e1' e2')) -> if opPrec o >= opPrec op_e
-                                                then unParen (BinOp op_e e1' e2')
-                                                else unParen e
-            otherwise -> unParen e
+                                           then unParen (BinOp op_e e1' e2')
+                                           else unParen e
+            _ -> unParen e
             
-unParen (UnOp op e) = UnOp op (checkParen e op)
-    where checkParen e' o = case e' of
+unParen (UnOp op e) = UnOp op (checkParen e)
+    where checkParen e' = case e' of
             (Paren e'') -> case e'' of
                             (BinOp _ _ _) -> unParen e''
                             (App _ _) -> unParen e''
                             (Quant _ _ _ _) -> unParen e''  -- VER SI HACE FALTA ESTE CASO
-                            otherwise -> unParen e'
+                            _ -> unParen e'
             _ -> e'
 unParen (App e1 e2) = App (unParen e1) (unParen e2)
 unParen (Quant q v e1 e2) = Quant q v (unParen e1) (unParen e2)
 unParen (Paren e) = Paren (unParen e)
 unParen (If c e1 e2) = If (unParen c) (unParen e1) (unParen e2)
 unParen (Case e patterns) = Case (unParen e) (unParenAll patterns)
-    where unParenAll ps = map (\(p,e) -> (unParen p,unParen e)) ps
+    where unParenAll ps = map (unParen *** unParen) ps
 unParen e = e
 
 
@@ -172,4 +155,4 @@ unParen e = e
 substitution :: Eq a => a -> a -> PreExpr' a -> PreExpr' a
 substitution v v' e = substVar v v' <$> e
     where substVar w w' w'' | w == w'' = w'
-                            | otherwise = w''
+                            | w /= w'' = w''

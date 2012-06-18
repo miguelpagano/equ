@@ -4,10 +4,7 @@ module Equ.PreExpr.Symbols where
 
 import Equ.Syntax
 import Equ.Types
-import Equ.Expr
-import Equ.PreExpr
--- TODO: Agregar reglas para este módulo.
-import Equ.Rule 
+
 import Equ.Theories.AbsName
 
 -- | Constante cero.
