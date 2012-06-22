@@ -820,7 +820,7 @@ addHypothesisProof e r es pf = getCtx pf >>=
                                setCtx ctx' pf
 
 
-addHypothesis' :: Hypothesis -> Ctx -> (Ctx,Name)
-addHypothesis' hyp ctx = (M.insert n hyp ctx,n)
+addHypothesis' :: Hypothesis -> Ctx -> Ctx
+addHypothesis' hyp ctx = M.insert (hypName hyp) hyp ctx
     where n = freshName ctx
-                    
+                                              

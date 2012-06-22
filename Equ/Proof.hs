@@ -49,6 +49,7 @@ import Equ.Proof.Monad
 import Equ.Proof.Error
 import Equ.Proof.ListedProof
 import Equ.Theories.Common
+import Equ.Theories.FOL(folOr)
 import Equ.Syntax hiding (Hole)
 
 import qualified Equ.PreExpr as PE hiding (replace)
@@ -60,6 +61,8 @@ import Equ.Rewrite
 import Equ.IndType
 import Equ.IndTypes
 import Equ.Theories
+
+import Equ.Proof.Induction(createIndHypothesis)
 
 import Data.Monoid(mappend)
 
@@ -238,15 +241,8 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
           checkSubProofInd x pr ((expr,p):ps) =
                 -- Construimos la hipotesis inductiva/s correspondiente a este patrón 
                 -- (puede ser una o dos, dependiendo de si el constructor es unario o binario)
-                case PE.toExpr expr of
-                    (PE.UnOp op e) -> return (createHypothesis "Hipótesis Inductiva" (Expr $ hypIndExpr x e)) >>=
-                                      \hyp -> return [hyp]
-                    (PE.BinOp op e1 e2) -> return (createHypothesis "Hipótesis Inductiva" (Expr $ hypIndExpr x e1)) >>=
-                                        \hyp1 -> 
-                                        return (createHypothesis "Hipótesis Inductiva" (Expr $ hypIndExpr x e2)) >>=
-                                        \hyp2 ->
-                                        return [hyp1,hyp2]
-                >>=
+                return (fromJust $ createIndHypothesis rel f1 f2 expr x) >>=
+                \hyp -> return [hyp] >>=
                 -- Chequeamos que cada hipótesis del contexto de la subprueba
                 -- esté en el contexto de la prueba inductiva, o sea hipótesis
                 -- inductiva.
@@ -305,8 +301,55 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
           
           checkAllIndConst = checkAllContructors indConstructors
           
+-- validateProof' proof@(Cases ctx rel f1 f2 e cases guardsProof) =
+--     -- Primero chequeamos la prueba que dice que el "o" de las guardas vale:
+--     checkGuardsProof >> 
+--     -- Ahora debemos chequear cada prueba de casos. Cada subprueba debe tener
+--     -- la misma relacion, expresion inicial y final que la prueba general, solo
+--     -- que agrega al contexto la hipótesis correspondiente al caso, por ejemplo
+--     -- si el caso es "e==0", luego se agrega "e==0 ≡ True" como hipótesis.
+--     
+-- 
+--     
+--     
+--     -- Chequeamos la prueba que demuestra que el "o" de todas las guardas es True.
+--     -- Para eso, esta prueba debe tener el mismo contexto que la prueba general.
+--     -- debe tener como relación a la equivalencia, la expresión inicial debe ser
+--     -- el o de todas las guardas (VER QUE PASA SI ES LA MISMA EXPRESION PERO CON CONMUTATIVIDAD
+--     -- Y ASOCIATIVIDAD DISTINTOS) y la expresión final debe ser True.
+--     where checkGuardsProof =
+--             getRel guardsProof >>= \relGP -> getStart guardsProof >>= \stGP -> 
+--             getEnd guardsProof >>= \endGP -> getCases cases >>= \cs -> 
+--             orCasesExpr cs >>= orCE -> 
+--             sameContext guardsProof proof >>
+--             whenPM' (relGP==relEquiv) errProof >> 
+--             whenPM' (stGP==orCE) errProof >>
+--             whenPM' (endGP==(toFocus $ PE.Con folTrue)) errProof >>
+--             validateProof' guardsProof
+--             
+--           getCases :: [(Focus,Proof)] -> [Focus]
+--           getCases = map fst
+--             
+--           orCasesExpr :: [Focus] -> PM Focus  
+--           orCasesExpr [] = Left errProof -- La lista de casos no puede ser vacia
+--           orCasesExpr fs = Right $ toFocus $ orCasesExpr' fs
+--           
+--           orCasesExpr' [e] = e
+--           orCasesExpr' (e:es) = PE.BinOp folOr e (orCasesExpr' es)
+          
+          
 validateProof' _ _ = undefined
 
+
+-- | Chequea que dos pruebas tengan el mismo contexto.
+sameContext :: Proof -> Proof -> PM ()
+sameContext p1 p2 = getCtx p1 >>= \ctx1 -> getCtx p2 >>= \ctx2 ->
+                    whenPM' (ctx1 == ctx2) errProof
+                    
+-- | Chequea que dos pruebas tengan la misma relación
+sameRelation :: Proof -> Proof -> PM ()
+sameRelation p1 p2 = getRel p1 >>= \rel1 -> getRel p2 >>= \rel2 ->
+                    whenPM' (rel1 == rel2) errProof
 
 
 -- | Esta función verifica si dos pruebas prueban lo mismo, aunque no sean la misma prueba.
@@ -410,8 +453,8 @@ newProofWithHip hip@(e,_) f = Deduc ctx hip f $ Hole ctx relImpl hip f
 
 {- | Comenzamos una prueba por casos. -}
 
-newProofWithCases :: Relation -> PE.Focus -> PE.Focus -> PE.Focus -> [PE.Focus] -> Proof
-newProofWithCases r f f' c lc = Cases ctx r f f' c lp
+newProofWithCases :: Relation -> PE.Focus -> PE.Focus -> PE.Focus -> [PE.Focus] -> Proof -> Proof
+newProofWithCases r f f' c lc orGuardsProof = Cases ctx r f f' c lp orGuardsProof
     where ctx :: Ctx
           ctx = ctxFromList lc
           lp :: [(PE.Focus, Proof)]
