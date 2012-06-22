@@ -39,6 +39,7 @@ import qualified Equ.Theories.Arith as A (varNat)
 import qualified Equ.Theories.Common as C (equal)
  
 import Data.Text (Text, unpack,pack)
+import qualified Data.Text as T
 import Data.List (intersperse)
 
 import qualified Data.Map as M (Map (..), fromList, findMax, null, insert, lookup)
@@ -51,8 +52,8 @@ import Control.Applicative ((<$>), (<*>))
 import Test.QuickCheck
 
 -- | Las hip&#243;tesis son nombradas por n&#250;meros.
-data Name = Index Int
-    deriving (Show,Ord,Eq)
+type Name = Text
+    --deriving (Show,Ord,Eq)
 
 -- | Comienza un contexto en base a una preExpresion.
 beginCtx :: Ctx
@@ -60,15 +61,21 @@ beginCtx = M.fromList []
 
 -- | Retorna un nombre fresco sobre un contexto.
 freshName :: Ctx -> Name
-freshName c = if M.null c then Index 0 else Index $ 1 + max
+freshName c = if M.null c then "a" else T.concat $ [maxName] ++ ["a"]
+    where maxName :: Name
+          maxName = (fst . M.findMax) c
+
+    {-if M.null c then Index 0 else Index $ 1 + max
     where max :: Int
           Index max = (fst . M.findMax) c
+    -}      
+               
 
 getHypothesis :: Name -> Ctx -> Maybe Hypothesis
 getHypothesis = M.lookup
 
-instance Arbitrary Name where
-    arbitrary = Index <$> arbitrary
+-- instance Arbitrary Name where
+--     arbitrary = Index <$> arbitrary
 
 -- | La clase Truth representa una verdad en una teoría. En principio
 -- pensamos en Axiomas y Teoremas.
@@ -291,7 +298,7 @@ En una prueba por casos
 
 @
 theoCases :: Proof
-theoCases = Cases ctx rel fe1 fe2 c [(f1,p1),..,(fn,pn)]
+theoCases = Cases ctx rel fe1 fe2 c [(f1,p1),..,(fn,pn)] guardsProof
 @
 
 hacemos an&#225;lisis por casos en @c@, esto es posible dependiendo
@@ -300,6 +307,8 @@ podemos introducir los casos @c == 0@, @c==1@, @c > 1@. La lista de
 focos y pruebas consiste en tantas pruebas como casos se hayan
 considerando; cada par @(fi,pi)@ representa una prueba de @fe1 rel
 fe2@ a&#241;adiendo la hip&#243;tesis extra @fi@ en @ctx@.
+guardsProof es una prueba del o de las guardas. Debe ser:
+(f1 v .... v fn) equivalente True
 
 [Inducci&#243;n]
 
@@ -386,8 +395,11 @@ data Proof' ctxTy relTy proofTy exprTy where
     Trans  :: ctxTy -> relTy -> exprTy -> exprTy -> exprTy -> 
               Proof' ctxTy relTy proofTy exprTy -> Proof' ctxTy relTy proofTy exprTy ->
               Proof' ctxTy relTy proofTy exprTy
+    -- En la prueba por casos incluimos una subprueba que demuestra el "o"
+    -- de las guardas.
     Cases  :: ctxTy -> relTy -> exprTy -> exprTy -> exprTy -> 
               [(exprTy,Proof' ctxTy relTy proofTy exprTy)] -> 
+              Proof' ctxTy relTy proofTy exprTy ->
               Proof' ctxTy relTy proofTy exprTy
     -- Haremos inducción en una sola VARIABLE. Para no modificar tanto, asumimos
     -- que la expresion donde se hace inducción es de tipo "Var a".
@@ -414,10 +426,10 @@ instance (Serialize ctxTy, Serialize relTy, Serialize proofTy, Serialize exprTy)
                 putWord8 3 >> put ctxTy >> put relTy >> 
                               put exprTy >> put exprTy' >> put exprTy'' >>
                               put proofTy >> put proofTy'
-    put (Cases ctxTy relTy exprTy exprTy' exprTy'' lfproofTy) = 
+    put (Cases ctxTy relTy exprTy exprTy' exprTy'' lfproofTy proofTy) = 
                 putWord8 4 >> put ctxTy >> put relTy >> 
                               put exprTy >> put exprTy' >> put exprTy'' >>
-                              put lfproofTy
+                              put lfproofTy >> put proofTy
     put (Ind ctxTy relTy exprTy exprTy' lf llfproofTy) = 
                 putWord8 5 >> put ctxTy >> put relTy >> 
                               put exprTy >> put exprTy' >>
@@ -435,7 +447,7 @@ instance (Serialize ctxTy, Serialize relTy, Serialize proofTy, Serialize exprTy)
         1 -> Hole <$> get <*> get <*> get <*> get
         2 -> Simple <$> get <*> get <*> get <*> get <*> get
         3 -> Trans <$> get <*> get <*> get <*> get <*> get <*> get <*> get
-        4 -> Cases <$> get <*> get <*> get <*> get <*> get <*> get
+        4 -> Cases <$> get <*> get <*> get <*> get <*> get <*> get <*> get
         5 -> Ind  <$> get <*> get <*> get <*> get <*> get <*> get
         6 -> Deduc <$> get <*> get <*> get <*> get
         7 -> Focus <$> get <*> get <*> get <*> get <*> get
@@ -454,9 +466,9 @@ instance Eq Proof where
     Trans ctx rel f1 f2 f3 p1 p2 == Trans ctx' rel' f1' f2' f3' p1' p2' = 
         ctx==ctx' && rel==rel' && f1==f1' && f2==f2' && f3==f3' && 
         p1==p1' && p2==p2'
-    Cases ctx rel f1 f2 f cases == Cases ctx' rel' f1' f2' f' cases' =
+    Cases ctx rel f1 f2 f cases orProof == Cases ctx' rel' f1' f2' f' cases' orProof' =
         ctx==ctx' && rel==rel' && f1==f1' && f2==f2' && f==f' &&
-        cases== cases'
+        cases==cases' && orProof==orProof'
     Ind ctx rel f1 f2 f patterns == Ind ctx' rel' f1' f2' f' patterns' =
         ctx==ctx' && rel==rel' && f1==f1' && f2==f2' && f==f' &&
         patterns==patterns'
@@ -479,6 +491,8 @@ instance Eq Proof where
     p1 == p2 = (fromJust $ getStart p1) == (fromJust $ getStart p2) &&
                (fromJust $ getEnd p1) == (fromJust $ getEnd p2)-}
 
+               
+-- TODO: Completar esta funcion cuando se termine el parser de pruebas.
 instance Show Proof where
     show Reflex = ""
     show (Hole _ r f f') = "Hole " ++ show r ++ " " ++ show f ++ " " ++ show f'
@@ -486,7 +500,7 @@ instance Show Proof where
     show (Trans _ r f f' f'' p p') = "Trans " ++ show r ++ " " ++ show f ++ " " ++ 
                                                  show f' ++ " " ++ show f'' ++ " { " ++ show p ++ " } " ++
                                                  " { " ++ show p' ++ " } "
-    show (Cases _ r f f' f'' lfp) = "Cases " ++ show r ++ " " ++ show f ++ " " ++ 
+    show (Cases _ r f f' f'' lfp orP) = "Cases " ++ show r ++ " " ++ show f ++ " " ++ 
                                                  show f' ++ " " ++ show f'' ++ " { " ++ show lfp ++ " } "
     show _ = "prueba no implementada"
 
@@ -580,6 +594,7 @@ instance Arbitrary Proof where
                                   subProof <*> subProof
                       , Cases <$> arbitrary <*> arbitrary <*> arbitrary <*> 
                                   arbitrary <*> arbitrary <*> listPairFocusProof
+                                  <*> subProof
                       , Ind <$> arbitrary <*> arbitrary <*> arbitrary <*> 
                                 arbitrary <*> arbitrary <*> 
                                 listPPFocusProof
@@ -601,13 +616,13 @@ instance Arbitrary Proof where
                     listPPFocusProof :: Gen [(Focus, Proof)]
                     listPPFocusProof = vectorOf 2 pairFocusProof
 
-instance Serialize Name where
-    put (Index i) = putWord8 0 >> put i
-
-    get = getWord8 >>= \tag_ -> 
-          case tag_ of
-            0 -> Index <$> get
-            _ -> fail $ "SerializeErr Name " ++ show tag_
+-- instance Serialize Name where
+--     put (Index i) = putWord8 0 >> put i
+-- 
+--     get = getWord8 >>= \tag_ -> 
+--           case tag_ of
+--             0 -> Index <$> get
+--             _ -> fail $ "SerializeErr Name " ++ show tag_
 
 instance Monoid (Proof' ctxTy relTy proofTy exprTy) where
     mempty = Reflex
@@ -626,7 +641,7 @@ getCtx Reflex = Nothing
 getCtx (Hole c _ _ _) = Just c
 getCtx (Simple c _ _ _ _) = Just c
 getCtx (Trans c _ _ _ _ _ _) = Just c
-getCtx (Cases c _ _ _ _ _) = Just c
+getCtx (Cases c _ _ _ _ _ _) = Just c
 getCtx (Ind c _ _ _ _ _) = Just c
 getCtx (Deduc c _ _ _) = Just c
 getCtx (Focus c _ _ _ _) = Just c
@@ -639,7 +654,7 @@ setCtx _ Reflex = Nothing
 setCtx c (Hole _ r f f') = Just (Hole c r f f')
 setCtx c (Simple _ r f f' b) = Just (Simple c r f f' b)
 setCtx c (Trans _ r f f' f'' p p') = Just (Trans c r f f' f'' p p')
-setCtx c (Cases _ r f f' f'' lfp) = Just (Cases c r f f' f'' lfp)
+setCtx c (Cases _ r f f' f'' lfp p') = Just (Cases c r f f' f'' lfp p')
 setCtx c (Ind _ r f f' lf lfp) = Just (Ind c r f f' lf lfp)
 setCtx c (Deduc _ f f' p) = Just (Deduc c f f' p)
 setCtx c (Focus _ r f f' p) = Just (Focus c r f f' p)
@@ -650,7 +665,7 @@ getStart Reflex = Nothing
 getStart (Hole _ _ f _) = Just f
 getStart (Simple _ _ f _ _) = Just f
 getStart (Trans _ _ f _ _ _ _) = Just f
-getStart (Cases _ _ f _ _ _) = Just f
+getStart (Cases _ _ f _ _ _ _) = Just f
 getStart (Ind _ _ f _ _ _) = Just f
 getStart (Deduc _ f _ _) = Just f
 getStart (Focus _ _ f _ _) = Just f
@@ -660,7 +675,7 @@ getEnd Reflex = Nothing
 getEnd (Hole _ _ _ f) = Just f
 getEnd (Simple _ _ _ f _) = Just f
 getEnd (Trans _ _ _ _ f _ _) = Just f
-getEnd (Cases _ _ _ f _ _) = Just f
+getEnd (Cases _ _ _ f _ _ _) = Just f
 getEnd (Ind _ _ _ f _ _) = Just f
 getEnd (Deduc _ _ f _) = Just f
 getEnd (Focus _ _ _ f _) = Just f
@@ -673,7 +688,7 @@ getRel Reflex = Nothing
 getRel (Hole _ r _ _) = Just r
 getRel (Simple _ r _ _ _) = Just r
 getRel (Trans _ r _ _ _ _ _) = Just r
-getRel (Cases _ r _ _ _ _) = Just r
+getRel (Cases _ r _ _ _ _ _) = Just r
 getRel (Ind _ r _ _ _ _) = Just r
 getRel (Deduc _ _ _ _) = Nothing
 getRel (Focus _ r _ _ _) = Just r
@@ -687,7 +702,7 @@ updateStart Reflex _ = Reflex
 updateStart (Hole c r _ f2) f = Hole c r f f2
 updateStart (Simple c r _ f2 b) f = Simple c r f f2 b
 updateStart (Trans c r _ fm f2 p p') f = Trans c r f fm f2 (updateStart p f) p'
-updateStart (Cases c r _ f2 fc list) f = Cases c r f f2 fc list
+updateStart (Cases c r _ f2 fc list p') f = Cases c r f f2 fc list p'
 updateStart (Ind c r _ f2 l1 l2) f = Ind c r f f2 l1 l2
 updateStart (Deduc c _ f2 p) f = Deduc c f f2 p
 updateStart (Focus c r _ f2 p) f = Focus c r f f2 p
@@ -697,7 +712,7 @@ updateEnd Reflex f = Reflex
 updateEnd (Hole c r f1 _) f = Hole c r f1 f
 updateEnd (Simple c r f1 _ b) f = Simple c r f1 f b
 updateEnd (Trans c r f1 fm _ p p') f = Trans c r f1 fm f p (updateEnd p' f)
-updateEnd (Cases c r f1 _ fc list) f = Cases c r f1 f fc list
+updateEnd (Cases c r f1 _ fc list p') f = Cases c r f1 f fc list p'
 updateEnd (Ind c r f1 _ l1 l2) f = Ind c r f1 f l1 l2
 updateEnd (Deduc c f1 _ p) f = Deduc c f1 f p
 updateEnd (Focus c r f1 _ p) f = Focus c r f1 f p
@@ -711,7 +726,7 @@ updateRel Reflex r = Reflex
 updateRel (Hole c _ f1 f2) r = Hole c r f1 f2
 updateRel (Simple c _ f1 f2 b) r = Simple c r f1 f2 b
 updateRel (Trans c _ f1 fm f2 p p') r = Trans c r f1 fm f2 p p'
-updateRel (Cases c _ f1 f2 fc list) r = Cases c r f1 f2 fc list
+updateRel (Cases c _ f1 f2 fc list p') r = Cases c r f1 f2 fc list p'
 updateRel (Ind c _ f1 f2 l1 l2) r = Ind c r f1 f2 l1 l2
 updateRel (Deduc c f1 f2 p) r = Deduc c f1 f2 p
 updateRel (Focus c _ f1 f2 p) r = Focus c r f1 f2 p
