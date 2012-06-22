@@ -34,9 +34,21 @@ data ProofError' = Rewrite [RewriteError]
                 | DeducInvalidEnd -- En un uso del meta-teorema de la deducción
                                   -- no coincide el final de la prueba interior
                                   -- con el esperado
+                | InductionError PErrorInduction
+                | ContextsNotEqual -- El contexto de una subprueba no es el mismo de la prueba general.
+                | RelNotEqual -- Las relaciones entre dos pruebas no son iguales
                 | Error
     deriving Eq
     
+data PErrorInduction = 
+                       IndInNotVar -- Se quiere hacer inducción sobre una expresión que no es variable.
+                     | VarNotInExpr -- La variable sobre la q se hace induccion no está en las expresiones
+                     | TypeNotInductive -- El tipo de la variable sobre la q se hace inducción no es inductivo.
+                     | SubProofHypothesis -- Una subprueba agrega hipótesis no válidas.
+                     | ConstantPatternError -- La constante no es un pattern del tipo inductivo
+                     | OperatorPatternError -- El operador no es un pattern del tipo inductivo
+                     
+                     
 instance Show ProofError' where
     show (Rewrite r) = "Error de reescritura: "++ show r
     show (BasicNotApplicable b) = "No se puede aplicar el paso básico: "++ show b
@@ -54,8 +66,20 @@ instance Show ProofError' where
     show (DeducInvalidEnd) = unlines [ "En un uso del meta-teorema de la deducción"
                                      , "no coincide el final de la prueba interior"
                                      , "con el esperado"]
+    
+                                     
+    show (InductionError er) = "Error en Prueba Inductiva: "++ show er
+    show (ContextsNotEqual) = "La subprueba no tiene el mismo contexto que la prueba general"
+    show (RelNotEqual) = "La subprueba no tiene la misma relación que la prueba general"
     show _ = "Error sin especificar"
 
+instance Show PErrorInduction where
+    show (IndInNotVar) = "Solo se puede hacer inducción en variables."
+    show (VarNotInExpr) = "La variable sobre la que se hace inducción debe ocurrir en la primera expresión de la prueba"
+    show (TypeNotInductive) = "El tipo de la variable sobre la que se hace inducción debe ser inductivo"
+    show (SubProofHypothesis) = "Las subpruebas no pueden agregar hipótesis extras, salvo la inductiva en caso de q corresponda"
+    show (ConstantPatternError) = "La constante no es un constructor del tipo inductivo"
+    show (OperatorPatternError) = "El operador no es un constructor del tipo inductivo"
 
 errEmptyProof :: ProofError
 errEmptyProof = ProofError HoleProof id
