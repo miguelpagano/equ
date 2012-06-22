@@ -241,7 +241,7 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
           checkSubProofInd x pr ((expr,p):ps) =
                 -- Construimos la hipotesis inductiva/s correspondiente a este patrón 
                 -- (puede ser una o dos, dependiendo de si el constructor es unario o binario)
-                return (fromJust $ createIndHypothesis rel f1 f2 expr x) >>=
+                return (fromJust $ createIndHypothesis rel f1 f2 expr x "HI") >>=
                 \hyp -> return [hyp] >>=
                 -- Chequeamos que cada hipótesis del contexto de la subprueba
                 -- esté en el contexto de la prueba inductiva, o sea hipótesis
