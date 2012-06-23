@@ -223,8 +223,7 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
               checkSubProof x pr constPatterns >>
               checkSubProof x pr baseConstPatterns >>
               checkSubProofInd x pr indConstPatterns >>
-              return (getIndType (varTy x)) >>= \maybeIType ->
-              case maybeIType of
+              case getIndType (varTy x) of
                    Nothing -> Left $ ProofError (InductionError TypeNotInductive) id
                    Just it -> checkAllConstants it constPatterns >>
                               checkAllBaseConst it baseConstPatterns >>
@@ -253,7 +252,7 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
                 -- inductiva.
                 \hyps -> getCtx proof >>= return . Map.elems >>=
                 \hypsProof -> getCtx p >>= return . Map.elems >>= 
-                \hypsSubProof -> 
+                \hypsSubProof ->
                 whenPM' (and $ map (\h -> elem h hypsProof ||
                                             elem h hyps) hypsSubProof) (ProofError (InductionError SubProofHypothesis) id) >>
                 -- Ahora vemos que la subprueba prueba lo mismo que la prueba inductiva,
@@ -280,9 +279,8 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
           
           checkAllConstants :: IndType -> [(PE.Focus,Proof)] -> PM ()
           checkAllConstants it ps =
-              return (extractConstants ps) >>= \cons ->
+              return (extractConstants ps) >>= \cons -> 
               whenPM' (elem cons (permutations $ constants it)) (ProofError (InductionError ConstantPatternError) id)
-              
               where extractConstants :: [(PE.Focus,Proof)] -> [Constant]
                     extractConstants [] = []
                     extractConstants ((f,p):ps) = case (PE.toExpr f) of
@@ -548,9 +546,7 @@ isCompleteProofFocus p =
 addBoolHypothesis :: PE.PreExpr -> Ctx -> (Ctx,Maybe Name)
 addBoolHypothesis e = addHypothesis e relEquiv [true']
     where Expr true' = true
-          
-          
-          
+   
 -- | Dada una prueba, retorna la expresión que representa a toda la prueba.
 getExprProof :: PM Proof -> Expr
 getExprProof = either (const holeExpr) buildExpr

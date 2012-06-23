@@ -16,7 +16,7 @@ data IndType = IndType {
           , baseConstructors :: [Operator]
           , indConstructors :: [Operator]
 }
-
+    deriving Show
 
 -- | Un tipo inductivo valido debe ser construido con la siguiente funcion.
 -- | Si es el tipo que se quiere construir, t, es válido devuelve Just t. Otro caso Nothing.
@@ -62,12 +62,21 @@ isBaseConstructor op t = case opTy op of
           
 isIndConstructor :: Operator -> Type -> Bool
 isIndConstructor op t = case opTy op of
-                            t1 :-> t2 -> (unifyTest t t2) && (typeContains t1 t)
+                            t1 :-> t2 -> checkReturnType t t2 && (typeContains t1 t || typeContains' t2 t)--(unifyTest t t2) && (typeContains t1 t)
                             otherwise -> False
           -- typeContains t t' es true si t es t' o es de tipo funcion y contiene a t', ejemplo:
           -- typeContains (t1 :-> t2 :-> t3) t1 = true
           -- typeContains (t1 :-> t2 :-> t3) t4 = false
           
+    where checkReturnType t t' = 
+            case t' of
+                t1 :-> t2 -> checkReturnType t t2
+                t'' -> unifyTest t t'' 
+          
+          typeContains' t t' = 
+            case t of
+                t1 :-> t2 -> (unifyTest t1 t') || (typeContains' t2 t')
+                t'' -> False
           
 typeContains :: Type -> Type -> Bool
 typeContains t t' = case t of

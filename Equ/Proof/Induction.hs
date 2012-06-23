@@ -30,8 +30,9 @@ createIndHypothesis rel f1 f2 p x nombre =
              -- al caso operador unario.
              (PE.BinOp op e1 e2) -> 
                 let x_type = varTy x in
+                    error (show $ x_type) >>
                     case tType op of
-                        t1 :-> t2 :-> t3 -> 
+                        t1 :-> t2 :-> t3 ->
                             case (unifyTest t1 x_type,unifyTest t2 x_type) of
                                  (True,True) -> Just $ createHypothesis nombre (Expr $ hypIndExprBin x e1 e2)
                                  (True,False) -> Just $ createHypothesis nombre (Expr $ hypIndExpr x e1)
