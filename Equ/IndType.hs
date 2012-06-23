@@ -57,7 +57,7 @@ isConstant c t = unifyTest t (conTy c)
           
 isBaseConstructor :: Operator -> Type -> Bool
 isBaseConstructor op t = case opTy op of
-                            t1 :-> t2 -> unifyTest t t2
+                            t1 :-> t2 -> unifyTest t t2 && not (typeContains t1 t)
                             otherwise -> False
           
 isIndConstructor :: Operator -> Type -> Bool
@@ -67,11 +67,12 @@ isIndConstructor op t = case opTy op of
           -- typeContains t t' es true si t es t' o es de tipo funcion y contiene a t', ejemplo:
           -- typeContains (t1 :-> t2 :-> t3) t1 = true
           -- typeContains (t1 :-> t2 :-> t3) t4 = false
-    where typeContains :: Type -> Type -> Bool
-          typeContains t t' = case t of
-                                  t1 :-> t2 -> typeContains t1 t' || typeContains t2 t'
-                                  t'' -> unifyTest t'' t'
-
+          
+          
+typeContains :: Type -> Type -> Bool
+typeContains t t' = case t of
+                        t1 :-> t2 -> typeContains t1 t' || typeContains t2 t'
+                        t'' -> unifyTest t'' t'
           
 isConstantPattern :: PreExpr -> Type -> Bool
 isConstantPattern (Con c) t = isConstant c t

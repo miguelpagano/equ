@@ -47,7 +47,8 @@ data PErrorInduction =
                      | SubProofHypothesis -- Una subprueba agrega hipótesis no válidas.
                      | ConstantPatternError -- La constante no es un pattern del tipo inductivo
                      | OperatorPatternError -- El operador no es un pattern del tipo inductivo
-                     
+                     | IncorrectSubProof
+    deriving Eq
                      
 instance Show ProofError' where
     show (Rewrite r) = "Error de reescritura: "++ show r
@@ -80,6 +81,7 @@ instance Show PErrorInduction where
     show (SubProofHypothesis) = "Las subpruebas no pueden agregar hipótesis extras, salvo la inductiva en caso de q corresponda"
     show (ConstantPatternError) = "La constante no es un constructor del tipo inductivo"
     show (OperatorPatternError) = "El operador no es un constructor del tipo inductivo"
+    show  IncorrectSubProof = "Expresiones en sub-pruebas no se corresponden con las expresiones de la prueba general."
 
 errEmptyProof :: ProofError
 errEmptyProof = ProofError HoleProof id

@@ -1,3 +1,4 @@
+
 {-# Language DoAndIfThenElse #-}
 {-| Algoritmo de chequeo e inferencia de tipos para pre-expre-
 siones. Este algoritmo es esencialmente el de Hindley-Milner-Damas
@@ -16,6 +17,9 @@ module Equ.TypeChecker
     , emptySubst
     , unifyTest
     , rewrite
+    , typeCheckPreExpr 
+    , vars
+    , cons
       -- * Algoritmo de TypeChecking.
     , checkPreExpr
     , freshVars
@@ -32,6 +36,7 @@ import Equ.TypeChecker.Unification
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Sequence as S
+import qualified Data.Foldable as F
 import Data.Poset (leq)
 import Control.Monad.Trans.Either (runEitherT, hoistEither)
 import Control.Monad.Trans.Class (lift)
@@ -76,7 +81,7 @@ tyerr err = ask >>= \foc -> hoistEither $ Left (foc, err)
 -- un contexto lleva la cuenta de todos los tipos que vamos viendo. En
 -- principio s&#243;lo deber&#237;a un tipo a lo sumo.
 type CtxSyn s = M.Map s [Type]
-
+    
 -- | El contexto global es un conjunto con los contextos de cada tipo
 -- de s&#237;mbolo; el contexto para los cuantificadores es fijo,
 -- inicialmente tiene los cuantificadores "homog&#233;neos" (por ejemplo,
@@ -87,7 +92,6 @@ data Ctx = Ctx { vars :: CtxSyn VarName
                , cons :: CtxSyn ConName
                , quants :: CtxSyn QuantName
                }
-
 
 -- | Agrega elementos en la lista de valores.
 insertList :: Ord k =>  k -> v -> M.Map k [v] -> M.Map k [v]
@@ -247,3 +251,12 @@ initCtx = Ctx { vars = M.empty
 checkPreExpr :: PreExpr -> Either (TMErr,Log) Type
 checkPreExpr e = case runRWS (runEitherT (check initCtx e)) (toFocus e) emptySubst of
                    (res, _, l) -> either (\err -> Left (err,l)) (Right . snd) res
+
+
+typeCheckPreExpr :: PreExpr -> Either (TMErr,Log) PreExpr
+typeCheckPreExpr e = case runRWS (runEitherT (check initCtx e)) (toFocus e) emptySubst of
+                   (res, s, l) -> either (\err -> Left (err,l)) (Right . typing s . fst) res
+    where
+        typing :: TySubst -> Ctx -> PreExpr
+        typing subst ctx = fmap (\v -> appSubst v $ M.lookup (varName v) (vars ctx)) e
+            where appSubst v = maybe v (\t -> v {varTy = rewrite subst (head t) }) 

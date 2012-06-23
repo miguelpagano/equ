@@ -10,7 +10,7 @@ data ConName = Empty  -- ^ Lista: vacia
                | Zero -- ^ Num (polimorfico): cero
                | CTrue -- ^ FOL: true
                | CFalse -- ^ FOL: false
-                 deriving (Eq,Ord)
+                 deriving (Show,Eq,Ord)
 
 -- | Nombres de operadores
 data OpName = Append    -- ^ Lista: agregar por la izquierda 

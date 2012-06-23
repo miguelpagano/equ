@@ -152,7 +152,9 @@ data Hypothesis = Hypothesis {
    , hypRel  :: Relation
    , hypRule :: [Rule]
 }
-    deriving (Eq)
+
+instance Eq Hypothesis where
+    h1 == h2 = hypExpr h1 == hypExpr h2 && hypRel h1 == hypRel h2 && hypRule h1 == hypRule h2
 
 instance Show Hypothesis where
     show = show . hypExpr
@@ -502,6 +504,8 @@ instance Show Proof where
                                                  " { " ++ show p' ++ " } "
     show (Cases _ r f f' f'' lfp orP) = "Cases " ++ show r ++ " " ++ show f ++ " " ++ 
                                                  show f' ++ " " ++ show f'' ++ " { " ++ show lfp ++ " } "
+    show (Ind _ r f f' f'' lfp) = "Induction " ++ show r ++ " " ++ show f ++ " " ++ 
+                                                 show f' ++ " " ++ show f'' ++ " { " ++ show lfp ++ " } "
     show _ = "prueba no implementada"
 
 printPf :: Proof -> [String]
@@ -823,4 +827,4 @@ addHypothesisProof e r es pf = getCtx pf >>=
 addHypothesis' :: Hypothesis -> Ctx -> Ctx
 addHypothesis' hyp ctx = M.insert (hypName hyp) hyp ctx
     where n = freshName ctx
-                                              
+                          

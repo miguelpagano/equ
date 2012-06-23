@@ -1,7 +1,8 @@
 {-# Language GADTs,OverloadedStrings #-}
 
 {-| Este m&#243;dulo define la noci&#243;n de una prueba. -}
-module Equ.Proof (newProof
+module Equ.Proof ( newProof
+                 , newProofWithCases
                  , newProofWithStart 
                  , newProofWithoutEnd
                  , proofFromTruth
@@ -50,6 +51,7 @@ import Equ.Proof.Error
 import Equ.Proof.ListedProof
 import Equ.Theories.Common
 import Equ.Theories.FOL(folOr)
+import Equ.TypeChecker(typeCheckPreExpr)
 import Equ.Syntax hiding (Hole)
 
 import qualified Equ.PreExpr as PE hiding (replace)
@@ -70,7 +72,7 @@ import Data.Maybe
 import Data.Either (partitionEithers,rights)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
-import Data.List (permutations)
+import Data.List (permutations, find)
 
 import Control.Monad
 import Control.Arrow
@@ -199,12 +201,15 @@ validateProof' proof@(Deduc ctx p q prf) mvFocus =
           Expr true' = true
           
 validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
+    either (const $  Left errProof) (return . PE.toFocus) 
+        (typeCheckPreExpr (PE.toExpr f1)) >>= \typedF1 ->
     -- Primero verificamos que e sea variable:
-    isVar (PE.toExpr e) >>= 
+    isVar (PE.toExpr e) >>= \x ->
     -- Luego vemos que la variable esté en la expresión f1
-    \x -> whenPM' (Set.member x (PE.freeVars (PE.toExpr f1))) errProof >>
+    maybe (Left $ ProofError (InductionError VarNotInExpr) id) return 
+        (find (==x) (Set.toList (PE.freeVars (PE.toExpr typedF1)))) >>= \v ->
     -- Chequeamos los casos de inducción:
-    checkPatterns x proof ps >>
+    checkPatterns v proof ps >>
     return proof
     
     where checkPatterns :: Variable -> Proof -> [(PE.Focus,Proof)] -> PM ()
@@ -220,7 +225,7 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
               checkSubProofInd x pr indConstPatterns >>
               return (getIndType (varTy x)) >>= \maybeIType ->
               case maybeIType of
-                   Nothing -> Left errProof
+                   Nothing -> Left $ ProofError (InductionError TypeNotInductive) id
                    Just it -> checkAllConstants it constPatterns >>
                               checkAllBaseConst it baseConstPatterns >>
                               checkAllIndConst it indConstPatterns
@@ -250,10 +255,11 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
                 \hypsProof -> getCtx p >>= return . Map.elems >>= 
                 \hypsSubProof -> 
                 whenPM' (and $ map (\h -> elem h hypsProof ||
-                                            elem h hyps) hypsSubProof) errProof >>
+                                            elem h hyps) hypsSubProof) (ProofError (InductionError SubProofHypothesis) id) >>
                 -- Ahora vemos que la subprueba prueba lo mismo que la prueba inductiva,
                 -- pero reemplazando la variable por el pattern correspondiente.
                 sameProofWithSubst p pr (Map.fromList [(x,PE.toExpr expr)]) >>
+                validateProof' p id >>
                 checkSubProofInd x pr ps
                             
           -- Expresión que representa la hipótesis inductiva.
@@ -270,12 +276,12 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
           
           isVar :: PE.PreExpr -> PM Variable
           isVar (PE.Var x) = return x
-          isVar _ = Left errProof
+          isVar _ = Left $ ProofError (InductionError IndInNotVar) id
           
           checkAllConstants :: IndType -> [(PE.Focus,Proof)] -> PM ()
           checkAllConstants it ps =
               return (extractConstants ps) >>= \cons ->
-              whenPM' (elem cons (permutations $ constants it)) errProof
+              whenPM' (elem cons (permutations $ constants it)) (ProofError (InductionError ConstantPatternError) id)
               
               where extractConstants :: [(PE.Focus,Proof)] -> [Constant]
                     extractConstants [] = []
@@ -287,7 +293,7 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
                                  IndType -> [(PE.Focus,Proof)] -> PM ()
           checkAllContructors f it ps =
               return (extractOperators ps) >>= \opers ->
-              whenPM' (elem opers (permutations $ f it)) errProof
+              whenPM' (elem opers (permutations $ f it)) (ProofError (InductionError OperatorPatternError) id)
               
               where extractOperators :: [(PE.Focus,Proof)] -> [Operator]
                     extractOperators [] = []
@@ -342,14 +348,14 @@ validateProof' _ _ = undefined
 
 
 -- | Chequea que dos pruebas tengan el mismo contexto.
-sameContext :: Proof -> Proof -> PM ()
-sameContext p1 p2 = getCtx p1 >>= \ctx1 -> getCtx p2 >>= \ctx2 ->
-                    whenPM' (ctx1 == ctx2) errProof
+-- sameContext :: Proof -> Proof -> PM ()
+-- sameContext p1 p2 = getCtx p1 >>= \ctx1 -> getCtx p2 >>= \ctx2 ->
+--                     whenPM' (ctx1 == ctx2) (ProofError ContextsNotEqual id)
                     
 -- | Chequea que dos pruebas tengan la misma relación
 sameRelation :: Proof -> Proof -> PM ()
 sameRelation p1 p2 = getRel p1 >>= \rel1 -> getRel p2 >>= \rel2 ->
-                    whenPM' (rel1 == rel2) errProof
+                    whenPM' (rel1 == rel2) (ProofError RelNotEqual id)
 
 
 -- | Esta función verifica si dos pruebas prueban lo mismo, aunque no sean la misma prueba.
@@ -361,7 +367,7 @@ sameProof p1 p2 =
     getStart p1 >>= \p1st -> getEnd p1 >>= \p1end -> 
     getRel p1 >>= \rel1 -> getStart p2 >>= \p2st -> getEnd p2 >>= \p2end ->
     getRel p2 >>= \rel2 ->
-    whenPM' (p1st==p2st && p1end==p2end && rel1==rel2) errProof
+    whenPM' (p1st==p2st && p1end==p2end && rel1==rel2) (ProofError (InductionError IncorrectSubProof ) id)
 
 
 -- | Chequea que dos pruebas prueban lo mismo, aplicando en las expresiones de
@@ -370,13 +376,13 @@ sameProofWithSubst :: Proof -> Proof -> PE.ExprSubst -> PM ()
 sameProofWithSubst p1 p2 subst = 
         getStart p2 >>= \p2start -> getEnd p2 >>= \p2end ->
         return (updateStart p2 (PE.toFocus $ PE.applySubst (PE.toExpr p2start) subst)) >>= \p2' ->
-        return (updateEnd p2 (PE.toFocus $ PE.applySubst (PE.toExpr p2end) subst)) >>= \p2'' ->
+        return (updateEnd p2' (PE.toFocus $ PE.applySubst (PE.toExpr p2end) subst)) >>= \p2'' ->
         sameProof p1 p2''
                 
                 
 checkContexts :: Proof -> Proof -> PM ()
 checkContexts p1 p2 = getCtx p1 >>= \ctx1 -> getCtx p2 >>= \ctx2 -> 
-                      whenPM' (ctx1==ctx2) errProof
+                      whenPM' (ctx1==ctx2) (ProofError ContextsNotEqual id)
 
 possibleExpr :: PE.PreExpr -> Basic -> [(PE.PreExpr, Maybe PE.Focus)]
 possibleExpr p basic = 
@@ -452,13 +458,13 @@ newProofWithHip hip@(e,_) f = Deduc ctx hip f $ Hole ctx relImpl hip f
           ctx = beginCtx 
 
 {- | Comenzamos una prueba por casos. -}
-
 newProofWithCases :: Relation -> PE.Focus -> PE.Focus -> PE.Focus -> [PE.Focus] -> Proof -> Proof
 newProofWithCases r f f' c lc orGuardsProof = Cases ctx r f f' c lp orGuardsProof
-    where ctx :: Ctx
-          ctx = ctxFromList lc
-          lp :: [(PE.Focus, Proof)]
-          lp = [] -- map (\fi@(ei,_) -> (fi, Hole (beginCtx ei) r f f')) lc
+    where
+        ctx :: Ctx
+        ctx = ctxFromList lc
+        lp :: [(PE.Focus,Proof)]
+        lp = []
 
 
 -- | Función para convertir una prueba en un Hole
@@ -551,4 +557,3 @@ getExprProof = either (const holeExpr) buildExpr
     where buildExpr p = Expr $ PE.BinOp (relToOp . fromJust $ P.getRel p)
                                      (PE.toExpr . fromJust $ P.getStart p)
                                      (PE.toExpr . fromJust $ P.getEnd p)
-          

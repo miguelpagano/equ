@@ -101,10 +101,13 @@ symProd = symmetryEqual prod varI varJ
 assocProd :: Expr
 assocProd = associativityEqual prod varI varJ varK
 
+evalSum :: Expr
+evalSum = equal (sum (successor varI) zero) (successor (sum varI zero))
 
 -- | Axiomas: los construimos automáticamente.
 theoryAxiomList :: [(Text,Expr)]
-theoryAxiomList = [ ("Neutro a izquierda de la suma",zeroLNeutralSum)
+theoryAxiomList = [ ("Evaluar suma", evalSum)
+                  , ("Neutro a izquierda de la suma",zeroLNeutralSum)
                   , ("Neutro a derecha de la suma", zeroRNeutralSum)
                   , ("Simetría de la suma", symSum)
                   , ("Asociatividad de la suma", assocSum)
