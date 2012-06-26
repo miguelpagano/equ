@@ -4,10 +4,14 @@ module Equ.Parser.Proof (parsePfFromString',rel,proof,parseFromFileProof) where
 
 import Equ.Parser.Expr
 import Equ.Expr (Expr(..))
-import Equ.PreExpr (PreExpr'(..),PreExpr,toFocus,Focus,unParen,toExpr)
+import Equ.PreExpr ( PreExpr'(..),PreExpr,toFocus
+                   , Focus,unParen,toExpr, freeVars)
+import Equ.TypeChecker (typeCheckPreExpr)
 import Equ.Proof ( validateProof, printProof
                  , holeProof, newProofWithCases, newProof
                  , validateProof)
+import Equ.Proof.Error(errProof, ProofError(..), ProofError'(..)
+                      , PErrorInduction(VarNotInExpr))
 import Equ.Proof.Proof ( Proof'(..)
                        , Ctx
                        , Basic (..) 
@@ -25,7 +29,6 @@ import Equ.Theories (theories,axiomGroup,TheoryName
                     ,createTheorem,theoremAddProof, createHypothesis)
 import Equ.Rule hiding (rel)
 
-import Data.Text(Text,pack,unpack)
 import Text.Parsec
 import Text.Parsec.Error(setErrorPos)
 import Text.Parsec.Token
@@ -34,9 +37,11 @@ import Text.Parsec.String
 import Text.Parsec.Combinator
 import qualified Text.Parsec.Expr as PE
 
+import Data.Text(Text,pack,unpack)
+import qualified Data.Set as Set (toList)
 import Data.Maybe
 import Data.Either(partitionEithers)
-import Data.List (intersperse)
+import Data.List (intersperse, find)
 import qualified Data.Map as M (Map,empty,insert,toList,null, lookup) 
 
 import Control.Monad.Identity
@@ -316,7 +321,7 @@ proof mc flag = do
             (   inducProof c
             <|> casesProof c
             <|> transProof c flag
-            ) >>= \p -> 
+            ) >>= \p ->
             maybe 
                 (return p) 
                 (\name -> addProofNameWithProof name (Just p) >> return p) mname
@@ -332,9 +337,18 @@ inducProof ctx = do
             fef <- parseFocus keywordWhere
             cs <- parseInducCases rel fei fef (toExpr fInduc)
             parseProofEnd
-            let p = Ind ctx rel fei fef fInduc cs
+            let Right typedFinduc = typeVarInduc fei fInduc
+            let p = Ind ctx rel fei fef typedFinduc cs
             return p 
     where
+        typeVarInduc :: Focus -> Focus -> Either ProofError Focus
+        typeVarInduc fei (Var fInduc,_) = do
+            typedFei <- either (const $  Left errProof) 
+                               (return . toFocus) 
+                               (typeCheckPreExpr (toExpr fei))
+            maybe (Left $ ProofError (InductionError VarNotInExpr) id) 
+                  (return . toFocus . Var)
+                  (find (==fInduc) (Set.toList (freeVars (toExpr typedFei))))
         parseInducCases:: Relation -> Focus -> Focus -> PreExpr -> 
                           ParserP [(Focus,Proof)]
         parseInducCases r fei fef (Var indv) = do
