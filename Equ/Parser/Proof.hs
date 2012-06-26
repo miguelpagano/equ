@@ -335,9 +335,10 @@ inducProof ctx = do
             fei <- parseFocus keywordDot
             [rel] <- manyTill rel keywordDot
             fef <- parseFocus keywordWhere
-            cs <- parseInducCases rel fei fef (toExpr fInduc)
-            parseProofEnd
             let Right typedFinduc = typeVarInduc fei fInduc
+            cs <- parseInducCases rel fei fef (toExpr typedFinduc)
+            parseProofEnd
+            --let Right typedFinduc = typeVarInduc fei fInduc
             let p = Ind ctx rel fei fef typedFinduc cs
             return p 
     where

@@ -13,7 +13,7 @@ import Equ.Matching
 import Equ.Rule
 import Equ.Expr
 import Equ.PreExpr
-import Equ.TypeChecker
+import Equ.TypeChecker hiding (match)
 
 -- Constructor del tipo mas general para manejar errores de matching o 
 -- unificaci&#243;n de manera indistinta. Como referencia al error usamos el

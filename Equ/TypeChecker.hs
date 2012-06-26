@@ -20,6 +20,7 @@ module Equ.TypeChecker
     , typeCheckPreExpr 
     , vars
     , cons
+    , match
       -- * Algoritmo de TypeChecking.
     , checkPreExpr
     , freshVars

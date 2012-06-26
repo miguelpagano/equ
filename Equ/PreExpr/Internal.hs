@@ -107,7 +107,7 @@ showExpr' (App e1 e2) = showExpr' e1 ++ "@" ++ showExpr' e2
 showExpr' (Quant q v e1 e2) = "〈" ++ show q ++ show v ++ ":" 
                               ++ showExpr' e1 ++ ":" 
                               ++ showExpr' e2 ++ "〉"
-showExpr' (Paren e) = "(" ++ showExpr' e ++ ")"
+showExpr' (Paren e) = "[PAREN](" ++ showExpr' e ++ ")"
 showExpr' (Var x) = show x
 showExpr' (Con k) = show k
 showExpr' (Fun f) = show f
@@ -130,6 +130,9 @@ unParen (BinOp op e1 e2) = BinOp op (checkParen e1 op) (checkParen e2 op)
             (Paren (BinOp op_e e1' e2')) -> if opPrec o >= opPrec op_e
                                            then unParen (BinOp op_e e1' e2')
                                            else unParen e
+            (Paren (UnOp op_e e1')) -> if opPrec o >= opPrec op_e
+                                          then unParen (UnOp op_e e1')
+                                          else unParen e
             _ -> unParen e
             
 unParen (UnOp op e) = UnOp op (checkParen e)
@@ -138,6 +141,7 @@ unParen (UnOp op e) = UnOp op (checkParen e)
                             (BinOp _ _ _) -> unParen e''
                             (App _ _) -> unParen e''
                             (Quant _ _ _ _) -> unParen e''  -- VER SI HACE FALTA ESTE CASO
+                            (UnOp _ _) -> unParen e''
                             _ -> unParen e'
             _ -> e'
 unParen (App e1 e2) = App (unParen e1) (unParen e2)

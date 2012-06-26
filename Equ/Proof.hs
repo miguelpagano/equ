@@ -200,6 +200,11 @@ validateProof' proof@(Deduc ctx p q prf) mvFocus =
     where err = ProofError DeducInvalidEnd mvFocus
           Expr true' = true
           
+          
+          
+-- Falta ver que las variables de un pattern sean frescas respecto a las expresiones
+-- de la prueba, donde reemplazamos la variable inductiva por una constante.
+          
 validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
     either (const $  Left errProof) (return . PE.toFocus) 
         (typeCheckPreExpr (PE.toExpr f1)) >>= \typedF1 ->
