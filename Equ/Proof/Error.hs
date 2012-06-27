@@ -48,6 +48,8 @@ data PErrorInduction =
                      | ConstantPatternError -- La constante no es un pattern del tipo inductivo
                      | OperatorPatternError -- El operador no es un pattern del tipo inductivo
                      | IncorrectSubProof
+                     | VariablePatternError -- Un pattern inductivo contiene una variable 
+                                            -- que ocurre en una expresion de la prueba.
     deriving Eq
                      
 instance Show ProofError' where
@@ -82,6 +84,8 @@ instance Show PErrorInduction where
     show (ConstantPatternError) = "La constante no es un constructor del tipo inductivo"
     show (OperatorPatternError) = "El operador no es un constructor del tipo inductivo"
     show  IncorrectSubProof = "Expresiones en sub-pruebas no se corresponden con las expresiones de la prueba general."
+    show VariablePatternError = "Un pattern contiene una variable distinta a la variable inductiva y que ocurre "++
+                                "en una expresión de la prueba general"
 
 errEmptyProof :: ProofError
 errEmptyProof = ProofError HoleProof id

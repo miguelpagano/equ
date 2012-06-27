@@ -225,6 +225,9 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
               \baseConstPatterns ->
               return (filter ((flip isIndConstPattern (varTy x)).(PE.toExpr).fst) ps) >>=
               \indConstPatterns ->
+              -- chequeamos las variables de cada pattern
+              foldl (>>) (return ()) (map (checkVarsPattern x pr) (map fst baseConstPatterns)) >>
+              foldl (>>) (return ()) (map (checkVarsPattern x pr) (map fst indConstPatterns)) >>
               checkSubProof x pr constPatterns >>
               checkSubProof x pr baseConstPatterns >>
               checkSubProofInd x pr indConstPatterns >>
@@ -309,6 +312,26 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
           checkAllBaseConst = checkAllContructors baseConstructors
           
           checkAllIndConst = checkAllContructors indConstructors
+          
+          -- Chequeamos que un pattern no contiene variables que estén en las
+          -- expresiones originales (salvo que sea la misma variable inductiva).
+          checkVarsPattern :: Variable -> Proof ->  PE.Focus -> PM ()
+          checkVarsPattern v p pattern = 
+              getStart p >>= \fs -> getEnd p >>= \fe ->
+              return (Set.map varName $ PE.freeVars $ PE.toExpr fs) >>= 
+              \varNames1 ->
+              return (Set.map varName $ PE.freeVars $ PE.toExpr fe) >>=
+              \varNames2 -> 
+              return (Set.delete (varName v) $ Set.union varNames1 varNames2) >>= \varNames ->
+              return (Set.map varName $ PE.freeVars $ PE.toExpr pattern) >>= 
+              \varNamesPattern ->
+              whenPM' (Set.notMember True $ Set.map (flip Set.member varNames) varNamesPattern)
+                      (ProofError (InductionError VariablePatternError) id)
+              
+              
+              
+              
+              
           
 -- validateProof' proof@(Cases ctx rel f1 f2 e cases guardsProof) =
 --     -- Primero chequeamos la prueba que dice que el "o" de las guardas vale:
