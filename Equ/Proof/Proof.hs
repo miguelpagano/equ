@@ -401,7 +401,7 @@ data Proof' ctxTy relTy proofTy exprTy where
     -- de las guardas.
     Cases  :: ctxTy -> relTy -> exprTy -> exprTy -> exprTy -> 
               [(exprTy,Proof' ctxTy relTy proofTy exprTy)] -> 
-              Proof' ctxTy relTy proofTy exprTy ->
+              Maybe (Proof' ctxTy relTy proofTy exprTy) ->
               Proof' ctxTy relTy proofTy exprTy
     -- Haremos inducción en una sola VARIABLE. Para no modificar tanto, asumimos
     -- que la expresion donde se hace inducción es de tipo "Var a".
@@ -598,7 +598,7 @@ instance Arbitrary Proof where
                                   subProof <*> subProof
                       , Cases <$> arbitrary <*> arbitrary <*> arbitrary <*> 
                                   arbitrary <*> arbitrary <*> listPairFocusProof
-                                  <*> subProof
+                                  <*> arbitrary
                       , Ind <$> arbitrary <*> arbitrary <*> arbitrary <*> 
                                 arbitrary <*> arbitrary <*> 
                                 listPPFocusProof

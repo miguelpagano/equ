@@ -262,7 +262,7 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
                 \hypsProof -> getCtx p >>= return . Map.elems >>= 
                 \hypsSubProof ->
                 whenPM' (and $ map (\h -> elem h hypsProof ||
-                                            elem h hyps) hypsSubProof) (ProofError (InductionError SubProofHypothesis) id) >>
+                        elem h hyps) hypsSubProof) (ProofError (InductionError SubProofHypothesis) id) >>
                 -- Ahora vemos que la subprueba prueba lo mismo que la prueba inductiva,
                 -- pero reemplazando la variable por el pattern correspondiente.
                 sameProofWithSubst p pr (Map.fromList [(x,PE.toExpr expr)]) >>
@@ -332,44 +332,57 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
               
               
               
+-- | Validación de una prueba por casos. La prueba de exahustividad de las guardas
+--   es opcional. Ver como podemos dar un mensaje Warning en ese caso.
+validateProof' proof@(Cases ctx rel f1 f2 e cases mGuardsProof) _ =
+    -- Primero chequeamos la prueba que dice que el "o" de las guardas vale:
+    case mGuardsProof of
+         Just guardsProof -> checkGuardsProof guardsProof
+         Nothing -> return proof
+    >>
+    -- Ahora debemos chequear cada prueba de casos. Cada subprueba debe tener
+    -- la misma relacion, expresion inicial y final que la prueba general, solo
+    -- que agrega al contexto la hipótesis correspondiente al caso, por ejemplo
+    -- si el caso es "e==0", luego se agrega "e==0 ≡ True" como hipótesis.
+    foldl (>>) (return ()) (map (checkSubProofCases proof) cases) >>
+    return proof
+
+    
+    
+    -- Chequeamos la prueba que demuestra que el "o" de todas las guardas es True.
+    -- Para eso, esta prueba debe tener el mismo contexto que la prueba general.
+    -- debe tener como relación a la equivalencia, la expresión inicial debe ser
+    -- el o de todas las guardas (VER QUE PASA SI ES LA MISMA EXPRESION PERO CON CONMUTATIVIDAD
+    -- Y ASOCIATIVIDAD DISTINTOS) y la expresión final debe ser True.
+    where checkGuardsProof guardsProof=
+            getRel guardsProof >>= \relGP -> getStart guardsProof >>= \stGP -> 
+            getEnd guardsProof >>= \endGP -> return (map fst cases) >>= \cs -> 
+            orCasesExpr cs >>= \orCE -> 
+            checkContexts guardsProof proof >>
+            whenPM' (relGP==relEquiv) errProof >> 
+            whenPM' (stGP==orCE) errProof >>
+            whenPM' (endGP==(PE.toFocus $ PE.Con folTrue)) errProof >>
+            validateProof' guardsProof id
+            
+          orCasesExpr :: [PE.Focus] -> PM PE.Focus  
+          orCasesExpr [] = Left $ ProofError (CasesError EmptyCases) id -- La lista de casos no puede ser vacia
+          orCasesExpr fs = Right $ PE.toFocus $ orCasesExpr' (map PE.toExpr fs)
           
--- validateProof' proof@(Cases ctx rel f1 f2 e cases guardsProof) =
---     -- Primero chequeamos la prueba que dice que el "o" de las guardas vale:
---     checkGuardsProof >> 
---     -- Ahora debemos chequear cada prueba de casos. Cada subprueba debe tener
---     -- la misma relacion, expresion inicial y final que la prueba general, solo
---     -- que agrega al contexto la hipótesis correspondiente al caso, por ejemplo
---     -- si el caso es "e==0", luego se agrega "e==0 ≡ True" como hipótesis.
---     
--- 
---     
---     
---     -- Chequeamos la prueba que demuestra que el "o" de todas las guardas es True.
---     -- Para eso, esta prueba debe tener el mismo contexto que la prueba general.
---     -- debe tener como relación a la equivalencia, la expresión inicial debe ser
---     -- el o de todas las guardas (VER QUE PASA SI ES LA MISMA EXPRESION PERO CON CONMUTATIVIDAD
---     -- Y ASOCIATIVIDAD DISTINTOS) y la expresión final debe ser True.
---     where checkGuardsProof =
---             getRel guardsProof >>= \relGP -> getStart guardsProof >>= \stGP -> 
---             getEnd guardsProof >>= \endGP -> getCases cases >>= \cs -> 
---             orCasesExpr cs >>= orCE -> 
---             sameContext guardsProof proof >>
---             whenPM' (relGP==relEquiv) errProof >> 
---             whenPM' (stGP==orCE) errProof >>
---             whenPM' (endGP==(toFocus $ PE.Con folTrue)) errProof >>
---             validateProof' guardsProof
---             
---           getCases :: [(Focus,Proof)] -> [Focus]
---           getCases = map fst
---             
---           orCasesExpr :: [Focus] -> PM Focus  
---           orCasesExpr [] = Left errProof -- La lista de casos no puede ser vacia
---           orCasesExpr fs = Right $ toFocus $ orCasesExpr' fs
---           
---           orCasesExpr' [e] = e
---           orCasesExpr' (e:es) = PE.BinOp folOr e (orCasesExpr' es)
+          orCasesExpr' [e] = e
+          orCasesExpr' (e:es) = PE.BinOp folOr e (orCasesExpr' es)
           
-          
+          checkSubProofCases :: Proof -> (PE.Focus,Proof) -> PM ()
+          checkSubProofCases proof (c,cProof) =
+              sameProof proof cProof >>
+              getCtx cProof >>= \cpCtx ->
+              getCtx proof >>= \ctx ->
+              return (freshName cpCtx) >>= return . flip createHypothesis (Expr $ PE.toExpr c) >>=
+              \hypCase -> (return $ Map.elems ctx) >>= \hypsProof ->
+              (return $ Map.elems cpCtx) >>= \hypsCasesProof ->
+              whenPM' (and $ map (\h -> elem h hypsProof || h==hypCase) hypsCasesProof)
+                      (ProofError (CasesError HypothesisCases) id) >>
+              validateProof' cProof id >> return ()
+              
 validateProof' _ _ = undefined
 
 
@@ -484,7 +497,7 @@ newProofWithHip hip@(e,_) f = Deduc ctx hip f $ Hole ctx relImpl hip f
           ctx = beginCtx 
 
 {- | Comenzamos una prueba por casos. -}
-newProofWithCases :: Relation -> PE.Focus -> PE.Focus -> PE.Focus -> [PE.Focus] -> Proof -> Proof
+newProofWithCases :: Relation -> PE.Focus -> PE.Focus -> PE.Focus -> [PE.Focus] -> Maybe Proof -> Proof
 newProofWithCases r f f' c lc orGuardsProof = Cases ctx r f f' c lp orGuardsProof
     where
         ctx :: Ctx

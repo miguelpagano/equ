@@ -35,6 +35,7 @@ data ProofError' = Rewrite [RewriteError]
                                   -- no coincide el final de la prueba interior
                                   -- con el esperado
                 | InductionError PErrorInduction
+                | CasesError PErrorCases
                 | ContextsNotEqual -- El contexto de una subprueba no es el mismo de la prueba general.
                 | RelNotEqual -- Las relaciones entre dos pruebas no son iguales
                 | Error
@@ -50,6 +51,12 @@ data PErrorInduction =
                      | IncorrectSubProof
                      | VariablePatternError -- Un pattern inductivo contiene una variable 
                                             -- que ocurre en una expresion de la prueba.
+    deriving Eq
+    
+data PErrorCases =
+                    GuardsProof -- La prueba de exahustividad de las guardas no está formada correctamente.
+                  | HypothesisCases -- Las hipotesis de la subprueba de casos no son correctas.
+                  | EmptyCases  -- La lista de casos es vacia.
     deriving Eq
                      
 instance Show ProofError' where
@@ -74,6 +81,7 @@ instance Show ProofError' where
     show (InductionError er) = "Error en Prueba Inductiva: "++ show er
     show (ContextsNotEqual) = "La subprueba no tiene el mismo contexto que la prueba general"
     show (RelNotEqual) = "La subprueba no tiene la misma relación que la prueba general"
+    show (CasesError er) = "Error en Prueba por casos: " ++ show er
     show _ = "Error sin especificar"
 
 instance Show PErrorInduction where
@@ -86,6 +94,11 @@ instance Show PErrorInduction where
     show  IncorrectSubProof = "Expresiones en sub-pruebas no se corresponden con las expresiones de la prueba general."
     show VariablePatternError = "Un pattern contiene una variable distinta a la variable inductiva y que ocurre "++
                                 "en una expresión de la prueba general"
+                                
+instance Show PErrorCases where
+    show GuardsProof = "La prueba de exahustividad de las guardas no está formada correctamente"
+    show HypothesisCases = "Las hipotesis de la subprueba de casos no son correctas"
+    show EmptyCases = "La lista de casos es vacía"
 
 errEmptyProof :: ProofError
 errEmptyProof = ProofError HoleProof id

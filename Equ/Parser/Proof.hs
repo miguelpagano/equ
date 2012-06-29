@@ -1,4 +1,4 @@
-{-# Language RankNTypes #-}
+{-# Language RankNTypes,OverloadedStrings #-}
 -- | Este modulo es el parser de pruebas.
 module Equ.Parser.Proof (parsePfFromString',rel,proof,parseFromFileProof) where
 
@@ -23,6 +23,8 @@ import Equ.Proof.Proof ( Proof'(..)
                        , getStart
                        , beginCtx
                        , addHypothesis'
+                       , getCtx
+                       , setCtx
                        , Proof)
 import Equ.Proof.Induction (createIndHypothesis)
 import Equ.Theories (theories,axiomGroup,TheoryName
@@ -319,7 +321,7 @@ proof mc flag = do
         parseProof c = 
             parsePrefix >>= \mname -> many newline >>
             (   inducProof c
-            <|> casesProof c
+            -- <|> casesProof c
             <|> transProof c flag
             ) >>= \p ->
             maybe 
@@ -376,10 +378,8 @@ casesProof ctx = do
         [rel] <- manyTill rel keywordDot
         fef <- parseFocus keywordWhere
         (cs, mPEx) <- manyTillWithEnd parseCases (endExhaustive <|> endProof)
-        let p = maybe 
-                (Cases ctx rel fei fef fc cs (newProof (Just ctx) rel fei fef))
-                (Cases ctx rel fei fef fc cs) mPEx
-        return p
+        cs' <- return $ map (\p -> (fst p,fromJust $ addHypothesisCase p)) cs
+        return (Cases ctx rel fei fef fc cs' mPEx)
     where
         endExhaustive :: ParserP (Maybe Proof)
         endExhaustive = do
@@ -397,8 +397,15 @@ casesProof ctx = do
             where
                 scan =  do{ e <- end; return ([], e) }
                     <|> do{ x <- p; xs <- scan; return (x:fst xs,snd xs)}
+                    
+        addHypothesisCase :: (Focus,Proof) -> Maybe Proof
+        addHypothesisCase (f,p) =
+            let hyp = createHypothesis "Caso" (Expr $ toExpr f) in
+                getCtx p >>= \ctx ->
+                setCtx (addHypothesis' hyp ctx) p
+                    
 
--- | Parsea casos.
+-- -- | Parsea casos.
 parseCases :: ParserP (Focus, Proof)
 parseCases = do
             fi <- parseFocus keywordRArrow
