@@ -504,8 +504,12 @@ instance Show Proof where
                                                  " { " ++ show p' ++ " } "
     show (Cases _ r f f' f'' lfp orP) = "Cases " ++ show r ++ " " ++ show f ++ " " ++ 
                                                  show f' ++ " " ++ show f'' ++ " { " ++ show lfp ++ " } "
-    show (Ind _ r f f' f'' lfp) = "Induction " ++ show r ++ " " ++ show f ++ " " ++ 
-                                                 show f' ++ " " ++ show f'' ++ " { " ++ show lfp ++ " } "
+    show (Ind c r f f' f'' lfp) = unlines [ "Induction "
+                                          , show c 
+                                          , show r ++ "(" ++ show f ++ ", " ++ show f' ++ ")" 
+                                          , "by induction on " ++ show f''
+                                          , " { " ++ show lfp ++ " } "
+                                          ]
     show _ = "prueba no implementada"
 
 printPf :: Proof -> [String]

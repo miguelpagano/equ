@@ -1,11 +1,12 @@
+{-# Language OverloadedStrings #-}
 module Equ.IndType where
 
 import Equ.Types
 import Equ.Syntax
-import Equ.PreExpr
+import Equ.PreExpr hiding (isVar)
 import Equ.TypeChecker(unifyTest)
 
-import Data.Text hiding (map)
+import Data.Text (Text)
 
 
 -- | Un tipo inductivo permite realizar Pattern Matching. Está relacionado con una teoria.
@@ -98,3 +99,11 @@ isConstructorPattern f (UnOp op e) t = f op t && isVar e t
 isConstructorPattern f (BinOp op e1 e2) t = f op t && isVar e1 t && isVar e2 t
 isConstructorPattern _ _ _ = False
 
+
+splitByConst :: Type -> [(Focus, b)] -> ([(Focus, b)],[(Focus, b)],[(Focus, b)]) 
+splitByConst t = foldl go ([],[],[])
+    where go (ks,us,bs) p@(e,_) | isConstantPattern e' t  = (p:ks,us,bs)
+                                | isBaseConstPattern e' t = (ks,p:us,bs)
+                                | isIndConstPattern e' t  = (ks,us,p:bs)
+                                | otherwise = (ks,us,bs)
+              where e' = toExpr e

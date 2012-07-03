@@ -160,3 +160,20 @@ substitution :: Eq a => a -> a -> PreExpr' a -> PreExpr' a
 substitution v v' e = substVar v v' <$> e
     where substVar w w' w'' | w == w'' = w'
                             | w /= w'' = w''
+
+
+          
+-- Esta funcion toma una expresión que es un operador aplicado y retorna el operador.
+-- Si se le pasa una expresión de otro tipo, es indefinida.
+getOperator :: PreExpr' a -> Maybe Operator
+getOperator (UnOp op _) = Just op
+getOperator (BinOp op _ _) = Just op
+getOperator _ = Nothing
+
+getConstant :: PreExpr' a -> Maybe Constant
+getConstant (Con c) = Just c
+getConstant _ = Nothing
+
+isVar :: a -> PreExpr' b -> Either a b
+isVar _ (Var x) = Right x
+isVar a _ = Left a

@@ -98,3 +98,15 @@ leftNeutral op n e = (n `op` e) `equal` e
 -- | Neutro a derecha: @n op e = e@.
 rightNeutral :: (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr
 rightNeutral op n e = (e `op` n) `equal` e
+
+
+-- | 
+isTrue :: PreExpr -> Bool
+isTrue (Con t) = conName t == CTrue
+isTrue _ = False
+
+
+-- | 
+isFalse :: PreExpr -> Bool
+isFalse (Con t) = conName t == CFalse
+isFalse _ = False

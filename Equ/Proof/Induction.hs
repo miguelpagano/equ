@@ -42,8 +42,10 @@ createIndHypothesis rel f1 f2 p x nombre =
                                  _ -> Nothing
              _ -> Nothing
     -- Expresión que representa la hipótesis inductiva.
-    where hypIndExpr x p = PE.BinOp (relToOp rel) (PE.applySubst (PE.toExpr f1) (Map.fromList [(x,p)]))
-                                              (PE.applySubst (PE.toExpr f2) (Map.fromList [(x,p)]))
+    where hypIndExpr x p = PE.BinOp (relToOp rel) 
+                                    (PE.applySubst (PE.toExpr f1) subst)
+                                    (PE.applySubst (PE.toExpr f2) subst)
+              where subst = Map.singleton x p
           hypIndExprBin x p1 p2 = PE.BinOp folAnd (hypIndExpr x p1) (hypIndExpr x p2)
           
           matchType t t' = match t t' && match t' t

@@ -88,7 +88,7 @@ instance Show PErrorInduction where
     show (IndInNotVar) = "Solo se puede hacer inducción en variables."
     show (VarNotInExpr) = "La variable sobre la que se hace inducción debe ocurrir en la primera expresión de la prueba"
     show (TypeNotInductive) = "El tipo de la variable sobre la que se hace inducción debe ser inductivo"
-    show (SubProofHypothesis) = "Las subpruebas no pueden agregar hipótesis extras, salvo la inductiva en caso de q corresponda"
+    show (SubProofHypothesis) = "Las subpruebas no pueden agregar hipótesis extras, salvo la inductiva en caso de que corresponda"
     show (ConstantPatternError) = "La constante no es un constructor del tipo inductivo"
     show (OperatorPatternError) = "El operador no es un constructor del tipo inductivo"
     show  IncorrectSubProof = "Expresiones en sub-pruebas no se corresponden con las expresiones de la prueba general."

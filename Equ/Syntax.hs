@@ -36,8 +36,11 @@ data Constant = Constant {
     , conTy   :: Type
     }
 
+instance Ord Constant where
+    c <= c' = conName c <= conName c'
+
 instance Eq Constant where
-    c == c' = tRepr c == tRepr c'
+    c == c' = conName c == conName c'
 
 data Operator = Operator {
       opRepr :: Text   
@@ -62,6 +65,11 @@ data Func = Func {
       funcName :: FuncName
     , funcTy   :: Type
     }
+
+arity :: Func -> Int
+arity = arity' . funcTy
+    where arity' (_ :-> t') = 1 + arity' t'
+          arity' _ = 0
 
 instance Eq Func where 
     f == f' = tRepr f == tRepr f'

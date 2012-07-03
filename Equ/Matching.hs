@@ -9,6 +9,7 @@ tratadas como parámetros.  -}
 module Equ.Matching
     ( module Equ.Matching.Error
     , match
+    , matchWithSubst
     , MatchMErr
     )
     where
@@ -168,6 +169,9 @@ Si hay matching, retorna el mapa de sustituciones que deben realizarse
 simult&#225;neamente para llegar desde la expresi&#243;n patr&#243;n a la expresi&#243;n dada.
 -}
 match :: PreExpr -> PreExpr -> Either (MatchMErr,Log) ExprSubst
-match e e' = case runRWS (runEitherT (match' [] e e' M.empty)) (toFocus e') M.empty of
+match e e' = matchWithSubst e e' M.empty
+
+matchWithSubst :: PreExpr -> PreExpr -> ExprSubst -> Either (MatchMErr,Log) ExprSubst
+matchWithSubst e e' subs = case runRWS (runEitherT (match' [] e e' subs)) (toFocus e') subs of
                    (res, _, l) -> either (\err -> Left (err,l)) (Right . prune) res
     where prune = M.filterWithKey (\v e -> Var v /= e) 

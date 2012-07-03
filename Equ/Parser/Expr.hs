@@ -158,6 +158,7 @@ subexpr =     Paren <$> parens lexer parsePreExpr
           <|> Con <$> parseConst
           <|> parseSugarPreExpr parsePreExpr
           <|> parseQuant 
+          <|> parseIf
           <|> Var <$> parseVar
           <|> Fun <$> parseFunc
           <|> parseHole
@@ -193,6 +194,17 @@ parseHole = PrExHole . hole . pack <$>
 parseInfo :: Parser' String
 parseInfo = many $ letter <|> oneOf " \t"
 
+-- Parseo de if-then-else
+parseIf :: Parser' PreExpr
+parseIf = reserved lexer "if" >>
+          parsePreExpr >>= \ cond ->
+          reserved lexer "then" >>
+          parsePreExpr >>= \ branchT ->
+          reserved lexer "else" >>
+          parsePreExpr >>= \ branchF ->
+          reserved lexer "fi" >>
+          return (If cond branchT branchF)
+          
 
 -- Calcula el tipo de una variable o funcion
 setType :: (Either VarName FuncName) -> PState -> (PState,Type)
@@ -276,6 +288,7 @@ parseFromString s = case parseFromString' s of
 --           | \<App\>
 --           | \<Quant\>
 --           | \<Parent\>
+--           | if <PreExpr> then <PreExpr> else <PreExpr> fi
 -- 
 -- \<Var\> ::= {a, b, c, ... , z}*
 -- \<Func\> ::= {A, B, C, ... , Z}*
