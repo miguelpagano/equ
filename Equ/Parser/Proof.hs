@@ -1,6 +1,11 @@
 {-# Language OverloadedStrings #-}
 -- | Este modulo es el parser de pruebas.
-module Equ.Parser.Proof (parsePfFromString',rel,proof,parseFromFileProof) where
+module Equ.Parser.Proof ( parsePfFromString'
+                        , rel 
+                        , proof
+                        , parseFromFileProof
+                        , initPProofState
+                        , PProofState) where
 
 import Equ.Parser.Expr
 import Equ.Expr (Expr(..))
@@ -55,12 +60,12 @@ type HypName = Text
 type ProofSet = M.Map ProofName (Maybe Proof)
 type HypSet = M.Map ProofName Hypothesis
 
-data PState = PState { pHypSet :: HypSet
-                     , pProofSet :: ProofSet
-                     , pVarTy :: VarTy
-                     }
+data PProofState = PProofState { pHypSet :: HypSet
+                               , pProofSet :: ProofSet
+                               , pVarTy :: VarTy
+                               }
 
-type ParserP a = ParsecT String PState Identity a
+type ParserP a = ParsecT String PProofState Identity a
 
 -- | Retorna la pila de teoremas declarados.
 getProofSet :: ParserP ProofSet
@@ -99,10 +104,10 @@ addProofNameWithProof pn p = do
                     _ -> do let proofSetUpdated = M.insert pn p proofSet
                             putState $ pst {pProofSet = proofSetUpdated}
 
-lexer :: GenTokenParser String PState Identity
+lexer :: GenTokenParser String PProofState Identity
 lexer = lexer' { whiteSpace = oneOf " \t" >> return ()}
     where
-        lexer' :: TokenParser PState
+        lexer' :: TokenParser PProofState
         lexer' = makeTokenParser $ 
                     emptyDef { reservedNames = rNames
                              , identStart  = alphaNum <|> char '_'
@@ -441,7 +446,7 @@ rel = foldr ((<|>) . uncurry prel) parserZero relations
 -- | Parser de prueba.
 parsePfFromString' :: String -> Either ParseError [Proof]
 parsePfFromString' = either handleError Right . runParser 
-                                                (prooflist Nothing) initPState "" 
+                                                (prooflist Nothing) initPProofState "" 
     where
         -- Esto esta pensando en que hay que hacer algo para obtener bien
         -- la posición del error.
@@ -458,8 +463,8 @@ parseFromFileProof fp = readFile fp >>= \s ->
                                          print (validateProof $ head ps)
                             Left err -> print err
 
-initPState :: PState
-initPState = PState M.empty M.empty initVarTy
+initPProofState :: PProofState
+initPProofState = PProofState M.empty M.empty initVarTy
     where
         initVarTy :: VarTy
         initVarTy = (0,M.empty)
