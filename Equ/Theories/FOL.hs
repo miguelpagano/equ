@@ -127,6 +127,7 @@ theoryAxiomList = [ conmEquivAxiom
                   , distEqOrAxiom
                   , excludThirdAxiom
                   , goldenRuleAxiom
+                  , defImplAxiom
                   -- CUANTIFICADORES
                   , emptyRangeForAll
                   , unitRangeForAll
@@ -362,6 +363,13 @@ implRule2 = Rule { lhs = impl varP varQ
                  , desc = ""
                  }
 
+defImplAxiom :: (Text,Expr,[Condition])
+defImplAxiom = ( "Definición del Implica"
+               , (impl varP varQ) `equiv` ((or varP varQ) `equiv` varQ)
+               , []
+               )
+                 
+                 
 -- ===========
 -- CONSECUENCIA
 -- ===========

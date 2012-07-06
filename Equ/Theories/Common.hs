@@ -111,7 +111,7 @@ associativityEquiv op e e' e'' = ((e `op` e') `op` e'') `equiv` (e `op` (e' `op`
 leftNeutralEquiv :: (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr
 leftNeutralEquiv op n e = (n `op` e) `equiv` e
 
--- | Neutro a derecha: @n op e = e@.
+-- | Neutro a derecha: @e op n = e@.
 rightNeutralEquiv :: (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr
 rightNeutralEquiv op n e = (e `op` n) `equiv` e
 
