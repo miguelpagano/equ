@@ -451,7 +451,7 @@ transProof ctx flag = do
 -- | Parser de la relación sobre la que estamos haciendo la prueba.
 rel :: ParserP Relation
 rel = foldr ((<|>) . uncurry prel) parserZero relations
-    where prel iden ty = ty <$ (many whites >> try (string iden))
+    where prel iden ty = ty <$ try (many whites >> string iden)
           relations = [("=",relEq), ("≡",relEquiv), ("⇒",relImpl), ("⇐",relCons)]
 
 -- | Parser de prueba.
