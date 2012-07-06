@@ -11,7 +11,7 @@ import Equ.Proof ( validateProof, printProof
                  , holeProof, newProofWithCases, newProof
                  , validateProof)
 import Equ.Proof.Error(errProof, ProofError(..), ProofError'(..)
-                      , PErrorInduction(VarNotInExpr))
+                      , PErrorInduction(VarIndNotInExpr))
 import Equ.Proof.Proof ( Proof'(..)
                        , Ctx
                        , Basic (..) 
@@ -295,7 +295,7 @@ parseHypothesis = do
         parseHyp = do
                     n <- parseHypName
                     f <- parseFocus (keywordComma <|> keywordSBClose)
-                    return $ createHypothesis n (Expr $ toExpr f)
+                    return $ createHypothesis n (Expr $ toExpr f) []
 
 -- | Parser de pruebas.
 proof :: Maybe Ctx -> Bool -> ParserP Proof
@@ -349,7 +349,7 @@ inducProof ctx = do
             typedFei <- either (const $  Left errProof) 
                                (return . toFocus) 
                                (typeCheckPreExpr (toExpr fei))
-            maybe (Left $ ProofError (InductionError VarNotInExpr) id) 
+            maybe (Left $ ProofError (InductionError VarIndNotInExpr) id) 
                   (return . toFocus . Var)
                   (find (==fInduc) (Set.toList (freeVars (toExpr typedFei))))
         parseInducCases:: Relation -> Focus -> Focus -> PreExpr -> 
@@ -400,7 +400,7 @@ casesProof ctx = do
                     
         addHypothesisCase :: (Focus,Proof) -> Maybe Proof
         addHypothesisCase (f,p) =
-            let hyp = createHypothesis "Caso" (Expr $ toExpr f) in
+            let hyp = createHypothesis "Caso" (Expr $ toExpr f) [] in
                 getCtx p >>= \ctx ->
                 setCtx (addHypothesis' hyp ctx) p
                     

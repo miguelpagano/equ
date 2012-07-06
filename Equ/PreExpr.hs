@@ -19,6 +19,7 @@ module Equ.PreExpr ( freeVars, freshVar
                    , getQAndVarFromQuant 
                    , createPairs
                    , subExprQuant
+                   , quantVar, termExpr, rangeExpr
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
@@ -87,6 +88,21 @@ freeVars (Quant _ v e1 e2) = delete v $ freeVars e1 `union` freeVars e2
 freeVars (Paren e) = freeVars e
 freeVars (If b t f) = freeVars b `union` freeVars t `union` freeVars f
 freeVars (Case e cs) = freeVars e `union` (unions . map (uncurry (union `on` freeVars))) cs
+
+
+-- | Funcion que devuelve la variable cuantificada en un cuantificador.
+quantVar :: PreExpr -> Variable
+quantVar (Quant _ v _ _) = v
+quantVar _ = undefined
+
+-- | Funcion que devuelve la expresión Termino de una expresión cuantificada
+termExpr :: PreExpr -> PreExpr
+termExpr (Quant _ _ _ t) = t
+termExpr _ = undefined
+
+rangeExpr :: PreExpr -> PreExpr
+rangeExpr (Quant _ _ r _) = r
+rangeExpr _ = undefined
 
 subExprQuant :: Focus -> Int
 subExprQuant = (1+) . length . focusToFocuses . Just

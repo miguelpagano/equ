@@ -78,13 +78,13 @@ constGroup :: Grouped Constant
 constGroup = mkGrouped theories [F.theoryConstantsList, A.theoryConstantsList, L.theoryConstantsList]
 
 
-mkAxiomGroup :: [[(Text,Expr)]] -> Grouped Axiom
+mkAxiomGroup :: [[(Text,Expr,[Condition])]] -> Grouped Axiom
 mkAxiomGroup axioms = mkGrouped theories . uncurry (:) . ((F.assocEquivAx:) . head &&& tail) $
-                      map (map (uncurry createAxiom)) axioms
+                      map (map (uncurry2 createAxiom)) axioms
 
 axiomGroup :: Grouped Axiom
 axiomGroup = mkGrouped theories . uncurry (:) . ((F.assocEquivAx:) . head &&& tail) $
-             map (map (uncurry createAxiom))
+             map (map (uncurry2 createAxiom))
                      [ F.theoryAxiomList
                      , A.theoryAxiomList
                      , L.theoryAxiomList]
@@ -149,6 +149,7 @@ createTheorem th_name proof = Theorem {
     , thRel = fromJust $ getRel proof
     , thProof = proof
     , thRules = createRulesAssoc expr
+    , thCondition = []
     }
     
     where exp1 = (toExpr $ fromJust $ getStart proof)
@@ -175,25 +176,33 @@ createRulesAssoc e = whenZ isJust rules (getRelExp e) ++ metaRules (Expr e)
           
 
 -- | Dado un axioma reconstruye las reglas a partir de su expresión.
-createAxiom :: Text -> Expr -> Axiom
-createAxiom name' ex = Axiom { 
+createAxiom :: Text -> Expr -> [Condition] -> Axiom
+createAxiom name' ex conditions = Axiom { 
                         axName = name'
                       , axExpr = ex
                       , axRel = fromJust $ getRelExp expr
-                      , axRules = createRulesAssoc expr} 
+                      , axRules = createRulesAssoc expr
+                      , axCondition = conditions
+                    } 
     where (Expr expr) = ex
           
           
 -- | Dada una expresion, construye una hipotesis, calculando todas las reglas.
-createHypothesis :: Text -> Expr -> Hypothesis
-createHypothesis name' ex@(Expr pe) = Hypothesis { 
+createHypothesis :: Text -> Expr -> [Condition] -> Hypothesis
+createHypothesis name' ex@(Expr pe) conditions = Hypothesis { 
                         hypName = name'
                       , hypExpr = ex
                       , hypRel = fromJust $ getRelExp pe
                       , hypRule = createRulesAssoc pe
+                      , hypCondition = conditions
                     } 
 
 whenZ :: MonadPlus m => (a -> Bool) -> (a -> m b) -> a -> m b
 whenZ p act a = if p a then act a else mzero
+                                     
+uncurry2 :: (a -> b -> c -> d) -> (a,b,c) -> d
+uncurry2 f (a,b,c) = f a b c
+                                     
+
                                      
                                      

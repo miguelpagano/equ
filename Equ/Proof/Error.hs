@@ -38,12 +38,13 @@ data ProofError' = Rewrite [RewriteError]
                 | CasesError PErrorCases
                 | ContextsNotEqual -- El contexto de una subprueba no es el mismo de la prueba general.
                 | RelNotEqual -- Las relaciones entre dos pruebas no son iguales
+                | BasicConditionError Basic -- No se satisface la condición de aplicación de un paso básico
                 | Error
     deriving Eq
     
 data PErrorInduction = 
                        IndInNotVar -- Se quiere hacer inducción sobre una expresión que no es variable.
-                     | VarNotInExpr -- La variable sobre la q se hace induccion no está en las expresiones
+                     | VarIndNotInExpr -- La variable sobre la q se hace induccion no está en las expresiones
                      | TypeNotInductive -- El tipo de la variable sobre la q se hace inducción no es inductivo.
                      | SubProofHypothesis -- Una subprueba agrega hipótesis no válidas.
                      | ConstantPatternError -- La constante no es un pattern del tipo inductivo
@@ -82,11 +83,13 @@ instance Show ProofError' where
     show (ContextsNotEqual) = "La subprueba no tiene el mismo contexto que la prueba general"
     show (RelNotEqual) = "La subprueba no tiene la misma relación que la prueba general"
     show (CasesError er) = "Error en Prueba por casos: " ++ show er
+    show (BasicConditionError b) = "No se satisfacen las condiciones de aplicación del paso básico: "++ show b
     show _ = "Error sin especificar"
+    
 
 instance Show PErrorInduction where
     show (IndInNotVar) = "Solo se puede hacer inducción en variables."
-    show (VarNotInExpr) = "La variable sobre la que se hace inducción debe ocurrir en la primera expresión de la prueba"
+    show (VarIndNotInExpr) = "La variable sobre la que se hace inducción debe ocurrir en la primera expresión de la prueba"
     show (TypeNotInductive) = "El tipo de la variable sobre la que se hace inducción debe ser inductivo"
     show (SubProofHypothesis) = "Las subpruebas no pueden agregar hipótesis extras, salvo la inductiva en caso de que corresponda"
     show (ConstantPatternError) = "La constante no es un constructor del tipo inductivo"

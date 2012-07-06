@@ -49,7 +49,7 @@ import Equ.Proof.Zipper
 import Equ.Proof.Monad
 import Equ.Proof.Error
 import Equ.Proof.ListedProof
-import Equ.Theories.Common
+import Equ.Theories.Common hiding (and)
 import Equ.Theories.FOL(folOr)
 import Equ.TypeChecker(typeCheckPreExpr)
 import Equ.Syntax hiding (Hole)
@@ -122,19 +122,39 @@ whenEqRelWithDefault def a b rs = whenPM (\b -> b==a || b `elem` rs) def b >>
 checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> 
                            Rule -> (ProofFocus -> ProofFocus) -> PM PE.Focus
 checkSimpleStepFromRule f1 f2 rel t rule fMove = 
-    whenEqRelWithDefault errRel rel (truthRel t) [relEquiv,relEq]>>
-    case partitionEithers $ rewriteAllFocuses (PE.toExpr f1) rule of
+    whenEqRelWithDefault errRel rel (truthRel t) [relEquiv,relEq] >>
+    case partitionEithers $ rewriteAllFocusesInformative (PE.toExpr f1) rule of
          (_,[]) -> Left err
-         (_,ls) -> case partitionEithers $ map checkeq ls of
+         (_,ls) ->  case partitionEithers $ map checkeq ls of
                         (errors,[]) -> Left $ head errors
-                        (_,xs) -> return . snd $ head xs
+                        (_,xs) -> let funConds = map conditionFunction (truthConditions t) in
+                                      case partitionEithers $ map (checkConds funConds) xs of
+                                           (errors,[]) -> Left $ head errors
+                                           (_xs) -> return . snd' $ head xs
     where 
         errRel :: ProofError
         errRel = ProofError (ClashRel rel (truthRel t)) fMove
         err :: ProofError
         err = ProofError (BasicNotApplicable $ truthBasic t) fMove
-        checkeq :: (PE.Focus,PE.Focus) -> PM (PE.Focus,PE.Focus)
-        checkeq = whenEqWithDefault' err (PE.goTop f2) fst . (PE.goTop *** id)
+        checkeq :: (PE.Focus,PE.Focus,PE.ExprSubst) -> PM (PE.Focus,PE.Focus,PE.ExprSubst)
+        checkeq t@(f1',f2',s) = 
+            return (f1',f2') >>=
+            whenEqWithDefault' err (PE.goTop f2) fst . (PE.goTop *** id) >>
+            return t
+        checkConds :: [(PE.ExprSubst -> PE.PreExpr -> Bool)] ->
+                      (PE.Focus,PE.Focus,PE.ExprSubst) ->
+                      PM (PE.Focus,PE.Focus,PE.ExprSubst)
+        -- Chequeamos que la substitucion resultante satisfaga todas las condiciones
+        -- de aplicación de la regla
+        checkConds fConds t@(_,_,subst) = whenPM (\(_,_,subst) ->
+                                  and $ invMap fConds (subst,PE.toExpr f1)) errorCondition t
+        invMap :: [(a -> b -> c)] -> (a,b) -> [c]
+        invMap [] (_,_) = []
+        invMap (f:fs) (a,b) = (f a b):(invMap fs (a,b))
+        thrd :: (a,b,c) -> c
+        thrd (_,_,c) = c
+        snd' (_,b,_) = b
+        errorCondition = ProofError (BasicConditionError (truthBasic t)) fMove
 {- 
 Funciones para construir y manipular pruebas.
 Este kit de funciones deber&#237;a proveer todas las herramientas
@@ -213,7 +233,7 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
     PE.isVar (ProofError (InductionError IndInNotVar) id) (PE.toExpr e) >>= \x ->
     -- Luego vemos que la variable esté en la expresión f1
     whenPM' (Set.member x (PE.freeVars (PE.toExpr typedF1)))
-            (ProofError (InductionError VarNotInExpr) id) >>
+            (ProofError (InductionError VarIndNotInExpr) id) >>
     -- Chequeamos los casos de inducción:
     checkPatterns x proof ps >>
     return proof
@@ -342,7 +362,7 @@ validateProof' proof@(Cases ctx rel f1 f2 e cases mGuardsProof) _ =
               sameProof proof cProof >>
               getCtx cProof >>= \cpCtx ->
               getCtx proof >>= \ctx ->
-              return (freshName cpCtx) >>= return . flip createHypothesis (Expr $ PE.toExpr c) >>=
+              return (freshName cpCtx) >>= \name -> return (createHypothesis name (Expr $ PE.toExpr c) []) >>=
               \hypCase -> (return $ Map.elems ctx) >>= \hypsProof ->
               (return $ Map.elems cpCtx) >>= \hypsCasesProof ->
               whenPM' (and $ map (\h -> elem h hypsProof || h==hypCase) hypsCasesProof)

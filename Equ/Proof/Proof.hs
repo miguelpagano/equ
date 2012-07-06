@@ -4,6 +4,7 @@
 module Equ.Proof.Proof (
                   -- * Axiomas y teoremas
                  Basic(..)
+                 , Condition(..)
                  , Axiom(..)
                  , Theorem(..)
                  , Truth(..)
@@ -27,6 +28,7 @@ module Equ.Proof.Proof (
                  , getHypothesis
                  , addHypothesis'
                  , printProof
+                 , conditionFunction
                  ) where
 
 import Equ.Expr
@@ -35,12 +37,12 @@ import Equ.Rule
 import Equ.TypeChecker
 import Equ.Types
 
-import qualified Equ.Theories.Arith as A (varNat)
-import qualified Equ.Theories.Common as C (equal)
+import qualified Equ.Theories.Common as C (equal,folFalse)
  
 import Data.Text (Text, unpack,pack)
 import qualified Data.Text as T
 import Data.List (intersperse)
+import qualified Data.Set as Set
 
 import qualified Data.Map as M (Map (..), fromList, findMax, null, insert, lookup)
 
@@ -83,28 +85,63 @@ class Truth t where
     truthName  :: t -> Text
     truthExpr  :: t -> Expr
     truthRel   :: t -> Relation
-    truthRules :: t -> [Rule]    
+    truthRules :: t -> [Rule]
+    truthConditions :: t -> [Condition]
     truthBasic :: t -> Basic
 
+
+
+data Condition = VarNotInExpr Variable PreExpr -- La variable no ocurre en la expresion
+               | DisjointRanges -- Condición para aplicar Partición de Rango
+               | NotEmptyRange  -- El Rango de cuantificación es no vacío (distinto de False).
+               | InductiveHypothesis PreExpr -- En la hipótesis inductiva, la reescritura no se hace con cualquier variable
+                                              -- sino que tiene que ser exactamente con la misma variable del pattern.
+ deriving (Eq,Show)
+ 
+instance Arbitrary Condition where
+    arbitrary = oneof [ VarNotInExpr <$> arbitrary <*> arbitrary
+                      , return DisjointRanges
+                      , return NotEmptyRange
+                      , InductiveHypothesis <$> arbitrary
+                       ]
+                        
+instance Serialize Condition where
+    put (VarNotInExpr v p) = putWord8 0 >> put v >> put p
+    put DisjointRanges = putWord8 1
+    put NotEmptyRange = putWord8 2
+    put (InductiveHypothesis v)= putWord8 3 >> put v
+    
+    get = getWord8 >>= \tag_ ->
+        case tag_ of
+             0 -> VarNotInExpr <$> get <*> get
+             1 -> return DisjointRanges
+             2 -> return NotEmptyRange
+             3 -> InductiveHypothesis <$> get
+        
 -- | Un axioma es una expresi&#243;n que puede ser interpretada como varias
 -- reglas de re-escritura.
 data Axiom = Axiom {
       axName  :: !Text 
     , axExpr  :: !Expr
     , axRel   :: !Relation
-    , axRules :: [Rule] 
+    , axRules :: [Rule]
+    -- Condicion para aplicar un axioma. Es un predicado al que le pasamos como
+    -- parametro la substitucion que se realiza al aplicar un axioma, y verifica
+    -- que las expresiones cumplan alguna propiedad.
+    , axCondition :: [Condition]
     }
     deriving Eq
+
 
 instance Show Axiom where
     show  = unpack . axName
     
 instance Arbitrary Axiom where
-    arbitrary = Axiom <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+   arbitrary = Axiom <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
 instance Serialize Axiom where
-    put (Axiom n e r lru) = put n >> put e >> put r >> put lru
-    get = Axiom <$> get <*> get <*> get <*> get
+   put (Axiom n e r lru _) = put n >> put e >> put r >> put lru
+   get = Axiom <$> get <*> get <*> get <*> get <*> get
 
 -- | Instancia de Truth para el tipo Axiom.
 instance Truth Axiom where
@@ -113,6 +150,7 @@ instance Truth Axiom where
     truthRel   = axRel
     truthRules = axRules
     truthBasic = Ax
+    truthConditions = axCondition
 
 -- |  Un   teorema  tambi&#233;n  permite,  como   un  axioma,  re-escribir
 -- expresiones; a  diferencia de un  axioma debe tener una  prueba que
@@ -123,6 +161,7 @@ data Theorem = Theorem {
     , thRel   :: Relation
     , thProof :: Proof
     , thRules :: [Rule]
+    , thCondition :: [Condition]
     }
     deriving Eq
     
@@ -132,11 +171,12 @@ instance Show Theorem where
 
 instance Arbitrary Theorem where
     arbitrary = Theorem <$> arbitrary <*> arbitrary <*> 
-                            arbitrary <*> arbitrary <*> arbitrary
+                            arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
 instance Serialize Theorem where
-    put (Theorem n e r p lru) = put n >> put e >> put r >> put p >> put lru
-    get = Theorem <$> get <*> get <*> get <*> get <*> get
+    put (Theorem n e r p lru conds) = put n >> put e >> put r >> put p >> put lru
+                                      >> put conds
+    get = Theorem <$> get <*> get <*> get <*> get <*> get <*> get
 
 -- | Instancia de Truth para el tipo theorem.
 instance Truth Theorem where
@@ -145,12 +185,14 @@ instance Truth Theorem where
     truthRel   = thRel
     truthRules = thRules
     truthBasic = Theo
+    truthConditions = (\_ -> [])
 
 data Hypothesis = Hypothesis {
      hypName :: Text
    , hypExpr :: Expr
    , hypRel  :: Relation
    , hypRule :: [Rule]
+   , hypCondition :: [Condition]
 }
 
 instance Eq Hypothesis where
@@ -165,14 +207,15 @@ instance Truth Hypothesis where
     truthRel  = hypRel
     truthRules = hypRule
     truthBasic = Hyp
+    truthConditions = hypCondition
 
 instance Arbitrary Hypothesis where
-    arbitrary = Hypothesis <$> arbitrary <*> arbitrary <*> 
-                            arbitrary <*> arbitrary
+    arbitrary = Hypothesis <$> arbitrary <*> arbitrary <*> arbitrary <*> 
+                               arbitrary <*> arbitrary
                             
 instance Serialize Hypothesis where
-    put (Hypothesis t e r ru) = put t >> put e >> put r >> put ru
-    get = Hypothesis <$> get <*> get <*> get <*> get
+    put (Hypothesis t e r ru _) = put t >> put e >> put r >> put ru
+    get = Hypothesis <$> get <*> get <*> get <*> get <*> get
     
 -- | El contexto lleva las hip&#243;tesis actuales; en nuestro caso hay
 -- tres formas de agregar hip&#243;tesis al contexto: en una prueba por
@@ -214,7 +257,7 @@ instance Truth Basic where
     truthExpr (Ax a) = axExpr a
     truthExpr (Theo t) = thExpr t
     truthExpr (Hyp h) = hypExpr h
-    truthExpr Evaluate = C.equal (A.varNat "x") (A.varNat "x")
+    truthExpr Evaluate = C.equal (varNat "x") (varNat "x")
 
     truthRel (Ax a) = axRel a
     truthRel (Theo t) = thRel t
@@ -225,6 +268,11 @@ instance Truth Basic where
     truthRules (Theo t) = thRules t
     truthRules (Hyp h) = hypRule h
     truthRules Evaluate = []
+    
+    truthConditions (Ax a) = axCondition a
+    truthConditions (Theo t) = thCondition t
+    truthConditions (Hyp h) = hypCondition h
+    truthConditions Evaluate = []
 
     truthBasic b = b
 
@@ -817,6 +865,7 @@ addHypothesis expr rel exprs c = case checkPreExpr expr of
                 , hypExpr = Expr expr
                 , hypRel  = rel
                 , hypRule = map (rule . Expr) exprs
+                , hypCondition = []
                 }
           rule ex' = mkrule (Expr expr) ex' rel
 
@@ -832,3 +881,23 @@ addHypothesis' :: Hypothesis -> Ctx -> Ctx
 addHypothesis' hyp ctx = M.insert (hypName hyp) hyp ctx
     where n = freshName ctx
                           
+                          
+varNat s = Expr $ Var $ var s (TyAtom ATyNat)
+
+
+conditionFunction :: Condition -> (ExprSubst -> PreExpr -> Bool)
+conditionFunction (VarNotInExpr v p) =
+    \subst expr -> not $ Set.member v (freeVars $ applySubst p subst)
+conditionFunction (InductiveHypothesis pattern)=
+    -- En la hipótesis inductiva, solo podemos validar la reecritura si
+    -- la expresión por la q se quiere reemplazar la variable inductiva
+    -- es la misma. Ejemplo: si la HI es "x es par", solo podemos aplicarla
+    -- a la expresión "x es par" y no a "(x+1) es par". Por eso pedimos que 
+    -- la substitución de reescritura asigne x -> x.
+    \subst expr -> case pattern of
+                        Var var -> case (applySubst (Var var) subst) of
+                                        Var x -> varName x == varName var
+                                        _ -> False
+                        _ -> False
+conditionFunction NotEmptyRange = 
+    \subst expr -> (rangeExpr expr) /= (Con C.folFalse)

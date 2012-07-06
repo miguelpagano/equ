@@ -53,6 +53,7 @@ import Equ.PreExpr.Symbols
 import Equ.Rule
 import Equ.Theories.AbsName
 import Equ.Theories.Common
+import Equ.Proof.Proof(Condition)
 
 import Data.Text (Text)
 
@@ -114,9 +115,10 @@ index (Expr xs) (Expr n) = Expr $ BinOp listIndex xs n
 @
 
 -}
-emptyNeutralConcat :: (Text,Expr)
+emptyNeutralConcat :: (Text,Expr,[Condition])
 emptyNeutralConcat = ( "Neutro a izquierda de concatenación" 
                      , leftNeutral concat emptyList varYS
+                     , []
                      )
     where varYS = varList "ys" "A"
 
@@ -127,10 +129,11 @@ emptyNeutralConcat = ( "Neutro a izquierda de concatenación"
 @
 
 -}
-consConcat :: (Text, Expr)
+consConcat :: (Text, Expr, [Condition])
 consConcat = ( "Concatenar lista no vacía",
               ((varX `append` varXS) `concat` varYS) `equal` 
-              (varX `append` (varXS `concat` varYS))
+              (varX `append` (varXS `concat` varYS)),
+              []
             )
     where varX = Expr $ Var $ var "x" $ tyVar "A"
           varXS = varList "xs" "A"
@@ -146,9 +149,10 @@ consConcat = ( "Concatenar lista no vacía",
 @
 
 -}
-lengthEmptyList :: (Text,Expr)
+lengthEmptyList :: (Text,Expr,[Condition])
 lengthEmptyList = ( "Longitud de la lista vacía"
                   , (length emptyList) `equal` zero
+                  , []
                   )
 {- | Caso inductivo de la longitud de una lista.
 
@@ -157,10 +161,11 @@ lengthEmptyList = ( "Longitud de la lista vacía"
 @
 
 -}
-lengthConsList :: (Text,Expr)
+lengthConsList :: (Text,Expr,[Condition])
 lengthConsList = ( "Longitud de lista no vacía"
                  , (length (append varX varXS)) `equal` 
                    (successor $ length varXS)
+                 , []
                  )
     where varX = Expr $ Var $ var "x" $ tyVar "A"
           varXS = varList "xs" "A"
@@ -180,9 +185,10 @@ lengthConsList = ( "Longitud de lista no vacía"
 @
 
 -}
-zeroTake :: (Text,Expr) 
+zeroTake :: (Text,Expr,[Condition]) 
 zeroTake = ( "Tomar cero elementos"
            , (take varXS zero) `equal` emptyList
+           , []
            )
     where varXS = varList "xs" "A"
                       
@@ -193,9 +199,10 @@ zeroTake = ( "Tomar cero elementos"
 @
 
 -}
-emptyTake :: (Text,Expr)
+emptyTake :: (Text,Expr,[Condition])
 emptyTake = ( "Tomar de la lista vacía"
             , (take emptyList varN) `equal`  emptyList
+            , []
             )
     where varN = Expr $ Var $ var "x" $ TyAtom ATyNat
 
@@ -206,10 +213,11 @@ emptyTake = ( "Tomar de la lista vacía"
 @
 
 -}
-consTake :: (Text,Expr)
+consTake :: (Text,Expr,[Condition])
 consTake = ( "Tomar (n+1) elementos"
            , (take (append varX varXS) (successor varN)) `equal`
              (append varX $ take varXS varN)
+           , []
            )
     where varXS = varList "xs" "A"
           varX = Expr $ Var $ var "x" $ tyVar "A"
@@ -225,9 +233,10 @@ consTake = ( "Tomar (n+1) elementos"
 @
 
 -}
-zeroDrop :: (Text,Expr)
+zeroDrop :: (Text,Expr,[Condition])
 zeroDrop = ( "Tirar cero elementos"
            , drop varXS zero `equal` varXS
+           , []
            )
     where varXS = varList "xs" "A"
 
@@ -238,9 +247,10 @@ zeroDrop = ( "Tirar cero elementos"
 @
 
 -}
-emptyDrop :: (Text,Expr)
+emptyDrop :: (Text,Expr,[Condition])
 emptyDrop = ( "Tirar de la lista vacía"
             , (drop emptyList varN) `equal` emptyList
+            , []
             )
     where varN = Expr $ Var $ var "x" $ TyAtom ATyNat
 
@@ -251,10 +261,11 @@ emptyDrop = ( "Tirar de la lista vacía"
 @
 
 -}
-consDrop :: (Text,Expr)
+consDrop :: (Text,Expr,[Condition])
 consDrop = ( "Tirar (n+1) elementos"
            , (drop (append varX varXS) (successor varN)) `equal`
              (drop varXS varN)
+           , []
            )
     where varXS = varList "xs" "A"
           varX = Expr $ Var $ var "x" $ tyVar "A"
@@ -269,9 +280,10 @@ consDrop = ( "Tirar (n+1) elementos"
 @
 
 -}
-zeroIndex :: (Text,Expr)
+zeroIndex :: (Text,Expr,[Condition])
 zeroIndex = ( "Proyectar el elemento inicial" 
             , (index (append varX varXS) zero) `equal` varX
+            , []
             )
     where varXS = varList "xs" "A"
           varX = Expr $ Var $ var "x" $ tyVar "A"
@@ -283,16 +295,17 @@ zeroIndex = ( "Proyectar el elemento inicial"
 @
 
 -}
-consIndex :: (Text,Expr)
+consIndex :: (Text,Expr,[Condition])
 consIndex = ( "Proyectar el elemento (i+1)"
             , (index (append varX varXS) (successor varN)) `equal`
               (index varXS varN)
+            , []
             )
     where varXS = varList "xs" "A"
           varX = Expr $ Var $ var "x" $ tyVar "A"
           varN = Expr $ Var $ var "n" $ TyAtom ATyNat
 
-theoryAxiomList :: [(Text,Expr)]
+theoryAxiomList :: [(Text,Expr,[Condition])]
 theoryAxiomList = [ emptyNeutralConcat
                   , consConcat
                   -- ** Cardinal

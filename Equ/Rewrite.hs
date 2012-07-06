@@ -6,6 +6,8 @@ module Equ.Rewrite
     , typedRewrite
     , RewriteError
     , RM
+    , rewriteAllFocusesInformative
+    , focusedRewriteInformative
     )
     where
 
@@ -51,8 +53,16 @@ focusedRewrite :: Focus -> Rule -> RM (Focus,Focus)
 focusedRewrite f@(pe, p) r = exprRewrite (Expr pe) r >>= 
                              \(Expr pe')-> return $ (replace f pe',f)
                              
+-- | Igual que la anterior, pero ademas retorna la lista de substituciones.
+focusedRewriteInformative :: Focus -> Rule -> RM (Focus,Focus,ExprSubst)
+focusedRewriteInformative f@(pe, p) r = rewriteInformative (Expr pe) r >>= 
+                                        \(Expr pe',subst)-> return $ (replace f pe',f,subst)
+                             
 rewriteAllFocuses :: PreExpr -> Rule -> [RM (Focus,Focus)]
 rewriteAllFocuses e r = map (flip focusedRewrite r) (toFocuses e)
+
+rewriteAllFocusesInformative :: PreExpr -> Rule -> [RM (Focus,Focus,ExprSubst)]
+rewriteAllFocusesInformative e r = map (flip focusedRewriteInformative r) (toFocuses e)
 
 {- 
     Me di cuenta que no termino de entender que deber&#237;a hacer esta funci&#243;n.

@@ -66,27 +66,8 @@ folDiscrep = Operator { opRepr = "/≡"
                       , opGlyphs = ["/="]
                       }
 
--- | Conjuncion &#8743;
-folAnd :: Operator
-folAnd = Operator { opRepr = "∧"
-                  , opName = And
-                  , opTy = folBinOpType
-                  , opAssoc = ALeft
-                  , opNotationTy = NInfix
-                  , opPrec = 3
-                  , opGlyphs = ["&&","/\\"]
-                  }
-
--- | Disyuncion &#8744;
-folOr :: Operator
-folOr = Operator { opRepr = "∨"
-                 , opName = Or
-                 , opTy = folBinOpType
-                 , opAssoc = ALeft
-                 , opNotationTy = NInfix
-                 , opPrec = 3
-                 , opGlyphs = ["||","\\/"]
-                 }
+-- LOS OPERADORES AND Y OR SE ENCUENTRAN DEFINIDOS EN COMMON
+                      
      
 -- | Negacion &#172;
 folNeg :: Operator
@@ -133,7 +114,7 @@ theoryOperatorsList = [folEqual,folEquiv,folDiscrep,folAnd,folOr,folImpl,folCons
 theoryQuantifiersList :: [Quantifier]
 theoryQuantifiersList = [folForall,folExist]
 
-theoryAxiomList :: [(Text,Expr)]
+theoryAxiomList :: [(Text,Expr,[Condition])]
 theoryAxiomList = [ conmEquivAxiom
                   , trueLNeutralEquiv
                   , trueRNeutralEquiv
@@ -145,7 +126,23 @@ theoryAxiomList = [ conmEquivAxiom
                   , idempotOrAxiom
                   , distEqOrAxiom
                   , excludThirdAxiom
-                  , goldenRuleAxiom]
+                  , goldenRuleAxiom
+                  -- CUANTIFICADORES
+                  , emptyRangeForAll
+                  , unitRangeForAll
+                  , partRangeForAll
+                  , termRuleForAll
+                  , constTermForAll
+                  , distLeftOrForAll
+                  , distRightOrForAll
+                  , nestedRuleForAll
+                  , changeVarForAll
+                  , interRangeTermForallAxiom
+                  , distAndForAll
+                  , interQuantForAll
+                  , existDef
+                  ]
+ 
 
 -- A continuacion definimos constructores de expresiones, para su facil manejo
 
@@ -160,14 +157,6 @@ discrep (Expr p) (Expr q) = Expr $ BinOp folDiscrep p q
 neg :: Expr -> Expr
 neg (Expr p) = Expr $ UnOp folNeg p
 
--- | And
-and :: Expr -> Expr -> Expr
-and (Expr p) (Expr q) = Expr $ BinOp folAnd p q
-
--- | Or
-or :: Expr -> Expr -> Expr
-or (Expr p) (Expr q) = Expr $ BinOp folOr p q
-
 -- | Implicacion
 impl :: Expr -> Expr -> Expr
 impl (Expr p) (Expr q) = Expr $ BinOp folImpl p q
@@ -177,11 +166,6 @@ conseq :: Expr -> Expr -> Expr
 conseq (Expr p) (Expr q) = Expr $ BinOp folConseq p q
 
 -- Constructor de para todo:
-
--- DUDA: En el cuantificador paraTodo, y creo que en todos los cuantificadores
---       tenemos una variable y luego el rango es la aplicacion de un predicado a esa variable
---       termino es tambien la aplicacion de un predicado a esa variable. Lo cual me sugiere
---       que el constructor de forAll y exist tome una variable y dos funciones (predicados).
 
 forAll :: Variable -> Expr -> Expr -> Expr
 forAll v (Expr r) (Expr t) = Expr $ Quant folForall v r t
@@ -198,6 +182,18 @@ varP,varQ,varR :: Expr
 varP= Expr $ Var $ var "p" tyBool
 varQ= Expr $ Var $ var "q" tyBool
 varR= Expr $ Var $ var "r" tyBool
+
+
+-- Variable para usar en las cuantificaciones en las reglas.
+-- VER: Qué tipo le ponemos a la variable cuantificada????
+varX :: Variable
+varX= var "x" (tyVar "A")
+varY :: Variable
+varY= var "y" (tyVar "A")
+
+-- Expresion para igualar con la variable cuantificada
+varN :: Expr
+varN = Expr $ Var $ var "n" (tyVar "A")
 
 -- ============
 -- EQUIVALENCIA
@@ -219,6 +215,7 @@ assocEquivAx = Axiom {  axName = "Asociatividad de la Equivalencia"
                       , axExpr = expr
                       , axRel = relEquiv
                       , axRules = map mkr [(lhs,rhs),(rhs,lhs),(expr,true),(true,expr)]
+                      , axCondition = []
                      }
     where lhs = (varP `equiv` varR) `equiv` varQ
           rhs = varP `equiv` (varR `equiv` varQ)
@@ -226,34 +223,38 @@ assocEquivAx = Axiom {  axName = "Asociatividad de la Equivalencia"
           expr = associativityEquiv equiv varP varQ varR
 
 -- Axioma Conmutatividad de la equivalencia:
-conmEquivAxiom :: (Text,Expr)
+conmEquivAxiom :: (Text,Expr,[Condition])
 conmEquivAxiom = ("Conmutatividad de la Equivalencia", 
-                  symmetryEquiv equiv varP varQ)
+                  symmetryEquiv equiv varP varQ,
+                  [])
 
-trueLNeutralEquiv :: (Text,Expr)
+trueLNeutralEquiv :: (Text,Expr,[Condition])
 trueLNeutralEquiv = ("Neutro de la equivalencia a izquierda", 
-                     leftNeutralEquiv equiv true varP)
+                     leftNeutralEquiv equiv true varP,
+                     [])
 
-trueRNeutralEquiv :: (Text,Expr)
+trueRNeutralEquiv :: (Text,Expr,[Condition])
 trueRNeutralEquiv = ("Neutro de la equivalencia a derecha", 
-                     rightNeutralEquiv equiv true varP)
+                     rightNeutralEquiv equiv true varP,
+                     [])
 
 
 -- =========
 -- NEGACION
 -- =========
 
-negEquivAxiom :: (Text,Expr)
+negEquivAxiom :: (Text,Expr,[Condition])
 negEquivAxiom = ("Negación y Equivalencia", 
-                 neg (varP `equiv` varQ) `equiv` ((neg varP) `equiv` varQ))
+                 neg (varP `equiv` varQ) `equiv` ((neg varP) `equiv` varQ),
+                 [])
 
 {- | Definicion de false:
 @
     False &#8801; &#172;True
 @
 -}
-falseDefAxiom :: (Text,Expr)
-falseDefAxiom = ("Definición de False",false `equiv` neg true)
+falseDefAxiom :: (Text,Expr,[Condition])
+falseDefAxiom = ("Definición de False",false `equiv` neg true,[])
                   
 
 -- ============
@@ -265,9 +266,10 @@ falseDefAxiom = ("Definición de False",false `equiv` neg true)
     (p /&#8801; q) &#8801; &#172;(p &#8801; q)
 @
 -}
-discrepDefAxiom :: (Text,Expr)
+discrepDefAxiom :: (Text,Expr,[Condition])
 discrepDefAxiom = ("Definición de discrepancia",  
-                   (discrep varP varQ) `equiv` (neg (equiv varP varQ)))
+                   (discrep varP varQ) `equiv` (neg (equiv varP varQ)),
+                   [])
                     
 -- ===========
 -- DISYUNCION
@@ -278,9 +280,10 @@ discrepDefAxiom = ("Definición de discrepancia",
     (p &#8744; q) &#8744; r &#8801; p &#8744; (q &#8744; r)
 @
 -}
-assocOrAxiom :: (Text,Expr)
+assocOrAxiom :: (Text,Expr,[Condition])
 assocOrAxiom = ("Asociatividad del ∨", 
-                associativityEquiv or varP varR varQ)
+                associativityEquiv or varP varR varQ,
+                [])
                     
 {- | Regla conmutatividad:
 @
@@ -288,8 +291,8 @@ assocOrAxiom = ("Asociatividad del ∨",
 @
 -}
                   
-commOrAxiom :: (Text,Expr)
-commOrAxiom = ("Conmutatividad del ∨", symmetryEquiv or varP varQ)
+commOrAxiom :: (Text,Expr,[Condition])
+commOrAxiom = ("Conmutatividad del ∨", symmetryEquiv or varP varQ,[])
 
 {- | Regla idempotencia:
 @
@@ -297,13 +300,14 @@ commOrAxiom = ("Conmutatividad del ∨", symmetryEquiv or varP varQ)
 @
 -}
 
-idempotOrAxiom :: (Text,Expr)
-idempotOrAxiom = ("Idempotencia del ∨", varP `or` varP `equiv` varP)
+idempotOrAxiom :: (Text,Expr,[Condition])
+idempotOrAxiom = ("Idempotencia del ∨", varP `or` varP `equiv` varP,[])
 
                       
-distEqOrAxiom :: (Text,Expr)
+distEqOrAxiom :: (Text,Expr,[Condition])
 distEqOrAxiom = ("Distributividad de ≡ con ∨"
-                , equiv (or varP (equiv varQ varR)) (equiv (or varP varQ) (or varP varR)))
+                , equiv (or varP (equiv varQ varR)) (equiv (or varP varQ) (or varP varR))
+                , [])
 
 
 {- | Tercero Excluido:
@@ -311,17 +315,17 @@ distEqOrAxiom = ("Distributividad de ≡ con ∨"
     p &#8744; &#172;p
 @
 -}
-excludThirdAxiom :: (Text,Expr)
-excludThirdAxiom = ("Tercero excluido", equiv (or varP (neg varP)) true)
+excludThirdAxiom :: (Text,Expr,[Condition])
+excludThirdAxiom = ("Tercero excluido", equiv (or varP (neg varP)) true,[])
 
 -- ===========
 -- CONJUNCION
 -- ===========
 
-goldenRuleAxiom :: (Text,Expr)
+goldenRuleAxiom :: (Text,Expr,[Condition])
 goldenRuleAxiom = ( "Regla Dorada"
                   , ((varP `and` varQ)  `equiv` varP) `equiv` (varQ `equiv` (varP `or` varQ))
-                  )
+                  , [])
 
                    
 -- ===========
@@ -368,84 +372,117 @@ implRule2 = Rule { lhs = impl varP varQ
 -- ===========
 -- PARA TODO
 -- ===========
-
-{- | Intercambio entre rango y t&#233;rmino: 
-@
-    <&#8704;x : r.x : f.x> &#8801; <&#8704;x : : r.x &#8658; f.x>
-@
--}
--- interRangeTermForall_Rule :: Rule
--- interRangeTermForall_Rule = Rule { lhs = forAll varX range term
---                                  , rhs = forAll varX true $ impl range term
---                                  , rel = relEquiv
---                                  , name = ""
---                                  , desc = ""
---                                  }
---     where varX = var "x" $ tyVar "A"
---           range = Expr $ Var $ var "r" $ tyBool
---           term = Expr $ Var $ var "t" $ tyBool
           
--- Axioma 5.3 (distributividad con or): X &#8744; &#8704;x : : f.x &#8801; &#8704;x : : X &#8744; f.x , siempre que x no ocurra en X. 
--- DUDA: C&#243;mo se implementa eso?
+-- Definicion de Axiomas generales:
 
-{- | Distributividad con &#8743;:
-@
-    <&#8704;x : : f.x> &#8743; <&#8704;x : : g.x> &#8801; <&#8704;x : : f.x &#8743; g.x>
-@
--}
--- distribAndForall_Rule :: Rule
--- distribAndForall_Rule = Rule { lhs = and (forAll varX true term1) (forAll varX true term2)
---                              , rhs = forAll varX true (and term1 term2)
---                              , rel = relEquiv
---                              , name = ""
---                              , desc = ""
---                              }
---     where varX = var "x" $ tyVar "A"
---           term1 = Expr $ Var $ var "t1" $ tyBool
---           term2 = Expr $ Var $ var "t2" $ tyBool
+emptyRangeForAll :: (Text,Expr,[Condition])
+emptyRangeForAll = 
+    ( "Rango Vacío Para Todo"
+    , emptyRange forAll equiv varX varP true
+    , []
+    )
+    
+unitRangeForAll :: (Text,Expr,[Condition])
+unitRangeForAll =
+    ( "Rango Unitario Para Todo"
+    , unitRange forAll equiv varX varN varP
+    , []
+    )
+    
+partRangeForAll :: (Text,Expr,[Condition])
+partRangeForAll =
+    ( "Partición de Rango Para Todo"
+    , partRange forAll equiv varX varP varQ varR
+    , []
+    )
+    
+termRuleForAll :: (Text,Expr,[Condition])
+termRuleForAll =
+    ( "Regla del Término Para Todo"
+    , termRule forAll equiv and varX varR varP varQ
+    , []
+    )
+    
+constTermForAll :: (Text,Expr,[Condition])
+constTermForAll =
+    ( "Regla del Término Constante Para Todo"
+    , constTermRule forAll equiv varX varR varP
+    , [VarNotInExpr varX peVarP,NotEmptyRange]
+    )
+    where Expr peVarP = varP
+    
+distLeftOrForAll :: (Text,Expr,[Condition])
+distLeftOrForAll =
+    ( "Distributividad a izquierda del o y Para Todo"
+    , distLeftQuant forAll equiv or varX varR varP varQ
+    , [VarNotInExpr varX peVarP]
+    )
+    where Expr peVarP = varP
+    
+distRightOrForAll :: (Text,Expr,[Condition])
+distRightOrForAll =
+    ( "Distributividad a derecha del o y Para Todo"
+    , distRightQuant forAll equiv or varX varR varP varQ
+    , [VarNotInExpr varX peVarP]
+    )
+    where Expr peVarP = varP
+    
+nestedRuleForAll :: (Text,Expr,[Condition])
+nestedRuleForAll =
+    ( "Regla de Anidado Para Todo"
+    , nestedRule forAll equiv varX varY varR varP varQ
+    , [VarNotInExpr varY peVarR]
+    )
+    where Expr peVarR = varR
+    
+changeVarForAll :: (Text,Expr,[Condition])
+changeVarForAll =
+    ( "Regla de Cambio de Variable Para Todo"
+    , changeVar forAll equiv varX varY varR varP
+    , [VarNotInExpr varY peVarR,VarNotInExpr varY peVarP]
+    )
+    where Expr peVarR = varR
+          Expr peVarP = varP
+    
+-- Axiomas particulares del Para Todo
+    
+interRangeTermForallAxiom :: (Text,Expr,[Condition])
+interRangeTermForallAxiom = 
+    ( "Intercambio entre rango y término"
+    , (forAll varX varP varQ) `equiv` (forAll varX true (impl varP varQ))
+    , []
+    )
+    
+distAndForAll :: (Text,Expr,[Condition])
+distAndForAll =
+    ( "Distributividad de y con Para todo"
+    , (and (forAll varX true varP) (forAll varX true varQ)) `equiv` 
+          (forAll varX true (and varP varQ))
+    , []
+    )
+    
+interQuantForAll :: (Text,Expr,[Condition])
+interQuantForAll =
+    ( "Intercambio de cuantificadores Para Todo"
+    , (forAll varX true (forAll varY true varP)) `equiv`
+      (forAll varY true (forAll varX true varP))
+    , []
+    )
+    
 
--- ------------------------------
--- Rango Unitario: <&#8704;x : x = Y : f.x> &#8801; f.Y
--- DUDA: Para definir esto tendriamos que saber si el tipo de la variable x tiene definida la igualdad. 
---       Algo como las typeclasses de haskell donde digamos que el tipo A es instancia de Eq, o algo as&#237;.
--- ------------------------------
-{-unitRangeForall_Rule :: Rule
-unitRangeForall_Rule = Rule { lhs = forAll varX (equal expr_varX expr_varY) term
-                            , rhs = Expr $ applySubst subst term
-                            , rel = relEquiv
-                            , name = ""
-                            , desc = ""
-                            }
-    where varX = var "x" $ tyVar "A"
-          varY = var "y" $ tyVar "A"
-          expr_varX = Expr $ Var $ varX
-          expr_varY = Expr $ Var $ varY
-          term = Expr $ Var $ var "t" $ tyBool
-          subst = M.insert varX (Expr varY) M.empty
-          -}
--- ------------------------------
--- Intercambio de &#8704;: <&#8704;x : : <&#8704;y : : f.x.y> &#8801; <&#8704;y : : <&#8704;x : : f.x.y>
--- DUDA: Es necesario que el termino sea una funcion que toma x e y? No podria ser cualquier termino?
--- ------------------------------
-{- | Intercambio de &#8704;:
-@
-    <&#8704;x : : <&#8704;y : : f.x.y> &#8801; <&#8704;y : : <&#8704;x : : f.x.y>
-@
--}
--- intercForall_Rule :: Rule
--- intercForall_Rule = Rule { lhs = forAll varX true $ forAll varY true term
---                          , rhs = forAll varY true $ forAll varX true term
---                          , rel = relEquiv
---                          , name = ""
---                          , desc = ""
---                          }
---     where varX = var "x" $ tyVar "A"
---           varY = var "y" $ tyVar "A"
---           term = Expr $ Var $ var "t" $ tyBool   
-
--- =======
+-- ===========
 -- EXISTE
--- =======
+-- ===========
+
+-- | Definición de Existe
+
+existDef :: (Text,Expr,[Condition])
+existDef =
+    ( "Definición de Existe"
+    , (exist varX varR varP) `equiv` (neg (forAll varX varR $ neg varP))
+    , []
+    )
+
 
 -- {- | Definicion de Existe:
 -- @
