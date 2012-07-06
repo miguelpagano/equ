@@ -1,0 +1,6 @@
+
+begin proof
+            〈∀ x : x = y: ¬ (succ z = 0)〉
+            ≡ { Regla del Término Constante Para Todo }
+            ¬ (succ z = 0)
+end proof
