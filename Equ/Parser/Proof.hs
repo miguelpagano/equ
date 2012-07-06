@@ -69,11 +69,11 @@ type ParserP a = ParsecT String PProofState Identity a
 
 -- | Retorna la pila de teoremas declarados.
 getProofSet :: ParserP ProofSet
-getProofSet = fmap pProofSet getState
+getProofSet = pProofSet <$> getState
 
 -- | Retorna la pila de teoremas declarados.
 getHypSet :: ParserP HypSet
-getHypSet = fmap pHypSet getState
+getHypSet = pHypSet <$> getState
 
 -- | Parsea un final de prueba que comienza con begin proof.
 parseProofEnd :: ParserP ()
@@ -81,7 +81,7 @@ parseProofEnd = many newline >> keywordEnd >> keywordProof
 
 -- | Si el conjunto de pruebas declaradas es vacio.
 proofSetIsEmpty :: ParserP Bool
-proofSetIsEmpty = fmap M.null getProofSet
+proofSetIsEmpty = M.null <$> getProofSet
 
 -- | Añade un nombre de declaración de prueba con su prueba si es que existe.                
 addHypName :: HypName -> Hypothesis -> ParserP ()
@@ -117,9 +117,19 @@ lexer = lexer' { whiteSpace = oneOf " \t" >> return ()}
 
 -- | Nombres reservados.
 rNames :: [String]
-rNames = [ "proof", "with", "for", "cases", "->"
-         , "where", "induction", "in", "begin"
-         , "[", "]", ",", "basic", "exhaustive"
+rNames = [ "proof"
+         , "with"
+         , "for"
+         , "cases"
+         , "->"
+         , "where"
+         , "induction"
+         , "in"
+         , "begin"
+         , "end"
+         , "[" , "]", ","
+         , "basic"
+         , "exhaustive"
          ]
 
 whites :: ParserP ()
@@ -172,7 +182,7 @@ parseHypName = parseName
 -- | Parsea nombres.
 parseName :: ParserP Text
 parseName =  
-    fmap pack (lexeme lexer (manyTill name (tryNewline <|> whites)))
+    pack <$> (lexeme lexer (manyTill name (tryNewline <|> whites)))
     where
         name :: ParserP Char
         name = foldr (\s -> (<|>) (keyword s >> unexpected (show s))) letter rNames
@@ -200,7 +210,7 @@ axiomInList ax = try $ (string . unpack . axName) ax >> return ax
 -- | Parser del nombre de una teoría; notar que el conjunto de teorías
 -- conocidas está definido en 'Equ.Theories.theories'
 pTheory :: ParserP TheoryName
-pTheory = fmap pack (choice (map (string . unpack) theories))
+pTheory = pack <$> (choice (map (string . unpack) theories))
 
 -- | Si el tipo 'a' tiene un campo 'Text', generamos un parser para
 -- ese tipo. Esta es la versión lifteada a listas de 'a'.
@@ -243,7 +253,7 @@ theorem = anyText thName
 -- Algo raro es que la posición de la linea siempre esta un lugar mas "adelante"
 parseFocus :: ParserP () -> ParserP Focus
 parseFocus till = getState >>= \st ->
-                     fmap (exprL $ pVarTy st) (manyTill anyChar till) >>= pass
+                     (exprL $ pVarTy st) <$> (manyTill anyChar till) >>= pass
     where
         pass :: Either ParseError Focus -> ParserP Focus
         pass ef = case ef of
@@ -252,7 +262,7 @@ parseFocus till = getState >>= \st ->
                                     fail $ show $ flip setErrorPos per $
                                     setSourceLine (errorPos per) (sourceLine p-1)
         exprL' :: Parser' Focus
-        exprL' = fmap (toFocus . unParen) (spaces >> parsePreExpr)
+        exprL' = (toFocus . unParen) <$> (spaces >> parsePreExpr)
         exprL :: VarTy -> String -> Either ParseError Focus
         exprL vt = runParser exprL' vt ""
         
@@ -260,10 +270,10 @@ parseFocus till = getState >>= \st ->
 -- | Parser de una justificación inmediata de un paso de prueba.
 -- TODO: considerar hipótesis.
 basic :: ParserP Basic
-basic =  fmap Ax (axiomUnQual theories) 
-     <|> fmap Theo (theorem [])
-     <|> fmap Hyp parseHyp
-     <|> fmap (Theo . flip createTheorem (holeProof Nothing relEq)) parseTheo
+basic =  Ax <$> (axiomUnQual theories) 
+     <|> Theo <$> (theorem [])
+     <|> Hyp <$> parseHyp
+     <|>  (Theo . flip createTheorem (holeProof Nothing relEq)) <$> parseTheo
     where
         parseHyp :: ParserP Hypothesis
         parseHyp = do
@@ -308,27 +318,27 @@ proof mc flag = do
         many newline
         when flag keywordBegin
         when flag keywordProof
-        case mc of
-            Just c  -> if flag then parseProof c 
-                               else transProof c flag
-            Nothing -> if flag then parseProof beginCtx 
-                               else transProof beginCtx flag
+        many newline
+        if flag 
+        then parseProof ctx
+        else transProof ctx flag
     where
+        ctx = maybe beginCtx id mc
         parsePrefix :: ParserP (Maybe Text)
         parsePrefix = 
             choice 
             [ try (parseProofName >>= \n -> parseHypothesis >> return (Just n))
-            , try (fmap Just parseProofName)
-            , try (fmap (\_ -> Nothing) parseHypothesis)
+            , try (Just <$> parseProofName)
+            , try (const Nothing <$> parseHypothesis)
             , return Nothing
             ]
         parseProof :: Ctx -> ParserP Proof
         parseProof c = 
             parsePrefix >>= \mname -> many newline >>
-            (   inducProof c
-            -- <|> casesProof c
-            <|> transProof c flag
-            ) >>= \p ->
+            choice [ inducProof c
+                   -- ,  <|> casesProof c            
+                   , transProof c flag
+                   ] >>= \p ->
             maybe 
                 (return p) 
                 (\name -> addProofNameWithProof name (Just p) >> return p) mname
@@ -422,19 +432,20 @@ transProof :: Ctx -> Bool -> ParserP Proof
 transProof ctx flag = do
                       e1 <- parseFocus tryNewline
                       pSet <- getProofSet
-                      fmap (mkTrans ctx e1 pSet) manyExprLine
+                      mkTrans ctx e1 pSet <$> manyExprLine
     where
         parseStep :: ParserP (Focus,(Relation, Maybe Basic))
         parseStep = do
                     rj <- justification
                     e <- parseFocus tryNewline
                     return (e,rj)
+
         manyExprLine :: ParserP [(Focus,(Relation, Maybe Basic))]
         manyExprLine = do 
                         frb <- parseStep
                         frbs <- if flag 
-                                    then manyTill parseStep parseProofEnd
-                                    else many parseStep
+                               then manyTill parseStep parseProofEnd
+                               else many parseStep
                         return (frb:frbs)
 
 -- | Parser de la relación sobre la que estamos haciendo la prueba.
