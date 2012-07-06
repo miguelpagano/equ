@@ -5,7 +5,8 @@ module Equ.Parser.Proof ( parsePfFromString'
                         , proof
                         , parseFromFileProof
                         , initPProofState
-                        , PProofState) where
+                        , PProofState
+                        , pProofSet) where
 
 import Equ.Parser.Expr
 import Equ.Expr (Expr(..))
@@ -276,10 +277,11 @@ basic =  Ax <$> (axiomUnQual theories)
      <|>  (Theo . flip createTheorem (holeProof Nothing relEq)) <$> parseTheo
     where
         parseHyp :: ParserP Hypothesis
-        parseHyp = do
+        parseHyp = try $ 
+                    do
                     n <- parseProofName
                     hSet <- getHypSet
-                    maybe (fail "algo") return (M.lookup n hSet)
+                    maybe (fail "Nombre de hipótesis") return (M.lookup n hSet)
         parseTheo :: ParserP ProofName
         parseTheo = do
                     n <- parseProofName
@@ -317,19 +319,24 @@ proof :: Maybe Ctx -> Bool -> ParserP Proof
 proof mc flag = do
         many newline
         when flag keywordBegin
-        when flag keywordProof
-        many newline
-        if flag 
-        then parseProof ctx
-        else transProof ctx flag
+        -- Acá no queremos usar keywordProof para mantener el "\n".
+        -- Medio en resumen, lo necesitamos para el primer caso del choice
+        -- si no estuviera, entra directo a parseProofName.
+        when flag (string "proof" >> many whites >> return ())
+        case mc of
+            Just c  -> if flag then parseProof c 
+                               else transProof c flag
+            Nothing -> if flag then parseProof beginCtx 
+                               else transProof beginCtx flag
     where
         ctx = maybe beginCtx id mc
         parsePrefix :: ParserP (Maybe Text)
         parsePrefix = 
             choice 
-            [ try (parseProofName >>= \n -> parseHypothesis >> return (Just n))
-            , try (Just <$> parseProofName)
-            , try (const Nothing <$> parseHypothesis)
+            [ try (newline >> return Nothing)
+            , try (parseProofName >>= \n -> parseHypothesis >> return (Just n))
+            , try (fmap Just parseProofName)
+            , try (fmap (\_ -> Nothing) parseHypothesis)
             , return Nothing
             ]
         parseProof :: Ctx -> ParserP Proof
