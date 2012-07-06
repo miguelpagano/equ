@@ -34,6 +34,8 @@ module Equ.Parser.Expr
     , parser
     , parserVar
     , VarTy
+    , initPExprState
+    , PExprState
     )
     where
 
@@ -62,11 +64,11 @@ data PError = UnOpNotApplied Operator
 
 type VarTy = (Int,Map (Either VarName FuncName) Type)
 
-type PState = VarTy
+type PExprState = VarTy
 
-type ParserTable = PE.OperatorTable String PState Identity PreExpr
-type Parser' a = ParsecT String PState Identity a
-type ParserOper = PE.Operator String PState Identity PreExpr
+type ParserTable = PE.OperatorTable String PExprState Identity PreExpr
+type Parser' a = ParsecT String PExprState Identity a
+type ParserOper = PE.Operator String PExprState Identity PreExpr
 
 -- | Configuración del parser.
 data LangDef = LangDef {
@@ -106,7 +108,7 @@ rNames = (map ($ equLang) [quantInit,quantEnd,quantSep])
          ++ listAtomTy
 
 -- Para lexical analisys.
-lexer' :: TokenParser PState
+lexer' :: TokenParser PExprState
 lexer' = makeTokenParser $
             emptyDef { reservedOpNames = rOpNames
                      , reservedNames = rNames
@@ -207,7 +209,7 @@ parseIf = reserved lexer "if" >>
           
 
 -- Calcula el tipo de una variable o funcion
-setType :: (Either VarName FuncName) -> PState -> (PState,Type)
+setType :: (Either VarName FuncName) -> PExprState -> (PExprState,Type)
 setType name (n,st) = if name `M.member` st
                       then ((n,st), st ! name)
                       else ((n+1, insert name newvar st), newvar)
@@ -272,13 +274,15 @@ parseIntPreExpr = intToCon <$> parseInt
 
 -- | Funcion principal de parseo desde string.
 parseFromString' :: String -> Either ParseError PreExpr
-parseFromString' = runParser parsePreExpr (0,M.empty) "TEST" 
+parseFromString' = runParser parsePreExpr initPExprState "TEST" 
 
 parseFromString :: String -> Either ParseError PreExpr
 parseFromString s = case parseFromString' s of
                          Left er -> Left er
                          Right pe -> Right $ unParen pe
 
+initPExprState :: PExprState
+initPExprState = (0,M.empty)
 -- | Gramatica de parseo.
 --
 -- @
