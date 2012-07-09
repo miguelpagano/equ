@@ -94,7 +94,14 @@ addHypName hypname hyp = do
                     _ -> do let hypSetUpdated = M.insert hypname hyp hypSet
                             putState $ pst {pHypSet = hypSetUpdated}
 
-   
+getDeclProof :: ProofName -> ParserP (Maybe Proof)
+getDeclProof pn = do
+            pst <- getState
+            let proofSet = pProofSet pst
+            case M.lookup pn proofSet of
+                (Just mproof) -> return mproof
+                _ -> return Nothing
+
 -- | Añade un nombre de declaración de prueba con su prueba si es que existe.                
 addProofNameWithProof :: ProofName -> Maybe Proof -> ParserP ()
 addProofNameWithProof pn p = do
@@ -274,7 +281,7 @@ basic :: ParserP Basic
 basic =  Ax <$> (axiomUnQual theories) 
      <|> Theo <$> (theorem [])
      <|> Hyp <$> parseHyp
-     <|>  (Theo . flip createTheorem (holeProof Nothing relEq)) <$> parseTheo
+     <|> Theo <$> parseTheo
     where
         parseHyp :: ParserP Hypothesis
         parseHyp = try $ 
@@ -282,11 +289,11 @@ basic =  Ax <$> (axiomUnQual theories)
                     n <- parseProofName
                     hSet <- getHypSet
                     maybe (fail "Nombre de hipótesis") return (M.lookup n hSet)
-        parseTheo :: ParserP ProofName
+        parseTheo :: ParserP Theorem
         parseTheo = do
                     n <- parseProofName
-                    addProofNameWithProof n Nothing
-                    return n
+                    mp <- getDeclProof n
+                    return $ createTheorem n $ fromJust mp
 
 -- | Parser de entidades entre llaves.
 braced :: ParserP a -> ParserP a
