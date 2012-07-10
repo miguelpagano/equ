@@ -24,6 +24,7 @@ module Equ.TypeChecker
       -- * Algoritmo de TypeChecking.
     , checkPreExpr
     , freshVars
+    , getType
     )
     where
 
@@ -261,3 +262,7 @@ typeCheckPreExpr e = case runRWS (runEitherT (check initCtx e)) (toFocus e) empt
         typing :: TySubst -> Ctx -> PreExpr
         typing subst ctx = fmap (\v -> appSubst v $ M.lookup (varName v) (vars ctx)) e
             where appSubst v = maybe v (\t -> v {varTy = rewrite subst (head t) }) 
+
+
+getType :: PreExpr -> Maybe Type
+getType = either (const Nothing) return . checkPreExpr

@@ -134,16 +134,6 @@ leftNeutral op n e = (n `op` e) `equal` e
 rightNeutral :: (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr
 rightNeutral op n e = (e `op` n) `equal` e
 
--- | 
-isTrue :: PreExpr -> Bool
-isTrue (Con t) = conName t == CTrue
-isTrue _ = False
-
-
--- | 
-isFalse :: PreExpr -> Bool
-isFalse (Con t) = conName t == CFalse
-isFalse _ = False
 
 
 {-| Expresiones para la construcción de axiomas para cuantificadores en general.
@@ -256,3 +246,11 @@ changeVar quant rel v w r t =
 -- | Extensión de applySubst a Expr
 applySubst' :: Expr -> ExprSubst -> Expr
 applySubst' (Expr p) = Expr . applySubst p
+
+isBoolean :: PreExpr -> Maybe Bool
+isBoolean (Con t) = case conName t of
+                      CTrue -> Just True
+                      CFalse -> Just False
+                      _ -> Nothing
+isBoolean _ = Nothing
+
