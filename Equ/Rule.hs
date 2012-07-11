@@ -4,7 +4,7 @@ module Equ.Rule (
                   Relation (..)
                 , Rule (..)
                 -- * Constructores de las diferentes relaciones.
-                , relEq, relEquiv, relImpl, relCons, mkrule
+                , relEq, relEquiv, relImpl, relCons, relEval, mkrule
                 )
     where
     
@@ -22,6 +22,7 @@ data RelName = Eq     -- ^ Igualdad polimorfica excepto para formulas
              | Equiv  -- ^ FOL: equivalencia
              | Impl   -- ^ FOL: implicacion
              | Cons   -- ^ FOL: consecuencia
+             | Eval   -- ^ FUN: evaluacion
     deriving (Eq, Show, Enum)
 
 instance Arbitrary RelName where
@@ -78,6 +79,9 @@ relCons = Relation { relRepr = pack "⇐"
                    , relSym = False
                    , relTy = tyBool
                    }
+
+relEval :: Relation
+relEval = Relation (pack "↝") Eval False (tyVar "a")
     
 -- | Regla de reescritura
 data Rule = Rule {

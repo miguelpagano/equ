@@ -4,10 +4,10 @@ module Equ.IndType where
 import Equ.Types
 import Equ.Syntax
 import Equ.PreExpr hiding (isVar)
-import Equ.TypeChecker(unifyTest)
+import Equ.TypeChecker(unifyTest,getType)
 
 import Data.Text (Text)
-
+import Data.Function (on)
 
 -- | Un tipo inductivo permite realizar Pattern Matching. Está relacionado con una teoria.
 data IndType = IndType {
@@ -18,6 +18,9 @@ data IndType = IndType {
           , indConstructors :: [Operator]
 }
     deriving Show
+
+instance Eq IndType where
+    (==) = (==) `on` ty
 
 -- | Un tipo inductivo valido debe ser construido con la siguiente funcion.
 -- | Si es el tipo que se quiere construir, t, es válido devuelve Just t. Otro caso Nothing.
@@ -107,3 +110,8 @@ splitByConst t = foldl go ([],[],[])
                                 | isIndConstPattern e' t  = (ks,us,p:bs)
                                 | otherwise = (ks,us,bs)
               where e' = toExpr e
+
+
+isConstructor :: IndType -> Operator -> Bool
+isConstructor ty op =  op `elem` baseConstructors ty || op `elem` indConstructors ty
+

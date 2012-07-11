@@ -17,6 +17,7 @@ import Data.Serialize(Serialize, get, getWord8, put, putWord8)
 import Control.Applicative ((<$>), (<*>),Applicative(..))
 import Test.QuickCheck(Arbitrary, arbitrary, oneof)
 import Data.Maybe(fromJust)
+import Control.Monad((>=>))
 
 -- | Definici&#243;n de los posibles lugares en los que podemos estar
 -- enfoc&#225;ndonos.
@@ -287,5 +288,5 @@ goTop f = goTop $ fromJust $ goUp f
 
 
 goIfTrue,goIfFalse :: Focus -> Maybe Focus
-goIfTrue f = goDown f >>= goRight
-goIfFalse f = goDown f >>= goRight >>= goRight
+goIfTrue = goDown >=> goRight
+goIfFalse = goDown >=> goRight >=> goRight

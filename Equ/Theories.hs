@@ -22,13 +22,12 @@ module Equ.Theories
     , arithAxioms
     , folAxioms
     , listAxioms
-    , isTrue
-    , isFalse
+    , isBoolean
     )
     where
 
 import Equ.Theories.AbsName
-import Equ.Theories.Common (isTrue,isFalse)
+import Equ.Theories.Common (isBoolean)
 import qualified Equ.Theories.Arith as A
 import qualified Equ.Theories.List as L
 import qualified Equ.Theories.FOL as F

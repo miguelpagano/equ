@@ -9,6 +9,7 @@ module Equ.Proof.Proof (
                  , Theorem(..)
                  , Truth(..)
                  , Hypothesis(..)
+                 , EvalStep(..)
                  , Name
                  -- * Pruebas
                  -- $proofs
@@ -44,7 +45,7 @@ import qualified Data.Text as T
 import Data.List (intersperse)
 import qualified Data.Set as Set
 
-import qualified Data.Map as M (Map (..), fromList, findMax, null, insert, lookup)
+import qualified Data.Map as M (Map (..), fromList, findMax, null, insert, lookup, empty)
 
 import Data.Monoid
 import Data.Maybe
@@ -59,7 +60,7 @@ type Name = Text
 
 -- | Comienza un contexto en base a una preExpresion.
 beginCtx :: Ctx
-beginCtx = M.fromList []
+beginCtx = M.empty
 
 -- | Retorna un nombre fresco sobre un contexto.
 freshName :: Ctx -> Name
@@ -166,6 +167,35 @@ data Theorem = Theorem {
     deriving Eq
     
 
+data EvalStep = EvConst 
+              | EvFun 
+              | EvVar 
+              | EvUnary Operator
+              | EvBinary Operator
+              | IfTrue
+              | IfFalse
+              | EvApp
+              | EvCase
+                deriving Eq
+
+instance Show EvalStep where
+    show EvConst = "Constante"
+    show EvFun = "Función"
+    show (EvUnary op) = "Definición de operador " ++ show op ++ " "
+    show (EvBinary op) = "Definición de operador " ++ show op ++ " "
+    show IfTrue = "Guarda verdadera"
+    show IfFalse = "Guarda falsa"
+    show EvApp = "Aplicación de función"
+    show EvCase = "Definición por casos"
+
+instance Truth EvalStep where
+    truthName = pack . show
+    truthExpr = const . Expr . PrExHole $ hole ""
+    truthRel = const relEval
+    truthRules = const []
+    truthBasic = Evaluation
+    truthConditions = const []
+
 instance Show Theorem where
     show th = (unpack . thName) th ++ ": " ++ (show . thExpr) th
 
@@ -242,10 +272,11 @@ instance Arbitrary Ctx where
 -- | Las pruebas elementales son aplicar un axioma (en un foco), 
 -- usar un teorema ya probado, o usar una hip&#243;tesis.
 data Basic where
-    Ax  :: Axiom -> Basic    -- Un axioma de cierta teor&#237;a.
-    Theo :: Theorem -> Basic  -- Un teorema ya probado.
-    Hyp :: Hypothesis -> Basic   --  Una hip&#243;tesis que aparece en el contexto.               
-    Evaluate :: Basic
+    Ax  :: Axiom -> Basic        -- Un axioma de cierta teor&#237;a.
+    Theo :: Theorem -> Basic     -- Un teorema ya probado.
+    Hyp :: Hypothesis -> Basic   -- Una hip&#243;tesis que aparece en el contexto.               
+    Evaluate :: Basic           -- Evaluacion interna para aritmética
+    Evaluation ::  EvalStep -> Basic
            deriving Eq
     
 instance Truth Basic where
@@ -253,26 +284,31 @@ instance Truth Basic where
     truthName (Theo t) = thName t
     truthName (Hyp h) = hypName h
     truthName Evaluate = "Evaluar"
+    truthName (Evaluation _) = "Evaluación"
 
     truthExpr (Ax a) = axExpr a
     truthExpr (Theo t) = thExpr t
     truthExpr (Hyp h) = hypExpr h
     truthExpr Evaluate = C.equal (varNat "x") (varNat "x")
+    truthExpr (Evaluation _) = error ""
 
     truthRel (Ax a) = axRel a
     truthRel (Theo t) = thRel t
     truthRel (Hyp h) = hypRel h
     truthRel Evaluate = relEq
+    truthRel (Evaluation _) = relEval
 
     truthRules (Ax a) = axRules a
     truthRules (Theo t) = thRules t
     truthRules (Hyp h) = hypRule h
     truthRules Evaluate = []
+    truthRules (Evaluation _) = []
     
     truthConditions (Ax a) = axCondition a
     truthConditions (Theo t) = thCondition t
     truthConditions (Hyp h) = hypCondition h
     truthConditions Evaluate = []
+    truthConditions (Evaluation _) = []
 
     truthBasic b = b
 
@@ -565,9 +601,12 @@ printPf Reflex = [""]
 printPf (Hole _ r f f') = [showExpr' (toExpr f),show r,  showExpr' (toExpr f')]
 printPf (Simple _ r f f' b) = [showExpr' (toExpr f),show r ++ " { " ++ show b ++ " }",showExpr' (toExpr f')]
 printPf (Trans _ r f f' f'' p p') = init (printPf p) ++ printPf p'
+printPf (Focus _ r f f' p) = [ showExpr' $ toExpr f, show r ++ " { sub-prueba }"
+                             , unlines . map ("  "++) $ printPf p
+                             , showExpr' $ toExpr f'
+                             ]
 
-
-printProof = (++"\n") . (concat . intersperse "\n" . printPf)
+printProof = (++"\n") . unlines . printPf
                                     
 -- Hace falta mejorar esta instancia.
 -- instance Show Proof where

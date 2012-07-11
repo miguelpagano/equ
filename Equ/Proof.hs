@@ -11,12 +11,14 @@ module Equ.Proof ( newProof
                  , validateStepProof
                  , simpleProof, addEmptyStep
                  , possibleExpr
+                 , beginCtx
                  , Truth (..)
                   -- * Axiomas y teoremas
                  , Axiom(..)
                  , Theorem(..)
                  , Basic(..)
                  , Hypothesis
+                 , EvalStep(..)
                  -- * Pruebas
                  -- $proofs
                  , Proof
@@ -40,6 +42,7 @@ module Equ.Proof ( newProof
                  , Name
                  , Ctx
                  , printProof
+                 , isBoolean
                  ) where
 
 import Equ.Proof.Annot
