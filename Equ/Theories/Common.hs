@@ -174,7 +174,7 @@ unitRange :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
 unitRange quant rel v e term = rel (quant v qrange term) (applySubst' term subst)
     where qrange = (Expr $ Var v) `equal` e
           subst = let (Expr pe) = e in
-                    M.fromList [(v,pe)]
+                    M.singleton v pe
 
           
 -- Particion de rango.
@@ -182,9 +182,9 @@ unitRange quant rel v e term = rel (quant v qrange term) (applySubst' term subst
         < Q v : or R S : T > rel < Q v : R : T > oper < Q v : S : T >
 -}
 partRange :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
-             Variable -> Expr -> Expr -> Expr -> Expr
-partRange quant rel v r s t =
-    rel (quant v (or r s) t) (or (quant v r t) (quant v s t))
+             (Expr -> Expr -> Expr) -> Variable -> Expr -> Expr -> Expr -> Expr
+partRange quant rel oper v r s t =
+    rel (quant v (or r s) t) (oper (quant v r t) (quant v s t))
 
     
 -- PARTICION DE RANGO GENERALIZADA: Necesito importar el cuantificador existencial.

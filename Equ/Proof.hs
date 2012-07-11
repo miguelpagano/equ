@@ -80,6 +80,8 @@ import Control.Monad
 import Control.Arrow((&&&),(***))
 import Control.Applicative ((<$>))
 
+import System.IO.Unsafe(unsafePerformIO)
+
 -- | Funciones auxiliares que podrían ir a su propio módulo.
 isRight :: Either a b -> Bool
 isRight (Right _) = True
@@ -125,7 +127,7 @@ checkSimpleStepFromRule f1 f2 rel t rule fMove =
     whenEqRelWithDefault errRel rel (truthRel t) [relEquiv,relEq] >>
     case partitionEithers $ rewriteAllFocusesInformative (PE.toExpr f1) rule of
          (_,[]) -> Left err
-         (_,ls) ->  case partitionEithers $ map checkeq ls of
+         (_,ls) -> case partitionEithers $ map checkeq ls of
                         (errors,[]) -> Left $ head errors
                         (_,xs) -> let funConds = map conditionFunction (truthConditions t) in
                                       case partitionEithers $ map (checkConds funConds) xs of

@@ -293,7 +293,8 @@ basic =  Ax <$> (axiomUnQual theories)
         parseTheo = do
                     n <- parseProofName
                     mp <- getDeclProof n
-                    return $ createTheorem n $ fromJust mp
+                    th <- return $ createTheorem n $ fromJust mp
+                    return th
 
 -- | Parser de entidades entre llaves.
 braced :: ParserP a -> ParserP a
@@ -485,7 +486,7 @@ parseFromFileProof fp = readFile fp >>= \s ->
                             Right ps -> print "-------" >> 
                                          print ps >> 
                                          print "-------" >> 
-                                         print (validateProof $ head ps)
+                                         print (map validateProof ps)
                             Left err -> print err
 
 initPProofState :: PProofState

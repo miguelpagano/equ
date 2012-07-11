@@ -400,7 +400,7 @@ unitRangeForAll =
 partRangeForAll :: (Text,Expr,[Condition])
 partRangeForAll =
     ( "Partición de Rango Para Todo"
-    , partRange forAll equiv varX varP varQ varR
+    , partRange forAll equiv and varX varP varQ varR
     , []
     )
     
