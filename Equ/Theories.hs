@@ -33,6 +33,7 @@ import qualified Equ.Theories.List as L
 import qualified Equ.Theories.FOL as F
 import Equ.Rule(mkrule,Relation(..), Rule(..),relImpl,relEquiv,relCons,relEq)
 import Equ.Proof.Proof
+import Equ.Proof.Condition
 import Equ.Expr
 import Equ.PreExpr
 
@@ -77,7 +78,7 @@ constGroup :: Grouped Constant
 constGroup = mkGrouped theories [F.theoryConstantsList, A.theoryConstantsList, L.theoryConstantsList]
 
 
-mkAxiomGroup :: [[(Text,Expr,[Condition])]] -> Grouped Axiom
+mkAxiomGroup :: [[(Text,Expr,Condition)]] -> Grouped Axiom
 mkAxiomGroup axioms = mkGrouped theories . uncurry (:) . ((F.assocEquivAx:) . head &&& tail) $
                       map (map (uncurry2 createAxiom)) axioms
 
@@ -148,7 +149,7 @@ createTheorem th_name proof = Theorem {
     , thRel = fromJust $ getRel proof
     , thProof = proof
     , thRules = createRulesAssoc expr
-    , thCondition = []
+    , thCondition = GenConditions []
     }
     
     where exp1 = (toExpr $ fromJust $ getStart proof)
@@ -175,25 +176,25 @@ createRulesAssoc e = whenZ isJust rules (getRelExp e) ++ metaRules (Expr e)
           
 
 -- | Dado un axioma reconstruye las reglas a partir de su expresión.
-createAxiom :: Text -> Expr -> [Condition] -> Axiom
-createAxiom name' ex conditions = Axiom { 
+createAxiom :: Text -> Expr -> Condition -> Axiom
+createAxiom name' ex cond = Axiom { 
                         axName = name'
                       , axExpr = ex
                       , axRel = fromJust $ getRelExp expr
                       , axRules = createRulesAssoc expr
-                      , axCondition = conditions
+                      , axCondition = cond
                     } 
     where (Expr expr) = ex
           
           
 -- | Dada una expresion, construye una hipotesis, calculando todas las reglas.
-createHypothesis :: Text -> Expr -> [Condition] -> Hypothesis
-createHypothesis name' ex@(Expr pe) conditions = Hypothesis { 
+createHypothesis :: Text -> Expr -> Condition -> Hypothesis
+createHypothesis name' ex@(Expr pe) cond = Hypothesis { 
                         hypName = name'
                       , hypExpr = ex
                       , hypRel = fromJust $ getRelExp pe
                       , hypRule = createRulesAssoc pe
-                      , hypCondition = conditions
+                      , hypCondition = cond
                     } 
 
 whenZ :: MonadPlus m => (a -> Bool) -> (a -> m b) -> a -> m b

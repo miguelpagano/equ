@@ -4,7 +4,6 @@
 module Equ.Proof.Proof (
                   -- * Axiomas y teoremas
                  Basic(..)
-                 , Condition(..)
                  , Axiom(..)
                  , Theorem(..)
                  , Truth(..)
@@ -30,6 +29,7 @@ module Equ.Proof.Proof (
                  , addHypothesis'
                  , printProof
                  , conditionFunction
+                 , getGenConditions
                  ) where
 
 import Equ.Expr
@@ -37,6 +37,7 @@ import Equ.PreExpr
 import Equ.Rule
 import Equ.TypeChecker
 import Equ.Types
+import Equ.Proof.Condition
 
 import qualified Equ.Theories.Common as C (equal,folFalse)
  
@@ -87,37 +88,8 @@ class Truth t where
     truthExpr  :: t -> Expr
     truthRel   :: t -> Relation
     truthRules :: t -> [Rule]
-    truthConditions :: t -> [Condition]
+    truthConditions :: t -> Condition
     truthBasic :: t -> Basic
-
-
-
-data Condition = VarNotInExpr Variable PreExpr -- La variable no ocurre en la expresion
-               | DisjointRanges -- Condición para aplicar Partición de Rango
-               | NotEmptyRange  -- El Rango de cuantificación es no vacío (distinto de False).
-               | InductiveHypothesis PreExpr -- En la hipótesis inductiva, la reescritura no se hace con cualquier variable
-                                              -- sino que tiene que ser exactamente con la misma variable del pattern.
- deriving (Eq,Show)
- 
-instance Arbitrary Condition where
-    arbitrary = oneof [ VarNotInExpr <$> arbitrary <*> arbitrary
-                      , return DisjointRanges
-                      , return NotEmptyRange
-                      , InductiveHypothesis <$> arbitrary
-                       ]
-                        
-instance Serialize Condition where
-    put (VarNotInExpr v p) = putWord8 0 >> put v >> put p
-    put DisjointRanges = putWord8 1
-    put NotEmptyRange = putWord8 2
-    put (InductiveHypothesis v)= putWord8 3 >> put v
-    
-    get = getWord8 >>= \tag_ ->
-        case tag_ of
-             0 -> VarNotInExpr <$> get <*> get
-             1 -> return DisjointRanges
-             2 -> return NotEmptyRange
-             3 -> InductiveHypothesis <$> get
         
 -- | Un axioma es una expresi&#243;n que puede ser interpretada como varias
 -- reglas de re-escritura.
@@ -129,7 +101,7 @@ data Axiom = Axiom {
     -- Condicion para aplicar un axioma. Es un predicado al que le pasamos como
     -- parametro la substitucion que se realiza al aplicar un axioma, y verifica
     -- que las expresiones cumplan alguna propiedad.
-    , axCondition :: [Condition]
+    , axCondition :: Condition
     }
     deriving Eq
 
@@ -162,7 +134,7 @@ data Theorem = Theorem {
     , thRel   :: Relation
     , thProof :: Proof
     , thRules :: [Rule]
-    , thCondition :: [Condition]
+    , thCondition :: Condition
     }
     deriving Eq
     
@@ -194,7 +166,7 @@ instance Truth EvalStep where
     truthRel = const relEval
     truthRules = const []
     truthBasic = Evaluation
-    truthConditions = const []
+    truthConditions = const (GenConditions [])
 
 instance Show Theorem where
     show th = (unpack . thName) th ++ ": " ++ (show . thExpr) th
@@ -215,14 +187,14 @@ instance Truth Theorem where
     truthRel   = thRel
     truthRules = thRules
     truthBasic = Theo
-    truthConditions = (\_ -> [])
+    truthConditions = (\_ -> GenConditions [])
 
 data Hypothesis = Hypothesis {
      hypName :: Text
    , hypExpr :: Expr
    , hypRel  :: Relation
    , hypRule :: [Rule]
-   , hypCondition :: [Condition]
+   , hypCondition :: Condition
 }
 
 instance Eq Hypothesis where
@@ -307,8 +279,8 @@ instance Truth Basic where
     truthConditions (Ax a) = axCondition a
     truthConditions (Theo t) = thCondition t
     truthConditions (Hyp h) = hypCondition h
-    truthConditions Evaluate = []
-    truthConditions (Evaluation _) = []
+    truthConditions Evaluate = GenConditions []
+    truthConditions (Evaluation _) = GenConditions []
 
     truthBasic b = b
 
@@ -904,7 +876,7 @@ addHypothesis expr rel exprs c = case checkPreExpr expr of
                 , hypExpr = Expr expr
                 , hypRel  = rel
                 , hypRule = map (rule . Expr) exprs
-                , hypCondition = []
+                , hypCondition = GenConditions []
                 }
           rule ex' = mkrule (Expr expr) ex' rel
 
@@ -924,7 +896,7 @@ addHypothesis' hyp ctx = M.insert (hypName hyp) hyp ctx
 varNat s = Expr $ Var $ var s (TyAtom ATyNat)
 
 
-conditionFunction :: Condition -> (ExprSubst -> PreExpr -> Bool)
+conditionFunction :: GCondition -> (ExprSubst -> PreExpr -> Bool)
 conditionFunction (VarNotInExpr v p) =
     \subst expr -> not $ Set.member v (freeVars $ applySubst p subst)
 conditionFunction (InductiveHypothesis pattern)=
@@ -940,3 +912,10 @@ conditionFunction (InductiveHypothesis pattern)=
                         _ -> False
 conditionFunction NotEmptyRange = 
     \subst expr -> (rangeExpr expr) /= (Con C.folFalse)
+
+   
+getGenConditions :: Condition -> [GCondition]
+getGenConditions (GenConditions lc) = lc
+getGenConditions _ = error "getGenConditions: Condición especial!"
+   
+   

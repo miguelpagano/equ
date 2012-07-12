@@ -26,6 +26,7 @@ import Equ.Expr
 import Equ.PreExpr
 import Equ.Rule
 import Equ.Proof.Proof
+import Equ.Proof.Condition
 import Equ.Theories.AbsName
 import Equ.Theories.Common
 
@@ -114,7 +115,7 @@ theoryOperatorsList = [folEqual,folEquiv,folDiscrep,folAnd,folOr,folImpl,folCons
 theoryQuantifiersList :: [Quantifier]
 theoryQuantifiersList = [folForall,folExist]
 
-theoryAxiomList :: [(Text,Expr,[Condition])]
+theoryAxiomList :: [(Text,Expr,Condition)]
 theoryAxiomList = [ conmEquivAxiom
                   , trueLNeutralEquiv
                   , trueRNeutralEquiv
@@ -216,7 +217,7 @@ assocEquivAx = Axiom {  axName = "Asociatividad de la Equivalencia"
                       , axExpr = expr
                       , axRel = relEquiv
                       , axRules = map mkr [(lhs,rhs),(rhs,lhs),(expr,true),(true,expr)]
-                      , axCondition = []
+                      , axCondition = GenConditions []
                      }
     where lhs = (varP `equiv` varR) `equiv` varQ
           rhs = varP `equiv` (varR `equiv` varQ)
@@ -224,38 +225,38 @@ assocEquivAx = Axiom {  axName = "Asociatividad de la Equivalencia"
           expr = associativityEquiv equiv varP varQ varR
 
 -- Axioma Conmutatividad de la equivalencia:
-conmEquivAxiom :: (Text,Expr,[Condition])
+conmEquivAxiom :: (Text,Expr,Condition)
 conmEquivAxiom = ("Conmutatividad de la Equivalencia", 
                   symmetryEquiv equiv varP varQ,
-                  [])
+                  GenConditions [])
 
-trueLNeutralEquiv :: (Text,Expr,[Condition])
+trueLNeutralEquiv :: (Text,Expr,Condition)
 trueLNeutralEquiv = ("Neutro de la equivalencia a izquierda", 
                      leftNeutralEquiv equiv true varP,
-                     [])
+                     GenConditions [])
 
-trueRNeutralEquiv :: (Text,Expr,[Condition])
+trueRNeutralEquiv :: (Text,Expr,Condition)
 trueRNeutralEquiv = ("Neutro de la equivalencia a derecha", 
                      rightNeutralEquiv equiv true varP,
-                     [])
+                     GenConditions [])
 
 
 -- =========
 -- NEGACION
 -- =========
 
-negEquivAxiom :: (Text,Expr,[Condition])
+negEquivAxiom :: (Text,Expr,Condition)
 negEquivAxiom = ("Negación y Equivalencia", 
                  neg (varP `equiv` varQ) `equiv` ((neg varP) `equiv` varQ),
-                 [])
+                 GenConditions [])
 
 {- | Definicion de false:
 @
     False &#8801; &#172;True
 @
 -}
-falseDefAxiom :: (Text,Expr,[Condition])
-falseDefAxiom = ("Definición de False",false `equiv` neg true,[])
+falseDefAxiom :: (Text,Expr,Condition)
+falseDefAxiom = ("Definición de False",false `equiv` neg true,GenConditions [])
                   
 
 -- ============
@@ -267,10 +268,10 @@ falseDefAxiom = ("Definición de False",false `equiv` neg true,[])
     (p /&#8801; q) &#8801; &#172;(p &#8801; q)
 @
 -}
-discrepDefAxiom :: (Text,Expr,[Condition])
+discrepDefAxiom :: (Text,Expr,Condition)
 discrepDefAxiom = ("Definición de discrepancia",  
                    (discrep varP varQ) `equiv` (neg (equiv varP varQ)),
-                   [])
+                   GenConditions [])
                     
 -- ===========
 -- DISYUNCION
@@ -281,10 +282,10 @@ discrepDefAxiom = ("Definición de discrepancia",
     (p &#8744; q) &#8744; r &#8801; p &#8744; (q &#8744; r)
 @
 -}
-assocOrAxiom :: (Text,Expr,[Condition])
+assocOrAxiom :: (Text,Expr,Condition)
 assocOrAxiom = ("Asociatividad del ∨", 
                 associativityEquiv or varP varR varQ,
-                [])
+                GenConditions [])
                     
 {- | Regla conmutatividad:
 @
@@ -292,8 +293,8 @@ assocOrAxiom = ("Asociatividad del ∨",
 @
 -}
                   
-commOrAxiom :: (Text,Expr,[Condition])
-commOrAxiom = ("Conmutatividad del ∨", symmetryEquiv or varP varQ,[])
+commOrAxiom :: (Text,Expr,Condition)
+commOrAxiom = ("Conmutatividad del ∨", symmetryEquiv or varP varQ,GenConditions [])
 
 {- | Regla idempotencia:
 @
@@ -301,14 +302,14 @@ commOrAxiom = ("Conmutatividad del ∨", symmetryEquiv or varP varQ,[])
 @
 -}
 
-idempotOrAxiom :: (Text,Expr,[Condition])
-idempotOrAxiom = ("Idempotencia del ∨", varP `or` varP `equiv` varP,[])
+idempotOrAxiom :: (Text,Expr,Condition)
+idempotOrAxiom = ("Idempotencia del ∨", varP `or` varP `equiv` varP,GenConditions [])
 
                       
-distEqOrAxiom :: (Text,Expr,[Condition])
+distEqOrAxiom :: (Text,Expr,Condition)
 distEqOrAxiom = ("Distributividad de ≡ con ∨"
                 , equiv (or varP (equiv varQ varR)) (equiv (or varP varQ) (or varP varR))
-                , [])
+                , GenConditions [])
 
 
 {- | Tercero Excluido:
@@ -316,17 +317,17 @@ distEqOrAxiom = ("Distributividad de ≡ con ∨"
     p &#8744; &#172;p
 @
 -}
-excludThirdAxiom :: (Text,Expr,[Condition])
-excludThirdAxiom = ("Tercero excluido", equiv (or varP (neg varP)) true,[])
+excludThirdAxiom :: (Text,Expr,Condition)
+excludThirdAxiom = ("Tercero excluido", equiv (or varP (neg varP)) true,GenConditions [])
 
 -- ===========
 -- CONJUNCION
 -- ===========
 
-goldenRuleAxiom :: (Text,Expr,[Condition])
+goldenRuleAxiom :: (Text,Expr,Condition)
 goldenRuleAxiom = ( "Regla Dorada"
                   , ((varP `and` varQ)  `equiv` varP) `equiv` (varQ `equiv` (varP `or` varQ))
-                  , [])
+                  , GenConditions [])
 
                    
 -- ===========
@@ -363,10 +364,10 @@ implRule2 = Rule { lhs = impl varP varQ
                  , desc = ""
                  }
 
-defImplAxiom :: (Text,Expr,[Condition])
+defImplAxiom :: (Text,Expr,Condition)
 defImplAxiom = ( "Definición del Implica"
                , (impl varP varQ) `equiv` ((or varP varQ) `equiv` varQ)
-               , []
+               , GenConditions []
                )
                  
                  
@@ -383,98 +384,99 @@ defImplAxiom = ( "Definición del Implica"
           
 -- Definicion de Axiomas generales:
 
-emptyRangeForAll :: (Text,Expr,[Condition])
+emptyRangeForAll :: (Text,Expr,Condition)
 emptyRangeForAll = 
     ( "Rango Vacío Para Todo"
     , emptyRange forAll equiv varX varP true
-    , []
+    , GenConditions []
     )
     
-unitRangeForAll :: (Text,Expr,[Condition])
+unitRangeForAll :: (Text,Expr,Condition)
 unitRangeForAll =
     ( "Rango Unitario Para Todo"
     , unitRange forAll equiv varX varN varP
-    , []
+    , SpecialCondition (UnitRangeC varX peVarP)
     )
+    where Expr peVarP = varP
     
-partRangeForAll :: (Text,Expr,[Condition])
+partRangeForAll :: (Text,Expr,Condition)
 partRangeForAll =
     ( "Partición de Rango Para Todo"
     , partRange forAll equiv and varX varP varQ varR
-    , []
+    , GenConditions []
     )
     
-termRuleForAll :: (Text,Expr,[Condition])
+termRuleForAll :: (Text,Expr,Condition)
 termRuleForAll =
     ( "Regla del Término Para Todo"
     , termRule forAll equiv and varX varR varP varQ
-    , []
+    , GenConditions []
     )
     
-constTermForAll :: (Text,Expr,[Condition])
+constTermForAll :: (Text,Expr,Condition)
 constTermForAll =
     ( "Regla del Término Constante Para Todo"
     , constTermRule forAll equiv varX varR varP
-    , [VarNotInExpr varX peVarP,NotEmptyRange]
+    , GenConditions [VarNotInExpr varX peVarP,NotEmptyRange]
     )
     where Expr peVarP = varP
     
-distLeftOrForAll :: (Text,Expr,[Condition])
+distLeftOrForAll :: (Text,Expr,Condition)
 distLeftOrForAll =
     ( "Distributividad a izquierda del o y Para Todo"
     , distLeftQuant forAll equiv or varX varR varP varQ
-    , [VarNotInExpr varX peVarP]
+    , GenConditions [VarNotInExpr varX peVarP]
     )
     where Expr peVarP = varP
     
-distRightOrForAll :: (Text,Expr,[Condition])
+distRightOrForAll :: (Text,Expr,Condition)
 distRightOrForAll =
     ( "Distributividad a derecha del o y Para Todo"
     , distRightQuant forAll equiv or varX varR varP varQ
-    , [VarNotInExpr varX peVarP]
+    , GenConditions [VarNotInExpr varX peVarP]
     )
     where Expr peVarP = varP
     
-nestedRuleForAll :: (Text,Expr,[Condition])
+nestedRuleForAll :: (Text,Expr,Condition)
 nestedRuleForAll =
     ( "Regla de Anidado Para Todo"
     , nestedRule forAll equiv varX varY varR varP varQ
-    , [VarNotInExpr varY peVarR]
+    , GenConditions [VarNotInExpr varY peVarR]
     )
     where Expr peVarR = varR
     
-changeVarForAll :: (Text,Expr,[Condition])
+changeVarForAll :: (Text,Expr,Condition)
 changeVarForAll =
     ( "Regla de Cambio de Variable Para Todo"
     , changeVar forAll equiv varX varY varR varP
-    , [VarNotInExpr varY peVarR,VarNotInExpr varY peVarP]
+    , SpecialCondition (ChangeVarC varY peVarR peVarP)
     )
     where Expr peVarR = varR
           Expr peVarP = varP
     
 -- Axiomas particulares del Para Todo
     
-interRangeTermForallAxiom :: (Text,Expr,[Condition])
+interRangeTermForallAxiom :: (Text,Expr,Condition)
 interRangeTermForallAxiom = 
     ( "Intercambio entre rango y término"
     , (forAll varX varP varQ) `equiv` (forAll varX true (impl varP varQ))
-    , []
+    , GenConditions []
     )
     
-distAndForAll :: (Text,Expr,[Condition])
+distAndForAll :: (Text,Expr,Condition)
 distAndForAll =
     ( "Distributividad de y con Para todo"
     , (and (forAll varX true varP) (forAll varX true varQ)) `equiv` 
           (forAll varX true (and varP varQ))
-    , []
+    , GenConditions []
     )
     
-interQuantForAll :: (Text,Expr,[Condition])
+interQuantForAll :: (Text,Expr,Condition)
 interQuantForAll =
     ( "Intercambio de cuantificadores Para Todo"
     , (forAll varX true (forAll varY true varP)) `equiv`
       (forAll varY true (forAll varX true varP))
-    , []
+    , GenConditions []
     )
     
 
@@ -484,11 +486,11 @@ interQuantForAll =
 
 -- | Definición de Existe
 
-existDef :: (Text,Expr,[Condition])
+existDef :: (Text,Expr,Condition)
 existDef =
     ( "Definición de Existe"
     , (exist varX varR varP) `equiv` (neg (forAll varX varR $ neg varP))
-    , []
+    , GenConditions []
     )
 
 

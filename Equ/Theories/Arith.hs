@@ -28,7 +28,7 @@ import Equ.PreExpr.Eval
 import Equ.Rule 
 import Equ.Theories.AbsName
 import Equ.Theories.Common
-import Equ.Proof.Proof(Condition)
+import Equ.Proof.Condition
 
 import Control.Applicative
 -- Estos módulos definen los símbolos de función
@@ -108,16 +108,16 @@ evalSum :: Expr
 evalSum = equal (sum (successor varI) varJ) (successor (sum varI varJ))
 
 -- | Axiomas: los construimos automáticamente.
-theoryAxiomList :: [(Text,Expr,[Condition])]
-theoryAxiomList = [ ("Evaluar suma", evalSum,[])
-                  , ("Neutro a izquierda de la suma",zeroLNeutralSum,[])
-                  , ("Neutro a derecha de la suma", zeroRNeutralSum,[])
-                  , ("Simetría de la suma", symSum,[])
-                  , ("Asociatividad de la suma", assocSum,[])
+theoryAxiomList :: [(Text,Expr,Condition)]
+theoryAxiomList = [ ("Evaluar suma", evalSum,GenConditions [])
+                  , ("Neutro a izquierda de la suma",zeroLNeutralSum,GenConditions [])
+                  , ("Neutro a derecha de la suma", zeroRNeutralSum,GenConditions [])
+                  , ("Simetría de la suma", symSum,GenConditions [])
+                  , ("Asociatividad de la suma", assocSum,GenConditions [])
                   -- Producto
-                  , ("Neutro a izquierda del producto",oneLNeutralProd,[])
-                  , ("Neutro a derecha del producto", oneRNeutralProd,[])
-                  , ("Simetría del producto", symProd,[])
-                  , ("Asociatividad del producto", assocProd,[])
+                  , ("Neutro a izquierda del producto",oneLNeutralProd,GenConditions [])
+                  , ("Neutro a derecha del producto", oneRNeutralProd,GenConditions [])
+                  , ("Simetría del producto", symProd,GenConditions [])
+                  , ("Asociatividad del producto", assocProd,GenConditions [])
                   ]
 

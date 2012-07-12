@@ -32,6 +32,7 @@ import Equ.Proof.Proof ( Proof'(..)
                        , getCtx
                        , setCtx
                        , Proof)
+import Equ.Proof.Condition
 import Equ.Proof.Induction (createIndHypothesis)
 import Equ.Theories (theories,axiomGroup,TheoryName
                     ,createTheorem,theoremAddProof, createHypothesis)
@@ -320,7 +321,7 @@ parseHypothesis = do
         parseHyp = do
                     n <- parseHypName
                     f <- parseFocus (keywordComma <|> keywordSBClose)
-                    return $ createHypothesis n (Expr $ toExpr f) []
+                    return $ createHypothesis n (Expr $ toExpr f) (GenConditions [])
 
 -- | Parser de pruebas.
 proof :: Maybe Ctx -> Bool -> ParserP Proof
@@ -430,7 +431,7 @@ casesProof ctx = do
                     
         addHypothesisCase :: (Focus,Proof) -> Maybe Proof
         addHypothesisCase (f,p) =
-            let hyp = createHypothesis "Caso" (Expr $ toExpr f) [] in
+            let hyp = createHypothesis "Caso" (Expr $ toExpr f) (GenConditions []) in
                 getCtx p >>= \ctx ->
                 setCtx (addHypothesis' hyp ctx) p
                     

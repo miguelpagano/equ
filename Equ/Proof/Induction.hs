@@ -4,6 +4,7 @@ module Equ.Proof.Induction (
     ) where
 
 import Equ.Proof.Proof
+import Equ.Proof.Condition
 import Equ.Theories.FOL
 import qualified Equ.PreExpr as PE
 import Equ.Syntax
@@ -25,7 +26,7 @@ createIndHypothesis :: Relation -> PE.Focus -> PE.Focus -> PE.Focus -> Variable
 createIndHypothesis rel f1 f2 p x nombre = 
     let pattern = PE.toExpr p in
         case pattern of
-             (PE.UnOp _ e) -> Just $ createHypothesis nombre (Expr $ hypIndExpr x e) [InductiveHypothesis e]
+             (PE.UnOp _ e) -> Just $ createHypothesis nombre (Expr $ hypIndExpr x e) (GenConditions [InductiveHypothesis e])
              -- Si tenemos un constructor binario, tenemos que ver si los parámetros
              -- del operador son del tipo inductivo. Si ambos lo son, la HI quedará
              -- como un "y" lógico de las dos subhipótesis inductivas (vale para el operando izquierdo
@@ -37,9 +38,9 @@ createIndHypothesis rel f1 f2 p x nombre =
                             --case (unifyTest t1 x_type,unifyTest t2 x_type) of
                             case (matchType t1 x_type,matchType t2 x_type) of  
                                  -- VER ESTE CASO: DEberian crearse DOS HI en vez de una con una conjunción.
-                                 (True,True) -> Just $ createHypothesis nombre (Expr $ hypIndExprBin x e1 e2) []
-                                 (True,False) -> Just $ createHypothesis nombre (Expr $ hypIndExpr x e1) [InductiveHypothesis e1]
-                                 (False,True) -> Just $ createHypothesis nombre (Expr $ hypIndExpr x e2) [InductiveHypothesis e2]
+                                 (True,True) -> Just $ createHypothesis nombre (Expr $ hypIndExprBin x e1 e2) (GenConditions [])
+                                 (True,False) -> Just $ createHypothesis nombre (Expr $ hypIndExpr x e1) (GenConditions [InductiveHypothesis e1])
+                                 (False,True) -> Just $ createHypothesis nombre (Expr $ hypIndExpr x e2) (GenConditions [InductiveHypothesis e2])
                                  _ -> Nothing
              _ -> Nothing
     -- Expresión que representa la hipótesis inductiva.

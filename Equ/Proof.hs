@@ -52,6 +52,7 @@ import Equ.Proof.Zipper
 import Equ.Proof.Monad
 import Equ.Proof.Error
 import Equ.Proof.ListedProof
+import Equ.Proof.Condition
 import Equ.Theories.Common hiding (and)
 import Equ.Theories.FOL(folOr)
 import Equ.TypeChecker(typeCheckPreExpr)
@@ -132,7 +133,7 @@ checkSimpleStepFromRule f1 f2 rel t rule fMove =
          (_,[]) -> Left err
          (_,ls) -> case partitionEithers $ map checkeq ls of
                         (errors,[]) -> Left $ head errors
-                        (_,xs) -> let funConds = map conditionFunction (truthConditions t) in
+                        (_,xs) -> let funConds = map conditionFunction (getGenConditions $ truthConditions t) in
                                       case partitionEithers $ map (checkConds funConds) xs of
                                            (errors,[]) -> Left $ head errors
                                            (_xs) -> return . snd' $ head xs
@@ -182,13 +183,24 @@ proofFromTruth f f' r basic fMove =
                 if checkEval f f' 
                 then Right $ Simple beginCtx r f f' Evaluate
                 else Left $ ProofError (BasicNotApplicable Evaluate) fMove
-        _ -> case partitionEithers $ 
-                map (flip simples fMove) (truthRules basic) of
-                    ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
-                    (_, p:ps) -> Right p
-                    (er, []) -> Left $ head er
+        _ -> case truthConditions basic of
+                  GenConditions _ ->
+                        case partitionEithers $ 
+                            map (flip simples fMove) (truthRules basic) of
+                            ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
+                            (_, p:ps) -> Right p
+                            (er, []) -> Left $ head er
+                  SpecialCondition sp ->
+                    case sp of
+                         UnitRangeC v e -> validateUnitRange f f' r basic fMove
+                         ChangeVarC v e e' -> validateChangeVar f f' r basic fMove
+
     where simples = proofFromRule f f' r basic
 
+validateUnitRange = undefined
+validateChangeVar = undefined
+    
+    
 validateProofFocus :: ProofFocus -> PM Proof
 validateProofFocus (pr,path) = validateProof pr
 
@@ -367,7 +379,7 @@ validateProof' proof@(Cases ctx rel f1 f2 e cases mGuardsProof) _ =
               sameProof proof cProof >>
               getCtx cProof >>= \cpCtx ->
               getCtx proof >>= \ctx ->
-              return (freshName cpCtx) >>= \name -> return (createHypothesis name (Expr $ PE.toExpr c) []) >>=
+              return (freshName cpCtx) >>= \name -> return (createHypothesis name (Expr $ PE.toExpr c) (GenConditions [])) >>=
               \hypCase -> (return $ Map.elems ctx) >>= \hypsProof ->
               (return $ Map.elems cpCtx) >>= \hypsCasesProof ->
               whenPM' (and $ map (\h -> elem h hypsProof || h==hypCase) hypsCasesProof)
