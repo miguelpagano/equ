@@ -93,16 +93,16 @@ freeVars (Case e cs) = freeVars e `union` (unions . map (uncurry (union `on` fre
 -- | Funcion que devuelve la variable cuantificada en un cuantificador.
 quantVar :: PreExpr -> Variable
 quantVar (Quant _ v _ _) = v
-quantVar _ = undefined
+quantVar _ = error "quantVar solo se aplica a expresiones cuantificadas"
 
 -- | Funcion que devuelve la expresión Termino de una expresión cuantificada
 termExpr :: PreExpr -> PreExpr
 termExpr (Quant _ _ _ t) = t
-termExpr _ = undefined
+termExpr _ = error "termExpr solo se aplica a expresiones cuantificadas"
 
 rangeExpr :: PreExpr -> PreExpr
 rangeExpr (Quant _ _ r _) = r
-rangeExpr _ = undefined
+rangeExpr _ = error "rangeExpr solo se aplica a expresiones cuantificadas"
 
 subExprQuant :: Focus -> Int
 subExprQuant = (1+) . length . focusToFocuses . Just

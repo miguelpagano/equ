@@ -136,7 +136,7 @@ checkSimpleStepFromRule f1 f2 rel t rule fMove =
                         (_,xs) -> let funConds = map conditionFunction (getGenConditions $ truthConditions t) in
                                       case partitionEithers $ map (checkConds funConds) xs of
                                            (errors,[]) -> Left $ head errors
-                                           (_xs) -> return . snd' $ head xs
+                                           (_,xs) -> return . snd' $ head xs
     where 
         errRel :: ProofError
         errRel = ProofError (ClashRel rel (truthRel t)) fMove
@@ -185,11 +185,11 @@ proofFromTruth f f' r basic fMove =
                 else Left $ ProofError (BasicNotApplicable Evaluate) fMove
         _ -> case truthConditions basic of
                   GenConditions _ ->
-                        case partitionEithers $ 
-                            map (flip simples fMove) (truthRules basic) of
-                            ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
-                            (_, p:ps) -> Right p
-                            (er, []) -> Left $ head er
+                        let tup = (partitionEithers $ map (flip simples fMove) (truthRules basic)) in
+                            case tup of
+                                ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
+                                (_, p:ps) -> Right p
+                                (er, []) -> Left $ head er
                   SpecialCondition sp ->
                     case sp of
                          UnitRangeC v e -> validateUnitRange f f' r basic fMove

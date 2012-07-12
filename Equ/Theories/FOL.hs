@@ -417,9 +417,10 @@ constTermForAll :: (Text,Expr,Condition)
 constTermForAll =
     ( "Regla del Término Constante Para Todo"
     , constTermRule forAll equiv varX varR varP
-    , GenConditions [VarNotInExpr varX peVarP,NotEmptyRange]
+    , GenConditions [VarNotInExpr varX peVarP,NotEmptyRange peVarR]
     )
     where Expr peVarP = varP
+          Expr peVarR = varR
     
 distLeftOrForAll :: (Text,Expr,Condition)
 distLeftOrForAll =

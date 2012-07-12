@@ -54,6 +54,7 @@ import Data.Serialize(Serialize, get, getWord8, put, putWord8, encode, decode)
 
 import Control.Applicative ((<$>), (<*>))
 import Test.QuickCheck
+import System.IO.Unsafe(unsafePerformIO)
 
 -- | Las hip&#243;tesis son nombradas por n&#250;meros.
 type Name = Text
@@ -899,6 +900,7 @@ varNat s = Expr $ Var $ var s (TyAtom ATyNat)
 conditionFunction :: GCondition -> (ExprSubst -> PreExpr -> Bool)
 conditionFunction (VarNotInExpr v p) =
     \subst expr -> not $ Set.member v (freeVars $ applySubst p subst)
+    
 conditionFunction (InductiveHypothesis pattern)=
     -- En la hipótesis inductiva, solo podemos validar la reecritura si
     -- la expresión por la q se quiere reemplazar la variable inductiva
@@ -910,9 +912,12 @@ conditionFunction (InductiveHypothesis pattern)=
                                         Var x -> varName x == varName var
                                         _ -> False
                         _ -> False
-conditionFunction NotEmptyRange = 
-    \subst expr -> (rangeExpr expr) /= (Con C.folFalse)
-
+conditionFunction (NotEmptyRange pattern) = 
+    \subst expr -> let range_expr = applySubst pattern subst in
+                       if range_expr == Con C.folFalse 
+                          then False
+                          else True
+    
    
 getGenConditions :: Condition -> [GCondition]
 getGenConditions (GenConditions lc) = lc
