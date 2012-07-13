@@ -46,7 +46,7 @@ import qualified Data.Text as T
 import Data.List (intersperse)
 import qualified Data.Set as Set
 
-import qualified Data.Map as M (Map (..), fromList, findMax, null, insert, lookup, empty)
+import qualified Data.Map as M (Map (..), fromList, findMax, null, insert, lookup, empty,singleton)
 
 import Data.Monoid
 import Data.Maybe
@@ -917,6 +917,13 @@ conditionFunction (NotEmptyRange pattern) =
                        if range_expr == Con C.folFalse 
                           then False
                           else True
+                          
+conditionFunction (ReplacedExpr e e' var e'') =
+    \subst expr -> 
+        let Var v = applySubst (Var var) subst in
+            (applySubst e subst) == applySubst (applySubst e' subst) (subst' v)
+        
+    where subst' v = M.singleton v e''
     
    
 getGenConditions :: Condition -> [GCondition]

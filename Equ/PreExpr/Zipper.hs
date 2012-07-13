@@ -39,6 +39,15 @@ data Path = Top
             deriving (Eq,Show)
             
             
+            
+-- | Dado un Path y un Focus, le aplica el camino que indica ese path al focus.
+-- applyPathToFocus :: Path -> Focus -> Maybe Focus
+-- applyPathToFocus Top f = Just f
+-- applyPathToFocus (UnOpD _ p) f = goDown f >>= applyPathToFocus p
+-- applyPathToFocus (BinOpL _ p _) f = goDownL f >>= applyPathToFocus p
+-- applyPathToFocus (BinOpR _ _ p) f = goDownR f >>= applyPathToFocus p
+-- applyPathToFocus (AppL p _) f = 
+--             
 {- El path en una expresion "case" lo definimos: Si estamos enfocados en la expresion sobre la que se hace pattern
    matching, entonces usamos CaseD.
    Si queremos enfocarnos en un pattern de la lista de patterns, entonces necesitamos guardar la expresión sobre la

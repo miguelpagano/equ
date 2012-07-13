@@ -184,6 +184,7 @@ varP,varQ,varR :: Expr
 varP= Expr $ Var $ var "p" tyBool
 varQ= Expr $ Var $ var "q" tyBool
 varR= Expr $ Var $ var "r" tyBool
+varT= Expr $ Var $ var "t" tyBool
 
 
 -- Variable para usar en las cuantificaciones en las reglas.
@@ -395,7 +396,7 @@ unitRangeForAll :: (Text,Expr,Condition)
 unitRangeForAll =
     ( "Rango Unitario Para Todo"
     , unitRange forAll equiv varX varN varP varQ
-    , SpecialCondition (UnitRangeC varX peVarN peVarP peVarQ)
+    , GenConditions [ReplacedExpr peVarQ peVarP varX peVarN]
     )
     where Expr peVarP = varP
           Expr peVarN = varN
@@ -451,11 +452,16 @@ nestedRuleForAll =
 changeVarForAll :: (Text,Expr,Condition)
 changeVarForAll =
     ( "Regla de Cambio de Variable Para Todo"
-    , changeVar forAll equiv varX varY varR varP
-    , SpecialCondition (ChangeVarC varY peVarR peVarP)
+    , changeVar forAll equiv varX varY varR varP varQ varT
+    , GenConditions [ReplacedExpr peVarQ peVarR varX (Var varY),
+                     ReplacedExpr peVarT peVarP varX (Var varY),
+                     VarNotInExpr varY peVarR,
+                     VarNotInExpr varY peVarP]
     )
     where Expr peVarR = varR
           Expr peVarP = varP
+          Expr peVarQ = varQ
+          Expr peVarT = varT
     
 -- Axiomas particulares del Para Todo
     

@@ -238,12 +238,9 @@ nestedRule quant rel v w r s term =
         (quant v r (quant w s term))
    
 changeVar :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
-              Variable -> Variable -> Expr -> Expr -> Expr
-changeVar quant rel v w r t =
-    rel (quant v r t) (quant w (applySubst' r subst) (applySubst' t subst))
-    where subst = M.fromList [(v,Var w)]
-
--- REGLA DE CAMBIO DE VARIABLE LA TENEMOS GRATIS POR COMO HACEMOS REESCRITURA?? (es una pregunta)
+              Variable -> Variable -> Expr -> Expr -> Expr -> Expr -> Expr
+changeVar quant rel v w r t r' t' =
+    rel (quant v r t) (quant w r' t')
 
 -- | Extensión de applySubst a Expr
 applySubst' :: Expr -> ExprSubst -> Expr

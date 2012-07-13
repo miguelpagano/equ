@@ -23,6 +23,7 @@ module Equ.Theories
     , folAxioms
     , listAxioms
     , isBoolean
+    , ruleExpr
     )
     where
 
@@ -134,6 +135,12 @@ getRelExp :: PreExpr -> Maybe Relation
 getRelExp (BinOp op _ _) = opToRel op
 getRelExp _ = Nothing
 
+    
+ruleExpr :: Rule -> PreExpr
+ruleExpr rule =
+    let (Expr l,Expr r,re) = (lhs rule,rhs rule,rel rule) in
+        BinOp (relToOp re) l r
+        
 
 -- DUDA: VER SI ESTAS FUNCIONES QUE SIGUEN DEBEN IR EN ESTE MODULO O EN OTRO.
 -- LAS QUISE PONER EN Equ.Proof PERO TENEMOS PROBLEMAS CON LOS IMPORTS

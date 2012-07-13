@@ -12,7 +12,6 @@ import Equ.Syntax
 --   SpecialCondition es una condición especial para algún axioma, en el cual el proceso de 
 --   aplicación de la regla es diferente al general.
 data Condition = GenConditions [GCondition]
-               | SpecialCondition SCondition
     deriving (Eq,Show)    
  
  -- | GCondition son condiciones que se chequean al aplicar un axioma luego de 
@@ -21,60 +20,39 @@ data GCondition = VarNotInExpr Variable PreExpr -- La variable no ocurre en la e
                  | NotEmptyRange PreExpr -- El Rango de cuantificación es no vacío (distinto de False).
                  | InductiveHypothesis PreExpr -- En la hipótesis inductiva, la reescritura no se hace con cualquier variable
                                               -- sino que tiene que ser exactamente con la misma variable del pattern.
-    deriving (Eq,Show)
- 
-data SCondition = -- Condición para el rango unitario. La variable es la cuantificada, las expresiones siguientes
-                  -- corresponden a la expresion a la q se iguala la variable en el rango, al termino
-                  -- y a la expresion derecha.
-                   UnitRangeC Variable PreExpr PreExpr PreExpr
-                 | ChangeVarC Variable PreExpr PreExpr --Condición para el cambio de variable. La variable es la nueva cuantificada
-                                                       -- las dos expresiones son el rango y el término.
+                 | ReplacedExpr PreExpr PreExpr Variable PreExpr -- ReplacedExpr p q v r chequea que p es igual a q donde se reemplaza
+                                                                 -- v por r
     deriving (Eq,Show)
  
 instance Arbitrary Condition where
     arbitrary = oneof [ GenConditions <$> arbitrary
-                      , SpecialCondition <$> arbitrary
                        ]
                    
 instance Serialize Condition where
     put (GenConditions lc) = putWord8 0 >> put lc
-    put (SpecialCondition sc) = putWord8 1 >> put sc
     
     get = getWord8 >>= \tag ->
         case tag of
              0 -> GenConditions <$> get
-             1 -> SpecialCondition <$> get
                    
                    
 instance Arbitrary GCondition where
     arbitrary = oneof [ VarNotInExpr <$> arbitrary <*> arbitrary
                       , NotEmptyRange <$> arbitrary
                       , InductiveHypothesis <$> arbitrary
+                      , ReplacedExpr <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
                       ]
                    
 instance Serialize GCondition where
     put (VarNotInExpr v p) = putWord8 0 >> put v >> put p
     put (NotEmptyRange p) = putWord8 1 >> put p
     put (InductiveHypothesis v)= putWord8 2 >> put v
+    put (ReplacedExpr p q v t) = putWord8 3 >> put p >> put q >> put v >> put t
     
     get = getWord8 >>= \tag_ ->
         case tag_ of
              0 -> VarNotInExpr <$> get <*> get
              1 -> NotEmptyRange <$> get
              2 -> InductiveHypothesis <$> get
-        
-instance Arbitrary SCondition where
-    arbitrary = oneof [ UnitRangeC <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
-                      , ChangeVarC <$> arbitrary <*> arbitrary <*> arbitrary
-                      ]
-                      
-instance Serialize SCondition where
-    put (UnitRangeC v p p' p'') = putWord8 0 >> put v >> put p >> put p' >> put p''
-    put (ChangeVarC v p p') = putWord8 1 >> put v >> put p >> put p'
-    
-    get = getWord8 >>= \tag ->
-        case tag of
-             0 -> UnitRangeC <$> get <*> get <*> get <*> get
-             1 -> ChangeVarC <$> get <*> get <*> get
-                      
+             3 -> ReplacedExpr <$> get <*> get <*> get <*> get
                       

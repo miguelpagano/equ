@@ -58,11 +58,12 @@ import Equ.Theories.FOL(folOr)
 import Equ.TypeChecker(typeCheckPreExpr)
 import Equ.Syntax hiding (Hole)
 
-import qualified Equ.PreExpr as PE hiding (replace)
+import qualified Equ.PreExpr as PE
 import Equ.Expr
 import Equ.PreExpr.Eval (evalExpr)
 import Equ.Rule
 import Equ.Rewrite
+import Equ.Matching
 
 import Equ.Types (Type)
 import Equ.TypeChecker (checkPreExpr)
@@ -123,6 +124,55 @@ whenEqRelWithDefault :: Eq a => ProofError -> a -> a -> [a] -> PM ()
 whenEqRelWithDefault def a b rs = whenPM (\b -> b==a || b `elem` rs) def b >> 
                                   return ()
 
+                                  
+
+checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> 
+                           Rule -> (ProofFocus -> ProofFocus) -> PM ()
+checkSimpleStepFromRule f1 f2 rel t rule move =
+    do
+        fs1 <- return $ PE.toFocuses $ PE.toExpr f1
+        fs2 <- return $ PE.toFocuses $ PE.toExpr f2
+        Expr leftE <- return $ lhs rule
+        Expr rightE <- return $ rhs rule
+        fs1' <- return $ filter (eitherToBool . (match leftE) . fst) fs1
+        fs2' <- return $ filter (eitherToBool . (match rightE) . fst) fs2
+        es <- return $ concatMap (flip applyFunct fs2') (map (pegar rel) fs1')
+        (_,res) <- return $ partitionEithers $ map lastMatch es
+        -- res <- return $ filter ((match (ruleExpr rule)) . fst) es
+        res' <- return $ filter ((==PE.toExpr f2) . PE.toExpr . replaceExpr) res
+--        unsafePerformIO (putStrLn ("Validando regla " ++ show rule) >> return (return ()))
+  --      unsafePerformIO (putStrLn ("Resultado del matching es " ++ show res') >> return (return ()))
+        res'' <- return $ filter checkConditions res'
+        whenPM' (not $ null res'') err
+        
+    where
+        err :: ProofError
+        err = ProofError (BasicNotApplicable $ truthBasic t) move
+        eitherToBool :: Either a b -> Bool
+        eitherToBool (Left _) = False
+        eitherToBool (Right _) = True
+        pegar :: Relation -> PE.Focus -> PE.Focus -> (PE.PreExpr,PE.Focus)
+        pegar rel f1@(e1,p) (e2,p') =
+            ((PE.BinOp (relToOp rel) e1 e2),f1)
+        replaceExpr :: (PE.PreExpr,PE.Focus,PE.ExprSubst) -> PE.Focus
+        replaceExpr (expr,focus,_) = 
+            case expr of
+                 PE.BinOp op f1 f2 -> PE.replace focus f2
+                 _ -> error "La expresion pegada no puede ser distinta de BinOp"
+        applyFunct :: (PE.Focus -> (PE.PreExpr,PE.Focus)) -> [PE.Focus] -> [(PE.PreExpr,PE.Focus)]
+        applyFunct fun fs = map fun fs
+        lastMatch :: (PE.PreExpr,PE.Focus) -> Either (MatchMErr,PE.Log) (PE.PreExpr,PE.Focus,PE.ExprSubst)
+        lastMatch (expr,f) = 
+            match (ruleExpr rule) expr >>= \subst ->
+            return (expr,f,subst)
+        checkConditions :: (PE.PreExpr,PE.Focus,PE.ExprSubst) -> Bool
+        checkConditions (_,_,subst) =
+            let condFuncts = map conditionFunction (getGenConditions $ truthConditions t) in
+                and $ map (\f -> f subst (PE.toExpr f1)) condFuncts
+        
+  
+                 {-
+                                  
 -- | Comprueba que el uso de una regla sea correcto. La relación que se
 -- pasa como argumento es el de la prueba.
 checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> 
@@ -155,7 +205,7 @@ checkSimpleStepFromRule f1 f2 rel t rule fMove =
         invMap (f:fs) (a,b) = (f a b):(invMap fs (a,b))
         snd' (_,b,_) = b
         errorCondition = ProofError (BasicConditionError (truthBasic t)) fMove
-        
+        -}   
         
 -- | Aplica reescritura en todos los focos posibles de una expresion
 applyRewrite :: Truth t => PE.Focus -> Relation -> t -> Rule -> 
@@ -170,7 +220,6 @@ applyRewrite f rel t rule fMove =
           err :: ProofError
           err = ProofError (BasicNotApplicable $ truthBasic t) fMove        
 
-        
 {- 
 Funciones para construir y manipular pruebas.
 Este kit de funciones deber&#237;a proveer todas las herramientas
@@ -179,8 +228,8 @@ necesarias para desarrollar pruebas en equ.
 proofFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> 
                             Rule -> (ProofFocus -> ProofFocus) -> PM Proof
 proofFromRule f1 f2 rel t r fMove = 
-                        checkSimpleStepFromRule f1 f2 rel t r fMove >>= 
-                        \f -> return $ Simple beginCtx rel f f2 $ truthBasic t
+                        checkSimpleStepFromRule f1 f2 rel t r fMove >>
+                        (return $ Simple beginCtx rel f1 f2 $ truthBasic t)
                                     
 -- | Dados dos focuses f1 y f2, una relacion rel y un axioma o
 -- teorema, intenta crear una prueba para f1 rel f2, utilizando el
@@ -193,15 +242,8 @@ proofFromTruth f f' r basic fMove =
                 if checkEval f f' 
                 then Right $ Simple beginCtx r f f' Evaluate
                 else Left $ ProofError (BasicNotApplicable Evaluate) fMove
-        _ -> case truthConditions basic of
-                  GenConditions _ ->
-                        proofFromTruth' (flip simples fMove) basic
-                  SpecialCondition sp ->
-                    case sp of
-                         UnitRangeC _ _ _ _ -> 
-                            proofFromTruth' (validateUnitRange f f' r basic fMove) basic
-                         ChangeVarC v e e' -> validateChangeVar f f' r basic fMove
-
+        _ -> proofFromTruth' (flip simples fMove) basic
+              
     where simples = proofFromRule f f' r basic
 
     
@@ -211,12 +253,14 @@ proofFromTruth' fValidateRule basic =
         ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
         (_, p:ps) -> Right p
         (er, []) -> Left $ head er
-
+{-
 validateUnitRange :: PE.Focus -> PE.Focus -> Relation -> Basic -> (ProofFocus -> ProofFocus) ->
                      Rule -> PM Proof
 validateUnitRange f f2 r basic fMove rule =
     applyRewrite f r basic rule fMove >>= \ls ->
-    unsafePerformIO (putStrLn ("aplicando regla "++ show rule ++ "\n Resultado es "++ show ls) >> (return $ Right Reflex)) >>
+--     unsafePerformIO (putStrLn ("aplicando regla "++ show rule ++ 
+--                                "\n f1 = "++show f++", f2 = "++show f2++
+--                                "\n Resultado es "++ show ls) >> (return $ Right Reflex)) >>
     let SpecialCondition (UnitRangeC v n term derE) = truthConditions basic in
         case partitionEithers $ map (checkUnitRangeCond v n term derE) ls of
             (errors,[]) -> Left $ head errors
@@ -234,14 +278,15 @@ validateUnitRange f f2 r basic fMove rule =
               -- Por lo tanto, no sabemos cuál es la variable cuantificada en la expresion.
               -- Este codigo asume que sí dice como matcheó la variable cuantificada.
               let (PE.Var v,n,term) = tmap (flip PE.applySubst subst) (PE.Var p_v,p_n,p_t) in
-                  whenPM' (PE.toExpr f2 == PE.applySubst term (subst' v n))
+                  --unsafePerformIO (putStrLn ("la expresion enfocada es "++ show (fst f2)) >> (return $ Right Reflex)) >>
+                  whenPM' (fst f2 == PE.applySubst term (subst' v n))
                           (ProofError (BasicNotApplicable basic) fMove) >>
                   return t
                   
                 where subst' v n= Map.singleton v n
                       tmap f (a,b,c) = (f a,f b,f c)
           
-          snd' (_,b,_) = b
+          snd' (_,b,_) = b-}
     
 validateChangeVar = undefined
     
@@ -259,11 +304,12 @@ validateStepProof lProof = let p = (pList lProof)!!(selIndex lProof)
                            in validateProof p
                           
 validateProof :: Proof -> PM Proof
-validateProof p = validateProof' p goTop'
+validateProof p =  validateProof' p goTop'
                           
 validateProof' :: Proof -> (ProofFocus -> ProofFocus) -> PM Proof
 validateProof' (Hole ctx rel f1 f2) moveFocus = Left $ ProofError HoleProof moveFocus
 validateProof' proof@(Simple ctx rel f1 f2 b) moveFocus = 
+--     unsafePerformIO (putStrLn ("\n\n---Validando subprueba: "++ show proof) >> (return (Right proof))) >> 
     proofFromTruth f1 f2 rel b moveFocus
 validateProof' proof@(Trans ctx rel f1 f f2 p1 p2) moveFocus = 
     getStart p1 >>= whenEqWithDefault err f1 >>
