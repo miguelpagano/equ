@@ -158,13 +158,15 @@ emptyRange quant rel v term neuter = rel (quant v false term) neuter
    que construye la expresion cuantificada, una funcion que crea la relación del cuantificador
    (por ejemplo equiv para el para todo, equal para la sumatoria). una variable, una expresion
    y el termino. La forma general de la regla es:
-   < Q v : v = e : term > rel term[v:=e] -}
+   < Q v : v = e : term > rel term[v:=e] 
+   La expresión general no dice nada sobre la expresion de la derecha. Se chequea por
+   medio de condiciones que esa expresion es la correpondiente.-}
 unitRange :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
-             Variable -> Expr -> Expr -> Expr
-unitRange quant rel v e term = rel (quant v qrange term) (applySubst' term subst)
+             Variable -> Expr -> Expr -> Expr -> Expr
+unitRange quant rel v e term derExpr = rel (quant v qrange term) derExpr
     where qrange = (Expr $ Var v) `equal` e
-          subst = let (Expr pe) = e in
-                    M.singleton v pe
+--           subst = let (Expr pe) = e in
+--                     M.singleton v pe
 
           
 -- Particion de rango.

@@ -394,10 +394,12 @@ emptyRangeForAll =
 unitRangeForAll :: (Text,Expr,Condition)
 unitRangeForAll =
     ( "Rango Unitario Para Todo"
-    , unitRange forAll equiv varX varN varP
-    , SpecialCondition (UnitRangeC varX peVarP)
+    , unitRange forAll equiv varX varN varP varQ
+    , SpecialCondition (UnitRangeC varX peVarN peVarP peVarQ)
     )
     where Expr peVarP = varP
+          Expr peVarN = varN
+          Expr peVarQ = varQ
     
 partRangeForAll :: (Text,Expr,Condition)
 partRangeForAll =
