@@ -128,18 +128,14 @@ whenEqRelWithDefault def a b rs = whenPM (\b -> b==a || b `elem` rs) def b >>
 checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> 
                            Rule -> (ProofFocus -> ProofFocus) -> PM PE.Focus
 checkSimpleStepFromRule f1 f2 rel t rule fMove = 
-    whenEqRelWithDefault errRel rel (truthRel t) [relEquiv,relEq] >>
-    case partitionEithers $ rewriteAllFocusesInformative (PE.toExpr f1) rule of
-         (_,[]) -> Left err
-         (_,ls) -> case partitionEithers $ map checkeq ls of
-                        (errors,[]) -> Left $ head errors
-                        (_,xs) -> let funConds = map conditionFunction (getGenConditions $ truthConditions t) in
-                                      case partitionEithers $ map (checkConds funConds) xs of
-                                           (errors,[]) -> Left $ head errors
-                                           (_,xs) -> return . snd' $ head xs
+    applyRewrite f1 rel t rule fMove >>= \ls ->
+    case partitionEithers $ map checkeq ls of
+        (errors,[]) -> Left $ head errors
+        (_,xs) -> let funConds = map conditionFunction (getGenConditions $ truthConditions t) in
+                        case partitionEithers $ map (checkConds funConds) xs of
+                            (errors,[]) -> Left $ head errors
+                            (_,xs) -> return . snd' $ head xs
     where 
-        errRel :: ProofError
-        errRel = ProofError (ClashRel rel (truthRel t)) fMove
         err :: ProofError
         err = ProofError (BasicNotApplicable $ truthBasic t) fMove
         checkeq :: (PE.Focus,PE.Focus,PE.ExprSubst) -> PM (PE.Focus,PE.Focus,PE.ExprSubst)
@@ -157,10 +153,24 @@ checkSimpleStepFromRule f1 f2 rel t rule fMove =
         invMap :: [(a -> b -> c)] -> (a,b) -> [c]
         invMap [] (_,_) = []
         invMap (f:fs) (a,b) = (f a b):(invMap fs (a,b))
-        thrd :: (a,b,c) -> c
-        thrd (_,_,c) = c
         snd' (_,b,_) = b
         errorCondition = ProofError (BasicConditionError (truthBasic t)) fMove
+        
+        
+-- | Aplica reescritura en todos los focos posibles de una expresion
+applyRewrite :: Truth t => PE.Focus -> Relation -> t -> Rule -> 
+                (ProofFocus -> ProofFocus) -> PM [(PE.Focus,PE.Focus,PE.ExprSubst)]
+applyRewrite f rel t rule fMove =
+    whenEqRelWithDefault errRel rel (truthRel t) [relEquiv,relEq] >>
+    case partitionEithers $ rewriteAllFocusesInformative (PE.toExpr f) rule of
+         (_,[]) -> Left err
+         (_,ls) -> return ls
+    where errRel :: ProofError
+          errRel = ProofError (ClashRel rel (truthRel t)) fMove
+          err :: ProofError
+          err = ProofError (BasicNotApplicable $ truthBasic t) fMove        
+
+        
 {- 
 Funciones para construir y manipular pruebas.
 Este kit de funciones deber&#237;a proveer todas las herramientas
@@ -185,19 +195,54 @@ proofFromTruth f f' r basic fMove =
                 else Left $ ProofError (BasicNotApplicable Evaluate) fMove
         _ -> case truthConditions basic of
                   GenConditions _ ->
-                        let tup = (partitionEithers $ map (flip simples fMove) (truthRules basic)) in
-                            case tup of
-                                ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
-                                (_, p:ps) -> Right p
-                                (er, []) -> Left $ head er
+                        proofFromTruth' (flip simples fMove) basic
                   SpecialCondition sp ->
                     case sp of
-                         UnitRangeC v e -> validateUnitRange f f' r basic fMove
+                         UnitRangeC _ _ _ _ -> 
+                            proofFromTruth' (validateUnitRange f f' r basic fMove) basic
                          ChangeVarC v e e' -> validateChangeVar f f' r basic fMove
 
     where simples = proofFromRule f f' r basic
 
-validateUnitRange = undefined
+    
+proofFromTruth' :: (Rule -> PM Proof) -> Basic -> PM Proof
+proofFromTruth' fValidateRule basic =
+    case partitionEithers $ map fValidateRule (truthRules basic) of
+        ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
+        (_, p:ps) -> Right p
+        (er, []) -> Left $ head er
+
+validateUnitRange :: PE.Focus -> PE.Focus -> Relation -> Basic -> (ProofFocus -> ProofFocus) ->
+                     Rule -> PM Proof
+validateUnitRange f f2 r basic fMove rule =
+    applyRewrite f r basic rule fMove >>= \ls ->
+    unsafePerformIO (putStrLn ("aplicando regla "++ show rule ++ "\n Resultado es "++ show ls) >> (return $ Right Reflex)) >>
+    let SpecialCondition (UnitRangeC v n term derE) = truthConditions basic in
+        case partitionEithers $ map (checkUnitRangeCond v n term derE) ls of
+            (errors,[]) -> Left $ head errors
+            (_,xs) -> return . snd' $ head xs
+        >>=
+        \f -> return $ Simple beginCtx r f f2 $ truthBasic basic
+            
+    where checkUnitRangeCond :: Variable -> PE.PreExpr -> PE.PreExpr -> PE.PreExpr ->
+                                (PE.Focus,PE.Focus,PE.ExprSubst) -> 
+                                PM (PE.Focus,PE.Focus,PE.ExprSubst)
+          checkUnitRangeCond p_v p_n p_t p_d t@(_,_,subst)=
+              -- Tenemos una expresion de la forma < Q v : v = n : term > rel term[v:=e] 
+              -- Chequeamos que la expresion derecha sea term con la substitución correspondiente.
+              -- PROBLEMA: Matching no devuelve la substitucion de las variables cuantificadas.
+              -- Por lo tanto, no sabemos cuál es la variable cuantificada en la expresion.
+              -- Este codigo asume que sí dice como matcheó la variable cuantificada.
+              let (PE.Var v,n,term) = tmap (flip PE.applySubst subst) (PE.Var p_v,p_n,p_t) in
+                  whenPM' (PE.toExpr f2 == PE.applySubst term (subst' v n))
+                          (ProofError (BasicNotApplicable basic) fMove) >>
+                  return t
+                  
+                where subst' v n= Map.singleton v n
+                      tmap f (a,b,c) = (f a,f b,f c)
+          
+          snd' (_,b,_) = b
+    
 validateChangeVar = undefined
     
     
