@@ -43,6 +43,7 @@ Library
                         Equ.PreExpr.Symbols,
                         Equ.Proof,
                         Equ.Proof.Annot,
+                        Equ.Proof.Condition,
                         Equ.Proof.Error,
                         Equ.Proof.Proof,
                         Equ.Proof.Induction,

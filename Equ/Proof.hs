@@ -38,6 +38,7 @@ module Equ.Proof ( newProof
                  -- * Funciones auxiliares
                  , addHypothesis
                  , getHypothesis
+                 , exprIsHypothesis 
                  , addBoolHypothesis
                  , Name
                  , Ctx

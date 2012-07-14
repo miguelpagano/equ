@@ -26,6 +26,7 @@ module Equ.Proof.Proof (
                  , addHypothesis
                  , addHypothesisProof
                  , getHypothesis
+                 , exprIsHypothesis 
                  , addHypothesis'
                  , printProof
                  , conditionFunction
@@ -43,10 +44,11 @@ import qualified Equ.Theories.Common as C (equal,folFalse)
  
 import Data.Text (Text, unpack,pack)
 import qualified Data.Text as T
-import Data.List (intersperse)
+import Data.List (intersperse,map)
 import qualified Data.Set as Set
 
-import qualified Data.Map as M (Map (..), fromList, findMax, null, insert, lookup, empty,singleton)
+import qualified Data.Map as M ( Map (..), fromList, findMax, null
+                               , insert, lookup, empty, elems, singleton)
 
 import Data.Monoid
 import Data.Maybe
@@ -78,6 +80,9 @@ freshName c = if M.null c then "a" else T.concat $ [maxName] ++ ["a"]
 
 getHypothesis :: Name -> Ctx -> Maybe Hypothesis
 getHypothesis = M.lookup
+
+exprIsHypothesis :: Expr -> Ctx -> Bool
+exprIsHypothesis e ctx = e `elem` (map (hypExpr) $ M.elems ctx)
 
 -- instance Arbitrary Name where
 --     arbitrary = Index <$> arbitrary
@@ -202,7 +207,7 @@ instance Eq Hypothesis where
     h1 == h2 = hypExpr h1 == hypExpr h2 && hypRel h1 == hypRel h2 && hypRule h1 == hypRule h2
 
 instance Show Hypothesis where
-    show = show . hypExpr
+    show hyp = show (hypName hyp) ++ ":" ++ show (hypExpr hyp)
 
 instance Truth Hypothesis where
     truthName = hypName

@@ -56,11 +56,13 @@ import qualified Data.Map as M (Map,empty,insert,toList,null, lookup)
 import Control.Monad.Identity
 import Control.Applicative ((<$>),(<$),(<*>))
 
+import System.IO.Unsafe
+
 type ProofName = Text
 type HypName = Text
 
 type ProofSet = M.Map ProofName (Maybe Proof)
-type HypSet = M.Map ProofName Hypothesis
+type HypSet = M.Map HypName Hypothesis
 
 data PProofState = PProofState { pHypSet :: HypSet
                                , pProofSet :: ProofSet
@@ -81,6 +83,11 @@ getHypSet = pHypSet <$> getState
 parseProofEnd :: ParserP ()
 parseProofEnd = many newline >> keywordEnd >> keywordProof
 
+-- | Borra las hipotesis del estado del parser de pruebas.
+resetHypSet :: ParserP ()
+resetHypSet = do pst <- getState
+                 putState $ pst {pHypSet = M.empty}
+
 -- | Si el conjunto de pruebas declaradas es vacio.
 proofSetIsEmpty :: ParserP Bool
 proofSetIsEmpty = M.null <$> getProofSet
@@ -88,30 +95,37 @@ proofSetIsEmpty = M.null <$> getProofSet
 -- | Añade un nombre de declaración de prueba con su prueba si es que existe.                
 addHypName :: HypName -> Hypothesis -> ParserP ()
 addHypName hypname hyp = do
-                pst <- getState
-                let hypSet = pHypSet pst
-                case M.lookup hypname hypSet of
-                    (Just _) -> return () -- error al usar un mismo nombre para dos pruebas?
-                    _ -> do let hypSetUpdated = M.insert hypname hyp hypSet
-                            putState $ pst {pHypSet = hypSetUpdated}
+            pst <- getState
+            let hypSet = pHypSet pst
+            let pSet = pProofSet pst
+            case (M.lookup hypname hypSet, M.lookup hypname pSet) of
+                (_,Just _) -> fail $ show hypname ++ 
+                                     " corresponde a un nombre de teorema."
+                (Just _,_) -> fail $ "El nombre de hipótesis " ++ show hypname 
+                                     ++ " ya ha sido utilizado."
+                _ -> do let hypSetUpdated = M.insert hypname hyp hypSet
+                        putState $ pst {pHypSet = hypSetUpdated}
 
+-- | Hace un lookup de un teorema declarado antes en base a su nombre.
 getDeclProof :: ProofName -> ParserP (Maybe Proof)
 getDeclProof pn = do
-            pst <- getState
-            let proofSet = pProofSet pst
-            case M.lookup pn proofSet of
-                (Just mproof) -> return mproof
-                _ -> return Nothing
+                pst <- getState
+                let proofSet = pProofSet pst
+                case M.lookup pn proofSet of
+                    (Just mproof) -> return mproof
+                    _ -> return Nothing
 
 -- | Añade un nombre de declaración de prueba con su prueba si es que existe.                
 addProofNameWithProof :: ProofName -> Maybe Proof -> ParserP ()
 addProofNameWithProof pn p = do
-                pst <- getState
-                let proofSet = pProofSet pst
-                case M.lookup pn proofSet of
-                    (Just (Just _)) -> return () -- error al usar un mismo nombre para dos pruebas?
-                    _ -> do let proofSetUpdated = M.insert pn p proofSet
-                            putState $ pst {pProofSet = proofSetUpdated}
+            pst <- getState
+            let proofSet = pProofSet pst
+            let hypSet = pHypSet pst
+            case (M.lookup pn proofSet) of
+                Just (Just _) -> fail $ "El nombre de teorema " ++ 
+                                        show pn ++ " ya ha sido utilizado."
+                _ -> do let proofSetUpdated = M.insert pn p proofSet
+                        putState $ pst {pProofSet = proofSetUpdated}
 
 lexer :: GenTokenParser String PProofState Identity
 lexer = lexer' { whiteSpace = oneOf " \t" >> return ()}
@@ -136,7 +150,6 @@ rNames = [ "proof"
          , "in"
          , "begin"
          , "end"
-         , "[" , "]", ","
          , "basic"
          , "exhaustive"
          ]
@@ -153,13 +166,15 @@ keywordBasic = keyword "basic"
 keywordExhaustive :: ParserP ()
 keywordExhaustive = keyword "exhaustive"
 keywordEnd :: ParserP ()
-keywordEnd = keyword "end"
+keywordEnd = keyword "end" >> resetHypSet
 keywordSBOpen :: ParserP ()
-keywordSBOpen = keyword "["
+keywordSBOpen = symbol lexer "[" >> return ()
 keywordSBClose :: ParserP ()
-keywordSBClose = keyword "]"
+keywordSBClose = symbol lexer "]" >> return ()
+keywordDots :: ParserP ()
+keywordDots = symbol lexer ":" >> return ()
 keywordComma :: ParserP ()
-keywordComma = keyword ","
+keywordComma = symbol lexer "," >> return ()
 keywordProof :: ParserP ()
 keywordProof = keyword "proof"
 keywordCases :: ParserP ()
@@ -179,23 +194,27 @@ keywordWith = keyword "with"
 keywordWhere :: ParserP ()
 keywordWhere = keyword "where"
 
-
 -- | Parsea nombres de declaración de teoremas.
 parseProofName :: ParserP Text
-parseProofName = parseName
+parseProofName = parseName >>= \n -> addProofNameWithProof n Nothing >> return n
 
 -- | Parsea nombres de declaración de hipotesis.
+parseDeclHypName :: ParserP Text
+parseDeclHypName = parseName' keywordDots
+
+-- | Parsea nombres de hipotesis en el contexto de una justificación.
 parseHypName :: ParserP Text
 parseHypName = parseName
 
 -- | Parsea nombres.
 parseName :: ParserP Text
-parseName =  
-    pack <$> (lexeme lexer (manyTill name (tryNewline <|> whites)))
+parseName =  parseName' (tryNewline <|> whites)
+
+parseName' :: ParserP end -> ParserP Text
+parseName' till = lexeme lexer (manyTill name till) >>= \s -> return (pack s)
     where
         name :: ParserP Char
         name = foldr (\s -> (<|>) (keyword s >> unexpected (show s))) letter rNames
-        
 
 tryNewline :: ParserP ()
 tryNewline = newline >> return ()
@@ -219,7 +238,7 @@ axiomInList ax = try $ (string . unpack . axName) ax >> return ax
 -- | Parser del nombre de una teoría; notar que el conjunto de teorías
 -- conocidas está definido en 'Equ.Theories.theories'
 pTheory :: ParserP TheoryName
-pTheory = pack <$> (choice (map (string . unpack) theories))
+pTheory = pack <$> choice (map (string . unpack) theories)
 
 -- | Si el tipo 'a' tiene un campo 'Text', generamos un parser para
 -- ese tipo. Esta es la versión lifteada a listas de 'a'.
@@ -262,7 +281,7 @@ theorem = anyText thName
 -- Algo raro es que la posición de la linea siempre esta un lugar mas "adelante"
 parseFocus :: ParserP () -> ParserP Focus
 parseFocus till = getState >>= \st ->
-                     (exprL $ pVarTy st) <$> (manyTill anyChar till) >>= pass
+                  exprL (pVarTy st) <$> manyTill anyChar till >>= pass
     where
         pass :: Either ParseError Focus -> ParserP Focus
         pass ef = case ef of
@@ -273,29 +292,32 @@ parseFocus till = getState >>= \st ->
         exprL' :: Parser' Focus
         exprL' = (toFocus . unParen) <$> (spaces >> parsePreExpr)
         exprL :: VarTy -> String -> Either ParseError Focus
-        exprL vt = runParser exprL' vt ""
+        exprL vt = runParser exprL' vt "" 
         
 
 -- | Parser de una justificación inmediata de un paso de prueba.
 -- TODO: considerar hipótesis.
 basic :: ParserP Basic
-basic =  Ax <$> (axiomUnQual theories) 
-     <|> Theo <$> (theorem [])
+basic =  Ax <$> axiomUnQual theories
      <|> Hyp <$> parseHyp
      <|> Theo <$> parseTheo
     where
         parseHyp :: ParserP Hypothesis
         parseHyp = try $ 
                     do
-                    n <- parseProofName
+                    n <- parseHypName
                     hSet <- getHypSet
-                    maybe (fail "Nombre de hipótesis") return (M.lookup n hSet)
+                    maybe (fail $ hypErr n) return (M.lookup n hSet)
         parseTheo :: ParserP Theorem
-        parseTheo = do
+        parseTheo = try $
+                    do
                     n <- parseProofName
                     mp <- getDeclProof n
-                    th <- return $ createTheorem n $ fromJust mp
-                    return th
+                    maybe (fail $ theoErr n) (return . createTheorem n) mp
+        theoErr :: ProofName -> String
+        theoErr n = "Prueba del teorema: " ++ show (unpack n)
+        hypErr :: HypName -> String
+        hypErr n = "Declaración de la hipótesis: " ++ show (unpack n)
 
 -- | Parser de entidades entre llaves.
 braced :: ParserP a -> ParserP a
@@ -311,17 +333,20 @@ justification = rel >>= \r -> spaces >>
 prooflist :: Maybe Ctx -> ParserP [Proof]
 prooflist mc = many (proof mc True)
 
+-- | Parser de declaraciones de hipótesis.
 parseHypothesis :: ParserP [Hypothesis]
 parseHypothesis = do
                     keywordSBOpen
-                    hyps <- many parseHyp
-                    return hyps
+                    many whites
+                    hyps <- many $ try $ parseHyp keywordComma
+                    hyp <- parseHyp keywordSBClose
+                    return $ hyps ++ [hyp]
     where
-        parseHyp :: ParserP Hypothesis
-        parseHyp = do
-                    n <- parseHypName
-                    f <- parseFocus (keywordComma <|> keywordSBClose)
-                    return $ createHypothesis n (Expr $ toExpr f) (GenConditions [])
+        parseHyp :: ParserP () -> ParserP Hypothesis
+        parseHyp till = do
+                n <- parseDeclHypName
+                f <- parseFocus till
+                return $ createHypothesis n (Expr $ toExpr f) (GenConditions [])
 
 -- | Parser de pruebas.
 proof :: Maybe Ctx -> Bool -> ParserP Proof
@@ -332,32 +357,44 @@ proof mc flag = do
         -- Medio en resumen, lo necesitamos para el primer caso del choice
         -- si no estuviera, entra directo a parseProofName.
         when flag (string "proof" >> many whites >> return ())
-        case mc of
-            Just c  -> if flag then parseProof c 
-                               else transProof c flag
-            Nothing -> if flag then parseProof beginCtx 
-                               else transProof beginCtx flag
+        if flag then parseProof else transProof ctx flag
     where
-        ctx = maybe beginCtx id mc
-        parsePrefix :: ParserP (Maybe Text)
+        ctx :: Ctx
+        ctx = fromMaybe beginCtx mc
+        
+        parseProof :: ParserP Proof
+        parseProof = 
+            parsePrefix >>= \(mname,mhyps) -> many newline >>
+            choice [ inducProof ctx
+                   , casesProof ctx
+                   , transProof ctx flag
+                   ] >>= \p ->
+            maybe (return p) (addHypsToProof p) mhyps >>= \p' ->
+            maybe (return p') (addProofNWP p') mname
+        
+        parsePrefix :: ParserP (Maybe Text,Maybe [Hypothesis])
         parsePrefix = 
             choice 
-            [ try (newline >> return Nothing)
-            , try (parseProofName >>= \n -> parseHypothesis >> return (Just n))
-            , try (fmap Just parseProofName)
-            , try (fmap (\_ -> Nothing) parseHypothesis)
-            , return Nothing
+            [ try (newline >> return (Nothing,Nothing))
+            , try (parseProofName >>= \n -> parseHypothesis >>= \hs -> 
+                   mapM_ addHypsToState hs >>
+                   return (Just n, Just hs))
+            , try (parseProofName >>= \n -> return (Just n, Nothing))
+            , try (parseHypothesis >>= \hs -> mapM_ addHypsToState hs >> 
+                   return (Nothing, Just hs))
+            , return (Nothing,Nothing)
             ]
-        parseProof :: Ctx -> ParserP Proof
-        parseProof c = 
-            parsePrefix >>= \mname -> many newline >>
-            choice [ inducProof c
-                   -- ,  <|> casesProof c            
-                   , transProof c flag
-                   ] >>= \p ->
-            maybe 
-                (return p) 
-                (\name -> addProofNameWithProof name (Just p) >> return p) mname
+        
+        addProofNWP :: Proof -> ProofName -> ParserP Proof
+        addProofNWP p name = addProofNameWithProof name (Just p) >> return p
+        addHyps :: [Hypothesis] -> Ctx -> Ctx
+        addHyps hyps ctx = foldr addHypothesis' ctx hyps
+        addHypsToState :: Hypothesis -> ParserP ()
+        addHypsToState hyp = addHypName (truthName hyp) hyp
+        addHypsToProof :: Proof -> [Hypothesis] -> ParserP Proof
+        addHypsToProof p hyps = do
+                    let Just ctx = getCtx p
+                    return $ fromJust $ setCtx (addHyps hyps ctx) p
 
 -- | Parseo de una prueba inductiva.
 inducProof :: Ctx -> ParserP Proof
@@ -371,7 +408,6 @@ inducProof ctx = do
             let Right typedFinduc = typeVarInduc fei fInduc
             cs <- parseInducCases rel fei fef (toExpr typedFinduc)
             parseProofEnd
-            --let Right typedFinduc = typeVarInduc fei fInduc
             let p = Ind ctx rel fei fef typedFinduc cs
             return p 
     where
@@ -390,13 +426,14 @@ inducProof ctx = do
                     c <- parseCases
                     cs <- manyTill parseCases keywordInduc
                     patt <- parseFocus keywordWith
-                    name <- parseHypName
+                    name <- parseName
                     let Just hypInd = createIndHypothesis r fei fef patt indv name
                     addHypName name hypInd
                     keywordRArrow
                     p <- proof (Just $ addHypothesis' hypInd ctx) False
                     return ((c:cs) ++ [(patt,p)])
         parseInducCases r fei fef _ = undefined
+
 -- | Parseo de una prueba por casos.
 -- TODO: Es igual a la de arriba, pero esto tal vez vaya a cambiar, así que 
 -- espero para acomodarla.
@@ -409,7 +446,7 @@ casesProof ctx = do
         [rel] <- manyTill rel keywordDot
         fef <- parseFocus keywordWhere
         (cs, mPEx) <- manyTillWithEnd parseCases (endExhaustive <|> endProof)
-        cs' <- return $ map (\p -> (fst p,fromJust $ addHypothesisCase p)) cs
+        let cs' = map (\ p -> (fst p, fromJust $ addHypothesisCase p)) cs
         return (Cases ctx rel fei fef fc cs' mPEx)
     where
         endExhaustive :: ParserP (Maybe Proof)
@@ -473,23 +510,24 @@ rel = foldr ((<|>) . uncurry prel) parserZero relations
 -- | Parser de prueba.
 parsePfFromString' :: String -> Either ParseError [Proof]
 parsePfFromString' = either handleError Right . runParser 
-                                                (prooflist Nothing) initPProofState "" 
+                                        (prooflist Nothing) initPProofState "" 
     where
         -- Esto esta pensando en que hay que hacer algo para obtener bien
         -- la posición del error.
         handleError :: ParseError -> Either ParseError [Proof]
         handleError = Left 
 
--- Parsea una prueba desde un archivo.
+-- | Parsea una prueba desde un archivo.
 parseFromFileProof :: FilePath -> IO ()
 parseFromFileProof fp = readFile fp >>= \s -> 
                         case parsePfFromString' s of
                             Right ps -> print "-------" >> 
-                                         print ps >> 
-                                         print "-------" >> 
-                                         print (map validateProof ps)
+                                        print ps >> 
+                                        print "-------" >> 
+                                        print (map validateProof ps)
                             Left err -> print err
 
+-- | Estado inicial del parser de pruebas.
 initPProofState :: PProofState
 initPProofState = PProofState M.empty M.empty initVarTy
     where
@@ -506,8 +544,8 @@ mkSimple c r e e' = maybe (Hole c r e e') (Simple c r e e')
 -- paso es simple mientras que todos los demás son transitivos.
 mkTrans :: Ctx -> Focus -> ProofSet -> [(Focus,(Relation, Maybe Basic))] -> Proof
 mkTrans c e pSet [] = error "impossible"
-mkTrans c e pSet ((e',(r,j)):[]) = mkSimple c r e e' (theoCheck pSet j)
-mkTrans c e pSet ((e',(r,j)):steps) = go (mkSimple c r e e' (theoCheck pSet j)) steps
+mkTrans c e pSet ((e',(r,j)):[]) = mkSimple c r e e' j
+mkTrans c e pSet ((e',(r,j)):steps) = go (mkSimple c r e e' j) steps
     where 
         go :: Proof -> [(Focus,(Relation, Maybe Basic))] -> Proof
         go p [] = p
@@ -515,12 +553,4 @@ mkTrans c e pSet ((e',(r,j)):steps) = go (mkSimple c r e e' (theoCheck pSet j)) 
             where 
                 e0 = fromJust (getStart p)
                 e1 = fromJust (getEnd p)
-                prf' = Trans c r e0 e1 e p (mkSimple c r e1 e (theoCheck pSet j))
-
--- | Chequear que un nombre de teorema este declarado antes.
-theoCheck :: ProofSet -> Maybe Basic -> Maybe Basic
-theoCheck pSet (Just b) = 
-    case (b, M.lookup (truthName b) pSet) of
-        (Theo theorem, Just (Just p)) -> Just $ Theo $ theoremAddProof p theorem
-        (Theo theorem, _) -> error $ "Falta la declaración del teorema " ++ show theorem
-        _ -> Just b
+                prf' = Trans c r e0 e1 e p (mkSimple c r e1 e j)

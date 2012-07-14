@@ -19,6 +19,7 @@ module Equ.PreExpr ( freeVars, freshVar
                    , getQAndVarFromQuant 
                    , createPairs
                    , subExprQuant
+                   , preExprApp
                    , quantVar, termExpr, rangeExpr
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
@@ -71,6 +72,10 @@ isPreExprQuant _ = False
 -- | Creamos un hueco de preExpresion con informaci&#243;n.
 preExprHole :: HoleInfo -> PreExpr
 preExprHole i = PrExHole $ hole i
+
+-- | En base a e1 y e2, creamos una preExpresion e1@e2
+preExprApp :: PreExpr -> PreExpr -> PreExpr
+preExprApp = App
 
 -- | Esta funci&#243;n devuelve todas las variables libres de una
 -- expresion TODO: pensar Case; las variables libres que ocurren en
