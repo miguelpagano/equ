@@ -5,6 +5,8 @@ module Equ.TypeChecker.Error where
 import Equ.Syntax
 import Equ.Types
 
+import Data.Text(unpack)
+
 -- | Errores de type-checking.
 data TyErr = ErrNotExpected Type Type -- ^ El tipo inferido/obtenido (primer
                                       -- argumento) no es el mismo que el 
@@ -25,5 +27,5 @@ instance Eq TyErr where
 
 instance Show TyErr where
     show (ErrNotExpected t t') = "Se esperaba el tipo " ++ show t ++ " y no el tipo " ++ show t'
-    show (ErrClashTypes s ts) = show (tRepr s) ++ " sólo puede tener un tipo"
+    show (ErrClashTypes s ts) = unpack (tRepr s) ++ " sólo puede tener un tipo" ++ show ts
     show (ErrUnification t t' s) = "Los tipos " ++ show t ++ " y " ++ show t' ++ " no se pueden unificar"

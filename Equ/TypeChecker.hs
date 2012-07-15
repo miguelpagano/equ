@@ -16,6 +16,7 @@ module Equ.TypeChecker
     , unify
     , emptySubst
     , unifyTest
+    , unificate
     , rewrite
     , typeCheckPreExpr 
     , vars
@@ -118,9 +119,11 @@ checkSyn :: (Syntactic s,Ord k) => s -> (s -> k) -> (s -> Type) ->
            (Ctx -> M.Map k [Type], Ctx -> M.Map k [Type] -> Ctx) -> Ctx -> TyState (Ctx,Type)
 checkSyn s n t (i,j) ctxs = case M.lookup sName ctx of
                               Nothing -> return $ (j ctxs (insertList sName sTy ctx),sTy)
-                              Just ts -> if head ts == sTy
-                                        then return (ctxs,sTy)
-                                        else tyerr $ ErrClashTypes s (sTy:ts)
+                              Just ts -> get >>= \sub ->
+                                        case unify (head ts) sTy sub of
+                                          Left err -> tyerr $ ErrClashTypes s (sTy:ts)
+                                          Right sub' -> return (ctxs,rewrite sub' sTy)
+--                                        else tyerr $ 
     where (sName, sTy) = (n s, t s)
           ctx = i ctxs
 
@@ -174,9 +177,9 @@ check ctx (UnOp op e) = do (ctx', t) <- checkAndUpdate ctx e goDown
                              Left err -> addLog (show (t,t',w)) >> tyerr err
                              Right s' -> put s' >> (lift . return) (ctx'', findVar w s')
 check ctx (BinOp op e e') = do (ctx', te) <- checkAndUpdate ctx e goDown
-                               addLog $ "Operando izquierda OK: " ++ show te
+                               addLog $ "Operando izquierda (" ++ show e ++ "):" ++ show te 
                                (ctx'', te') <- checkAndUpdate ctx' e' goDownR
-                               addLog $ "Operando derecha OK: " ++ show te'
+                               addLog $ "Operando derecha (" ++ show e' ++ "):" ++ show te'
                                (ctx''', tOp) <- checkOp op ctx''
                                addLog $ "Operador " ++ show op ++" OK: " ++ show tOp
                                s <- get

@@ -6,6 +6,7 @@ module Equ.TypeChecker.Unification
     , emptySubst
     , unifyList
     , unifyTest
+    , unificate
     , rewrite
     , findVar
     , match
@@ -61,6 +62,8 @@ unifyTest t t' = either (const False) (const True) $ unify t t' emptySubst
 emptySubst :: TySubst
 emptySubst = M.empty
 
+unificate :: Type -> Type -> Maybe Type
+unificate t t' = either (const Nothing) (return . flip rewrite t) $ unify t t' emptySubst
 
 -- | Devuelve True si el tipo izquierdo matchea con el derecho.
 match :: Type -> Type -> Bool
