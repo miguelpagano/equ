@@ -143,6 +143,8 @@ theoryAxiomList = [ conmEquivAxiom
                   , distAndForAll
                   , interQuantForAll
                   , existDef
+                  , magicAxiomEqual
+                  , magicAxiomEquiv
                   ]
  
 
@@ -501,6 +503,21 @@ existDef =
     , (exist varX varR varP) `equiv` (neg (forAll varX varR $ neg varP))
     , GenConditions []
     )
+    
+    
+magicAxiomEquiv :: (Text,Expr,Condition)
+magicAxiomEquiv =
+    ( "Harry Potter Equivalencia"
+    , varP `equiv` varQ
+    , GenConditions []
+    )
+    
+magicAxiomEqual :: (Text,Expr,Condition)
+magicAxiomEqual =
+    ( "Harry Potter Igualdad"
+    , varP `equal` varQ
+    , GenConditions []
+    )    
 
 
 -- {- | Definicion de Existe:

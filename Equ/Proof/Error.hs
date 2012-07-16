@@ -52,6 +52,9 @@ data PErrorInduction =
                      | IncorrectSubProof
                      | VariablePatternError -- Un pattern inductivo contiene una variable 
                                             -- que ocurre en una expresion de la prueba.
+                     | ExprCases  -- En una prueba con expresion case, los casos de la expresion
+                                  -- no son los mismos que los casos de la prueba.
+                     | VarExprCases -- La variable inductiva no es la misma que la variable de la expresión Cases.
     deriving Eq
     
 data PErrorCases =
@@ -97,6 +100,8 @@ instance Show PErrorInduction where
     show  IncorrectSubProof = "Expresiones en sub-pruebas no se corresponden con las expresiones de la prueba general."
     show VariablePatternError = "Un pattern contiene una variable distinta a la variable inductiva y que ocurre "++
                                 "en una expresión de la prueba general"
+    show ExprCases = "Los casos de la expresión case no se corresponden con los de la prueba inductiva."
+    show VarExprCases = "La variable inductiva no es la misma que la variable de la expresión case."
                                 
 instance Show PErrorCases where
     show GuardsProof = "La prueba de exahustividad de las guardas no está formada correctamente"

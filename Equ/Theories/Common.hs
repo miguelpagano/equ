@@ -49,6 +49,28 @@ folEqual = Operator { opRepr = "="
                     , opPrec = 5
                     , opGlyphs = []
                     }
+   
+-- | Menor estricto
+lessOper :: Operator
+lessOper = Operator { opRepr = "<"
+                    , opName = LessThan
+                    , opTy = tyVar "A" :-> tyVar "A" :-> tyBool
+                    , opAssoc = ALeft
+                    , opNotationTy = NInfix
+                    , opPrec = 5
+                    , opGlyphs = []
+                    }
+                    
+-- | Menor o igual
+lessOrEqOper :: Operator
+lessOrEqOper = Operator { opRepr = "≤"
+                    , opName = LessOrEqThan
+                    , opTy = tyVar "A" :-> tyVar "A" :-> tyBool
+                    , opAssoc = ALeft
+                    , opNotationTy = NInfix
+                    , opPrec = 5
+                    , opGlyphs = ["<="]
+                    }
                     
                     
 

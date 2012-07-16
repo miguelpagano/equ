@@ -1,0 +1,36 @@
+begin proof derivationAnd [ Especificacion : and@xs = 〈∀ i : 0 ≤ i ∧ i < #xs : xs.i 〉 ]
+            induction in xs for and@xs = case xs of
+                                            [] -> True
+                                            (y ▹ ys) -> y ∧ and@ys
+            where
+basic
+[] -> and@[]
+      ≡ { Especificacion }
+      〈∀ i : 0 ≤ i ∧ i < #[]: [].i 〉 
+      ≡ { Longitud de la lista vacía }
+      〈∀ i : 0 ≤ i ∧ i < 0: xs.i 〉 
+      ≡ { Harry Potter Equivalencia }
+     〈 ∀ i : False : [].i>
+      ≡ { Rango vacío sumatoria〉
+      True
+
+induction y ▹ ys with hypind -> and@(y ▹ ys)
+                                ≡ { Especificacion }
+                                〈∀ i : 0 ≤ i < #(y ▹ ys) : (y ▹ ys).i 〉
+                                ≡ { Longitud de lista no vacía }
+                                〈 ∀ i : 0 ≤ i ∧ i < 1+#ys : (y ▹ ys).i〉
+                                ≡ { Harry Potter Equivalencia }
+                                〈 ∀ i : 0 = i ∨ (0 < i ∧ i < 1+#ys) : (y ▹ ys).i〉
+                                ≡ { Partición de rango }
+                                〈 ∀ i : 0 = i : (y ▹ ys).i> ∧ 〈 ∀ i : 0 < i ∧ i < 1+#ys : (y ▹ ys).i〉
+                                ≡ { Rango unitario }
+                                (y ▹ ys).0 ∧ 〈 ∀ i : 0 < i ∧ i < 1+#ys : (y ▹ ys).i〉
+                                ≡ { Proyectar el elemento inicial }
+                                y ∧ 〈 ∀ i : 0 < i ∧ i < 1+#ys : (y ▹ ys).i〉
+                                ≡ { Harry Potter Equivalencia }
+                                y ∧ 〈 ∀ i : 0 < i ∧ i < #ys : (y ▹ ys).(i+1)〉
+                                ≡ { Proyectar el elemento (i+1) }
+                                y ∧ 〈 ∀ i : 0 < i ∧ i < #ys : ys.i〉
+                                ≡ { Especificacion }
+                                y ∧ and@ys
+end proof

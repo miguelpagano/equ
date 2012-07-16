@@ -103,13 +103,12 @@ isConstructorPattern f (BinOp op e1 e2) t = f op t && isVar e1 t && isVar e2 t
 isConstructorPattern _ _ _ = False
 
 
-splitByConst :: Type -> [(Focus, b)] -> ([(Focus, b)],[(Focus, b)],[(Focus, b)]) 
+splitByConst :: Type -> [(PreExpr, b)] -> ([(PreExpr, b)],[(PreExpr, b)],[(PreExpr, b)]) 
 splitByConst t = foldl go ([],[],[])
-    where go (ks,us,bs) p@(e,_) | isConstantPattern e' t  = (p:ks,us,bs)
-                                | isBaseConstPattern e' t = (ks,p:us,bs)
-                                | isIndConstPattern e' t  = (ks,us,p:bs)
+    where go (ks,us,bs) p@(e,_) | isConstantPattern e t  = (p:ks,us,bs)
+                                | isBaseConstPattern e t = (ks,p:us,bs)
+                                | isIndConstPattern e t  = (ks,us,p:bs)
                                 | otherwise = (ks,us,bs)
-              where e' = toExpr e
 
 
 isConstructor :: IndType -> Operator -> Bool
