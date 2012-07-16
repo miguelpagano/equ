@@ -67,6 +67,7 @@ type HypSet = M.Map HypName Hypothesis
 data PProofState = PProofState { pHypSet :: HypSet
                                , pProofSet :: ProofSet
                                , pVarTy :: VarTy
+                               , pUseParen :: ParenFlag
                                }
 
 type ParserP a = ParsecT String PProofState Identity a
@@ -280,8 +281,9 @@ theorem = anyText thName
 -- ademas pasa que tenemos que re-acomodar la posición del error.
 -- Algo raro es que la posición de la linea siempre esta un lugar mas "adelante"
 parseFocus :: ParserP () -> ParserP Focus
-parseFocus till = getState >>= \st ->
-                  exprL (pVarTy st) <$> manyTill anyChar till >>= pass
+parseFocus till = 
+            getState >>= \st ->
+            exprL (pVarTy st,pUseParen st) <$> manyTill anyChar till >>= pass
     where
         pass :: Either ParseError Focus -> ParserP Focus
         pass ef = case ef of
@@ -291,8 +293,8 @@ parseFocus till = getState >>= \st ->
                                     setSourceLine (errorPos per) (sourceLine p-1)
         exprL' :: Parser' Focus
         exprL' = (toFocus . unParen) <$> (spaces >> parsePreExpr)
-        exprL :: VarTy -> String -> Either ParseError Focus
-        exprL vt = runParser exprL' vt "" 
+        exprL :: (VarTy,ParenFlag) -> String -> Either ParseError Focus
+        exprL st = runParser exprL' st "" 
         
 
 -- | Parser de una justificación inmediata de un paso de prueba.
@@ -510,7 +512,7 @@ rel = foldr ((<|>) . uncurry prel) parserZero relations
 -- | Parser de prueba.
 parsePfFromString' :: String -> Either ParseError [Proof]
 parsePfFromString' = either handleError Right . runParser 
-                                        (prooflist Nothing) initPProofState "" 
+                            (prooflist Nothing) (initPProofState UnusedParen) ""
     where
         -- Esto esta pensando en que hay que hacer algo para obtener bien
         -- la posición del error.
@@ -528,7 +530,7 @@ parseFromFileProof fp = readFile fp >>= \s ->
                             Left err -> print err
 
 -- | Estado inicial del parser de pruebas.
-initPProofState :: PProofState
+initPProofState :: ParenFlag -> PProofState
 initPProofState = PProofState M.empty M.empty initVarTy
     where
         initVarTy :: VarTy
