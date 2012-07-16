@@ -36,6 +36,7 @@ module Equ.Parser.Expr
     , VarTy
     , initPExprState
     , PExprState
+    , ParenFlag (..)
     )
     where
 
@@ -64,7 +65,9 @@ data PError = UnOpNotApplied Operator
 
 type VarTy = (Int,Map (Either VarName FuncName) Type)
 
-type PExprState = VarTy
+type PExprState = (VarTy,ParenFlag)
+
+data ParenFlag = UseParen | UnusedParen
 
 type ParserTable = PE.OperatorTable String PExprState Identity PreExpr
 type Parser' a = ParsecT String PExprState Identity a
@@ -120,7 +123,8 @@ lexer = lexer' { whiteSpace = oneOf " \t" >> return ()}
 
 -- Parser principal de preExpresiones.
 parsePreExpr :: Parser' PreExpr
-parsePreExpr = PE.buildExpressionParser operatorTable subexpr
+parsePreExpr = getState >>= \(_,flag) ->
+                PE.buildExpressionParser operatorTable (subexpr flag)
                <?> "Parser error: Expresi&#243;n mal formada"
 
 -- Construimos la table que se le pasa a buildExpressionParser:
@@ -155,16 +159,21 @@ convertAssoc ARight = PE.AssocRight
 -- Parseamos las subexpresiones
 -- Una expresion puede ser una expresion con parentesis, una constante, una expresion cuantificada,
 -- una variable, una funci&#243;n o una expresion que viene desde un parseo por syntactic sugar
-subexpr :: Parser' PreExpr
-subexpr =     Paren <$> parens lexer parsePreExpr
-          <|> Con <$> parseConst
-          <|> parseSugarPreExpr parsePreExpr
-          <|> parseQuant 
-          <|> parseIf
-          <|> Var <$> parseVar
-          <|> Fun <$> parseFunc
-          <|> parseHole
-
+subexpr :: ParenFlag -> Parser' PreExpr
+subexpr flag = parseParen <$> parens lexer parsePreExpr
+            <|> Con <$> parseConst
+            <|> parseSugarPreExpr parsePreExpr
+            <|> parseQuant 
+            <|> parseIf
+            <|> parseCase
+            <|> Var <$> parseVar
+            <|> Fun <$> parseFunc
+            <|> parseHole
+    where
+        parseParen :: (PreExpr -> PreExpr)
+        parseParen = case flag of
+                        UseParen -> Paren
+                        UnusedParen -> id
                             
 -- Parseo de Constantes definidas en la teoria
 -- Vamos juntando las opciones de parseo de acuerdo a cada constante en la lista.
@@ -207,12 +216,28 @@ parseIf = reserved lexer "if" >>
           reserved lexer "fi" >>
           return (If cond branchT branchF)
           
+parseCase :: Parser' PreExpr
+parseCase = reserved lexer "case" >>
+            parsePreExpr >>= \ expr ->
+            reserved lexer "of" >>
+            manyTill1 parseCases (reserved lexer "end") >>= \ cases ->
+            return (Case expr cases)
+    where
+        manyTill1 :: Parser' a -> Parser' end -> Parser'[a]
+        manyTill1 p till = p >>= \ x ->
+                           manyTill p till >>= \ xs ->
+                           return (x:xs)
+        parseCases :: Parser' (PreExpr,PreExpr)
+        parseCases = parsePreExpr >>= \ c ->
+                     reserved lexer "->" >>
+                     parsePreExpr >>= \ ce ->
+                     return (c,ce)
 
 -- Calcula el tipo de una variable o funcion
 setType :: (Either VarName FuncName) -> PExprState -> (PExprState,Type)
-setType name (n,st) = if name `M.member` st
-                      then ((n,st), st ! name)
-                      else ((n+1, insert name newvar st), newvar)
+setType name ((n,st),flag) = if name `M.member` st
+                      then (((n,st),flag), st ! name)
+                      else (((n+1, insert name newvar st),flag), newvar)
     where newvar = tyVarInternal n
 
 -- Esta funcion parsea una variable. Nos fijamos que empiece con
@@ -273,16 +298,22 @@ parseIntPreExpr = intToCon <$> parseInt
 -- //////// Parser de syntax sugar ////////
 
 -- | Funcion principal de parseo desde string.
-parseFromString' :: String -> Either ParseError PreExpr
-parseFromString' = runParser parsePreExpr initPExprState "TEST" 
+parseFromString' :: ParenFlag -> String -> Either ParseError PreExpr
+parseFromString' flag = runParser parsePreExpr (initPExprState flag) "TEST"
 
 parseFromString :: String -> Either ParseError PreExpr
-parseFromString s = case parseFromString' s of
+parseFromString s = case parseFromString' UseParen s of
                          Left er -> Left er
                          Right pe -> Right $ unParen pe
 
-initPExprState :: PExprState
-initPExprState = (0,M.empty)
+parseFromStringUnusedP :: String -> Either ParseError PreExpr
+parseFromStringUnusedP s = case parseFromString' UnusedParen s of
+                         Left er -> Left er
+                         Right pe -> Right $ unParen pe
+
+
+initPExprState :: ParenFlag -> PExprState
+initPExprState flag = ((0,M.empty),flag)
 -- | Gramatica de parseo.
 --
 -- @
@@ -333,8 +364,8 @@ initPExprState = (0,M.empty)
 parser :: String -> PreExpr
 parser = either showError showPreExpr . parseFromString
 
-parserVar :: String -> Either ParseError Variable
-parserVar = runParser parseVar (0,M.empty) "TEST" 
+parserVar :: ParenFlag -> String -> Either ParseError Variable
+parserVar flag = runParser parseVar ((0,M.empty),flag) "TEST" 
 
 -- Imprimimos el error con version Exception de haskell.
 showError :: Show a => a -> b
@@ -343,4 +374,3 @@ showError = error . show
 -- Imprimimos la preExpresion, usando que tenemos definido la instancia show.
 showPreExpr :: a -> a
 showPreExpr = id
-
