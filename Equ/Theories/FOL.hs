@@ -109,7 +109,11 @@ theoryConstantsList = [folTrue,folFalse]
 
 -- | Operadores de FOL.
 theoryOperatorsList :: [Operator]
-theoryOperatorsList = [folEqual,folEquiv,folDiscrep,folAnd,folOr,folImpl,folConseq,folNeg]
+theoryOperatorsList = [ folEqual,folEquiv
+                      , lessOper, lessOrEqOper 
+                      , folDiscrep,folAnd,folOr
+                      , folImpl,folConseq,folNeg
+                      ]
 
 -- | Cuantificadores de FOL.
 theoryQuantifiersList :: [Quantifier]

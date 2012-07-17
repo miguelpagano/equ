@@ -69,7 +69,7 @@ lessOrEqOper = Operator { opRepr = "≤"
                     , opAssoc = ALeft
                     , opNotationTy = NInfix
                     , opPrec = 5
-                    , opGlyphs = ["<="]
+                    , opGlyphs = []
                     }
                     
                     
