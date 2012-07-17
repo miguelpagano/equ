@@ -13,7 +13,7 @@ basic
       〈∀ i : 0 ≤ i ∧ i < 0: [].i 〉 
       ≡ { Harry Potter Equivalencia }
       〈∀ i : False : [].i〉 
-      ≡ { especificacion }
+      ≡ { Rango Vacío Para Todo }
       True
 induction y ▹ ys with hypind -> and@(y ▹ ys)
                                 ≡ { especificacion }
@@ -22,9 +22,9 @@ induction y ▹ ys with hypind -> and@(y ▹ ys)
                                 〈∀ i : 0 ≤ i ∧ i < 1+(#ys) : (y ▹ ys).i〉
                                 ≡ { Harry Potter Equivalencia }
                                 〈∀ i : 0 = i ∨ (0 < i ∧ i < 1+(#ys)) : (y ▹ ys).i〉
-                                ≡ { especificacion }
+                                ≡ { Partición de Rango Para Todo }
                                 〈∀ i : 0 = i : (y ▹ ys).i〉 ∧ 〈∀ i : 0 < i ∧ i < 1+(#ys) : (y ▹ ys).i〉
-                                ≡ { especificacion }
+                                ≡ { Rango Unitario Para Todo }
                                 (y ▹ ys).0 ∧ 〈∀ i : 0 < i ∧ i < 1+(#ys) : (y ▹ ys).i〉
                                 ≡ { Proyectar el elemento inicial }
                                 y ∧ 〈∀ i : 0 < i ∧ i < 1+(#ys) : (y ▹ ys).i〉

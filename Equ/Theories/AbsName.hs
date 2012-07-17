@@ -39,6 +39,8 @@ data OpName = Append    -- ^ Lista: agregar por la izquierda
 -- | Nombres de cuantificadores
 data QuantName = Forall  -- ^ FOL: para todo
                | Exist -- ^ FOL: existe
+               | SumQuant -- ^ Arith: Sumatoria
+               | ThatQuant -- ^ Todos: Cuantificador That
                  deriving (Eq,Ord)
 
 -- | Instancia arbitrary para ConName

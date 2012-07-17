@@ -34,6 +34,14 @@ import Control.Applicative
 -- Estos módulos definen los símbolos de función
 -- que devuelven expresiones de tipo Num.
  
+ 
+-- | Cuantificador Sumatoria
+sumQuant :: Quantifier
+sumQuant = Quantifier { quantRepr = "∑"
+                       , quantName = SumQuant
+                       , quantTy = tyVar "A" :-> (TyAtom ATyNat)
+                       }
+
 
 -- | Constantes de arith
 theoryConstantsList :: [Constant]
@@ -43,7 +51,7 @@ theoryOperatorsList :: [Operator]
 theoryOperatorsList = [natSucc,natSum,natProd]
 -- | Cuantificadores de arith
 theoryQuantifiersList :: [Quantifier]
-theoryQuantifiersList = []
+theoryQuantifiersList = [sumQuant]
 
 -- | Constructor de Variable de tipo Nat.
 varNat :: Text -> Expr
@@ -74,11 +82,29 @@ prod :: Expr -> Expr -> Expr
 prod (Expr n) (Expr m) = Expr $ BinOp natProd n m
 
 
--- | Variables de tipo Nat
+-- | Expresiones Variables de tipo Nat
 varI,varJ,varK :: Expr
 varI= Expr $ Var $ var "i" $ TyAtom ATyNat 
 varJ= Expr $ Var $ var "j" $ TyAtom ATyNat 
 varK= Expr $ Var $ var "k" $ TyAtom ATyNat 
+
+-- | Expresiones Variables Booleanas
+varP,varQ :: Expr
+varP= Expr $ Var $ var "p" tyBool
+varQ= Expr $ Var $ var "q" tyBool
+
+-- | Expresiones Variables de cualquier tipo
+varN= Expr $ Var $ var "n" $ tyVar "A"
+
+
+-- | Variables de cualquier tipo
+varX :: Variable
+varX = var "x" $ tyVar "A"
+varY :: Variable
+varY = var "y" $ tyVar "A"
+
+
+
 
 zeroLNeutralSum :: Expr
 zeroLNeutralSum = leftNeutral sum zero varI
@@ -107,6 +133,81 @@ assocProd = associativityEqual prod varI varJ varK
 evalSum :: Expr
 evalSum = equal (sum (successor varI) varJ) (successor (sum varI varJ))
 
+sumQ :: Variable -> Expr -> Expr -> Expr
+sumQ v (Expr r) (Expr t) = Expr $ Quant sumQuant v r t
+
+
+-- | Rango vacío para sumatoria
+
+emptyRangeSum :: (Text,Expr,Condition)
+emptyRangeSum = ( "Rango Vacío Sumatoria"
+                , emptyRange sumQ equal varX varI zero
+                , GenConditions []
+                )
+                
+-- | Rango Unitario para sumatoria
+unitRangeSum :: (Text,Expr,Condition)
+unitRangeSum = ( "Rango Unitario Sumatoria"
+                  , unitRange sumQ equal varX varN varI varJ
+                  , GenConditions [ReplacedExpr peVarJ peVarI varX peVarN]
+                  )
+    where Expr peVarJ = varJ
+          Expr peVarI = varI
+          Expr peVarN = varN
+
+-- | Partición de Rango para sumatoria.
+--  Notar que este axioma tiene una condición de que los operandos de la disyunción
+--  del rango sean disjuntos, pero no tenemos manera de expresar eso por el momento.
+partRangeSum :: (Text,Expr,Condition)
+partRangeSum = ( "Partición de Rango Sumatoria"
+               , partRange sumQ equal sum varX varP varQ varI
+               , GenConditions []
+               )
+
+termRuleSum :: (Text,Expr,Condition)
+termRuleSum = ( "Regla del Término Sumatoria"
+              , termRule sumQ equal sum varX varP varI varJ
+              , GenConditions []
+              )
+              
+distLeftProdSum :: (Text,Expr,Condition)
+distLeftProdSum =
+    ( "Distributividad a izquierda del * y Sumatoria"
+    , distLeftQuant sumQ equal prod varX varP varI varJ
+    , GenConditions [VarNotInExpr varX peVarI]
+    )
+    where Expr peVarI = varI
+    
+distRightProdSum :: (Text,Expr,Condition)
+distRightProdSum =
+    ( "Distributividad a derecha del * y Sumatoria"
+    , distLeftQuant sumQ equal prod varX varP varI varJ
+    , GenConditions [VarNotInExpr varX peVarI]
+    )
+    where Expr peVarI = varI
+          
+nestedRuleSum :: (Text,Expr,Condition)
+nestedRuleSum =
+    ( "Regla de Anidado Sumatoria"
+    , nestedRule sumQ equal varX varY varP varQ varI
+    , GenConditions [VarNotInExpr varY peVarP]
+    )
+    where Expr peVarP = varP
+    
+changeVarSum :: (Text,Expr,Condition)
+changeVarSum =
+    ( "Regla de Cambio de Variable Sumatoria"
+    , changeVar sumQ equal varX varY varP varI varQ varJ
+    , GenConditions [ReplacedExpr peVarQ peVarP varX (Var varY),
+                     ReplacedExpr peVarJ peVarI varX (Var varY),
+                     VarNotInExpr varY peVarP,
+                     VarNotInExpr varY peVarI]
+    )
+    where Expr peVarI = varI
+          Expr peVarP = varP
+          Expr peVarQ = varQ
+          Expr peVarJ = varJ
+              
 -- | Axiomas: los construimos automáticamente.
 theoryAxiomList :: [(Text,Expr,Condition)]
 theoryAxiomList = [ ("Evaluar suma", evalSum,GenConditions [])
@@ -119,5 +220,7 @@ theoryAxiomList = [ ("Evaluar suma", evalSum,GenConditions [])
                   , ("Neutro a derecha del producto", oneRNeutralProd,GenConditions [])
                   , ("Simetría del producto", symProd,GenConditions [])
                   , ("Asociatividad del producto", assocProd,GenConditions [])
+                  , emptyRangeSum, unitRangeSum, partRangeSum, termRuleSum
+                  , distLeftProdSum, distRightProdSum, nestedRuleSum, changeVarSum
                   ]
 

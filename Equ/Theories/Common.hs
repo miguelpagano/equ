@@ -95,7 +95,14 @@ folOr = Operator { opRepr = "∨"
                  , opPrec = 3
                  , opGlyphs = ["||","\\/"]
                  }
-
+                 
+                 
+-- | Cuantificador "That"
+thatQuant :: Quantifier
+thatQuant = Quantifier { quantRepr = "ε"
+                       , quantName = ThatQuant
+                       , quantTy = tyVar "A" :-> tyVar "A"
+                       }
 
 -- | Igualdad
 equal :: Expr -> Expr -> Expr
