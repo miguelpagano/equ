@@ -129,7 +129,7 @@ type Type = Type' TyVarName
 instance Show Type where
     show TyUnknown = "?"
     show (TyVar v) = if isTyVarInternal v
-                     then "..."
+                     then unpack v
                      else unpack v
     show (TyList t) = "[" ++ show t ++ "]"
     show (TyAtom t) = show t

@@ -210,7 +210,6 @@ goDownR f = goDown f >>= goRight
 goDown :: Focus -> Maybe Focus
 goDown (Var _, _) = Nothing
 goDown (Con _, _) = Nothing
-goDown (Fun _, _) = Nothing
 goDown (PrExHole _, _) = Nothing
 goDown (UnOp op pe, path) = Just (pe, UnOpD op path)
 goDown (BinOp op pe0 pe1, path) = Just (pe0, BinOpL op path pe1)

@@ -579,10 +579,7 @@ printPf Reflex = [""]
 printPf (Hole _ r f f') = [showExpr' (toExpr f),show r,  showExpr' (toExpr f')]
 printPf (Simple _ r f f' b) = [showExpr' (toExpr f),show r ++ " { " ++ show b ++ " }",showExpr' (toExpr f')]
 printPf (Trans _ r f f' f'' p p') = init (printPf p) ++ printPf p'
-printPf (Focus _ r f f' p) = [ showExpr' $ toExpr f, show r ++ " { sub-prueba }"
-                             , unlines . map ("  "++) $ printPf p
-                             , showExpr' $ toExpr f'
-                             ]
+printPf (Focus _ r f f' p) = printPf p
 
 printProof = (++"\n") . unlines . printPf
                                     

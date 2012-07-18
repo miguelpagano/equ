@@ -24,7 +24,6 @@ applySubst (Quant q v e1 e2) s = Quant q v (applySubst e1 s) (applySubst e2 s)
 applySubst (Paren e) s = Paren $ applySubst e s
 applySubst (PrExHole h) _ = PrExHole h
 applySubst (Con c) _ = Con c
-applySubst (Fun f) _ = Fun f
 applySubst (If b t f) s = If (applySubst b s) (applySubst t s) (applySubst f s)
 applySubst (Case e cs) s = Case (applySubst e s) (map (flip applySubst s *** flip applySubst s) cs)
 

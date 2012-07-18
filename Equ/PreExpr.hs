@@ -11,7 +11,7 @@ module Equ.PreExpr ( freeVars, freshVar
                    , agrupOp, agrupNotOp, checkIsAtom, opOfFocus
                    , setType, updateOpType, setAtomType
                    , isPreExprParent, isPreExprQuant
-                   , listOfFun, listOfVar
+                   , listOfVar
                    , setQuantType, setVarQType
                    , getVarTypeFromQuantType, getQTypeFromQuantType
                    , resetTypeAllFocus, getTypeFocus
@@ -61,7 +61,6 @@ isPreExprParent _ = False
 checkIsAtom :: Focus -> Bool
 checkIsAtom (Var _,_) = True
 checkIsAtom (Con _,_) = True
-checkIsAtom (Fun _,_) = True
 checkIsAtom (PrExHole _,_) = True
 checkIsAtom _ = False
 
@@ -84,7 +83,6 @@ preExprApp = App
 freeVars :: PreExpr -> Set Variable
 freeVars (Var v) = insert v empty
 freeVars (Con _) = empty
-freeVars (Fun _) = empty
 freeVars (PrExHole _) = empty
 freeVars (UnOp _ e) = freeVars e
 freeVars (BinOp _ e1 e2) = freeVars e1 `union` freeVars e2
@@ -156,7 +154,6 @@ setAtomType f go ty = set ty (go f)
         set :: Type -> Focus -> Focus
         set t (Var v,p) = (Var $ v {varTy = t},p)
         set t (Con c,p) = (Con $ c {conTy = t},p)
-        set t (Fun fun,p) = (Fun $ fun {funcTy = t},p)
         set t (PrExHole h,p) = (PrExHole $ h {holeTy = t},p)
         set _ (_,_) = error "SetAtomType!"
 
@@ -226,14 +223,12 @@ resetTypeAllFocus' funReset f = reset listReset f
 resetTypeAtoms :: Focus -> Focus
 resetTypeAtoms (Var v, p) = (Var $ v {varTy = TyUnknown}, p)
 resetTypeAtoms (Con c, p) = (Con $ c {conTy = TyUnknown}, p)
-resetTypeAtoms (Fun f, p) = (Fun $ f {funcTy = TyUnknown}, p)
 resetTypeAtoms (PrExHole h, p) = (PrExHole $ h {holeTy = TyUnknown}, p)
 resetTypeAtoms f = f
 
 resetTypeFocus :: Focus -> Focus
 resetTypeFocus (Var v, p) = (Var $ v {varTy = TyUnknown}, p)
 resetTypeFocus (Con c, p) = (Con $ c {conTy = TyUnknown}, p)
-resetTypeFocus (Fun f, p) = (Fun $ f {funcTy = TyUnknown}, p)
 resetTypeFocus (PrExHole h, p) = (PrExHole $ h {holeTy = TyUnknown}, p)
 resetTypeFocus (UnOp op e, p) = (UnOp (op {opTy = TyUnknown}) e, p)
 resetTypeFocus (BinOp op e e', p) = (BinOp (op {opTy = TyUnknown}) e e', p)
@@ -248,7 +243,6 @@ resetTypeFocus (Case e cs,p) = (Case e cs,p)
 getTypeFocus :: Focus -> Type
 getTypeFocus (Var v, _) = varTy v
 getTypeFocus (Con c, _) = conTy c
-getTypeFocus (Fun f, _) = funcTy f
 getTypeFocus (PrExHole h, _) = holeTy h
 getTypeFocus (UnOp op _, _) = opTy op
 getTypeFocus (BinOp op _ _, _) = opTy op
@@ -313,10 +307,3 @@ listOfVar = flip listOf isVar
         isVar (Var _,_) = True
         isVar _ = False
 
--- | Retorna una lista con los nombres de función que aparecen en una expresión.
-listOfFun :: Focus -> [Focus]
-listOfFun = flip listOf isFun
-    where
-        isFun :: Focus -> Bool
-        isFun (Fun _,_) = True
-        isFun _ = False

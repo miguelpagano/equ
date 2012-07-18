@@ -48,7 +48,6 @@ evalN _ = Nothing
 evalExpr :: PreExpr -> PreExpr
 evalExpr (Var v) = Var v
 evalExpr (Con c) = Con c
-evalExpr (Fun f) = Fun f
 evalExpr (PrExHole h) = PrExHole h
 evalExpr e@(UnOp op e') = maybe (UnOp op (evalExpr e')) intToCon $ evalN e
 evalExpr e@(BinOp op e1 e2) = maybe e' intToCon $ evalN e

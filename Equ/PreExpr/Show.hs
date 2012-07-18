@@ -20,7 +20,6 @@ showL _ _ = Nothing
 showExpr :: PreExpr -> String
 showExpr (Var x) = show x
 showExpr (Con k) = show k
-showExpr (Fun f) = show f
 showExpr (PrExHole h) = show h
 showExpr e@(UnOp op e') = 
     case evalNat e of

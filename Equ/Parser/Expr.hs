@@ -30,7 +30,6 @@ module Equ.Parser.Expr
     -- * Funciones principales de parseo
     , parseFromString
     , parsePreExpr
-    , parseFunc
     , parser
     , parserVar
     , VarTy
@@ -162,13 +161,12 @@ convertAssoc ARight = PE.AssocRight
 subexpr :: ParenFlag -> Parser' PreExpr
 subexpr flag = parseParen <$> parens lexer parsePreExpr
             <|> Con <$> parseConst
-            <|> parseSugarPreExpr parsePreExpr
             <|> parseQuant 
             <|> parseIf
             <|> parseCase
             <|> Var <$> parseVar
-            <|> Fun <$> parseFunc
             <|> parseHole
+--            <|> parseSugarPreExpr parsePreExpr                                
     where
         parseParen :: (PreExpr -> PreExpr)
         parseParen = case flag of
@@ -200,6 +198,9 @@ parseHole :: Parser' PreExpr
 parseHole = PrExHole . hole . pack <$> 
                 (try $ reserved lexer (opHole equLang) >> braces lexer parseInfo)
             <|> fail "Hueco"
+
+parseApp :: Parser' PreExpr
+parseApp = parsePreExpr >>= \e -> whiteSpace lexer' >> App <$> return e <*> parsePreExpr 
 
 -- Parseo de la informacion de un hueco.
 parseInfo :: Parser' String
@@ -250,18 +251,6 @@ parseVar = try $ lexeme lexer ((:) <$> lower <*> many alphaNum) >>=
            \(st',t) -> putState st' >> 
            return (var (pack v) t)
 
--- Parseo de funciones. Un s&#237;mbolo de funcion es un string que empieza
--- con may&#250;scula.
-parseFunc :: Parser' Func
-parseFunc = try $ lexeme lexer ((:) <$> upper <*> many alphaNum) >>=
-            \f -> getState >>=
-            return . setType (Right $ pack f) >>=
-            \(st',t) -> putState st' >>
-            return Func { funcName= pack f
-                        , funcTy= t
-                        }
-
-
 
 -- //////// Parser de syntax sugar ////////
 
@@ -282,7 +271,7 @@ parseSugarList = brackets lexer . sugarList
 -- aplicación; el problema con una expresión completa es que el lado
 -- izquierdo puede ser en sí mismo una aplicación.
 parseSugarApp :: Parser' PreExpr -> Parser' PreExpr
-parseSugarApp p = Fun <$> parseFunc >>= \func ->
+parseSugarApp p = p >>= \func ->
                   reservedOp lexer (opUnCurriedApp equLang) >>
                   parens lexer (commaSep lexer p) >>= \args ->
                   (return . foldl1 App) (func:args)

@@ -7,10 +7,14 @@ import Test.QuickCheck(Arbitrary, arbitrary, oneof)
 
 import Data.Serialize(Serialize, get, getWord8, put, putWord8)
 import Control.Arrow ((***))
+import qualified Data.Traversable as T
+import Data.Foldable(foldMap)
+import qualified Data.Foldable as F
+import qualified Data.Monoid as M
+import Data.Function (on)
 
 data PreExpr' a = Var a
                 | Con !Constant
-                | Fun !Func
                 | PrExHole !Hole
                 | UnOp !Operator (PreExpr' a)
                 | BinOp !Operator (PreExpr' a) (PreExpr' a)
@@ -25,7 +29,6 @@ data PreExpr' a = Var a
 instance Serialize a => Serialize (PreExpr' a) where
     put (Var a) = putWord8 0 >> put a
     put (Con c) = putWord8 1 >> put c
-    put (Fun f) = putWord8 2 >> put f
     put (PrExHole h) = putWord8 3 >> put h
     put (UnOp op pe) = putWord8 4 >> put op >> put pe
     put (BinOp op pe pe') = putWord8 5 >> put op >> put pe >> put pe'
@@ -40,7 +43,6 @@ instance Serialize a => Serialize (PreExpr' a) where
     case tag_ of
         0 -> Var <$> get
         1 -> Con <$> get
-        2 -> Fun <$> get
         3 -> PrExHole <$> get
         4 -> UnOp <$> get <*> get
         5 -> BinOp <$> get <*> get <*> get
@@ -56,7 +58,6 @@ type PreExpr = PreExpr' Variable
 instance Functor PreExpr' where
     fmap f (Var a) = Var $ f a
     fmap _ (Con c) = Con c
-    fmap _ (Fun g) = Fun g
     fmap _ (PrExHole h) = PrExHole h
     fmap f (UnOp op e) = UnOp op $ fmap f e
     fmap f (BinOp op e e') = BinOp op (fmap f e) (fmap f e')
@@ -66,13 +67,24 @@ instance Functor PreExpr' where
     fmap f (If c e1 e2) = If (fmap f c) (fmap f e1) (fmap f e2)
     fmap f (Case e patterns) = Case (fmap f e) $ map (fmap f *** fmap f) patterns
     
+instance F.Foldable PreExpr' where
+    foldMap f (Var a) = f a 
+    foldMap f (Con _) = M.mempty
+    foldMap f (PrExHole _) = M.mempty
+    foldMap f (UnOp _ e) = foldMap f e
+    foldMap f (BinOp _ e e') = foldMap f e `M.mappend` foldMap f e'
+    foldMap f (App e e')  = foldMap f e `M.mappend` foldMap f e'
+    foldMap f (Quant q a e e') = f a `M.mappend` foldMap f e `M.mappend` foldMap f e'
+    foldMap f (Paren e) = foldMap f e
+    foldMap f (If c e1 e2) = foldMap f c `M.mappend` foldMap f e1 `M.mappend` foldMap f e2
+    foldMap f (Case e ps) =  M.mconcat (foldMap f e:map (uncurry (M.mappend `on` foldMap f)) ps)
+
 
 -- | Instancia arbitrary para las preExpresiones.
 instance Arbitrary PreExpr where
     arbitrary =
         oneof [   Var <$> arbitrary
                 , Con <$> arbitrary
-                , Fun <$> arbitrary
                 , PrExHole <$> arbitrary
                 , UnOp <$> arbitrary <*> arbitrary
                 , BinOp <$> arbitrary <*> arbitrary <*> arbitrary
@@ -110,7 +122,6 @@ showExpr' (Quant q v e1 e2) = "〈" ++ show q ++ show v ++ ":"
 showExpr' (Paren e) = "[PAREN](" ++ showExpr' e ++ ")"
 showExpr' (Var x) = show x
 showExpr' (Con k) = show k
-showExpr' (Fun f) = show f
 showExpr' (PrExHole h) = show h
 showExpr' (If c e1 e2) = "if " ++ showExpr' c ++ " then " ++ showExpr' e1 ++ " else " ++ showExpr' e2
 showExpr' (Case e patterns) = "case " ++ showExpr' e ++ " of\n" ++ showPatterns patterns
