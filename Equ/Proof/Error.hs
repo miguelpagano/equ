@@ -2,6 +2,8 @@ module Equ.Proof.Error where
 
 import Equ.Rule (Relation)
 import Equ.Rewrite (RewriteError)
+import Equ.TypeChecker (TyErr)
+import Equ.PreExpr (Focus)
 import Equ.Proof.Zipper(ProofFocus)
 import Equ.Proof.Proof
 
@@ -39,6 +41,7 @@ data ProofError' = Rewrite [RewriteError]
                 | ContextsNotEqual -- El contexto de una subprueba no es el mismo de la prueba general.
                 | RelNotEqual -- Las relaciones entre dos pruebas no son iguales
                 | BasicConditionError Basic -- No se satisface la condición de aplicación de un paso básico
+                | ClashTypingProofExpr (Focus,TyErr)
                 | Error
     deriving Eq
     
@@ -87,6 +90,7 @@ instance Show ProofError' where
     show (RelNotEqual) = "La subprueba no tiene la misma relación que la prueba general"
     show (CasesError er) = "Error en Prueba por casos: " ++ show er
     show (BasicConditionError b) = "No se satisfacen las condiciones de aplicación del paso básico: "++ show b
+    show (ClashTypingProofExpr tyErr) = "Error al tipar expresión de la prueba: " ++ show tyErr
     show _ = "Error sin especificar"
     
 
