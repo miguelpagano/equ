@@ -257,7 +257,7 @@ check (Case e cs) = do texp <- checkAndUpdate e goDown
                                    addLog $ "Sustitución Patterns: " ++ show s'
                                    addLog $ "Sustitución Cases: " ++ show s''
                                    updateCtxS <$> getSub
-                                   return (rewrite s'' . snd $ head pats)
+                                   return (rewrite s'' . fst $ head pats)
                          (Left err,_) -> tyerr err
                          (_,Left err) -> tyerr err
 

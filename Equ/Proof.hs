@@ -137,12 +137,12 @@ checkSimpleStepFromRule f1 f2 rel t rule move =
         Expr rightE <- return $ rhs rule
         fs1' <- return $ filter (eitherToBool . (match leftE) . fst) fs1
         fs2' <- return $ filter (eitherToBool . (match rightE) . fst) fs2
-        es <- return $ concatMap (flip applyFunct fs2') (map (pegar rel) fs1')
+        es <- return $ concatMap (flip applyFunct fs2') (map (pegar (truthRel t)) fs1')
         (_,res) <- return $ partitionEithers $ map lastMatch es
         -- res <- return $ filter ((match (ruleExpr rule)) . fst) es
         res' <- return $ filter ((==PE.toExpr f2) . PE.toExpr . replaceExpr) res
---        unsafePerformIO (putStrLn ("Validando regla " ++ show rule) >> return (return ()))
-  --      unsafePerformIO (putStrLn ("Resultado del matching es " ++ show res') >> return (return ()))
+        unsafePerformIO (putStrLn ("Validando regla " ++ show rule) >> return (return ()))
+        unsafePerformIO (putStrLn ("Resultado del matching es " ++ show res') >> return (return ()))
         res'' <- return $ filter checkConditions res'
         whenPM' (not $ null res'') err
         
@@ -171,42 +171,6 @@ checkSimpleStepFromRule f1 f2 rel t rule move =
             let condFuncts = map conditionFunction (getGenConditions $ truthConditions t) in
                 and $ map (\f -> f subst (PE.toExpr f1)) condFuncts
         
-  
-                 {-
-                                  
--- | Comprueba que el uso de una regla sea correcto. La relación que se
--- pasa como argumento es el de la prueba.
-checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> 
-                           Rule -> (ProofFocus -> ProofFocus) -> PM PE.Focus
-checkSimpleStepFromRule f1 f2 rel t rule fMove = 
-    applyRewrite f1 rel t rule fMove >>= \ls ->
-    case partitionEithers $ map checkeq ls of
-        (errors,[]) -> Left $ head errors
-        (_,xs) -> let funConds = map conditionFunction (getGenConditions $ truthConditions t) in
-                        case partitionEithers $ map (checkConds funConds) xs of
-                            (errors,[]) -> Left $ head errors
-                            (_,xs) -> return . snd' $ head xs
-    where 
-        err :: ProofError
-        err = ProofError (BasicNotApplicable $ truthBasic t) fMove
-        checkeq :: (PE.Focus,PE.Focus,PE.ExprSubst) -> PM (PE.Focus,PE.Focus,PE.ExprSubst)
-        checkeq t@(f1',f2',s) = 
-            return (f1',f2') >>=
-            whenEqWithDefault' err (PE.goTop f2) fst . (PE.goTop *** id) >>
-            return t
-        checkConds :: [(PE.ExprSubst -> PE.PreExpr -> Bool)] ->
-                      (PE.Focus,PE.Focus,PE.ExprSubst) ->
-                      PM (PE.Focus,PE.Focus,PE.ExprSubst)
-        -- Chequeamos que la substitucion resultante satisfaga todas las condiciones
-        -- de aplicación de la regla
-        checkConds fConds t@(_,_,subst) = whenPM (\(_,_,subst) ->
-                                  and $ invMap fConds (subst,PE.toExpr f1)) errorCondition t
-        invMap :: [(a -> b -> c)] -> (a,b) -> [c]
-        invMap [] (_,_) = []
-        invMap (f:fs) (a,b) = (f a b):(invMap fs (a,b))
-        snd' (_,b,_) = b
-        errorCondition = ProofError (BasicConditionError (truthBasic t)) fMove
-        -}   
         
 -- | Aplica reescritura en todos los focos posibles de una expresion
 applyRewrite :: Truth t => PE.Focus -> Relation -> t -> Rule -> 
@@ -469,7 +433,10 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
           checkSubProofCase v pr cs = mapM_ go cs 
               where go (pattern,subp,expr) = 
                         correctSubProofCase v pattern pr subp expr >>
-                        sameCtxs pr subp >>
+                        getCtx subp >>= \ctxSub -> getCtx pr >>= \ctxPr ->
+                        getCtx subp >>= \ctxSub ->
+                        getCtx pr >>= \ctxPr ->
+                        whenPM' (ctxSub == ctxPr) (ProofError ContextsNotEqual id) >>
                         validateProof' subp id
                 
                         

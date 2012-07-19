@@ -12,8 +12,8 @@ import Equ.Parser.Expr
 import Equ.Syntax hiding (Hole)
 import Equ.Expr (Expr(..))
 import Equ.PreExpr ( PreExpr'(..),PreExpr,toFocus
-                   , Focus,unParen,toExpr, freeVars)
-import Equ.TypeChecker (typeCheckPreExpr)
+                   , Focus,unParen,toExpr, freeVars,applySubst)
+import Equ.TypeChecker (typeCheckPreExpr,checkPreExpr)
 import Equ.Proof ( validateProof, printProof
                  , holeProof, newProofWithCases, newProof
                  , validateProof)
@@ -32,7 +32,8 @@ import Equ.Proof.Proof ( Proof'(..)
                        , addHypothesis'
                        , getCtx
                        , setCtx
-                       , Proof)
+                       , Proof
+                       , instanciateInCtx)
 import Equ.Proof.Condition
 import Equ.Proof.Induction (createIndHypothesis)
 import Equ.Theories (theories,axiomGroup,TheoryName, relToOp
@@ -52,7 +53,7 @@ import qualified Data.Set as Set (toList)
 import Data.Maybe
 import Data.Either(partitionEithers)
 import Data.List (intersperse, find)
-import qualified Data.Map as M (Map,empty,insert,toList,null, lookup) 
+import qualified Data.Map as M (Map,empty,insert,toList,null, lookup, map,singleton) 
 
 import Control.Monad.Identity
 import Control.Applicative ((<$>),(<$),(<*>))
@@ -368,12 +369,12 @@ proof mc flag = do
         parseProof :: ParserP Proof
         parseProof = 
             parsePrefix >>= \(mname,mhyps) -> many newline >>
-            choice [ inducProof ctx
+            choice [ inducProof $ maybe ctx (foldr addHypothesis' ctx) mhyps
                    , casesProof ctx
                    , transProof ctx flag
                    ] >>= \p ->
-            maybe (return p) (addHypsToProof p) mhyps >>= \p' ->
-            maybe (return p') (addProofNWP p') mname
+            --maybe (return p) (addHypsToProof p) mhyps >>= \p' ->
+            maybe (return p) (addProofNWP p) mname
         
         parsePrefix :: ParserP (Maybe Text,Maybe [Hypothesis])
         parsePrefix = 
@@ -408,17 +409,20 @@ inducProof ctx = do
             fei <- parseFocus keywordDot
             [rel] <- manyTill rel keywordDot
             fef <- parseFocus keywordWhere
+            let ex = toExpr fef
+            --error $ "ex es = " ++ show ex
+            typedFinduc <- typeVarInducM ex fInduc-- fInduc
+            -- () <- return $ unsafePerformIO $ (putStrLn $ "--------EITHERF es :--------" ++ show eitherF)
+            -- typedFinduc <- return $ fInduc  
             
-            let eitherF = typeVarInduc (makeExpr rel fei fef) fInduc
-            typedFinduc <- either (fail . show) return eitherF
-            
-            cs <- parseInducCases rel fei fef (toExpr typedFinduc)
+            cs <- parseInducCases ctx rel fei fef (toExpr typedFinduc)
             parseProofEnd
             let p = Ind ctx rel fei fef typedFinduc cs
             return p 
     where
         makeExpr :: Relation -> Focus -> Focus -> PreExpr
         makeExpr r e e' = BinOp (relToOp r) (toExpr e) (toExpr e')
+        typeVarInducM e (Var v,_) = either (error . show) (\t -> return . toFocus . Var $ v { varTy = t }) $ checkPreExpr e
         typeVarInduc :: PreExpr -> Focus -> Either ProofError Focus
         typeVarInduc e (Var fInduc,_) = do
             typedFei <- either (Left . (flip ProofError id)
@@ -429,12 +433,13 @@ inducProof ctx = do
             maybe (Left $ ProofError (InductionError VarIndNotInExpr) id) 
                   (return . toFocus . Var)
                   (find (==fInduc) (Set.toList (freeVars typedFei)))
-        parseInducCases:: Relation -> Focus -> Focus -> PreExpr -> 
+        parseInducCases:: Ctx -> Relation -> Focus -> Focus -> PreExpr -> 
                           ParserP [(Focus,Proof)]
-        parseInducCases r fei fef (Var indv) = do
+        parseInducCases ctx r fei fef (Var indv) = do
                     keywordBasic
-                    c <- parseCases
-                    cs <- manyTill parseCases keywordInduc
+                    
+                    c <- parseCases ctx indv
+                    cs <- manyTill (parseCases ctx indv) keywordInduc
                     patt <- parseFocus keywordWith
                     name <- parseName
                     let Just hypInd = createIndHypothesis r fei fef patt indv name
@@ -442,7 +447,7 @@ inducProof ctx = do
                     keywordRArrow
                     p <- proof (Just $ addHypothesis' hypInd ctx) False
                     return ((c:cs) ++ [(patt,p)])
-        parseInducCases r fei fef _ = undefined
+        parseInducCases ctx r fei fef _ = undefined
 
 -- | Parseo de una prueba por casos.
 -- TODO: Es igual a la de arriba, pero esto tal vez vaya a cambiar, así que 
@@ -455,7 +460,7 @@ casesProof ctx = do
         fei <- parseFocus keywordDot
         [rel] <- manyTill rel keywordDot
         fef <- parseFocus keywordWhere
-        (cs, mPEx) <- manyTillWithEnd parseCases (endExhaustive <|> endProof)
+        (cs, mPEx) <- manyTillWithEnd (parseCases ctx undefined) (endExhaustive <|> endProof)
         let cs' = map (\ p -> (fst p, fromJust $ addHypothesisCase p)) cs
         return (Cases ctx rel fei fef fc cs' mPEx)
     where
@@ -484,12 +489,13 @@ casesProof ctx = do
                     
 
 -- -- | Parsea casos.
-parseCases :: ParserP (Focus, Proof)
-parseCases = do
+parseCases :: Ctx -> Variable -> ParserP (Focus, Proof)
+parseCases ctx v = do
             fi <- parseFocus keywordRArrow
-            p <- proof (Just beginCtx) False
+            ctx' <- return $ instanciateInCtx ctx v fi
+            p <- proof (Just ctx) False
             return (fi,p)
-
+            
 -- | Parser de pruebas transitivas, estan incluidas las pruebas simples.
 transProof :: Ctx -> Bool -> ParserP Proof
 transProof ctx flag = do

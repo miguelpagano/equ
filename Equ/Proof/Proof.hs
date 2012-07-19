@@ -31,6 +31,7 @@ module Equ.Proof.Proof (
                  , printProof
                  , conditionFunction
                  , getGenConditions
+                 , instanciateInCtx
                  ) where
 
 import Equ.Expr
@@ -48,7 +49,8 @@ import Data.List (intersperse,map)
 import qualified Data.Set as Set
 
 import qualified Data.Map as M ( Map (..), fromList, findMax, null
-                               , insert, lookup, empty, elems, singleton)
+                               , insert, lookup, empty, elems, singleton
+                               , map)
 
 import Data.Monoid
 import Data.Maybe
@@ -899,6 +901,16 @@ addHypothesis' hyp ctx = M.insert (hypName hyp) hyp ctx
 varNat s = Expr $ Var $ var s (TyAtom ATyNat)
 
 
+instanciateInCtx :: Ctx -> Variable -> Focus -> Ctx
+instanciateInCtx ctx v p =
+    M.map (replaceHypothesis v p) ctx
+            
+    where replaceHypothesis :: Variable -> Focus -> Hypothesis -> Hypothesis
+          replaceHypothesis v p hyp =
+              let (Expr peHyp) = hypExpr hyp in
+                  hyp { hypExpr = Expr $ applySubst peHyp (M.singleton v (toExpr p)) }
+
+
 conditionFunction :: GCondition -> (ExprSubst -> PreExpr -> Bool)
 conditionFunction (VarNotInExpr v p) =
     \subst expr -> not $ Set.member v (freeVars $ applySubst p subst)
@@ -920,13 +932,11 @@ conditionFunction (NotEmptyRange pattern) =
                           then False
                           else True
                           
-conditionFunction (ReplacedExpr e e' var e'') =
+{- q es igual a p donde reemplazamos x por n -}
+conditionFunction (ReplacedExpr q p x n) =
     \subst expr -> 
-        let Var v = applySubst (Var var) subst in
-            (applySubst e subst) == applySubst (applySubst e' subst) (subst' v)
-        
-    where subst' v = M.singleton v e''
-    
+        let Var v = applySubst (Var x) subst in
+            (applySubst q subst) == applySubst (applySubst p subst) (M.singleton v (applySubst n subst))
    
 getGenConditions :: Condition -> [GCondition]
 getGenConditions (GenConditions lc) = lc

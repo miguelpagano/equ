@@ -43,7 +43,7 @@ folEquiv = Operator { opRepr = "≡"
 folEqual :: Operator
 folEqual = Operator { opRepr = "="
                     , opName = Equal
-                    , opTy = tyVar "A" :-> tyVar "A" :-> tyBool
+                    , opTy = tyVar "B" :-> tyVar "B" :-> tyBool
                     , opAssoc = ALeft
                     , opNotationTy = NInfix
                     , opPrec = 5

@@ -1,8 +1,8 @@
 begin proof derivationAnd 
-    [ especificacion: and@xs = 〈∀ i : 0 ≤ i ∧ i < #xs : xs.i 〉] 
+    [ especificacion: and@xs = 〈∀ i : 0 ≤ i ∧ i < #xs : xs.i 〉 ] 
     induction in xs for 
         and@xs 
-        .=. 
+        .≡. 
         case xs of [] -> True (y ▹ ys) -> y ∧ and@ys end 
     where
 basic
@@ -17,21 +17,21 @@ basic
       True
 induction y ▹ ys with hypind -> and@(y ▹ ys)
                                 ≡ { especificacion }
-                                〈∀ i : 0 ≤ i < #(y ▹ ys) : (y ▹ ys).i〉
+                                〈∀ i : 0 ≤ i ∧ i < #(y ▹ ys) : (y ▹ ys).i〉
                                 ≡ { Longitud de lista no vacía }
-                                〈∀ i : 0 ≤ i ∧ i < 1+(#ys) : (y ▹ ys).i〉
+                                〈∀ i : 0 ≤ i ∧ i < succ (#ys) : (y ▹ ys).i〉
                                 ≡ { Harry Potter Equivalencia }
-                                〈∀ i : 0 = i ∨ (0 < i ∧ i < 1+(#ys)) : (y ▹ ys).i〉
+                                〈∀ i : i = 0 ∨ (0 < i ∧ i < succ (#ys)) : (y ▹ ys).i〉
                                 ≡ { Partición de Rango Para Todo }
-                                〈∀ i : 0 = i : (y ▹ ys).i〉 ∧ 〈∀ i : 0 < i ∧ i < 1+(#ys) : (y ▹ ys).i〉
+                                〈∀ i : i = 0 : (y ▹ ys).i〉 ∧ 〈∀ i : 0 < i ∧ i < succ (#ys) : (y ▹ ys).i〉
                                 ≡ { Rango Unitario Para Todo }
-                                (y ▹ ys).0 ∧ 〈∀ i : 0 < i ∧ i < 1+(#ys) : (y ▹ ys).i〉
+                                (y ▹ ys).0 ∧ 〈∀ i : 0 < i ∧ i < succ(#ys) : (y ▹ ys).i〉
                                 ≡ { Proyectar el elemento inicial }
-                                y ∧ 〈∀ i : 0 < i ∧ i < 1+(#ys) : (y ▹ ys).i〉
+                                y ∧ 〈∀ i : 0 < i ∧ i < succ(#ys) : (y ▹ ys).i〉
                                 ≡ { Harry Potter Equivalencia }
-                                y ∧ 〈∀ i : 0 < i ∧ i < #ys : (y ▹ ys).(i+1)〉
+                                y ∧ 〈∀ i : 0 ≤ i ∧ i < #ys : (y ▹ ys).(succ i)〉
                                 ≡ { Proyectar el elemento (i+1) }
-                                y ∧ 〈∀ i : 0 < i ∧ i < #ys : ys.i〉
+                                y ∧ 〈∀ i : 0 ≤ i ∧ i < #ys : ys.i〉
                                 ≡ { especificacion }
                                 y ∧ and@ys
 end proof

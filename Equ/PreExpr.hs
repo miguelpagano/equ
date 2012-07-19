@@ -32,7 +32,7 @@ module Equ.PreExpr ( freeVars, freshVar
 
 import Equ.Syntax(Variable(..), Operator(..), Constant(..), holeTy
                  , Quantifier (..), Func (..), var, HoleInfo, hole, Assoc(None))
-import Data.Set (Set,union,delete,empty,insert,member,unions)
+import Data.Set (Set,union,delete,empty,insert,member,unions,(\\))
 import Equ.Types
 import Equ.PreExpr.Internal
 import Equ.PreExpr.Zipper
@@ -90,7 +90,7 @@ freeVars (App e1 e2) = freeVars e1 `union` freeVars e2
 freeVars (Quant _ v e1 e2) = delete v $ freeVars e1 `union` freeVars e2
 freeVars (Paren e) = freeVars e
 freeVars (If b t f) = freeVars b `union` freeVars t `union` freeVars f
-freeVars (Case e cs) = freeVars e `union` (unions . map (uncurry (union `on` freeVars))) cs
+freeVars (Case e cs) = freeVars e `union` (unions . map (\(p,e) -> freeVars e \\ freeVars p)) cs
 
 
 -- | Funcion que devuelve la variable cuantificada en un cuantificador.

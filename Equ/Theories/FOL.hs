@@ -197,6 +197,8 @@ varT= Expr $ Var $ var "t" tyBool
 -- VER: Qué tipo le ponemos a la variable cuantificada????
 varX :: Variable
 varX= var "x" (tyVar "A")
+varI :: Variable
+varI= var "i" (tyVar "A")
 varY :: Variable
 varY= var "y" (tyVar "A")
 
@@ -401,8 +403,8 @@ emptyRangeForAll =
 unitRangeForAll :: (Text,Expr,Condition)
 unitRangeForAll =
     ( "Rango Unitario Para Todo"
-    , unitRange forAll equiv varX varN varP varQ
-    , GenConditions [ReplacedExpr peVarQ peVarP varX peVarN]
+    , unitRange forAll equiv varI varN varP varQ
+    , GenConditions [ReplacedExpr peVarQ peVarP varI peVarN]
     )
     where Expr peVarP = varP
           Expr peVarN = varN
