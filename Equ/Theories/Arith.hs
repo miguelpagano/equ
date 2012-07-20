@@ -266,17 +266,18 @@ lessAndLessOrEq =
 reindAxiom :: (Text,Expr,Condition)
 reindAxiom =
     ( "Reindizado Sumatoria"
-    , (sumQ (metaVarNat "j") range1 term1) `equal` (sumQ (metaVarNat "j") range2 term2)
-    , GenConditions [ReplacedExpr peVarM peVarL (metaVarNat "j") peSuccJ]
+    , (sumQ (metaVarNat "x") range1 term1) `equal` (sumQ (metaVarNat "x") range2 term2)
+    , GenConditions [ReplacedExpr peVarM peVarL (metaVarNat "x") peSuccX]
     )
     
-    where range1 = (and ((successor varI) `lessOrEq` varJ) $ varJ `less` (successor varK))
+    where range1 = (and ((successor varI) `lessOrEq` varXNat) $ varXNat `less` (successor varK))
           term1 = varL
-          range2 = (and (varI `lessOrEq` varJ) $ varJ `less` varK)
+          range2 = (and (varI `lessOrEq` varXNat) $ varXNat `less` varK)
           term2 = varM
+          varXNat = varNat "x"
           Expr peVarM = varM
           Expr peVarL = varL
-          Expr peSuccJ = successor varJ
+          Expr peSuccX = successor varXNat
               
        
 -- | Axiomas: los construimos automáticamente.
