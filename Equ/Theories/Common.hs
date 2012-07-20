@@ -54,7 +54,7 @@ folEqual = Operator { opRepr = "="
 lessOper :: Operator
 lessOper = Operator { opRepr = "<"
                     , opName = LessThan
-                    , opTy = tyVar "A" :-> tyVar "A" :-> tyBool
+                    , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> tyBool
                     , opAssoc = ALeft
                     , opNotationTy = NInfix
                     , opPrec = 5
@@ -65,7 +65,7 @@ lessOper = Operator { opRepr = "<"
 lessOrEqOper :: Operator
 lessOrEqOper = Operator { opRepr = "≤"
                     , opName = LessOrEqThan
-                    , opTy = tyVar "A" :-> tyVar "A" :-> tyBool
+                    , opTy =  TyAtom ATyNat :-> TyAtom ATyNat :-> tyBool
                     , opAssoc = ALeft
                     , opNotationTy = NInfix
                     , opPrec = 5
@@ -107,6 +107,14 @@ thatQuant = Quantifier { quantRepr = "ε"
 -- | Igualdad
 equal :: Expr -> Expr -> Expr
 equal (Expr a) (Expr b) = Expr $ BinOp folEqual a b
+
+-- | Menor o Igual
+lessOrEq :: Expr -> Expr -> Expr
+lessOrEq (Expr a) (Expr b) = Expr $ BinOp lessOrEqOper a b
+
+-- | Menor
+less :: Expr -> Expr -> Expr
+less (Expr a) (Expr b) = Expr $ BinOp lessOper a b
 
 -- | Constructor de Constantes logicas
 true :: Expr

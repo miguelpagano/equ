@@ -149,6 +149,8 @@ theoryAxiomList = [ conmEquivAxiom
                   , existDef
                   , magicAxiomEqual
                   , magicAxiomEquiv
+                  , conmutEqual
+                  , reflexEqual
                   ]
  
 
@@ -205,6 +207,8 @@ varY= var "y" (tyVar "A")
 -- Expresion para igualar con la variable cuantificada
 varN :: Expr
 varN = Expr $ Var $ var "n" (tyVar "A")
+varM :: Expr
+varM = Expr $ Var $ var "m" (tyVar "A")
 
 -- ============
 -- EQUIVALENCIA
@@ -523,8 +527,26 @@ magicAxiomEqual =
     ( "Harry Potter Igualdad"
     , varP `equal` varQ
     , GenConditions []
-    )    
+    )
+    
+    
+-- Igualdad
 
+-- | Conmutatividad
+conmutEqual :: (Text,Expr,Condition)
+conmutEqual =
+    ( "Conmutatividad de ="
+    , (equal varN varM) `equiv` (equal varM varN)
+    , GenConditions []
+    )
+    
+-- | Reflexividad 
+reflexEqual :: (Text,Expr,Condition)
+reflexEqual =
+    ( "Reflexividad de ="
+    , varN `equal` varN
+    , GenConditions []
+    )
 
 -- {- | Definicion de Existe:
 -- @

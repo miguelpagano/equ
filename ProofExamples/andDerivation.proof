@@ -1,5 +1,5 @@
 begin proof derivationAnd 
-    [ especificacion: and@xs = 〈∀ i : 0 ≤ i ∧ i < #xs : xs.i 〉 ] 
+    [ especificacion: and@xs = 〈∀ i : 0 ≤ i ∧ i < #xs : xs.i 〉 ]
     induction in xs for 
         and@xs 
         .≡. 

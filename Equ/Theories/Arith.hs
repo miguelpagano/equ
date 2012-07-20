@@ -15,7 +15,7 @@ module Equ.Theories.Arith
     )
     where
 
-import Prelude hiding (sum)
+import Prelude hiding (sum,or,and)
 import Data.Text (Text)
 
 import Equ.Syntax
@@ -58,6 +58,14 @@ varNat :: Text -> Expr
 varNat s = Expr $ Var $ var s (TyAtom ATyNat)
 
 
+-- | Constructor de Variable (no de Expr variable) de tipo Nat
+metaVarNat :: Text -> Variable
+metaVarNat s = var s (TyAtom ATyNat)
+
+-- | Expresiones Meta-Variables de tipo Nat
+exprVarNat :: Text -> Expr
+exprVarNat s = Expr $ Var $ var s $ TyAtom ATyNat 
+
 -- | Constructor de Constante zero
 zero :: Expr
 zero = Expr $ Con $ natZero
@@ -87,6 +95,8 @@ varI,varJ,varK :: Expr
 varI= Expr $ Var $ var "i" $ TyAtom ATyNat 
 varJ= Expr $ Var $ var "j" $ TyAtom ATyNat 
 varK= Expr $ Var $ var "k" $ TyAtom ATyNat 
+varL= Expr $ Var $ var "l" $ TyAtom ATyNat 
+varM= Expr $ Var $ var "m" $ TyAtom ATyNat 
 
 -- | Expresiones Variables Booleanas
 varP,varQ :: Expr
@@ -208,6 +218,67 @@ changeVarSum =
           Expr peVarQ = varQ
           Expr peVarJ = varJ
               
+              
+--  Axiomas de Menor y Menor o igual. En general en la materia, estos pasos
+--  se justifican con "Aritmética". Una cosa que se podría hacer es
+--  meter todas las reglas que generan estos axiomas en uno solo que se llame
+--  "Aritmética".
+
+-- | Un número es menor que el siguiente
+defLessAxiom :: (Text,Expr,Condition)
+defLessAxiom =
+    ( "Definición de <"
+    , equiv (less varI (successor varI)) true
+    , GenConditions []
+    )
+    
+-- | Definición de Menor o Igual
+defLessOrEq :: (Text,Expr,Condition)
+defLessOrEq =
+    ( "Definición de ≤"
+    , (lessOrEq varI varJ) `equiv` (or (less varI varJ) (equal varI varJ))
+    , GenConditions []
+    )
+    
+emptyInterv :: (Text,Expr,Condition)
+emptyInterv =
+    ( "Intervalo Vacío"
+    , (and (lessOrEq varI varJ) (less varJ varI)) `equiv` false
+    , GenConditions []
+    )
+    
+arithInterv :: (Text,Expr,Condition)
+arithInterv =
+    ( "Aritmética en Intervalo"
+    , (and (lessOrEq zero varI) (less varI $ successor varK)) `equiv`
+      (or (equal varI zero) (and (less zero varI) (less varI $ successor varK)))
+    , GenConditions []
+    )
+    
+lessAndLessOrEq :: (Text,Expr,Condition)
+lessAndLessOrEq =
+    ( "Relación entre < y ≤"
+    , (varI `less` varJ) `equiv` ((successor varI) `lessOrEq` varJ)
+    , GenConditions []
+    )
+    
+-- | Reindizado
+reindAxiom :: (Text,Expr,Condition)
+reindAxiom =
+    ( "Reindizado Sumatoria"
+    , (sumQ (metaVarNat "j") range1 term1) `equal` (sumQ (metaVarNat "j") range2 term2)
+    , GenConditions [ReplacedExpr peVarM peVarL (metaVarNat "j") peSuccJ]
+    )
+    
+    where range1 = (and ((successor varI) `lessOrEq` varJ) $ varJ `less` (successor varK))
+          term1 = varL
+          range2 = (and (varI `lessOrEq` varJ) $ varJ `less` varK)
+          term2 = varM
+          Expr peVarM = varM
+          Expr peVarL = varL
+          Expr peSuccJ = successor varJ
+              
+       
 -- | Axiomas: los construimos automáticamente.
 theoryAxiomList :: [(Text,Expr,Condition)]
 theoryAxiomList = [ ("Evaluar suma", evalSum,GenConditions [])
@@ -222,5 +293,7 @@ theoryAxiomList = [ ("Evaluar suma", evalSum,GenConditions [])
                   , ("Asociatividad del producto", assocProd,GenConditions [])
                   , emptyRangeSum, unitRangeSum, partRangeSum, termRuleSum
                   , distLeftProdSum, distRightProdSum, nestedRuleSum, changeVarSum
+                  , emptyInterv, arithInterv, lessAndLessOrEq, reindAxiom
+                  , defLessAxiom, defLessOrEq
                   ]
 
