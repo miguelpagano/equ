@@ -52,7 +52,7 @@ import Control.Applicative ((<$>),(<$),(<*>))
 
 
 import Equ.Syntax
-import Equ.PreExpr hiding (setType)
+import Equ.PreExpr 
 import Equ.Types
 import Equ.Theories (operatorsList,constantsList,quantifiersList)
 import Equ.Theories.List(listApp, listEmpty)
@@ -234,22 +234,12 @@ parseCase = reserved lexer "case" >>
                      parsePreExpr >>= \ ce ->
                      return (c,ce)
 
--- Calcula el tipo de una variable o funcion
-setType :: (Either VarName FuncName) -> PExprState -> (PExprState,Type)
-setType name ((n,st),flag) = if name `M.member` st
-                      then (((n,st),flag), st ! name)
-                      else (((n+1, insert name newvar st),flag), newvar)
-    where newvar = tyVarInternal n
-
 -- Esta funcion parsea una variable. Nos fijamos que empiece con
 -- minuscula para distinguirla de las funciones (que empiezan con
 -- mayuscula). 
 parseVar :: Parser' Variable
 parseVar = try $ lexeme lexer ((:) <$> lower <*> many alphaNum) >>= 
-           \v -> getState >>= 
-           \st -> return (setType (Left $ pack v) st) >>=
-           \(st',t) -> putState st' >> 
-           return (var (pack v) t)
+           \v -> return (var (pack v) TyUnknown)
 
 
 -- //////// Parser de syntax sugar ////////

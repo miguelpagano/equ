@@ -128,9 +128,7 @@ type Type = Type' TyVarName
 
 instance Show Type where
     show TyUnknown = "?"
-    show (TyVar v) = if isTyVarInternal v
-                     then unpack v
-                     else unpack v
+    show (TyVar v) = unpack v
     show (TyList t) = "[" ++ show t ++ "]"
     show (TyAtom t) = show t
     show (t :-> t') = show t ++ " :-> " ++ show t'
@@ -166,6 +164,10 @@ tyVarInternal n = tyVar $ "V" ++ show n
 
 isTyVarInternal :: TyVarName -> Bool
 isTyVarInternal = isUpper . T.head 
+
+isTyVar :: Type -> Bool
+isTyVar (TyVar _)  = True
+isTyVar _ = False
 
 -- | Instancia arbitrary para el tipo nombre de variable. 
 instance Arbitrary TyVarName where

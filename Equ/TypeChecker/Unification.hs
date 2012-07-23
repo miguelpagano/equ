@@ -34,24 +34,27 @@ findVar v = M.findWithDefault (TyVar v) v
 rewrite :: TySubst -> Type -> Type
 rewrite s = (>>= (\v -> findVar v s))
 
+(@@) :: TySubst -> TySubst -> TySubst
+s @@ s' = M.fromList $ [(u, rewrite s t) | (u,t) <- M.toList s'] ++ M.toList s
 
 -- | Algoritmo de unificaci&#243;n. Suponemos que no hay 'TyUnknown'.
 unify :: Type -> Type -> TySubst -> Either TyErr TySubst
 unify t@(TyAtom _) t'@(TyAtom _) s | t == t' = return s
                                    | otherwise = Left $ ErrUnification t t' (M.toList s)
-unify (t :-> t') (r :-> r') s = unify t r s >>= unify t' r'
+unify (t :-> t') (r :-> r') s = unify t r s >>= \s' -> unify t' r' s' 
+                                >>= \s'' -> return (s' @@ s'')
 unify (TyList t) (TyList t') s = unify t t' s
 unify t@(TyVar v) t' s | t == t' = return s
                        | v `occurs` t' = Left $ ErrUnification (TyVar v) t' (M.toList s)
                        | v `M.member` s  = unify (M.findWithDefault TyUnknown v s) t' s
-                       | otherwise = return . M.insert v t' . M.map ((tyreplace v) t') $ s
+                       | otherwise =  return $ M.map ((tyreplace v) t') $ M.insert v t' s
 unify t (TyVar v) s = unify (TyVar v) t s
 unify t t' s = Left $ ErrUnification t t' (M.toList s)
 
 unifyList :: [Type] -> TySubst -> Either TyErr TySubst
 unifyList [] s = return s
 unifyList [t] s = return s
-unifyList (t:t':ts) s = unify t t' s >>= unifyList ts
+unifyList (t:t':ts) s = unify t t' s >>= unifyList (t':ts)
 
 -- | Usamos unify para comprobar si existe o no unificaci&#243;n. 
 --   Suponemos que no hay 'TyUnknown'.

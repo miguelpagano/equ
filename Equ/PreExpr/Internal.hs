@@ -1,17 +1,18 @@
-{-# LANGUAGE TypeSynonymInstances,FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances,FlexibleInstances, OverloadedStrings #-}
 module Equ.PreExpr.Internal where
 
 import Equ.Syntax
+import Equ.Types
 import Control.Applicative ((<$>), (<*>),Applicative(..))
 import Test.QuickCheck(Arbitrary, arbitrary, oneof)
 
 import Data.Serialize(Serialize, get, getWord8, put, putWord8)
 import Control.Arrow ((***))
-import qualified Data.Traversable as T
 import Data.Foldable(foldMap)
 import qualified Data.Foldable as F
 import qualified Data.Monoid as M
 import Data.Function (on)
+import Data.List(nub)
 
 data PreExpr' a = Var a
                 | Con !Constant
@@ -25,7 +26,6 @@ data PreExpr' a = Var a
                 | Case (PreExpr' a) [((PreExpr' a),(PreExpr' a))]
                   deriving Eq
 
---  Instancia binary para PreExpr' a.
 instance Serialize a => Serialize (PreExpr' a) where
     put (Var a) = putWord8 0 >> put a
     put (Con c) = putWord8 1 >> put c
@@ -78,7 +78,6 @@ instance F.Foldable PreExpr' where
     foldMap f (Paren e) = foldMap f e
     foldMap f (If c e1 e2) = foldMap f c `M.mappend` foldMap f e1 `M.mappend` foldMap f e2
     foldMap f (Case e ps) =  M.mconcat (foldMap f e:map (uncurry (M.mappend `on` foldMap f)) ps)
-
 
 -- | Instancia arbitrary para las preExpresiones.
 instance Arbitrary PreExpr where
@@ -167,8 +166,8 @@ unParen e = e
 
 -- | Substitucion de variable por variable en preExpresiones.
 -- PRE = { v' variable fresca para pe }
-substitution :: Eq a => a -> a -> PreExpr' a -> PreExpr' a
-substitution v v' e = substVar v v' <$> e
+rename :: Eq a => a -> a -> PreExpr' a -> PreExpr' a
+rename v v' e = substVar v v' <$> e
     where substVar w w' w'' | w == w'' = w'
                             | w /= w'' = w''
 
@@ -188,3 +187,43 @@ getConstant _ = Nothing
 isVar :: a -> PreExpr' b -> Either a b
 isVar _ (Var x) = Right x
 isVar a _ = Left a
+
+foldE :: (a -> b) -> (Constant -> b) -> (Operator -> b -> b) -> 
+        (Operator -> b -> b -> b) -> (Quantifier -> a -> b -> b -> b) -> (b -> b -> b) -> b -> 
+        (b -> b -> b -> b) -> (b -> [(b,b)] -> b) ->
+        PreExpr' a -> b
+foldE f _ _ _ _ _ _ _ _ (Var a) = f a
+foldE _ f _ _ _ _ _ _ _ (Con c) = f c
+foldE _ _ _ _ _ _ b _ _ (PrExHole _) = b
+foldE v c f b q a h i cs (UnOp op e) = f op (foldE v c f b q a h i cs e)
+foldE v c f b q a h i cs (BinOp op e e') = b op (foldE v c f b q a h i cs e) (foldE v c f b q a h i cs e')
+foldE v c f b q a h i cs (App e e') = a  (foldE v c f b q a h i cs e) (foldE v c f b q a h i cs e')
+foldE v c f b qf fa h i cs (Quant q a e e') = qf q a (foldE v c f b qf fa h i cs e) (foldE v c f b qf fa h i cs e')
+foldE v c f b qf a h i cs (Paren e) = foldE v c f b qf a h i cs e
+foldE v c f b qf a h i cs (If e1 e2 e3) = i (foldE v c f b qf a h i cs e1) (foldE v c f b qf a h i cs e2) (foldE v c f b qf a h i cs e3)
+foldE v c f b qf a h i cs (Case e patterns) = cs (foldE v c f b qf a h i cs e) (rec patterns)
+    where rec = map (foldE v c f b qf a h i cs *** foldE v c f b qf a h i cs)
+
+
+getConstants :: PreExpr' a -> [Constant]
+getConstants = nub . foldE (const []) return (\_ r -> r) (\_ r r' -> r++r') (\_ _ r r' -> r ++ r') 
+                     (++) [] (\r r' r'' -> concat [r,r',r''])
+                     (\r r' -> concat (r:map (uncurry (++)) r'))
+
+
+getOperators :: PreExpr' a -> [Operator]
+getOperators = nub . foldE (const []) (const []) (\o r -> o: r) (\ o r r' -> o:r++r') (\_ _ r r' -> r ++ r') 
+                     (++) [] (\r r' r'' -> concat [r,r',r''])
+                     (\r r' -> concat (r:map (uncurry (++)) r'))
+
+
+setType :: (Variable -> Type) -> (Constant -> Type) -> (Operator -> Type) -> PreExpr -> PreExpr
+setType fv fc fo = foldE (Var . updVar) Con 
+                   (UnOp . updOp) (BinOp . updOp) 
+                   Quant App (PrExHole $ hole "") If Case 
+    where updOp op = op {opTy = fo op}
+          updVar var = var { varTy = fv var}
+          updCon con = con { conTy = fc con}
+
+
+

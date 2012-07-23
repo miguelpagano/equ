@@ -33,7 +33,7 @@ data OpName = Append    -- ^ Lista: agregar por la izquierda
               | Equal
               | LessThan
               | LessOrEqThan
-                 deriving (Eq,Ord,Enum)
+                 deriving (Eq,Ord,Enum,Show)
 
               
 -- | Nombres de cuantificadores
@@ -41,7 +41,7 @@ data QuantName = Forall  -- ^ FOL: para todo
                | Exist -- ^ FOL: existe
                | SumQuant -- ^ Arith: Sumatoria
                | ThatQuant -- ^ Todos: Cuantificador That
-                 deriving (Eq,Ord)
+                 deriving (Eq,Ord,Show)
 
 -- | Instancia arbitrary para ConName
 instance Arbitrary ConName where

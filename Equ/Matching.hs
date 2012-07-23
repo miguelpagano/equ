@@ -119,12 +119,11 @@ match' bvs (Quant q v e1 e2) (Quant p w f1 f2) s =
         if v == w 
         then localGo goDown (match' (v:bvs) e1 f1 s) >>= 
              localGo goDownR . match' (v:bvs) e2 f2
-        else localGo goDown (match' (fv:bvs) (subst v fv e1) (subst w fv f1) s) >>=
-             localGo goDownR . match' (fv:bvs) (subst v fv e2) (subst w fv f2)
+        else localGo goDown (match' (fv:bvs) (rename v fv e1) (rename w fv f1) s) >>=
+             localGo goDownR . match' (fv:bvs) (rename v fv e2) (rename w fv f2)
     where fv= freshVar $ S.unions [ S.singleton v, freeVars e1, freeVars e2
                                   , S.singleton w, freeVars f1,freeVars f2
                                   ]
-          subst = substitution
 
 -- Caso particular de intentar matchear una variable con una funci&#243;n.
 {-match' _ (Fun _) (Var _) s = Left FuncWithVar
