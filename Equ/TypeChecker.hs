@@ -40,7 +40,7 @@ import qualified Data.Text as T
 import qualified Data.Sequence as S
 import qualified Data.Foldable as F
 import Data.Poset (leq)
-import qualified Data.Set as Set (foldr,elems)
+import qualified Data.Set as Set (elems)
 import Control.Monad.Trans.Either (runEitherT, hoistEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.RWS.Class (ask, tell, get, put,gets,modify)

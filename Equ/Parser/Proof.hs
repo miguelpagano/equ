@@ -11,7 +11,7 @@ module Equ.Parser.Proof ( parsePfFromString'
 import Equ.Parser.Expr
 import Equ.Syntax hiding (Hole)
 import Equ.Expr (Expr(..))
-import Equ.PreExpr ( PreExpr'(..),PreExpr,toFocus
+import Equ.PreExpr ( PreExpr'(..),PreExpr,toFocus, preExprHole
                    , Focus,unParen,toExpr, freeVars,applySubst)
 import Equ.TypeChecker (typeCheckPreExpr,checkPreExpr)
 import Equ.Proof ( validateProof, printProof
@@ -171,9 +171,9 @@ keywordExhaustive = keyword "exhaustive"
 keywordEnd :: ParserP ()
 keywordEnd = keyword "end" >> resetHypSet
 keywordSBOpen :: ParserP ()
-keywordSBOpen = symbol lexer "[" >> return ()
+keywordSBOpen = try $ symbol lexer "[" >> symbol lexer "~" >> return ()
 keywordSBClose :: ParserP ()
-keywordSBClose = symbol lexer "]" >> return ()
+keywordSBClose = try $ symbol lexer "~" >> symbol lexer "]" >> return ()
 keywordDots :: ParserP ()
 keywordDots = symbol lexer ":" >> return ()
 keywordComma :: ParserP ()
@@ -285,7 +285,7 @@ theorem = anyText thName
 parseFocus :: ParserP () -> ParserP Focus
 parseFocus till = 
             getState >>= \st ->
-            exprL (pVarTy st,pUseParen st) <$> manyTill anyChar till >>= pass
+            exprL (makePExprState st) <$> manyTill anyChar till >>= pass
     where
         pass :: Either ParseError Focus -> ParserP Focus
         pass ef = case ef of
@@ -294,24 +294,27 @@ parseFocus till =
                                     fail $ show $ flip setErrorPos per $
                                     setSourceLine (errorPos per) (sourceLine p-1)
         exprL' :: Parser' Focus
-        exprL' = (toFocus . unParen) <$> (spaces >> parsePreExpr)
-        exprL :: (VarTy,ParenFlag) -> String -> Either ParseError Focus
-        exprL st = runParser exprL' st "" 
+        exprL' = (toFocus . unParen) <$> (spaces >> parsePreExpr >>= 
+                                         \expr -> eof >> return expr)
+        exprL :: PExprState -> String -> Either ParseError Focus
+        exprL st s = runParser exprL' st "" s
+        makePExprState :: PProofState -> PExprState
+        makePExprState st = PExprState (pVarTy st) (pUseParen st)
         
 
 -- | Parser de una justificación inmediata de un paso de prueba.
 -- TODO: considerar hipótesis.
 basic :: ParserP Basic
-basic =  Ax <$> axiomUnQual theories
-     <|> Hyp <$> parseHyp
+basic =  Ax   <$> axiomUnQual theories
      <|> Theo <$> parseTheo
+     <|> Hyp  <$> parseHyp
     where
         parseHyp :: ParserP Hypothesis
         parseHyp = try $ 
                     do
                     n <- parseHypName
                     hSet <- getHypSet
-                    maybe (fail $ hypErr n) return (M.lookup n hSet)
+                    maybe (return $ dummyHypothesis n) return (M.lookup n hSet)
         parseTheo :: ParserP Theorem
         parseTheo = try $
                     do
@@ -352,6 +355,12 @@ parseHypothesis = do
                 f <- parseFocus till
                 return $ createHypothesis n (Expr $ toExpr f) (GenConditions [])
 
+dummyHypothesis ::Text -> Hypothesis
+dummyHypothesis text = createHypothesis text dummyExpr (GenConditions [])
+    where
+        dummyExpr :: Expr
+        dummyExpr = Expr $ BinOp (relToOp relEq) (preExprHole "") (preExprHole "")
+
 -- | Parser de pruebas.
 proof :: Maybe Ctx -> Bool -> ParserP Proof
 proof mc flag = do
@@ -365,15 +374,17 @@ proof mc flag = do
     where
         ctx :: Ctx
         ctx = fromMaybe beginCtx mc
+        makeCtx :: Maybe [Hypothesis] -> ParserP Ctx
+        makeCtx = maybe (return ctx) (return . foldr addHypothesis' ctx)
         
         parseProof :: ParserP Proof
         parseProof = 
             parsePrefix >>= \(mname,mhyps) -> many newline >>
-            choice [ inducProof $ maybe ctx (foldr addHypothesis' ctx) mhyps
-                   , casesProof ctx
-                   , transProof ctx flag
+            makeCtx mhyps >>= \ctxWithHyps ->
+            choice [ inducProof ctxWithHyps
+                   , casesProof ctxWithHyps
+                   , transProof ctxWithHyps flag
                    ] >>= \p ->
-            --maybe (return p) (addHypsToProof p) mhyps >>= \p' ->
             maybe (return p) (addProofNWP p) mname
         
         parsePrefix :: ParserP (Maybe Text,Maybe [Hypothesis])
@@ -437,9 +448,8 @@ inducProof ctx = do
                           ParserP [(Focus,Proof)]
         parseInducCases ctx r fei fef (Var indv) = do
                     keywordBasic
-                    
                     c <- parseCases ctx indv
-                    cs <- manyTill (parseCases ctx indv) keywordInduc
+                    cs <- manyTill (parseCases ctx indv) (many newline >> keywordInduc)
                     patt <- parseFocus keywordWith
                     name <- parseName
                     let Just hypInd = createIndHypothesis r fei fef patt indv name
@@ -488,7 +498,7 @@ casesProof ctx = do
                 setCtx (addHypothesis' hyp ctx) p
                     
 
--- -- | Parsea casos.
+-- -- | Parsea casos, de la forma expr -> transProof
 parseCases :: Ctx -> Variable -> ParserP (Focus, Proof)
 parseCases ctx v = do
             fi <- parseFocus keywordRArrow

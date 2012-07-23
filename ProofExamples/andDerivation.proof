@@ -1,9 +1,12 @@
 begin proof derivationAnd 
-    [ especificacion: and@xs = 〈∀ i : 0 ≤ i ∧ i < #xs : xs.i 〉 ]
+    [~ especificacion: and@xs = 〈∀ i : 0 ≤ i ∧ i < #xs : [].i 〉 ~]
     induction in xs for 
         and@xs 
         .≡. 
-        case xs of [] -> True (y ▹ ys) -> y ∧ and@ys end 
+        case xs of 
+            [] -> True 
+            (y ▹ ys) -> y ∧ and@ys 
+        end 
     where
 basic
 [] -> and@[]
@@ -13,7 +16,7 @@ basic
       〈∀ i : 0 ≤ i ∧ i < 0: [].i 〉 
       ≡ { Harry Potter Equivalencia }
       〈∀ i : False : [].i〉 
-      ≡ { Rango Vacío Para Todo }
+      ≡ { h }
       True
 induction y ▹ ys with hypind -> and@(y ▹ ys)
                                 ≡ { especificacion }

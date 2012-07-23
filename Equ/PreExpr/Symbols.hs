@@ -123,5 +123,5 @@ listDrop = Operator { opRepr = "↓"
                     , opAssoc = ALeft
                     , opNotationTy = NInfix
                     , opPrec = 10
-                    , opGlyphs = ["%"]
+                    , opGlyphs = ["!"]
                     }

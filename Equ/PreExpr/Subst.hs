@@ -14,7 +14,7 @@ import Equ.Types
 
 import qualified Data.Map as M
 import Data.Set (Set,union,delete,empty,insert,member,unions,(\\),difference)
-import qualified Data.Set as S (foldr) 
+import qualified Data.Set as S (fold) 
 import Control.Arrow((***))
 import Data.Function (on)
 import Data.Text(pack)
@@ -57,5 +57,5 @@ applySubst (PrExHole h) _ = PrExHole h
 applySubst (Con c) _ = Con c
 applySubst (If b t f) s = If (applySubst b s) (applySubst t s) (applySubst f s)
 applySubst (Case e cs) s = Case (applySubst e s) (map (\(p,e) -> (p, applySubst e (subPat s e))) cs)
-    where subPat s = S.foldr (\v -> M.insert v (Var v)) s . freeVars
+    where subPat s = S.fold (\v -> M.insert v (Var v)) s . freeVars
 
