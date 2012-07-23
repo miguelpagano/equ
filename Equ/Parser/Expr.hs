@@ -34,6 +34,9 @@ module Equ.Parser.Expr
     , parserVar
     , VarTy
     , initPExprState
+    , parserSetType
+    , parserUpdateType
+    , EitherName
     , PExprState (..)
     , ParenFlag (..)
     )
@@ -66,7 +69,9 @@ import System.IO.Unsafe
 data PError = UnOpNotApplied Operator 
             | BinOpNotApplied Operator
 
-type VarTy = (Int,Map (Either VarName FuncName) Type)
+type VarTy = (Int,Map EitherName Type)
+
+type EitherName = Either VarName FuncName
 
 data PExprState = PExprState { peVarTy :: VarTy
                              , peParenFlag :: ParenFlag
@@ -252,8 +257,8 @@ parseCase = reserved lexer "case" >>
                      return (c,ce)
 
 -- Calcula el tipo de una variable o funcion
-setType :: Either VarName FuncName -> PExprState -> (PExprState,Type)
-setType name pest = 
+parserSetType :: Either VarName FuncName -> PExprState -> (PExprState,Type)
+parserSetType name pest = 
             let stv = peVarTy pest 
                 n = fst stv
                 st = snd stv
@@ -262,6 +267,16 @@ setType name pest =
             then (pest {peVarTy = (n,st)}, st ! name)
             else (pest {peVarTy = (n+1, insert name (newvar n) st)}, newvar n)
     where newvar = tyVarInternal
+
+parserUpdateType :: Either VarName FuncName -> Type -> PExprState -> PExprState
+parserUpdateType ename ty st = st {peVarTy = (n, ins ename ty)}
+    where
+        n :: Int
+        n = fst $ peVarTy st
+        maps :: Map (Either VarName FuncName) Type
+        maps = snd $ peVarTy st
+        ins :: EitherName -> Type -> M.Map EitherName Type
+        ins ename ty = M.insert ename ty maps
 
 -- Esta funcion parsea una variable. Nos fijamos que empiece con
 -- minuscula para distinguirla de las funciones (que empiezan con
