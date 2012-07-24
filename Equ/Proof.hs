@@ -86,8 +86,6 @@ import Control.Monad
 import Control.Arrow((&&&),(***))
 import Control.Applicative ((<$>))
 
-import System.IO.Unsafe(unsafePerformIO)
-
 -- | Funciones auxiliares que podrían ir a su propio módulo.
 isRight :: Either a b -> Bool
 isRight (Right _) = True
@@ -141,8 +139,6 @@ checkSimpleStepFromRule f1 f2 rel t rule move =
         (_,res) <- return $ partitionEithers $ map lastMatch es
         -- res <- return $ filter ((match (ruleExpr rule)) . fst) es
         res' <- return $ filter ((==PE.toExpr f2) . PE.toExpr . replaceExpr) res
-        unsafePerformIO (putStrLn ("Validando regla " ++ show rule) >> return (return ()))
-        unsafePerformIO (putStrLn ("Resultado del matching es " ++ show res') >> return (return ()))
         res'' <- return $ filter checkConditions res'
         whenPM' (not $ null res'') err
         
@@ -274,7 +270,6 @@ validateProof p =  validateProof' p goTop'
 validateProof' :: Proof -> (ProofFocus -> ProofFocus) -> PM Proof
 validateProof' (Hole ctx rel f1 f2) moveFocus = Left $ ProofError HoleProof moveFocus
 validateProof' proof@(Simple ctx rel f1 f2 b) moveFocus = 
---     unsafePerformIO (putStrLn ("\n\n---Validando subprueba: "++ show proof) >> (return (Right proof))) >> 
     proofFromTruth f1 f2 rel b moveFocus
 validateProof' proof@(Trans ctx rel f1 f f2 p1 p2) moveFocus = 
     getStart p1 >>= whenEqWithDefault err f1 >>

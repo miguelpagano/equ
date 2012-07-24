@@ -66,11 +66,6 @@ data Func = Func {
     , funcTy   :: Type
     }
 
-arity :: Func -> Int
-arity = arity' . funcTy
-    where arity' (_ :-> t') = 1 + arity' t'
-          arity' _ = 0
-
 instance Eq Func where 
     f == f' = tRepr f == tRepr f'
     

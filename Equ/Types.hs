@@ -186,3 +186,7 @@ instance Arbitrary Type where
               , TyAtom <$> arbitrary
               , (:->) <$> arbitrary <*> arbitrary
               ]
+
+arity :: Type -> Int
+arity (_ :-> t') = 1 + arity t'
+arity _ = 0
