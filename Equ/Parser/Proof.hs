@@ -68,7 +68,6 @@ type HypSet = M.Map HypName Hypothesis
 
 data PProofState = PProofState { pHypSet :: HypSet
                                , pProofSet :: ProofSet
-                               , pVarTy :: VarTy
                                , pUseParen :: ParenFlag
                                }
 
@@ -171,9 +170,9 @@ keywordExhaustive = keyword "exhaustive"
 keywordEnd :: ParserP ()
 keywordEnd = keyword "end" >> resetHypSet
 keywordSBOpen :: ParserP ()
-keywordSBOpen = try $ symbol lexer "[" >> symbol lexer "~" >> return ()
+keywordSBOpen = try (symbol lexer "[") >> symbol lexer "~" >> return ()
 keywordSBClose :: ParserP ()
-keywordSBClose = try $ symbol lexer "~" >> symbol lexer "]" >> return ()
+keywordSBClose = try (symbol lexer "~") >> symbol lexer "]" >> return ()
 keywordDots :: ParserP ()
 keywordDots = symbol lexer ":" >> return ()
 keywordComma :: ParserP ()
@@ -299,7 +298,7 @@ parseFocus till =
         exprL :: PExprState -> String -> Either ParseError Focus
         exprL st s = runParser exprL' st "" s
         makePExprState :: PProofState -> PExprState
-        makePExprState st = PExprState (pVarTy st) (pUseParen st)
+        makePExprState st = PExprState $ pUseParen st
         
 
 -- | Parser de una justificación inmediata de un paso de prueba.
@@ -555,10 +554,7 @@ parseFromFileProof fp = readFile fp >>= \s ->
 
 -- | Estado inicial del parser de pruebas.
 initPProofState :: ParenFlag -> PProofState
-initPProofState = PProofState M.empty M.empty initVarTy
-    where
-        initVarTy :: VarTy
-        initVarTy = (0,M.empty)
+initPProofState = PProofState M.empty M.empty
 
 {- Pasar estas funciones a Equ.Proof -}
 -- | construcción de una prueba simple.

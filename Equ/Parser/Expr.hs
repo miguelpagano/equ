@@ -30,12 +30,12 @@ module Equ.Parser.Expr
     -- * Funciones principales de parseo
     , parseFromString
     , parsePreExpr
+    , parseVariable
+    , parseVariableWithType
     , parser
     , parserVar
     , VarTy
     , initPExprState
-    , parserSetType
-    , parserUpdateType
     , EitherName
     , PExprState (..)
     , ParenFlag (..)
@@ -73,9 +73,7 @@ type VarTy = (Int,Map EitherName Type)
 
 type EitherName = Either VarName FuncName
 
-data PExprState = PExprState { peVarTy :: VarTy
-                             , peParenFlag :: ParenFlag
-                             }
+data PExprState = PExprState { peParenFlag :: ParenFlag }
 
 data ParenFlag = UseParen | UnusedParen
 
@@ -130,7 +128,7 @@ rNames = map ($ equLang) [quantInit,quantEnd,quantSep]
          ++ listAtomTy
 
 -- Para lexical analisys.
-lexer' :: TokenParser PExprState
+lexer' :: TokenParser u
 lexer' = makeTokenParser $
             emptyDef { reservedOpNames = rOpNames
                      , reservedNames = rNames
@@ -189,7 +187,7 @@ subexpr flag =  parseSugarPreExpr parsePreExpr
             <|> parseQuant
             <|> parseIf
             <|> parseCase
-            <|> Var <$> parseVar
+            <|> Var <$> parseVariable
             <|> parseHole
     where
         parseParen :: (PreExpr -> PreExpr)
@@ -213,7 +211,7 @@ pQuan :: Quantifier -> Parser' PreExpr
 pQuan q = try $ 
           symbol lexer (quantInit equLang) >>
           (symbol lexer . unpack . quantRepr) q >>
-          (parseVar <?> "Cuantificador sin variable") >>= 
+          (parseVariable <?> "Cuantificador sin variable") >>= 
           \v -> symbol lexer (quantSep equLang) >> parsePreExpr >>=
           \r -> symbol lexer (quantSep equLang) >> parsePreExpr >>=
           \t -> symbol lexer (quantEnd equLang) >> return (Quant q v r t)
@@ -256,34 +254,16 @@ parseCase = reserved lexer "case" >>
                      parsePreExpr >>= \ ce ->
                      return (c,ce)
 
--- Calcula el tipo de una variable o funcion
-parserSetType :: Either VarName FuncName -> PExprState -> (PExprState,Type)
-parserSetType name pest = 
-            let stv = peVarTy pest 
-                n = fst stv
-                st = snd stv
-            in
-            if name `M.member` st
-            then (pest {peVarTy = (n,st)}, st ! name)
-            else (pest {peVarTy = (n+1, insert name (newvar n) st)}, newvar n)
-    where newvar = tyVarInternal
-
-parserUpdateType :: Either VarName FuncName -> Type -> PExprState -> PExprState
-parserUpdateType ename ty st = st {peVarTy = (n, ins ename ty)}
-    where
-        n :: Int
-        n = fst $ peVarTy st
-        maps :: Map (Either VarName FuncName) Type
-        maps = snd $ peVarTy st
-        ins :: EitherName -> Type -> M.Map EitherName Type
-        ins ename ty = M.insert ename ty maps
-
 -- Esta funcion parsea una variable. Nos fijamos que empiece con
 -- minuscula para distinguirla de las funciones (que empiezan con
 -- mayuscula). 
-parseVar :: Parser' Variable
-parseVar = try $ lexeme lexer ((:) <$> lower <*> many alphaNum) >>= 
-           \v -> return (var (pack v) TyUnknown)
+parseVariableWithType :: Type -> ParsecT String u Identity Variable
+parseVariableWithType ty = try $ 
+                    lexeme lexer ((:) <$> lower <*> many alphaNum) >>= 
+                    \v -> return (var (pack v) ty)
+
+parseVariable :: ParsecT String u Identity Variable
+parseVariable = parseVariableWithType TyUnknown
 
 -- //////// Parser de syntax sugar ////////
 
@@ -334,7 +314,7 @@ parseFromFilePreExpr fp = readFile fp >>= \s ->
                             Left err -> print err
 
 initPExprState :: ParenFlag -> PExprState
-initPExprState = PExprState (0,M.empty)
+initPExprState = PExprState
 -- | Gramatica de parseo.
 --
 -- @
@@ -386,7 +366,7 @@ parser :: String -> PreExpr
 parser = either showError showPreExpr . parseFromString
 
 parserVar :: ParenFlag -> String -> Either ParseError Variable
-parserVar flag = runParser parseVar (initPExprState flag) "TEST" 
+parserVar flag = runParser parseVariable (initPExprState flag) "TEST" 
 
 -- Imprimimos el error con version Exception de haskell.
 showError :: Show a => a -> b
@@ -396,9 +376,8 @@ showError = error . show
 showPreExpr :: a -> a
 showPreExpr = id
 
-
--- buildExprParser :: Stream s m t =>
---                    OperatorTable s u m a -> ParsecT s u m a -> ParsecT s u m a
+buildExprParser :: Stream s m t => 
+                   [[POperator s u m b]] -> ParsecT s u m b -> ParsecT s u m b
 buildExprParser operators simpleExpr = foldl makeParser simpleExpr operators
     where
         initOps = ([],[],[],[],[])
