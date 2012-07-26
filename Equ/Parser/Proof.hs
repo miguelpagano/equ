@@ -419,30 +419,10 @@ inducProof ctx = do
             fei <- parseFocus keywordDot
             [rel] <- manyTill rel keywordDot
             fef <- parseFocus keywordWhere
-            let ex = toExpr fef
-            --error $ "ex es = " ++ show ex
-            typedFinduc <- typeVarInducM ex fInduc-- fInduc
-            -- () <- return $ unsafePerformIO $ (putStrLn $ "--------EITHERF es :--------" ++ show eitherF)
-            -- typedFinduc <- return $ fInduc  
-            
-            cs <- parseInducCases ctx rel fei fef (toExpr typedFinduc)
+            cs <- parseInducCases ctx rel fei fef (toExpr fInduc)
             parseProofEnd
-            let p = Ind ctx rel fei fef typedFinduc cs
-            return p 
+            return $ Ind ctx rel fei fef fInduc cs
     where
-        makeExpr :: Relation -> Focus -> Focus -> PreExpr
-        makeExpr r e e' = BinOp (relToOp r) (toExpr e) (toExpr e')
-        typeVarInducM e (Var v,_) = either (error . show) (\t -> return . toFocus . Var $ v { varTy = t }) $ checkPreExpr e
-        typeVarInduc :: PreExpr -> Focus -> Either ProofError Focus
-        typeVarInduc e (Var fInduc,_) = do
-            typedFei <- either (Left . (flip ProofError id)
-                                     . ClashTypingProofExpr . fst)
-                               return 
-                               (typeCheckPreExpr e)
-            let xs = (Set.toList $ freeVars typedFei)
-            maybe (Left $ ProofError (InductionError VarIndNotInExpr) id) 
-                  (return . toFocus . Var)
-                  (find (==fInduc) (Set.toList (freeVars typedFei)))
         parseInducCases:: Ctx -> Relation -> Focus -> Focus -> PreExpr -> 
                           ParserP [(Focus,Proof)]
         parseInducCases ctx r fei fef (Var indv) = do
