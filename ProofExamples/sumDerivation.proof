@@ -1,5 +1,5 @@
 begin proof derivationSum 
-    [ especificacion: sum@xs = 〈∑ x : 0 ≤ x ∧ x < #xs : xs.x 〉 ]
+    [ especificacion: sum@xs = 〈∑ i : 0 ≤ i ∧ i < #xs : xs.i 〉 ]
     induction in xs for 
         sum@xs 
         .=. 
@@ -8,32 +8,32 @@ begin proof derivationSum
 basic
 [] -> sum@[]
       = { especificacion }
-      〈 ∑ x : 0 ≤ x ∧ x < #[] : [].x 〉
+      〈 ∑ i : 0 ≤ i ∧ i < #[] : [].i 〉
       = { Longitud de la lista vacía }
-      〈 ∑ x : 0 ≤ x ∧ x < 0 : [].x 〉
+      〈 ∑ i : 0 ≤ i ∧ i < 0 : [].i 〉
       = { Intervalo Vacío }
-     〈 ∑ x : False : [].x 〉
+     〈 ∑ i : False : [].i 〉
       = { Rango Vacío Sumatoria }
       0
 induction y ▹ ys with hypind -> sum@(y ▹ ys)
                                 = { especificacion }
-                                〈 ∑ x : 0 ≤ x ∧ x < #(y ▹ ys) : (y ▹ ys).x〉
+                                〈 ∑ i : 0 ≤ i ∧ i < #(y ▹ ys) : (y ▹ ys).i〉
                                 = { Longitud de lista no vacía }
-                                〈 ∑ x : 0 ≤ x ∧ x < succ (#ys) : (y ▹ ys).x〉
+                                〈 ∑ i : 0 ≤ i ∧ i < succ (#ys) : (y ▹ ys).i〉
                                 = { Aritmética en Intervalo }
-                                〈 ∑ x : x = 0 ∨ (0 < x ∧ x < succ (#ys)) : (y ▹ ys).x〉
+                                〈 ∑ i : i = 0 ∨ (0 < i ∧ i < succ (#ys)) : (y ▹ ys).i〉
                                 = { Partición de Rango Sumatoria }
-                                〈 ∑ x : x = 0 : (y ▹ ys).x 〉 + 〈 ∑ x : 0 < x ∧ x < succ (#ys) : (y ▹ ys).x 〉
+                                〈 ∑ i : i = 0 : (y ▹ ys).i 〉 + 〈 ∑ i : 0 < i ∧ i < succ (#ys) : (y ▹ ys).i 〉
                                 = { Rango Unitario Sumatoria }
-                                ((y ▹ ys).0) + 〈 ∑ x : 0 < x ∧ x < succ (#ys) : (y ▹ ys).x〉
+                                ((y ▹ ys).0) + 〈 ∑ i : 0 < i ∧ i < succ (#ys) : (y ▹ ys).i〉
                                 = { Proyectar el elemento inicial }
-                                y + 〈 ∑ x : 0 < x ∧ x < succ (#ys) : (y ▹ ys).x〉
+                                y + 〈 ∑ i : 0 < i ∧ i < succ (#ys) : (y ▹ ys).i〉
                                 = { Relación entre < y ≤ }
-                                y + 〈 ∑ x : succ 0 ≤ x ∧ x < succ (#ys) : (y ▹ ys).x〉
+                                y + 〈 ∑ i : succ 0 ≤ i ∧ i < succ (#ys) : (y ▹ ys).i〉
                                 = { Reindizado Sumatoria }
-                                y + 〈 ∑ x : 0 ≤ x ∧ x < #ys : (y ▹ ys).(succ x)〉
+                                y + 〈 ∑ i : 0 ≤ i ∧ i < #ys : (y ▹ ys).(succ i)〉
                                 = { Proyectar el elemento (i+1) }
-                                y + 〈 ∑ x : 0 ≤ x ∧ x < #ys : ys.x〉
+                                y + 〈 ∑ i : 0 ≤ i ∧ i < #ys : ys.i〉
                                 = { especificacion }
                                 y + (sum@ys)
 end proof       

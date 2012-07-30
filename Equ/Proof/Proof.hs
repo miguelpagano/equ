@@ -40,6 +40,7 @@ import Equ.Rule
 import Equ.TypeChecker
 import Equ.Types
 import Equ.Proof.Condition
+import Equ.Matching(VariableRename)
 
 import qualified Equ.Theories.Common as C (equal,folFalse)
  
@@ -920,9 +921,9 @@ instanciateInCtx ctx v p =
                   hyp { hypExpr = Expr $ applySubst peHyp (M.singleton v (toExpr p)) }
 
 
-conditionFunction :: GCondition -> (ExprSubst -> PreExpr -> Bool)
+conditionFunction :: GCondition -> ((ExprSubst,VariableRename) -> PreExpr -> Bool)
 conditionFunction (VarNotInExpr v p) =
-    \subst expr -> not $ Set.member v (freeVars $ applySubst p subst)
+    \(subst,_) expr -> not $ Set.member v (freeVars $ applySubst p subst)
     
 conditionFunction (InductiveHypothesis pattern)=
     -- En la hipótesis inductiva, solo podemos validar la reecritura si
@@ -930,23 +931,30 @@ conditionFunction (InductiveHypothesis pattern)=
     -- es la misma. Ejemplo: si la HI es "x es par", solo podemos aplicarla
     -- a la expresión "x es par" y no a "(x+1) es par". Por eso pedimos que 
     -- la substitución de reescritura asigne x -> x.
-    \subst expr -> case pattern of
+    \(subst,_) expr -> case pattern of
                         Var var -> case (applySubst (Var var) subst) of
                                         Var x -> varName x == varName var
                                         _ -> False
                         _ -> False
 conditionFunction (NotEmptyRange pattern) = 
-    \subst expr -> let range_expr = applySubst pattern subst in
-                       if range_expr == Con C.folFalse 
-                          then False
-                          else True
+    \(subst,_) expr -> let range_expr = applySubst pattern subst in
+                        if range_expr == Con C.folFalse 
+                            then False
+                            else True
                           
-{- q es igual a p donde reemplazamos x por n -}
+{- q es igual a p donde reemplazamos x por n.
+   Esta condicion se utiliza en cuantificadores. x es la variable cuantificada.
+   Al chequear el reemplazo en expresiones, vemos el renombre que hizo el matching
+   a la variable cuantificada. -}
 conditionFunction (ReplacedExpr q p x n) =
-    \subst expr -> 
-        let Var v = applySubst (Var x) subst in
-            (applySubst q subst) == applySubst (applySubst p subst) (M.singleton v (applySubst n subst))
-   
+    \(subst,rnm) expr -> 
+        let v = M.lookup x rnm in
+            maybe False (\v -> 
+            (applySubst q subst) == applySubst (applySubst p subst) 
+                                        (M.singleton v (applySubst (n' rnm) subst))
+            ) v
+        where n' rnm = applySubst n (M.map (\v -> Var v) rnm)
+            
 getGenConditions :: Condition -> [GCondition]
 getGenConditions (GenConditions lc) = lc
 getGenConditions _ = error "getGenConditions: Condición especial!"

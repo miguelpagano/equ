@@ -11,6 +11,7 @@ module Equ.Matching
     , match
     , matchWithSubst
     , MatchMErr
+    , VariableRename
     )
     where
 
@@ -28,8 +29,11 @@ import Control.Monad.RWS.Class(ask)
 -- | Estructura general para los errores informativos con contexto.
 type MatchMErr = (Focus,MatchError)
 
+
+type VariableRename = M.Map Variable Variable
+
 -- | M&#243;nada de estado para matching.
-type MatchState = MonadTraversal MatchMErr ExprSubst
+type MatchState = MonadTraversal MatchMErr (ExprSubst,VariableRename)
 
 -- | Generaci&#243;n de mensaje de Error.
 matcherr :: MatchError -> MatchState a
@@ -42,11 +46,11 @@ matcherr err = ask >>= \foc -> hoistEither $ Left (foc, err)
         True => seguir la computaci&#243;n.
         False => devolver el error particular.
 -}
-whenM :: Bool -> MatchError -> MatchState ExprSubst -> MatchState ExprSubst
+whenM :: Bool -> MatchError -> MatchState (ExprSubst,VariableRename) -> MatchState (ExprSubst,VariableRename)
 whenM True _ = id
 whenM False er = const $ matcherr er
 
-whenML :: Bool -> MatchError -> ExprSubst -> MatchState ExprSubst
+whenML :: Bool -> MatchError -> (ExprSubst,VariableRename) -> MatchState (ExprSubst,VariableRename)
 whenML True _ = return
 whenML False er = const $ matcherr er
 
@@ -54,7 +58,7 @@ whenML False er = const $ matcherr er
 que est&#225;n ligadas a alg&#250;n cuantificador, una expresi&#243;n patr&#243;n, otra expresi&#243;n y
 un mapa de sustituciones. 
 -}
-match' :: [Variable] -> PreExpr -> PreExpr -> ExprSubst -> MatchState ExprSubst
+match' :: [Variable] -> PreExpr -> PreExpr -> (ExprSubst,VariableRename) -> MatchState (ExprSubst,VariableRename)
 {- El caso principal del algoritmo, donde el patr&#243;n es una variable. 
 * Si la expresi&#243;n e' es igual al patr&#243;n Var v, se devuelve el mismo mapa de 
 sustituciones (es decir, no hay que reemplazar nada para llegar desde una 
@@ -68,11 +72,12 @@ mapa de sustituciones se encuentra la variable. Si no, entonces podemos matchear
 v por e'. Si v est&#225; en el mapa, entonces para que haya matching tiene que estar 
 asociada con la expresi&#243;n e'.
 -}
-match' bvs e@(Var v) e' s | e == e' = return $ M.insert v e' s
+match' bvs e@(Var v) e' (s,rnm) 
+                          | e == e' = return $ (M.insert v e' s,rnm)
                           | v `elem` bvs = matcherr $ BindingVar v
                           | otherwise = 
-                              maybe (return $ M.insert v e' s)
-                                    (\f -> whenML (e' == f) (DoubleMatch v f e') s)
+                              maybe (return $ (M.insert v e' s,rnm))
+                                    (\f -> whenML (e' == f) (DoubleMatch v f e') (s,rnm))
                                     $ M.lookup v s
 
 match' bvs (UnOp op1 e1) (UnOp op2 e2) s = whenM (op1==op2) 
@@ -114,12 +119,14 @@ VERSI&#211;N 2; Cada vez que voy a intentar matchear las expresiones internas de
     que representan navegar por izquierda o por derecha respectivamente.
 -}    
 
-match' bvs (Quant q v e1 e2) (Quant p w f1 f2) s =
+match' bvs (Quant q v e1 e2) (Quant p w f1 f2) (s,rnm) =
     whenM (q == p) (InequQuantifier q p) $ -- En caso de error devuelvo InequQuant
-        if v == w 
-        then localGo goDown (match' (v:bvs) e1 f1 s) >>= 
-             localGo goDownR . match' (v:bvs) e2 f2
-        else localGo goDown (match' (fv:bvs) (rename v fv e1) (rename w fv f1) s) >>=
+        if v == w
+        then let newRnm = M.insert v w rnm in
+                localGo goDown (match' (v:bvs) e1 f1 (s,newRnm)) >>= 
+                localGo goDownR . match' (v:bvs) e2 f2
+        else let newRnm = M.insert v fv rnm in
+             localGo goDown (match' (fv:bvs) (rename v fv e1) (rename w fv f1) (s,newRnm)) >>=
              localGo goDownR . match' (fv:bvs) (rename v fv e2) (rename w fv f2)
     where fv= freshVar $ S.unions [ S.singleton v, freeVars e1, freeVars e2
                                   , S.singleton w, freeVars f1,freeVars f2
@@ -167,10 +174,10 @@ match' _ e1 e2 s = whenML (e1==e2) (InequPreExpr e1 e2) s
 Si hay matching, retorna el mapa de sustituciones que deben realizarse
 simult&#225;neamente para llegar desde la expresi&#243;n patr&#243;n a la expresi&#243;n dada.
 -}
-match :: PreExpr -> PreExpr -> Either (MatchMErr,Log) ExprSubst
-match e e' = matchWithSubst e e' M.empty
+match :: PreExpr -> PreExpr -> Either (MatchMErr,Log) (ExprSubst,VariableRename)
+match e e' = matchWithSubst e e' (M.empty,M.empty)
 
-matchWithSubst :: PreExpr -> PreExpr -> ExprSubst -> Either (MatchMErr,Log) ExprSubst
-matchWithSubst e e' subs = case runRWS (runEitherT (match' [] e e' subs)) (toFocus e') subs of
+matchWithSubst :: PreExpr -> PreExpr -> (ExprSubst,VariableRename) -> Either (MatchMErr,Log) (ExprSubst,VariableRename)
+matchWithSubst e e' subs@(s,rnm) = case runRWS (runEitherT (match' [] e e' subs)) (toFocus e') subs of
                    (res, _, l) -> either (\err -> Left (err,l)) (Right . prune) res
-    where prune = M.filterWithKey (\v e -> Var v /= e) 
+    where prune (s,rnm) = (M.filterWithKey (\v e -> Var v /= e) s,rnm)

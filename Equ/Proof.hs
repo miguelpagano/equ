@@ -151,18 +151,18 @@ checkSimpleStepFromRule f1 f2 rel t rule move =
         pegar :: Relation -> PE.Focus -> PE.Focus -> (PE.PreExpr,PE.Focus)
         pegar rel f1@(e1,p) (e2,p') =
             ((PE.BinOp (relToOp rel) e1 e2),f1)
-        replaceExpr :: (PE.PreExpr,PE.Focus,PE.ExprSubst) -> PE.Focus
+        replaceExpr :: (PE.PreExpr,PE.Focus,(PE.ExprSubst,VariableRename)) -> PE.Focus
         replaceExpr (expr,focus,_) = 
             case expr of
                  PE.BinOp op f1 f2 -> PE.replace focus f2
                  _ -> error "La expresion pegada no puede ser distinta de BinOp"
         applyFunct :: (PE.Focus -> (PE.PreExpr,PE.Focus)) -> [PE.Focus] -> [(PE.PreExpr,PE.Focus)]
         applyFunct fun fs = map fun fs
-        lastMatch :: (PE.PreExpr,PE.Focus) -> Either (MatchMErr,PE.Log) (PE.PreExpr,PE.Focus,PE.ExprSubst)
+        lastMatch :: (PE.PreExpr,PE.Focus) -> Either (MatchMErr,PE.Log) (PE.PreExpr,PE.Focus,(PE.ExprSubst,VariableRename))
         lastMatch (expr,f) = 
             match (ruleExpr rule) expr >>= \subst ->
             return (expr,f,subst)
-        checkConditions :: (PE.PreExpr,PE.Focus,PE.ExprSubst) -> Bool
+        checkConditions :: (PE.PreExpr,PE.Focus,(PE.ExprSubst,VariableRename)) -> Bool
         checkConditions (_,_,subst) =
             let condFuncts = map conditionFunction (getGenConditions $ truthConditions t) in
                 and $ map (\f -> f subst (PE.toExpr f1)) condFuncts

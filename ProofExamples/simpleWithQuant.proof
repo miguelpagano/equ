@@ -4,3 +4,8 @@ begin proof
             ≡ { Regla del Término Constante Para Todo }
             ¬ (succ z = 0)
 end proof
+
+
+
+
+concat xs ys = 〈That zs : True : 〈∀ i : 0 ≤ i < #xs : zs.i = xs.i〉 ∧ 〈∀ i : 0 ≤ i < #ys : zs.(i+#xs) = ys.i〉 ∧ #zs = #xs + #ys〉

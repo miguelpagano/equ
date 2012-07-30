@@ -41,6 +41,9 @@ data QuantName = Forall  -- ^ FOL: para todo
                | Exist -- ^ FOL: existe
                | SumQuant -- ^ Arith: Sumatoria
                | ThatQuant -- ^ Todos: Cuantificador That
+               | ContQuant -- ^ Arith: Cuantificador Contar
+               | MinQuant -- ^ Arith: Cuantificador Mínimo
+               | MaxQuant -- ^ Arith: Cuantificador Máximo
                  deriving (Eq,Ord,Show)
 
 -- | Instancia arbitrary para ConName

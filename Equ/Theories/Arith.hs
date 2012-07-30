@@ -41,6 +41,26 @@ sumQuant = Quantifier { quantRepr = "∑"
                        , quantName = SumQuant
                        , quantTy = tyVar "A" :-> (TyAtom ATyNat)
                        }
+                       
+-- | Cuantificador Contar
+contQuant :: Quantifier
+contQuant = Quantifier { quantRepr = "N"
+                       , quantName = ContQuant
+                       , quantTy = tyVar "A" :-> (TyAtom ATyNat)
+                       }
+                       
+-- | Cuantificador Minimo
+minQuant :: Quantifier
+minQuant = Quantifier { quantRepr = "Min"
+                      , quantName = MinQuant
+                      , quantTy = tyVar "A" :-> (TyAtom ATyNat)
+                      }
+                      
+maxQuant :: Quantifier
+maxQuant = Quantifier { quantRepr = "Max"
+                      , quantName = MaxQuant
+                      , quantTy = tyVar "A" :-> (TyAtom ATyNat)
+                      }
 
 
 -- | Constantes de arith
@@ -51,7 +71,7 @@ theoryOperatorsList :: [Operator]
 theoryOperatorsList = [natSucc,natSum,natProd]
 -- | Cuantificadores de arith
 theoryQuantifiersList :: [Quantifier]
-theoryQuantifiersList = [sumQuant]
+theoryQuantifiersList = [sumQuant,contQuant,minQuant,maxQuant]
 
 -- | Constructor de Variable de tipo Nat.
 varNat :: Text -> Expr

@@ -37,14 +37,14 @@ exprRewrite :: Expr -> Rule -> RM Expr
 exprRewrite (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) = 
                             case match l e of
                                 Left er -> Left $ Matching er
-                                Right subs -> Right $ Expr $ applySubst r subs
+                                Right (subs,_) -> Right $ Expr $ applySubst r subs
 
 -- | Igual a exprRewrite pero ademas retorna la lista de sustituciones.
 rewriteInformative :: Expr -> Rule -> RM (Expr, ExprSubst)
 rewriteInformative (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) = 
                         case match l e of
                             Left er -> Left $ Matching er
-                            Right subs -> Right (Expr $ applySubst r subs, subs)
+                            Right (subs,_) -> Right (Expr $ applySubst r subs, subs)
 
 -- | Dado un focus y una regla, aplicamos re-escrituda con la regla a la 
 --  expresi&#243;n focalizada, en caso de exito reemplazamos la expresi&#243;n inicial
