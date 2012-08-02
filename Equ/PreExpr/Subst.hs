@@ -56,6 +56,6 @@ applySubst (Paren e) s = Paren $ applySubst e s
 applySubst (PrExHole h) _ = PrExHole h
 applySubst (Con c) _ = Con c
 applySubst (If b t f) s = If (applySubst b s) (applySubst t s) (applySubst f s)
-applySubst (Case e cs) s = Case (applySubst e s) (map (\(p,e) -> (p, applySubst e (subPat s e))) cs)
+applySubst (Case e cs) s = Case (applySubst e s) (map (\(p,e) -> (p, applySubst e (subPat s p))) cs)
     where subPat s = S.fold (\v -> M.insert v (Var v)) s . freeVars
 
