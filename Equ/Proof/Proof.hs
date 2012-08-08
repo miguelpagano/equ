@@ -561,22 +561,22 @@ instance Eq Proof where
                
 -- TODO: Completar esta funcion cuando se termine el parser de pruebas.
 instance Show Proof where
-    show = printProof
-    -- show Reflex = ""
-    -- show (Hole _ r f f') = "Hole " ++ show r ++ " " ++ show f ++ " " ++ show f'
-    -- show (Simple c r f f' b) = "Simple " ++ show r ++ " " ++ show  f ++ " " ++ show  f' ++ " { " ++ show b ++" } " 
-    -- show (Trans _ r f f' f'' p p') = "Trans " ++ show r ++ " " ++ show f ++ " " ++ 
-    --                                              show f' ++ " " ++ show f'' ++ " { " ++ show p ++ " } " ++
-    --                                              " { " ++ show p' ++ " } "
-    -- show (Cases _ r f f' f'' lfp orP) = "Cases " ++ show r ++ " " ++ show f ++ " " ++ 
-    --                                              show f' ++ " " ++ show f'' ++ " { " ++ show lfp ++ " } "
-    -- show (Ind c r f f' f'' lfp) = unlines [ "Induction "
-    --                                       , show c 
-    --                                       , show r ++ "(" ++ show f ++ ", " ++ show f' ++ ")" 
-    --                                       , "by induction on " ++ show f''
-    --                                       , " { " ++ show lfp ++ " } "
-    --                                       ]
-    -- show _ = "prueba no implementada"
+    --show = printProof
+    show Reflex = ""
+    show (Hole _ r f f') = "Hole " ++ show r ++ " " ++ show f ++ " " ++ show f'
+    show (Simple c r f f' b) = "Simple " ++ show r ++ " " ++ show  f ++ " " ++ show  f' ++ " { " ++ show b ++" } " 
+    show (Trans _ r f f' f'' p p') = "Trans " ++ show r ++ " " ++ show f ++ " " ++ 
+                                                 show f' ++ " " ++ show f'' ++ " { " ++ show p ++ " } " ++
+                                                 " { " ++ show p' ++ " } "
+    show (Cases _ r f f' f'' lfp orP) = "Cases " ++ show r ++ " " ++ show f ++ " " ++ 
+                                                 show f' ++ " " ++ show f'' ++ " { " ++ show lfp ++ " } "
+    show (Ind c r f f' f'' lfp) = unlines [ "Induction "
+                                          , show c 
+                                          , show r ++ "(" ++ show f ++ ", " ++ show f' ++ ")" 
+                                          , "by induction on " ++ show f''
+                                          , " { " ++ show lfp ++ " } "
+                                          ]
+    show _ = "prueba no implementada"
 
 printPf :: Proof -> [String]
 printPf Reflex = [""]

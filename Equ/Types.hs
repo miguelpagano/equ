@@ -131,7 +131,7 @@ instance Show Type where
     show (TyVar v) = unpack v
     show (TyList t) = "[" ++ show t ++ "]"
     show (TyAtom t) = show t
-    show (t :-> t') = show t ++ " :-> " ++ show t'
+    show (t :-> t') = show t ++ " -> " ++ show t'
 
     
 instance Poset Type where

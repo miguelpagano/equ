@@ -39,7 +39,7 @@ bool = "Bool"
 
 -- Operador de funcion.
 opFun :: String
-opFun = ":->"
+opFun = "->"
 
 -- | Nombre de los tipos atomicos.
 listAtomTy :: [String]
@@ -61,7 +61,8 @@ operatorTypeTable :: ParserTypeTable
 operatorTypeTable = [[PE.Infix (reservedOp lexerTy opFun >> return (:->)) PE.AssocRight]]
 
 typeSubExpr :: Parser Type
-typeSubExpr =  parseUnknown
+typeSubExpr =  parens lexerTy parseType
+           <|> parseUnknown
            <|> parseTyVar
            <|> parseTyList
            <|> parseTyAtom

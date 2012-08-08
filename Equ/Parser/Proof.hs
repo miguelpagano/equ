@@ -389,7 +389,7 @@ proof mc flag = do
         parsePrefix :: ParserP (Maybe Text,Maybe [Hypothesis])
         parsePrefix = 
             choice 
-            [ try (newline >> return (Nothing,Nothing))
+            [ try ((many1 newline) >> return (Nothing,Nothing))
             , try (parseProofName >>= \n -> parseHypothesis >>= \hs -> 
                    mapM_ addHypsToState hs >>
                    return (Just n, Just hs))
