@@ -91,8 +91,8 @@ getHypSet :: (PExprStateClass s, PProofStateClass s) => ParserP s HypSet
 getHypSet = pHypSet . pProofState <$> getState
 
 -- | Parsea un final de prueba que comienza con begin proof.
--- parseProofEnd :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
--- parseProofEnd = many newline >> keywordEnd >> keywordProof
+parseProofEnd :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
+parseProofEnd = many newline >> keywordEnd >> keywordProof
 
 -- | Borra las hipotesis del estado del parser de pruebas.
 resetHypSet :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
@@ -100,7 +100,7 @@ resetHypSet = do pst <- getState
                  let pst' = pProofState pst
                  putState $ setProofState pst $ pst' {pHypSet = M.empty}
 
-{-
+
 -- | Si el conjunto de pruebas declaradas es vacio.
 proofSetIsEmpty :: (PExprStateClass s, PProofStateClass s) => ParserP s Bool
 proofSetIsEmpty = M.null <$> getProofSet
@@ -187,7 +187,7 @@ keywordBasic :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordBasic = keyword "basic"
 keywordExhaustive :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordExhaustive = keyword "exhaustive"
---keywordEnd :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
+keywordEnd :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordEnd = keyword "end" >> resetHypSet
 keywordSBOpen :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordSBOpen = try (symbol lexer "[") >> symbol lexer "~" >> return ()
@@ -584,4 +584,4 @@ mkTrans c e pSet ((e',(r,j)):steps) = go (mkSimple c r e e' j) steps
             where 
                 e0 = fromJust (getStart p)
                 e1 = fromJust (getEnd p)
-                prf' = Trans c r e0 e1 e p (mkSimple c r e1 e j)-}
+                prf' = Trans c r e0 e1 e p (mkSimple c r e1 e j)
