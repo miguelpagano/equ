@@ -1,12 +1,12 @@
 {-# Language OverloadedStrings #-}
 -- | Este modulo es el parser de pruebas.
-module Equ.Parser.Proof ( parsePfFromString'
+module Equ.Parser.Proof {-( parsePfFromString'
                         , rel 
                         , proof
                         , parseFromFileProof
                         , initPProofState
                         , PProofState
-                        , pProofSet) where
+                        , pProofSet) -}where
 
 import Equ.Parser.Expr
 import Equ.Syntax hiding (Hole)
@@ -58,8 +58,6 @@ import qualified Data.Map as M (Map,empty,insert,toList,null, lookup, map,single
 import Control.Monad.Identity
 import Control.Applicative ((<$>),(<$),(<*>))
 
-import System.IO.Unsafe
-
 type ProofName = Text
 type HypName = Text
 
@@ -68,36 +66,49 @@ type HypSet = M.Map HypName Hypothesis
 
 data PProofState = PProofState { pHypSet :: HypSet
                                , pProofSet :: ProofSet
-                               , pUseParen :: ParenFlag
+                               , pExprSt :: PExprState
                                }
 
-type ParserP a = ParsecT String PProofState Identity a
+class PProofStateClass a where
+    pProofState :: a -> PProofState
+
+instance PExprStateClass PProofState where
+    pExprState = pExprSt
+
+instance PProofStateClass PProofState where
+    pProofState = id
+
+type ParserP a b = ParsecT String a Identity b
 
 -- | Retorna la pila de teoremas declarados.
-getProofSet :: ParserP ProofSet
-getProofSet = pProofSet <$> getState
+getProofSet :: (PExprStateClass s, PProofStateClass s) => ParserP s ProofSet
+getProofSet = pProofSet . pProofState <$> getState
 
 -- | Retorna la pila de teoremas declarados.
-getHypSet :: ParserP HypSet
-getHypSet = pHypSet <$> getState
+getHypSet :: (PExprStateClass s, PProofStateClass s) => ParserP s HypSet
+getHypSet = pHypSet . pProofState <$> getState
 
 -- | Parsea un final de prueba que comienza con begin proof.
-parseProofEnd :: ParserP ()
-parseProofEnd = many newline >> keywordEnd >> keywordProof
+-- parseProofEnd :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
+-- parseProofEnd = many newline >> keywordEnd >> keywordProof
 
 -- | Borra las hipotesis del estado del parser de pruebas.
-resetHypSet :: ParserP ()
+resetHypSet :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 resetHypSet = do pst <- getState
-                 putState $ pst {pHypSet = M.empty}
+                 let pst' = pProofState pst
+                 putState $ pst' {pHypSet = M.empty}
 
+{-
 -- | Si el conjunto de pruebas declaradas es vacio.
-proofSetIsEmpty :: ParserP Bool
+proofSetIsEmpty :: (PExprStateClass s, PProofStateClass s) => ParserP s Bool
 proofSetIsEmpty = M.null <$> getProofSet
 
 -- | Añade un nombre de declaración de prueba con su prueba si es que existe.                
-addHypName :: HypName -> Hypothesis -> ParserP ()
+addHypName :: (PExprStateClass s, PProofStateClass s) => 
+              HypName -> Hypothesis -> ParserP s ()
 addHypName hypname hyp = do
-            pst <- getState
+            pst' <- getState
+            let pst = pProofState pst'
             let hypSet = pHypSet pst
             let pSet = pProofSet pst
             case (M.lookup hypname hypSet, M.lookup hypname pSet) of
@@ -106,33 +117,40 @@ addHypName hypname hyp = do
                 (Just _,_) -> fail $ "El nombre de hipótesis " ++ show hypname 
                                      ++ " ya ha sido utilizado."
                 _ -> do let hypSetUpdated = M.insert hypname hyp hypSet
-                        putState $ pst {pHypSet = hypSetUpdated}
+                        --putState $ pst' {pHypSet = hypSetUpdated}
+                        return ()
 
 -- | Hace un lookup de un teorema declarado antes en base a su nombre.
-getDeclProof :: ProofName -> ParserP (Maybe Proof)
+getDeclProof :: (PExprStateClass s, PProofStateClass s) => 
+                ProofName -> ParserP s (Maybe Proof)
 getDeclProof pn = do
-                pst <- getState
+                pst' <- getState
+                let pst = pProofState pst'
                 let proofSet = pProofSet pst
                 case M.lookup pn proofSet of
                     (Just mproof) -> return mproof
                     _ -> return Nothing
 
 -- | Añade un nombre de declaración de prueba con su prueba si es que existe.                
-addProofNameWithProof :: ProofName -> Maybe Proof -> ParserP ()
+addProofNameWithProof :: (PExprStateClass s, PProofStateClass s) => 
+                         ProofName -> Maybe Proof -> ParserP s ()
 addProofNameWithProof pn p = do
-            pst <- getState
+            pst' <- getState
+            let pst = pProofState pst'
             let proofSet = pProofSet pst
             let hypSet = pHypSet pst
             case (M.lookup pn proofSet) of
                 Just (Just _) -> fail $ "El nombre de teorema " ++ 
                                         show pn ++ " ya ha sido utilizado."
                 _ -> do let proofSetUpdated = M.insert pn p proofSet
-                        putState $ pst {pProofSet = proofSetUpdated}
+                        return ()
+--                        putState $ pst' {pProofSet = proofSetUpdated}
 
-lexer :: GenTokenParser String PProofState Identity
+lexer :: (PExprStateClass s, PProofStateClass s) =>
+         GenTokenParser String s Identity
 lexer = lexer' { whiteSpace = oneOf " \t" >> return ()}
     where
-        lexer' :: TokenParser PProofState
+        lexer' :: (PExprStateClass s, PProofStateClass s) => TokenParser s
         lexer' = makeTokenParser $ 
                     emptyDef { reservedNames = rNames
                              , identStart  = alphaNum <|> char '_'
@@ -156,73 +174,73 @@ rNames = [ "proof"
          , "exhaustive"
          ]
 
-whites :: ParserP ()
+whites :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 whites = whiteSpace lexer
 
-keyword :: String -> ParserP ()
+keyword :: (PExprStateClass s, PProofStateClass s) => String -> ParserP s ()
 keyword  = reserved lexer
-keywordBegin :: ParserP ()
+keywordBegin :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordBegin = keyword "begin"
-keywordBasic :: ParserP ()
+keywordBasic :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordBasic = keyword "basic"
-keywordExhaustive :: ParserP ()
+keywordExhaustive :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordExhaustive = keyword "exhaustive"
-keywordEnd :: ParserP ()
+--keywordEnd :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordEnd = keyword "end" >> resetHypSet
-keywordSBOpen :: ParserP ()
+keywordSBOpen :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordSBOpen = try (symbol lexer "[") >> symbol lexer "~" >> return ()
-keywordSBClose :: ParserP ()
+keywordSBClose :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordSBClose = try (symbol lexer "~") >> symbol lexer "]" >> return ()
-keywordDots :: ParserP ()
+keywordDots :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordDots = symbol lexer ":" >> return ()
-keywordComma :: ParserP ()
+keywordComma :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordComma = symbol lexer "," >> return ()
-keywordProof :: ParserP ()
+keywordProof :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordProof = keyword "proof"
-keywordCases :: ParserP ()
+keywordCases :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordCases = keyword "cases"
-keywordInduc :: ParserP ()
+keywordInduc :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordInduc = keyword "induction"
-keywordFor :: ParserP ()
+keywordFor :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordFor = keyword "for"
-keywordIn :: ParserP ()
+keywordIn :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordIn = keyword "in"
-keywordDot :: ParserP ()
+keywordDot :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordDot = keyword "."
-keywordRArrow :: ParserP ()
+keywordRArrow :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordRArrow = keyword "->"
-keywordWith :: ParserP ()
+keywordWith :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordWith = keyword "with"
-keywordWhere :: ParserP ()
+keywordWhere :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 keywordWhere = keyword "where"
 
 -- | Parsea nombres de declaración de teoremas.
-parseProofName :: ParserP Text
+parseProofName :: (PExprStateClass s, PProofStateClass s) => ParserP s Text
 parseProofName = parseName >>= \n -> addProofNameWithProof n Nothing >> return n
 
 -- | Parsea nombres de declaración de hipotesis.
-parseDeclHypName :: ParserP Text
+parseDeclHypName :: (PExprStateClass s, PProofStateClass s) => ParserP s Text
 parseDeclHypName = parseName' keywordDots
 
 -- | Parsea nombres de hipotesis en el contexto de una justificación.
-parseHypName :: ParserP Text
+parseHypName :: (PExprStateClass s, PProofStateClass s) => ParserP s Text
 parseHypName = parseName
 
 -- | Parsea nombres.
-parseName :: ParserP Text
+parseName :: (PExprStateClass s, PProofStateClass s) => ParserP s Text
 parseName =  parseName' (tryNewline <|> whites)
 
-parseName' :: ParserP end -> ParserP Text
-parseName' till = lexeme lexer (manyTill name till) >>= \s -> return (pack s)
+parseName' :: (PExprStateClass s, PProofStateClass s) => ParserP s end -> ParserP s Text
+parseName' till = lexeme lexer (manyTill name till) >>= \str -> return (pack str)
     where
-        name :: ParserP Char
-        name = foldr (\s -> (<|>) (keyword s >> unexpected (show s))) letter rNames
+        name :: (PExprStateClass s, PProofStateClass s) => ParserP s Char
+        name = foldr (\str -> (<|>) (keyword str >> unexpected (show str))) letter rNames
 
-tryNewline :: ParserP ()
+tryNewline :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 tryNewline = newline >> return ()
 
 -- | Parser de un axioma, con nombre de teoría.
-axiomQual :: [TheoryName] -> ParserP Axiom
+axiomQual :: (PExprStateClass s, PProofStateClass s) => [TheoryName] -> ParserP s Axiom
 axiomQual ths = pTheory >>= \thy -> 
                 if thy `elem` ths 
                 then char '.' >> 
@@ -230,91 +248,91 @@ axiomQual ths = pTheory >>= \thy ->
                 else parserZero
                 
 -- | Parser de un axioma sin tener en cuenta la teoría.
-axiomUnQual :: [TheoryName] -> ParserP Axiom
+axiomUnQual :: (PExprStateClass s, PProofStateClass s) => [TheoryName] -> ParserP s Axiom
 axiomUnQual ths = (choice . map axiomInList . concatMap snd) axiomGroup
 
 -- | Construcción del parser a partir del axioma.
-axiomInList :: Axiom -> ParserP Axiom
+axiomInList :: (PExprStateClass s, PProofStateClass s) => Axiom -> ParserP s Axiom
 axiomInList ax = try $ (string . unpack . axName) ax >> return ax
 
 -- | Parser del nombre de una teoría; notar que el conjunto de teorías
 -- conocidas está definido en 'Equ.Theories.theories'
-pTheory :: ParserP TheoryName
+pTheory :: (PExprStateClass s, PProofStateClass s) => ParserP s TheoryName
 pTheory = pack <$> choice (map (string . unpack) theories)
 
 -- | Si el tipo 'a' tiene un campo 'Text', generamos un parser para
 -- ese tipo. Esta es la versión lifteada a listas de 'a'.
-anyText :: (a -> Text) -> [a] -> ParserP a
+anyText :: (PExprStateClass s, PProofStateClass s) => (a -> Text) -> [a] -> ParserP s a
 anyText f = choice . map el
     where el a = a <$ (try . string . unpack . f) a
 
 -- | Parsea la declaración de una entidad.
-declaration :: String -> ParserP String
+declaration :: (PExprStateClass s, PProofStateClass s) => String -> ParserP s String
 declaration decl = string ("new " ++ decl  ++ " ")  >> spaces >>
                    concat <$> endBy (many (noneOf "\n")) newline
 
 -- | Parser para la definición de un teorema; notar que no se
 -- valida la prueba.
-declTheorem :: ParserP Theorem
+declTheorem :: (PExprStateClass s, PProofStateClass s) => ParserP s Theorem
 declTheorem = declaration "theorem" >>= \thName ->
               proof Nothing False >>= \thPrf -> 
               return (createTheorem (pack thName) thPrf)
 
 -- | Parser para una lista de teoremas.
-prelude :: ParserP [Theorem]
+prelude :: (PExprStateClass s, PProofStateClass s) => ParserP s [Theorem]
 prelude = sepBy declTheorem (newline >> newline)
 
 -- | Parser de una sesión. 
 -- TODO: considerar que un teorema dependa de los teoremas 
 -- previamente definidos; considerar declaración de hipótesis.
-session :: ParserP ([Theorem],Ctx,Proof)
+session :: (PExprStateClass s, PProofStateClass s) => ParserP s ([Theorem],Ctx,Proof)
 session = prelude >>= \ths ->          
           proof Nothing False >>= \prf ->
           return (ths,beginCtx,prf)
 
 -- | Parser del uso de un teorema; notar que necesitamos la lista de 
 -- teoremas conocidos en este momento.
-theorem :: [Theorem] -> ParserP Theorem
+theorem :: (PExprStateClass s, PProofStateClass s) => [Theorem] -> ParserP s Theorem
 theorem = anyText thName
 
 -- | Uso del parser de una expresión definido en 'Equ.Parser.Expr'.
 -- Ale: No esta bonito como manejamos el pasaje de errores con pass
 -- ademas pasa que tenemos que re-acomodar la posición del error.
 -- Algo raro es que la posición de la linea siempre esta un lugar mas "adelante"
-parseFocus :: ParserP () -> ParserP Focus
-parseFocus till = 
-            getState >>= \st ->
-            exprL (makePExprState st) <$> manyTill anyChar till >>= pass
-    where
-        pass :: Either ParseError Focus -> ParserP Focus
-        pass ef = case ef of
-                        Right e -> return e
-                        Left per -> getPosition >>= \p -> 
-                                    fail $ show $ flip setErrorPos per $
-                                    setSourceLine (errorPos per) (sourceLine p-1)
-        exprL' :: Parser' Focus
-        exprL' = (toFocus . unParen) <$> (spaces >> parsePreExpr >>= 
-                                         \expr -> eof >> return expr)
-        exprL :: PExprState -> String -> Either ParseError Focus
-        exprL st s = runParser exprL' st "" s
-        makePExprState :: PProofState -> PExprState
-        makePExprState st = PExprState $ pUseParen st
+parseFocus :: (PExprStateClass s, PProofStateClass s) => ParserP s () -> ParserP s Focus
+parseFocus till = parsePreExpr >>= return . toFocus
+--             getState >>= \st ->
+--             exprL (makePExprState st) <$> manyTill anyChar till >>= pass
+--     where
+--         pass :: Either ParseError Focus -> ParserP Focus
+--         pass ef = case ef of
+--                         Right e -> return e
+--                         Left per -> getPosition >>= \p -> 
+--                                     fail $ show $ flip setErrorPos per $
+--                                     setSourceLine (errorPos per) (sourceLine p-1)
+--         exprL' :: Parser' Focus
+--         exprL' = (toFocus . unParen) <$> (spaces >> parsePreExpr >>= 
+--                                          \expr -> eof >> return expr)
+--         exprL :: PExprState -> String -> Either ParseError Focus
+--         exprL st s = runParser exprL' st "" s
+--         makePExprState :: PProofState -> PExprState
+--         makePExprState st = PExprState $ pUseParen st
         
 
 -- | Parser de una justificación inmediata de un paso de prueba.
 -- TODO: considerar hipótesis.
-basic :: ParserP Basic
+basic :: (PExprStateClass s, PProofStateClass s) => ParserP s Basic
 basic =  Ax   <$> axiomUnQual theories
      <|> Theo <$> parseTheo
      <|> Hyp  <$> parseHyp
     where
-        parseHyp :: ParserP Hypothesis
+        parseHyp :: (PExprStateClass s, PProofStateClass s) => ParserP s Hypothesis
         parseHyp = try $ 
                     do
                     n <- parseHypName
                     hSet <- getHypSet
                     maybe (return $ dummyHypothesis n) return (M.lookup n hSet)
-        parseTheo :: ParserP Theorem
+        parseTheo :: (PExprStateClass s, PProofStateClass s) => ParserP s Theorem
         parseTheo = try $
                     do
                     n <- parseProofName
@@ -326,21 +344,21 @@ basic =  Ax   <$> axiomUnQual theories
         hypErr n = "Declaración de la hipótesis: " ++ show (unpack n)
 
 -- | Parser de entidades entre llaves.
-braced :: ParserP a -> ParserP a
+braced :: (PExprStateClass s, PProofStateClass s) => ParserP s a -> ParserP s a
 braced = between (string "{" >> spaces) (spaces >> string "}" )
 
 -- | Parser de un paso de prueba.
-justification :: ParserP (Relation, Maybe Basic)
+justification :: (PExprStateClass s, PProofStateClass s) => ParserP s (Relation, Maybe Basic)
 justification = rel >>= \r -> spaces >>
                 optionMaybe (braced basic) >>= \j -> 
-                char '\n' >> return (r, j)
+                return (r, j)
 
 -- | Parsea todas las pruebas de un archivo y retorna una lista con estas mismas.
-prooflist :: Maybe Ctx -> ParserP [Proof]
+prooflist :: (PExprStateClass s, PProofStateClass s) => Maybe Ctx -> ParserP s [Proof]
 prooflist mc = many (proof mc True)
 
 -- | Parser de declaraciones de hipótesis.
-parseHypothesis :: ParserP [Hypothesis]
+parseHypothesis :: (PExprStateClass s, PProofStateClass s) => ParserP s [Hypothesis]
 parseHypothesis = do
                     keywordSBOpen
                     many whites
@@ -348,7 +366,8 @@ parseHypothesis = do
                     hyp <- parseHyp keywordSBClose
                     return $ hyps ++ [hyp]
     where
-        parseHyp :: ParserP () -> ParserP Hypothesis
+        parseHyp :: (PExprStateClass s, PProofStateClass s) =>
+                    ParserP s () -> ParserP s Hypothesis
         parseHyp till = do
                 n <- parseDeclHypName
                 f <- parseFocus till
@@ -361,7 +380,8 @@ dummyHypothesis text = createHypothesis text dummyExpr (GenConditions [])
         dummyExpr = Expr $ BinOp (relToOp relEq) (preExprHole "") (preExprHole "")
 
 -- | Parser de pruebas.
-proof :: Maybe Ctx -> Bool -> ParserP Proof
+proof :: (PExprStateClass s, PProofStateClass s) => Maybe Ctx -> 
+         Bool -> ParserP s Proof
 proof mc flag = do
         many newline
         when flag keywordBegin
@@ -373,10 +393,11 @@ proof mc flag = do
     where
         ctx :: Ctx
         ctx = fromMaybe beginCtx mc
-        makeCtx :: Maybe [Hypothesis] -> ParserP Ctx
+        makeCtx :: (PExprStateClass s, PProofStateClass s) =>
+                   Maybe [Hypothesis] -> ParserP s Ctx
         makeCtx = maybe (return ctx) (return . foldr addHypothesis' ctx)
         
-        parseProof :: ParserP Proof
+        parseProof :: (PExprStateClass s, PProofStateClass s) => ParserP s Proof
         parseProof = 
             parsePrefix >>= \(mname,mhyps) -> many newline >>
             makeCtx mhyps >>= \ctxWithHyps ->
@@ -386,7 +407,8 @@ proof mc flag = do
                    ] >>= \p ->
             maybe (return p) (addProofNWP p) mname
         
-        parsePrefix :: ParserP (Maybe Text,Maybe [Hypothesis])
+        parsePrefix :: (PExprStateClass s, PProofStateClass s) =>
+                        ParserP s (Maybe Text,Maybe [Hypothesis])
         parsePrefix = 
             choice 
             [ try ((many1 newline) >> return (Nothing,Nothing))
@@ -399,19 +421,22 @@ proof mc flag = do
             , return (Nothing,Nothing)
             ]
         
-        addProofNWP :: Proof -> ProofName -> ParserP Proof
+        addProofNWP :: (PExprStateClass s, PProofStateClass s) =>
+                       Proof -> ProofName -> ParserP s Proof
         addProofNWP p name = addProofNameWithProof name (Just p) >> return p
         addHyps :: [Hypothesis] -> Ctx -> Ctx
         addHyps hyps ctx = foldr addHypothesis' ctx hyps
-        addHypsToState :: Hypothesis -> ParserP ()
+        addHypsToState :: (PExprStateClass s, PProofStateClass s) =>
+                          Hypothesis -> ParserP s ()
         addHypsToState hyp = addHypName (truthName hyp) hyp
-        addHypsToProof :: Proof -> [Hypothesis] -> ParserP Proof
+        addHypsToProof :: (PExprStateClass s, PProofStateClass s) =>
+                          Proof -> [Hypothesis] -> ParserP s Proof
         addHypsToProof p hyps = do
                     let Just ctx = getCtx p
                     return $ fromJust $ setCtx (addHyps hyps ctx) p
 
 -- | Parseo de una prueba inductiva.
-inducProof :: Ctx -> ParserP Proof
+inducProof :: (PExprStateClass s, PProofStateClass s) => Ctx -> ParserP s Proof
 inducProof ctx = do
             keywordInduc
             keywordIn
@@ -423,8 +448,9 @@ inducProof ctx = do
             parseProofEnd
             return $ Ind ctx rel fei fef fInduc cs
     where
-        parseInducCases:: Ctx -> Relation -> Focus -> Focus -> PreExpr -> 
-                          ParserP [(Focus,Proof)]
+        parseInducCases:: (PExprStateClass s, PProofStateClass s) => Ctx -> 
+                          Relation -> Focus -> Focus -> 
+                          PreExpr -> ParserP s [(Focus,Proof)]
         parseInducCases ctx r fei fef (Var indv) = do
                     keywordBasic
                     c <- parseCases ctx indv
@@ -441,7 +467,7 @@ inducProof ctx = do
 -- | Parseo de una prueba por casos.
 -- TODO: Es igual a la de arriba, pero esto tal vez vaya a cambiar, así que 
 -- espero para acomodarla.
-casesProof :: Ctx -> ParserP Proof
+casesProof :: (PExprStateClass s, PProofStateClass s) => Ctx -> ParserP s Proof
 casesProof ctx = do
         keywordCases
         keywordIn
@@ -453,32 +479,31 @@ casesProof ctx = do
         let cs' = map (\ p -> (fst p, fromJust $ addHypothesisCase p)) cs
         return (Cases ctx rel fei fef fc cs' mPEx)
     where
-        endExhaustive :: ParserP (Maybe Proof)
+        endExhaustive :: (PExprStateClass s, PProofStateClass s) => ParserP s (Maybe Proof)
         endExhaustive = do
                         pExh <- parseExhaustive
                         parseProofEnd
                         return $ Just pExh
-        endProof :: ParserP (Maybe Proof)
+        endProof :: (PExprStateClass s, PProofStateClass s) => ParserP s (Maybe Proof)
         endProof = parseProofEnd >> return Nothing
-        parseExhaustive :: ParserP Proof
+        parseExhaustive :: (PExprStateClass s, PProofStateClass s) => ParserP s Proof
         parseExhaustive = keywordExhaustive >> keywordRArrow >>
                           proof (Just beginCtx) False
-        manyTillWithEnd :: (Stream s m t) => ParsecT s u m a -> 
-                            ParsecT s u m end -> ParsecT s u m ([a],end)
-        manyTillWithEnd p end = scan
-            where
-                scan =  do{ e <- end; return ([], e) }
-                    <|> do{ x <- p; xs <- scan; return (x:fst xs,snd xs)}
-                    
         addHypothesisCase :: (Focus,Proof) -> Maybe Proof
         addHypothesisCase (f,p) =
             let hyp = createHypothesis "Caso" (Expr $ toExpr f) (GenConditions []) in
                 getCtx p >>= \ctx ->
                 setCtx (addHypothesis' hyp ctx) p
                     
+manyTillWithEnd :: (Stream s m t) => ParsecT s u m a -> 
+                    ParsecT s u m end -> ParsecT s u m ([a],end)
+manyTillWithEnd p end = scan
+    where
+        scan =  do{ e <- end; return ([], e) }
+            <|> do{ x <- p; xs <- scan; return (x:fst xs,snd xs)}
 
 -- -- | Parsea casos, de la forma expr -> transProof
-parseCases :: Ctx -> Variable -> ParserP (Focus, Proof)
+parseCases :: Ctx -> Variable -> (PExprStateClass s, PProofStateClass s) => ParserP s (Focus, Proof)
 parseCases ctx v = do
             fi <- parseFocus keywordRArrow
             ctx' <- return $ instanciateInCtx ctx v fi
@@ -486,28 +511,30 @@ parseCases ctx v = do
             return (fi,p)
             
 -- | Parser de pruebas transitivas, estan incluidas las pruebas simples.
-transProof :: Ctx -> Bool -> ParserP Proof
+transProof :: Ctx -> Bool -> (PExprStateClass s, PProofStateClass s) => ParserP s Proof
 transProof ctx flag = do
-                      e1 <- parseFocus tryNewline
+                      many whites
+                      e1 <- parseFocus tryNewline 
                       pSet <- getProofSet
                       mkTrans ctx e1 pSet <$> manyExprLine
     where
-        parseStep :: ParserP (Focus,(Relation, Maybe Basic))
+        parseStep :: (PExprStateClass s, PProofStateClass s) => ParserP s (Focus,(Relation, Maybe Basic))
         parseStep = do
+                    --string "~"
                     rj <- justification
+                    many (whites <|> tryNewline)
                     e <- parseFocus tryNewline
                     return (e,rj)
-
-        manyExprLine :: ParserP [(Focus,(Relation, Maybe Basic))]
+        manyExprLine :: (PExprStateClass s, PProofStateClass s) => ParserP s [(Focus,(Relation, Maybe Basic))]
         manyExprLine = do 
                         frb <- parseStep
-                        frbs <- if flag 
+                        frbs <- if flag
                                then manyTill parseStep parseProofEnd
                                else many parseStep
                         return (frb:frbs)
 
 -- | Parser de la relación sobre la que estamos haciendo la prueba.
-rel :: ParserP Relation
+rel :: (PExprStateClass s, PProofStateClass s) => ParserP s Relation
 rel = foldr ((<|>) . uncurry prel) parserZero relations
     where prel iden ty = ty <$ try (many whites >> string iden)
           relations = [("=",relEq), ("≡",relEquiv), ("⇒",relImpl), ("⇐",relCons)]
@@ -515,7 +542,7 @@ rel = foldr ((<|>) . uncurry prel) parserZero relations
 -- | Parser de prueba.
 parsePfFromString' :: String -> Either ParseError [Proof]
 parsePfFromString' = either handleError Right . runParser 
-                            (prooflist Nothing) (initPProofState UnusedParen) ""
+                            (prooflist Nothing) (initPProofState $ initPExprState UnusedParen) ""
     where
         -- Esto esta pensando en que hay que hacer algo para obtener bien
         -- la posición del error.
@@ -533,7 +560,7 @@ parseFromFileProof fp = readFile fp >>= \s ->
                             Left err -> print err
 
 -- | Estado inicial del parser de pruebas.
-initPProofState :: ParenFlag -> PProofState
+initPProofState :: PExprState -> PProofState
 initPProofState = PProofState M.empty M.empty
 
 {- Pasar estas funciones a Equ.Proof -}
@@ -555,4 +582,4 @@ mkTrans c e pSet ((e',(r,j)):steps) = go (mkSimple c r e e' j) steps
             where 
                 e0 = fromJust (getStart p)
                 e1 = fromJust (getEnd p)
-                prf' = Trans c r e0 e1 e p (mkSimple c r e1 e j)
+                prf' = Trans c r e0 e1 e p (mkSimple c r e1 e j)-}
