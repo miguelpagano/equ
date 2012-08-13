@@ -71,12 +71,14 @@ data PProofState = PProofState { pHypSet :: HypSet
 
 class PProofStateClass a where
     pProofState :: a -> PProofState
+    setProofState :: a -> PProofState -> a
 
 instance PExprStateClass PProofState where
     pExprState = pExprSt
 
 instance PProofStateClass PProofState where
     pProofState = id
+    setProofState state pst = pst
 
 type ParserP a b = ParsecT String a Identity b
 
@@ -96,7 +98,7 @@ getHypSet = pHypSet . pProofState <$> getState
 resetHypSet :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 resetHypSet = do pst <- getState
                  let pst' = pProofState pst
-                 putState $ pst' {pHypSet = M.empty}
+                 putState $ setProofState pst $ pst' {pHypSet = M.empty}
 
 {-
 -- | Si el conjunto de pruebas declaradas es vacio.
