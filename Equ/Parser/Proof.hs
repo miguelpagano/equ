@@ -457,11 +457,14 @@ inducProof ctx = do
                     patt <- parseFocus
                     keywordWith
                     name <- parseName
-                    let Just hypInd = createIndHypothesis r fei fef patt indv name
-                    addHypName name hypInd
-                    keywordRArrow
-                    p <- proof (Just $ addHypothesis' hypInd ctx) False
-                    return ((c:cs) ++ [(patt,p)])
+                    let mHypInd = createIndHypothesis r fei fef patt indv name
+                    case mHypInd of
+                         Nothing -> fail "No se puede crear la hipotesis inductiva"
+                         Just hypInd -> do
+                                addHypName name hypInd
+                                keywordRArrow
+                                p <- proof (Just $ addHypothesis' hypInd ctx) False
+                                return ((c:cs) ++ [(patt,p)])
 
 -- | Parseo de una prueba por casos.
 -- TODO: Es igual a la de arriba, pero esto tal vez vaya a cambiar, así que 
