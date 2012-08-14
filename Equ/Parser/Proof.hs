@@ -427,11 +427,26 @@ inducProof ctx = do
             keywordDot
             [rel] <- manyTill rel keywordDot
             fef <- parseFocus
+            
+            let eitherF = typeVarInduc (makeExpr rel fei fef) fInduc
+            typedFinduc <- either (fail . show) return eitherF
+            
             keywordWhere
-            cs <- parseInducCases ctx rel fei fef (toExpr fInduc)
+            cs <- parseInducCases ctx rel fei fef (toExpr typedFinduc)
             parseProofEnd
-            return $ Ind ctx rel fei fef fInduc cs
+            return $ Ind ctx rel fei fef typedFinduc cs
     where
+        typeVarInduc :: PreExpr -> Focus -> Either ProofError Focus
+        typeVarInduc e (Var fInduc,_) = do
+            typedFei <- either (Left . (flip ProofError id)
+                                     . ClashTypingProofExpr . fst)
+                               return 
+                               (typeCheckPreExpr e)
+            maybe (Left $ ProofError (InductionError VarIndNotInExpr) id) 
+                  (return . toFocus . Var)
+                  (find (==fInduc) (Set.toList (freeVars typedFei)))
+        makeExpr :: Relation -> Focus -> Focus -> PreExpr
+        makeExpr r e e' = BinOp (relToOp r) (toExpr e) (toExpr e')
         parseInducCases:: (PExprStateClass s, PProofStateClass s) => Ctx -> 
                           Relation -> Focus -> Focus -> 
                           PreExpr -> ParserP s [(Focus,Proof)]
