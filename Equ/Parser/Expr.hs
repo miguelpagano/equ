@@ -40,6 +40,8 @@ module Equ.Parser.Expr
     , PExprState (..)
     , ParenFlag (..)
     , PExprStateClass (..)
+    , pExprState
+    , setExprState
     )
     where
 
@@ -94,9 +96,11 @@ type OperatorTable s u m a = [[POperator s u m a]]
 
 class PExprStateClass a where
     pExprState :: a -> PExprState
+    setExprState :: a -> PExprState -> a
     
 instance PExprStateClass PExprState where
     pExprState = id
+    setExprState s exprState = exprState
 
 -- | Configuración del parser.
 data LangDef = LangDef {

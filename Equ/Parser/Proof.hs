@@ -67,6 +67,7 @@ type HypSet = M.Map HypName Hypothesis
 data PProofState = PProofState { pHypSet :: HypSet
                                , pProofSet :: ProofSet
                                , pExprSt :: PExprState
+                               , lastProofName :: Maybe ProofName -- Este campo es para guardar el nombre de la última prueba parseada.
                                }
 
 class PProofStateClass a where
@@ -75,6 +76,7 @@ class PProofStateClass a where
 
 instance PExprStateClass PProofState where
     pExprState = pExprSt
+    setExprState s exprState = s { pExprSt = exprState }
 
 instance PProofStateClass PProofState where
     pProofState = id
@@ -119,7 +121,7 @@ addHypName hypname hyp = do
                 (Just _,_) -> fail $ "El nombre de hipótesis " ++ show hypname 
                                      ++ " ya ha sido utilizado."
                 _ -> do let hypSetUpdated = M.insert hypname hyp hypSet
-                        --putState $ pst' {pHypSet = hypSetUpdated}
+                        putState $ setProofState pst' $ pst {pHypSet = hypSetUpdated}
                         return ()
 
 -- | Hace un lookup de un teorema declarado antes en base a su nombre.
@@ -145,8 +147,9 @@ addProofNameWithProof pn p = do
                 Just (Just _) -> fail $ "El nombre de teorema " ++ 
                                         show pn ++ " ya ha sido utilizado."
                 _ -> do let proofSetUpdated = M.insert pn p proofSet
+                        putState $ setProofState pst' $ pst {pProofSet = proofSetUpdated, lastProofName = Just pn}
                         return ()
---                        putState $ pst' {pProofSet = proofSetUpdated}
+                       
 
 lexer :: (PExprStateClass s, PProofStateClass s) =>
          GenTokenParser String s Identity
@@ -572,7 +575,7 @@ parseFromFileProof fp = readFile fp >>= \s ->
 
 -- | Estado inicial del parser de pruebas.
 initPProofState :: PExprState -> PProofState
-initPProofState = PProofState M.empty M.empty
+initPProofState estate = PProofState M.empty M.empty estate Nothing
 
 {- Pasar estas funciones a Equ.Proof -}
 -- | construcción de una prueba simple.
