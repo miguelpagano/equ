@@ -10,9 +10,11 @@ import qualified Equ.PreExpr as PE
 import Equ.Syntax
 import Equ.Types
 import Equ.Expr
-import Equ.TypeChecker(unifyTest,match)
+import Equ.TypeChecker(unifyTest,match,match2)
 import Equ.Theories(relToOp, createHypothesis)
 import Equ.Rule(Relation)
+
+import System.IO.Unsafe (unsafePerformIO)
 
 import qualified Data.Map as Map
 import Data.Text
@@ -50,4 +52,12 @@ createIndHypothesis rel f1 f2 p x nombre =
               where subst = Map.singleton x p
           hypIndExprBin x p1 p2 = PE.BinOp folAnd (hypIndExpr x p1) (hypIndExpr x p2)
           
-          matchType t t' = match t t' && match t' t
+          matchType t t' = match2 t t' && match2 t' t
+              
+              
+              
+-- unsafePerformIO $ 
+-- putStrLn ("matching types t= "++show t ++ ",t'= "++show t'++
+-- "\n match t t' = "++show (match t t') ++
+-- "\n match t' t = "++show (match t' t)) >>
+-- return (match t t' && match t' t)

@@ -10,6 +10,8 @@ module Equ.TypeChecker.Unification
     , rewrite
     , findVar
     , match
+    --, matchWithSubst
+    , match2
     , TySubst
     )
     where
@@ -74,3 +76,28 @@ match (TyVar v) w = True
 match (TyList t) (TyList t') = match t t'
 match (t1 :-> t2) (t1' :-> t2') = match t1 t1' && match t2 t2'
 match t t' = t == t'
+
+
+-- matchWithSubst :: Type -> Type -> TySubst -> Maybe TySubst
+-- matchWithSubst (TyVar v) w subst =
+--     let match_v = M.lookup v subst in
+--         case match_v of
+--              Nothing -> M.insert v w subst
+--              Just z -> if z==w 
+--                           then Just subst
+--                           else Nothing
+-- matchWithSubst (TyList t) (TyList t') subst = matchWithSubst t t' subst
+-- matchWithSubst (t1 :-> t2) (t1' :-> t2') subst = 
+--     matchWithSubst t1 t1' subst >>= matchWithSubst t2 t2'
+-- matchWithSubst t t' subst = t == t'
+
+-- | Esta funcion hace matching de variable con tipo concreto y tambien de tipo
+--   concreto con variable.
+match2 :: Type -> Type -> Bool
+match2 (TyVar v) w = True
+match2 (TyList t) (TyList t') = match2 t t'
+match2 (t1 :-> t2) (t1' :-> t2') = match2 t1 t1' && match2 t2 t2'
+match2 w (TyVar v) = True
+match2 t t' = t == t'  
+
+

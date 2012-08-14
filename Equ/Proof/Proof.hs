@@ -596,6 +596,13 @@ printPf (Focus _ r f f' p) = [ showExpr' (toExpr f)
 printPf (Deduc _ f f' p) = [ showExpr' (toExpr f), show relEquiv ]
                            ++ printPf p ++
                            [ showExpr' (toExpr f')]
+printPf (Ind c r f f' f'' lfp) = [ "Induction "
+                                , show c 
+                                , show r ++ "(" ++ show f ++ ", " ++ show f' ++ ")" 
+                                , "by induction on " ++ show f''
+                                , " { " ++ show lfp ++ " } "
+                                ]
+
 printProof = (++"\n") . unlines . printPf
                                     
 -- Hace falta mejorar esta instancia.

@@ -22,6 +22,7 @@ module Equ.TypeChecker
     , vars
     , cons
     , match
+    , match2
       -- * Algoritmo de TypeChecking.
     , checkPreExpr
     , getType
