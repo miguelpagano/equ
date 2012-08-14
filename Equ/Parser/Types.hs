@@ -19,7 +19,9 @@ import Equ.Types
 -- parserTy :: Text -> Either ParseError Type
 -- parserTy = undefined
 
-type ParserTypeTable = PE.OperatorTable String () Identity Type
+type ParserT a b = ParsecT String a Identity b
+
+type ParserTypeTable a = PE.OperatorTable String a Identity Type
 
 -- Numeros
 num :: String
@@ -49,7 +51,7 @@ listAtomTy = [num, int, nat, bool]
 typeUnknown :: String
 typeUnknown = "¿Type?"
 
-lexerTy :: TokenParser ()
+lexerTy :: TokenParser a
 lexerTy = makeTokenParser $
             emptyDef { reservedOpNames = [opFun]
                      , reservedNames = typeUnknown : listAtomTy
@@ -57,10 +59,10 @@ lexerTy = makeTokenParser $
                      , identLetter = alphaNum <|> char '_'
                      }
 
-operatorTypeTable :: ParserTypeTable
+operatorTypeTable :: ParserTypeTable a
 operatorTypeTable = [[PE.Infix (reservedOp lexerTy opFun >> return (:->)) PE.AssocRight]]
 
-typeSubExpr :: Parser Type
+typeSubExpr :: ParserT a Type
 typeSubExpr =  parens lexerTy parseType
            <|> parseUnknown
            <|> parseTyVar
@@ -68,32 +70,32 @@ typeSubExpr =  parens lexerTy parseType
            <|> parseTyAtom
 
 -- Parseo de tipos.
-parseType :: Parser Type
+parseType :: ParserT a Type
 parseType = PE.buildExpressionParser operatorTypeTable typeSubExpr 
                <?> "Parser error: Expresión mal formada"
 
 -- | Parser para los tipos atomicos.
-parseAtomTy :: Parser AtomTy
+parseAtomTy :: ParserT a AtomTy
 parseAtomTy = foldr ((<|>) . uncurry patom) parserZero atoms 
     where atoms = [(num,ATyNum),(int,ATyInt),(nat,ATyNat),(bool,ATyBool)]
           patom iden ty = ty <$ (try $ reserved lexerTy iden)
 
 -- | Parser para el tipo Unknown.
-parseUnknown :: Parser Type
+parseUnknown :: ParserT a Type
 parseUnknown = TyUnknown <$ (try $ reserved lexerTy typeUnknown)
 
 -- | Parser para el tipo variable.
-parseTyVar :: Parser Type
+parseTyVar :: ParserT a Type
 parseTyVar = try $ lower >>= \l -> many letter >>= \t -> 
              whiteSpace lexerTy >>
              return (tyVar (l:t))
 
 -- | Parser para el tipo lista.
-parseTyList :: Parser Type
+parseTyList :: ParserT a Type
 parseTyList = TyList <$> brackets lexerTy parseType
 
 -- | Parser para el tipo de tipos atomicos.
-parseTyAtom :: Parser Type
+parseTyAtom :: ParserT a Type
 parseTyAtom = TyAtom <$> try parseAtomTy
 
 -- | Funcion principal de parseo desde string.

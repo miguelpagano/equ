@@ -40,8 +40,6 @@ module Equ.Parser.Expr
     , PExprState (..)
     , ParenFlag (..)
     , PExprStateClass (..)
-    , pExprState
-    , setExprState
     )
     where
 
@@ -95,11 +93,11 @@ data POperator s u m a = Infix (ParsecT s u m ( a -> a -> a
 type OperatorTable s u m a = [[POperator s u m a]]
 
 class PExprStateClass a where
-    pExprState :: a -> PExprState
+    getExprState :: a -> PExprState
     setExprState :: a -> PExprState -> a
     
 instance PExprStateClass PExprState where
-    pExprState = id
+    getExprState = id
     setExprState s exprState = exprState
 
 -- | Configuración del parser.
@@ -154,7 +152,7 @@ lexer = lexer' { whiteSpace = oneOf " \t" >> return ()}
 -- Parser principal de preExpresiones.
 parsePreExpr :: PExprStateClass s => ParserE s PreExpr
 parsePreExpr = getState >>= \st ->
-               buildExprParser operatorTable (subexpr (peParenFlag $ pExprState st))
+               buildExprParser operatorTable (subexpr (peParenFlag $ getExprState st))
                <?> "Parser error: Expresi&#243;n mal formada"
 
 -- Construimos la table que se le pasa a buildExpressionParser:

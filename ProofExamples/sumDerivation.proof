@@ -1,5 +1,5 @@
 begin proof derivationSum 
-    [ especificacion: sum@xs = 〈∑ i : 0 ≤ i ∧ i < #xs : xs.i 〉 ]
+    [~ especificacion: sum@xs = 〈∑ i : 0 ≤ i ∧ i < #xs : xs.i 〉 ~]
     induction in xs for 
         sum@xs 
         .=. 

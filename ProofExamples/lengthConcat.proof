@@ -1,5 +1,5 @@
 
-begin proof induction in xs for #(xs ++ ys) .=. (#xs) + (#ys) where
+begin proof s induction in xs for #(xs ++ ys) .=. (#xs) + (#ys) where
 basic
 [] -> #([] ++ ys)
       = { Neutro a izquierda de concatenación }
