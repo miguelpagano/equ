@@ -33,7 +33,7 @@ folEquiv :: Operator
 folEquiv = Operator { opRepr = "≡"
                     , opName = Equival
                     , opTy = tyBool :-> tyBool :-> tyBool
-                    , opAssoc = ALeft
+                    , opAssoc = ARight
                     , opNotationTy = NInfix
                     , opPrec = 1
                     , opGlyphs = ["=="]
@@ -44,7 +44,7 @@ folEqual :: Operator
 folEqual = Operator { opRepr = "="
                     , opName = Equal
                     , opTy = tyVar "A" :-> tyVar "A" :-> tyBool
-                    , opAssoc = ALeft
+                    , opAssoc = ARight
                     , opNotationTy = NInfix
                     , opPrec = 5
                     , opGlyphs = []

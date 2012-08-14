@@ -301,8 +301,8 @@ theorem = anyText thName
 -- Ale: No esta bonito como manejamos el pasaje de errores con pass
 -- ademas pasa que tenemos que re-acomodar la posición del error.
 -- Algo raro es que la posición de la linea siempre esta un lugar mas "adelante"
-parseFocus :: (PExprStateClass s, PProofStateClass s) => ParserP s () -> ParserP s Focus
-parseFocus till = parsePreExpr >>= return . toFocus
+parseFocus :: (PExprStateClass s, PProofStateClass s) => ParserP s Focus
+parseFocus = parsePreExpr >>= return . toFocus
 --             getState >>= \st ->
 --             exprL (makePExprState st) <$> manyTill anyChar till >>= pass
 --     where
@@ -372,7 +372,8 @@ parseHypothesis = do
                     ParserP s () -> ParserP s Hypothesis
         parseHyp till = do
                 n <- parseDeclHypName
-                f <- parseFocus till
+                f <- parseFocus
+                till
                 return $ createHypothesis n (Expr $ toExpr f) (GenConditions [])
 
 dummyHypothesis ::Text -> Hypothesis
@@ -442,10 +443,13 @@ inducProof :: (PExprStateClass s, PProofStateClass s) => Ctx -> ParserP s Proof
 inducProof ctx = do
             keywordInduc
             keywordIn
-            fInduc <- parseFocus keywordFor
-            fei <- parseFocus keywordDot
+            fInduc <- parseFocus
+            keywordFor
+            fei <- parseFocus
+            keywordDot
             [rel] <- manyTill rel keywordDot
-            fef <- parseFocus keywordWhere
+            fef <- parseFocus
+            keywordWhere
             cs <- parseInducCases ctx rel fei fef (toExpr fInduc)
             parseProofEnd
             return $ Ind ctx rel fei fef fInduc cs
@@ -457,7 +461,8 @@ inducProof ctx = do
                     keywordBasic
                     c <- parseCases ctx indv
                     cs <- manyTill (parseCases ctx indv) (many newline >> keywordInduc)
-                    patt <- parseFocus keywordWith
+                    patt <- parseFocus
+                    keywordWith
                     name <- parseName
                     let Just hypInd = createIndHypothesis r fei fef patt indv name
                     addHypName name hypInd
@@ -473,10 +478,13 @@ casesProof :: (PExprStateClass s, PProofStateClass s) => Ctx -> ParserP s Proof
 casesProof ctx = do
         keywordCases
         keywordIn
-        fc <- parseFocus keywordFor
-        fei <- parseFocus keywordDot
+        fc <- parseFocus
+        keywordFor
+        fei <- parseFocus
+        keywordDot
         [rel] <- manyTill rel keywordDot
-        fef <- parseFocus keywordWhere
+        fef <- parseFocus
+        keywordWhere
         (cs, mPEx) <- manyTillWithEnd (parseCases ctx undefined) (endExhaustive <|> endProof)
         let cs' = map (\ p -> (fst p, fromJust $ addHypothesisCase p)) cs
         return (Cases ctx rel fei fef fc cs' mPEx)
@@ -507,7 +515,8 @@ manyTillWithEnd p end = scan
 -- -- | Parsea casos, de la forma expr -> transProof
 parseCases :: Ctx -> Variable -> (PExprStateClass s, PProofStateClass s) => ParserP s (Focus, Proof)
 parseCases ctx v = do
-            fi <- parseFocus keywordRArrow
+            fi <- parseFocus
+            keywordRArrow
             ctx' <- return $ instanciateInCtx ctx v fi
             p <- proof (Just ctx) False
             return (fi,p)
@@ -516,7 +525,7 @@ parseCases ctx v = do
 transProof :: Ctx -> Bool -> (PExprStateClass s, PProofStateClass s) => ParserP s Proof
 transProof ctx flag = do
                       many whites
-                      e1 <- parseFocus tryNewline 
+                      e1 <- parseFocus 
                       pSet <- getProofSet
                       mkTrans ctx e1 pSet <$> manyExprLine
     where
@@ -525,7 +534,7 @@ transProof ctx flag = do
                     --string "~"
                     rj <- justification
                     many (whites <|> tryNewline)
-                    e <- parseFocus tryNewline
+                    e <- parseFocus
                     return (e,rj)
         manyExprLine :: (PExprStateClass s, PProofStateClass s) => ParserP s [(Focus,(Relation, Maybe Basic))]
         manyExprLine = do 

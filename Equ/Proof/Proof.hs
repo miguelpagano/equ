@@ -32,6 +32,7 @@ module Equ.Proof.Proof (
                  , conditionFunction
                  , getGenConditions
                  , instanciateInCtx
+                 , printPf
                  ) where
 
 import Equ.Expr
