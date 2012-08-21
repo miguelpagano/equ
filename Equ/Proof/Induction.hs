@@ -55,9 +55,8 @@ createIndHypothesis rel f1 f2 p x nombre =
           matchType t t' = match2 t t' && match2 t' t
               
               
-              
 -- unsafePerformIO $ 
 -- putStrLn ("matching types t= "++show t ++ ",t'= "++show t'++
--- "\n match t t' = "++show (match t t') ++
--- "\n match t' t = "++show (match t' t)) >>
--- return (match t t' && match t' t)
+--     "\n match t t' = "++show (match2 t t') ++
+--     "\n match t' t = "++show (match2 t' t)) >>
+--     return (match2 t t' && match2 t' t)       
