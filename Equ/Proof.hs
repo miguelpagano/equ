@@ -128,8 +128,7 @@ whenEqRelWithDefault def a b rs = whenPM (\b -> b==a || b `elem` rs) def b >>
 checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> 
                            Rule -> (ProofFocus -> ProofFocus) -> PM ()
 checkSimpleStepFromRule f1 f2 rel t rule move =
-    do
-        fs1 <- return $ PE.toFocuses $ PE.toExpr f1
+    do  fs1 <- return $ PE.toFocuses $ PE.toExpr f1
         fs2 <- return $ PE.toFocuses $ PE.toExpr f2
         Expr leftE <- return $ lhs rule
         Expr rightE <- return $ rhs rule
@@ -186,29 +185,40 @@ Funciones para construir y manipular pruebas.
 Este kit de funciones deber&#237;a proveer todas las herramientas
 necesarias para desarrollar pruebas en equ.
 -}
-proofFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> 
+proofFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t ->
                             Rule -> (ProofFocus -> ProofFocus) -> PM Proof
 proofFromRule f1 f2 rel t r fMove = 
                         checkSimpleStepFromRule f1 f2 rel t r fMove >>
                         (return $ Simple beginCtx rel f1 f2 $ truthBasic t)
-                                    
+
+proofFromRuleWithHyp :: (Truth t, Truth t') => Ctx -> PE.Focus -> PE.Focus -> Relation -> t -> t' ->
+                            Rule -> (ProofFocus -> ProofFocus) -> PM Proof
+proofFromRuleWithHyp ctx f1 f2 rel t b r fMove = 
+                        checkSimpleStepFromRule f1 f2 rel b r fMove >>
+                        (return $ Simple ctx rel f1 f2 $ truthBasic t)
+
 -- | Dados dos focuses f1 y f2, una relacion rel y un axioma o
 -- teorema, intenta crear una prueba para f1 rel f2, utilizando el
 -- paso simple de aplicar el axioma o teorema.
-proofFromTruth :: PE.Focus -> PE.Focus -> Relation -> Basic -> 
+proofFromTruth :: Ctx -> PE.Focus -> PE.Focus -> Relation -> Basic -> 
                   (ProofFocus -> ProofFocus) -> PM Proof
-proofFromTruth f f' r basic fMove = 
+proofFromTruth ctx f f' r basic fMove = 
     case basic of
         Evaluate -> 
                 if checkEval f f' 
                 then Right $ Simple beginCtx r f f' Evaluate
                 else Left $ ProofError (BasicNotApplicable Evaluate) fMove
+        Hyp n -> maybe (Left $ ProofError (BasicNotApplicable $ Hyp n) fMove) 
+                       (\b -> proofFromTruth' (flip (simplesWithHyp b) fMove) b) 
+                       $ Map.lookup n ctx
         _ -> proofFromTruth' (flip simples fMove) basic
-              
+
     where simples = proofFromRule f f' r basic
+          simplesWithHyp = proofFromRuleWithHyp ctx f f' r basic
 
     
-proofFromTruth' :: (Rule -> PM Proof) -> Basic -> PM Proof
+--proofFromTruth' :: (Rule -> PM Proof) -> Basic -> PM Proof
+proofFromTruth' :: Truth t => (Rule -> Either a b) -> t -> Either a b
 proofFromTruth' fValidateRule basic =
     case partitionEithers $ map fValidateRule (truthRules basic) of
         ([],[]) -> Left undefined -- TODO: FIX THIS CASE!
@@ -270,7 +280,7 @@ validateProof p =  validateProof' p goTop'
 validateProof' :: Proof -> (ProofFocus -> ProofFocus) -> PM Proof
 validateProof' (Hole ctx rel f1 f2) moveFocus = Left $ ProofError HoleProof moveFocus
 validateProof' proof@(Simple ctx rel f1 f2 b) moveFocus = 
-    proofFromTruth f1 f2 rel b moveFocus
+    proofFromTruth ctx f1 f2 rel b moveFocus
 validateProof' proof@(Trans ctx rel f1 f f2 p1 p2) moveFocus = 
     getStart p1 >>= whenEqWithDefault err f1 >>
     getEnd p1 >>= whenEqWithDefault err f >>

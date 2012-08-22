@@ -62,9 +62,7 @@ import Control.Applicative ((<$>), (<*>))
 import Test.QuickCheck
 import System.IO.Unsafe(unsafePerformIO)
 
--- | Las hip&#243;tesis son nombradas por n&#250;meros.
 type Name = Text
-    --deriving (Show,Ord,Eq)
 
 -- | Comienza un contexto en base a una preExpresion.
 beginCtx :: Ctx
@@ -74,13 +72,7 @@ beginCtx = M.empty
 freshName :: Ctx -> Name
 freshName c = if M.null c then "a" else T.concat $ [maxName] ++ ["a"]
     where maxName :: Name
-          maxName = (fst . M.findMax) c
-
-    {-if M.null c then Index 0 else Index $ 1 + max
-    where max :: Int
-          Index max = (fst . M.findMax) c
-    -}      
-               
+          maxName = (fst . M.findMax) c 
 
 getHypothesis :: Name -> Ctx -> Maybe Hypothesis
 getHypothesis = M.lookup
@@ -218,7 +210,7 @@ instance Truth Hypothesis where
     truthExpr = hypExpr
     truthRel  = hypRel
     truthRules = hypRule
-    truthBasic = Hyp
+    truthBasic = Hyp . hypName
     truthConditions = hypCondition
 
 instance Arbitrary Hypothesis where
@@ -256,7 +248,7 @@ instance Arbitrary Ctx where
 data Basic where
     Ax  :: Axiom -> Basic        -- Un axioma de cierta teor&#237;a.
     Theo :: Theorem -> Basic     -- Un teorema ya probado.
-    Hyp :: Hypothesis -> Basic   -- Una hip&#243;tesis que aparece en el contexto.               
+    Hyp :: Name -> Basic   -- Una hip&#243;tesis que aparece en el contexto.
     Evaluate :: Basic           -- Evaluacion interna para aritmética
     Evaluation ::  EvalStep -> Basic
            deriving Eq
@@ -264,31 +256,31 @@ data Basic where
 instance Truth Basic where
     truthName (Ax a) = axName a
     truthName (Theo t) = thName t
-    truthName (Hyp h) = hypName h
+    truthName (Hyp h) = h
     truthName Evaluate = "Evaluar"
     truthName (Evaluation ev) = pack $ show ev
 
     truthExpr (Ax a) = axExpr a
     truthExpr (Theo t) = thExpr t
-    truthExpr (Hyp h) = hypExpr h
+    truthExpr (Hyp h) = undefined
     truthExpr Evaluate = C.equal (varNat "x") (varNat "x")
     truthExpr (Evaluation _) = error ""
 
     truthRel (Ax a) = axRel a
     truthRel (Theo t) = thRel t
-    truthRel (Hyp h) = hypRel h
+    truthRel (Hyp h) = undefined
     truthRel Evaluate = relEq
     truthRel (Evaluation _) = relEval
 
     truthRules (Ax a) = axRules a
     truthRules (Theo t) = thRules t
-    truthRules (Hyp h) = hypRule h
+    truthRules (Hyp h) = undefined
     truthRules Evaluate = []
     truthRules (Evaluation _) = []
     
     truthConditions (Ax a) = axCondition a
     truthConditions (Theo t) = thCondition t
-    truthConditions (Hyp h) = hypCondition h
+    truthConditions (Hyp h) = undefined
     truthConditions Evaluate = GenConditions []
     truthConditions (Evaluation _) = GenConditions []
 
@@ -317,8 +309,6 @@ instance Serialize Basic where
             2 -> Hyp <$> get
             _ -> fail $ "SerializeErr Basic " ++ show tag_
 
---             
---             
 {- $proofs
 
 [@Simple@] 
@@ -624,46 +614,6 @@ printProof = (++"\n") . unlines . printPf
 --     show (Deduc _ f f' p) = show f ++ show f' ++ show p
 --     show (Focus _ r f f' p) = show r ++ show f ++ show f' ++ show p
 
-{- Instancia Arbitrary para Proof, la definición de arbitrary la realizamos
-    con sized ya que si no las pruebas crecen descontroladamente y como
-    consecuencia al correr los test se produce un colapso de memoria.
-    
-    Para solucionar este problema encontré dos opciones rápidas usando 
-    herramientas que nos provee quickcheck. Una es usar la función sized
-    y la otra alternativa es usar frequency. Esta ultima fue la primera opción
-    que use pero despues estudiando un poco mas parece que siempre que queremos
-    generar estructuras recursivas lo ideal es usar sized para asegurar la
-    finalizacion y ademas prevenir resultados demasiado grandes.
-    
-    Algo importante a comentar sobre la función sized, es que utiliza un size
-    implícito en quickcheck, el cual no tiene una utilización fija, tan así 
-    que a veces ni siquiera es usado.
-    
-    Dejo la instancia primera que había hecho por si hay algo que discutir.
-    arbitrary nos queda definido, gracias a frequency, de la siguiente manera;
-    de cada 100 pruebas generadas, 50 son Simples, 45 son Hole, 1 Trans, 
-    1 Cases, 1 Ind, 1 Deduc, 1 Focus.
-    Nota: La desición acerca de esta frecuentcia la tome basándome en algunos
-        test que hice, así como esta nos podemos asegurar que la corrida de 
-        testeo termina.
-        
-    arbitrary =
-        frequency [ (45, Hole <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
-                  , (50, Simple <$> arbitrary <*> arbitrary <*> 
-                               arbitrary <*> arbitrary <*> arbitrary)
-                  , (1, Trans <$> arbitrary <*> arbitrary <*> arbitrary <*> 
-                              arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
-                  , (1, Cases <$> arbitrary <*> arbitrary <*> arbitrary <*> 
-                              arbitrary <*> arbitrary <*> arbitrary)
-                  , (1, Ind <$> arbitrary <*> arbitrary <*> arbitrary <*> 
-                              arbitrary <*> arbitrary <*> arbitrary)
-                  , (1, Deduc <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
-                  , (1, Focus <$> arbitrary <*> arbitrary <*> 
-                              arbitrary <*> arbitrary <*> arbitrary)
-                  ]
-
--}
-
 instance Arbitrary Proof where
     arbitrary = sized proof
         where
@@ -708,14 +658,6 @@ instance Arbitrary Proof where
                     listPPFocusProof :: Gen [(Focus, Proof)]
                     listPPFocusProof = vectorOf 2 pairFocusProof
 
--- instance Serialize Name where
---     put (Index i) = putWord8 0 >> put i
--- 
---     get = getWord8 >>= \tag_ -> 
---           case tag_ of
---             0 -> Index <$> get
---             _ -> fail $ "SerializeErr Name " ++ show tag_
-
 instance Monoid (Proof' ctxTy relTy proofTy exprTy) where
     mempty = Reflex
     mappend Reflex p = p
@@ -751,7 +693,6 @@ setCtx c (Ind _ r f f' lf lfp) = Just (Ind c r f f' lf lfp)
 setCtx c (Deduc _ f f' p) = Just (Deduc c f f' p)
 setCtx c (Focus _ r f f' p) = Just (Focus c r f f' p)
 
--- DUDA: Que hacemos con Reflex aca??
 getStart :: Proof' ctxTy relTy proofTy exprTy -> Maybe exprTy
 getStart Reflex = Nothing
 getStart (Hole _ _ f _) = Just f
