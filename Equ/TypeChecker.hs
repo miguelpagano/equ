@@ -13,6 +13,7 @@ module Equ.TypeChecker
     ( module Equ.TypeChecker.Error      
       -- * Algoritmo de unificaci&#243;n con relaci&#243;n de orden.
     , unify
+    , TySubst
     , emptySubst
     , unifyTest
     , unificate
@@ -41,6 +42,7 @@ import qualified Data.Text as T
 import qualified Data.Sequence as S
 import qualified Data.Foldable as F
 import Data.Poset (leq)
+import Data.Function(on)
 import qualified Data.Set as Set (elems)
 import Control.Monad.Trans.Either (runEitherT, hoistEither)
 import Control.Monad.Trans.Class (lift)
@@ -133,6 +135,11 @@ extCtxOp o t = modCtx (\ctx -> ctx { ops = extCtx opName o [t] (ops ctx)})
 extCtxCon :: Constant -> Type -> TyState ()
 extCtxCon c t = modCtx (\ctx -> ctx { cons = extCtx conName c [t] (cons ctx)})
 
+
+extCtxQuan :: Quantifier -> Type -> TyState ()
+extCtxQuan q t = modCtx (\ctx -> ctx { quants = extCtx quantName q [t] (quants ctx)})
+
+
 -- | Agrega los tipos vistos para una variable al contexto; esta funci&#243;n
 -- se usa en el chequeo de tipos de cuantificadores.
 addVar :: Ctx -> Variable -> [Type] -> Ctx
@@ -220,19 +227,27 @@ check (App e e') = do te <- checkAndUpdate e goDown
                       unifyS  te (te' :-> w) 
                       rewriteS w
 check (Quant q v r t) = do tyQ <- checkQuant q
+                           () <- addLog $ show tyQ
                            ctx <- getCtx 
-                           (ctx',tysV) <- lift . return $ removeVar ctx v
-                           modCtx (const ctx')
-                           tyV <- checkAndUpdate (Var v) Just
+                           tyV <- getFreshTyVar -- checkVar v
+                           extCtxV v tyV
+                           --(ctx',tysV) <- lift . return $ removeVar ctx v
+                           --modCtx (const ctx')
+                           -- tyV <- checkAndUpdate (Var v) Just
                            tyR <- checkAndUpdate r goDown
                            tyT <- checkAndUpdate t goDownR
                            case tyQ of 
-                             t1 :-> t2 -> case (tyV `leq` t1, t2 `leq` tyT, tyR == tyBool) of
-                                           (False,_,_) -> tyerr $ ErrNotExpected t1 tyV
-                                           (_,False,_) -> tyerr $ ErrNotExpected tyBool tyR
-                                           (_,_,False) -> tyerr $ ErrNotExpected t2 tyT
-                                           (True,True,True) -> modCtx (\ctx -> addVar ctx v tysV) >>
-                                                              return tyT
+                             t1 :-> t2 -> do
+                                 s <- unifyS tyV t1
+                                 s' <- unifyS t2 tyT
+                                 unifyS tyR tyBool
+                                 rewriteS tyT
+                                 -- case (unify tyV `leq` t1, t2 `leq` tyT, tyR == tyBool) of
+                                 --           (False,_,_) -> tyerr $ ErrNotExpected t1 tyV
+                                 --           (_,False,_) -> tyerr $ ErrNotExpected tyBool tyR
+                                 --           (_,_,False) -> tyerr $ ErrNotExpected t2 tyT
+                                 --           (True,True,True) -> --modCtx (\ctx -> addVar ctx v tysV) >>
+                                 --                              return tyT
                              t1 -> tyerr $ ErrNotExpected (tyV :-> tyT) t1
 check (If b t f) = do tb <- checkAndUpdate b goDown
                       unifyS tb  (TyAtom ATyBool)
@@ -302,6 +317,10 @@ mkCtxCon :: PreExpr -> TyState ()
 mkCtxCon = mapM_ updCtx . getConstants
     where updCtx con = renTy M.empty (conTy con) >>= extCtxCon con . fst
 
+mkCtxQuan :: PreExpr -> TyState ()
+mkCtxQuan = mapM_ updCtx . getQuants
+    where updCtx quan = renTy M.empty (quantTy quan) >>= extCtxQuan quan . fst
+
 -- | Dado un tipo, reemplaza todas las variables libres del
 -- tipo por variables frescas.
 renTy :: TySubst -> Type -> TyState (Type,TySubst)
@@ -322,7 +341,7 @@ renTyCon = renTyVar conTy (\c t -> c {conTy = t})
 renTyOp = renTyVar opTy  (\o t -> o {opTy = t})
 
 initCtxE :: PreExpr -> TyState ()
-initCtxE e = mkCtxVar e >> mkCtxOps e >> mkCtxCon e
+initCtxE e = mkCtxVar e >> mkCtxOps e >> mkCtxCon e >> mkCtxQuan e
 
 mkSubst :: Ctx -> ((Variable -> Type), (Constant -> Type), (Operator -> Type))
 mkSubst (Ctx vars ops cons _) = (updVar,updCons,updOps)

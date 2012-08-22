@@ -206,16 +206,19 @@ foldE v c f b qf a h i cs (Case e patterns) = cs (foldE v c f b qf a h i cs e) (
 
 
 getConstants :: PreExpr' a -> [Constant]
-getConstants = nub . foldE (const []) return (\_ r -> r) (\_ r r' -> r++r') (\_ _ r r' -> r ++ r') 
+getConstants = nub . foldE (const []) return (\_ r -> r) (\_ r r' -> r++r') (\_ _ r r' -> r ++ r')
                      (++) [] (\r r' r'' -> concat [r,r',r''])
                      (\r r' -> concat (r:map (uncurry (++)) r'))
 
 
 getOperators :: PreExpr' a -> [Operator]
-getOperators = nub . foldE (const []) (const []) (\o r -> o: r) (\ o r r' -> o:r++r') (\_ _ r r' -> r ++ r') 
+getOperators = nub . foldE (const []) (const []) (:) (\ o r r' -> o:r++r') (\_ _ r r' -> r ++ r') 
                      (++) [] (\r r' r'' -> concat [r,r',r''])
                      (\r r' -> concat (r:map (uncurry (++)) r'))
-
+getQuants :: PreExpr' a -> [Quantifier]
+getQuants = nub . foldE (const []) (const []) (\_ r -> r) (\_ r r' -> r++r') (\q _ r r' -> q:r ++ r')
+                     (++) [] (\r r' r'' -> concat [r,r',r''])
+                     (\r r' -> concat (r:map (uncurry (++)) r'))
 
 setType :: (Variable -> Type) -> (Constant -> Type) -> (Operator -> Type) -> PreExpr -> PreExpr
 setType fv fc fo = foldE (Var . updVar) Con 
@@ -224,6 +227,4 @@ setType fv fc fo = foldE (Var . updVar) Con
     where updOp op = op {opTy = fo op}
           updVar var = var { varTy = fv var}
           updCon con = con { conTy = fc con}
-
-
 
