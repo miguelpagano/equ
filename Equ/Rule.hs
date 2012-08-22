@@ -5,6 +5,7 @@ module Equ.Rule (
                 , Rule (..)
                 -- * Constructores de las diferentes relaciones.
                 , relEq, relEquiv, relImpl, relCons, relEval, mkrule
+                , getRelationFromType
                 )
     where
     
@@ -97,6 +98,9 @@ data Rule = Rule {
 
 mkrule e e' rel = Rule e e' rel "" ""
 
+getRelationFromType :: Type -> Relation
+getRelationFromType (TyAtom ATyBool) = relEquiv
+getRelationFromType _ = relEq
 
 instance Arbitrary Rule where
     arbitrary = Rule <$> arbitrary <*> arbitrary <*> 
