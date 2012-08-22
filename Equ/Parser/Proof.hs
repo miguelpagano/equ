@@ -50,7 +50,7 @@ import Text.Parsec.String
 import Text.Parsec.Combinator
 import qualified Text.Parsec.Expr as PE
 
-import Data.Text(Text,pack,unpack)
+import Data.Text(Text,pack,unpack,intercalate)
 import qualified Data.Set as Set (toList)
 import Data.Maybe
 import Data.Either(partitionEithers)
@@ -184,15 +184,15 @@ keywordWhere = keyword "where"
 
 -- | Parsea nombres de declaración de teoremas.
 parseProofName :: (PExprStateClass s, PProofStateClass s) => ParserP s Text
-parseProofName = parseName
+parseProofName = intercalate (pack " ") <$> (many1 parseName)
 
 -- | Parsea nombres de declaración de hipotesis.
 parseDeclHypName :: (PExprStateClass s, PProofStateClass s) => ParserP s Text
-parseDeclHypName = parseName
+parseDeclHypName = intercalate (pack " ") <$> (many1 parseName)
 
 -- | Parsea nombres de hipotesis en el contexto de una justificación.
 parseHypName :: (PExprStateClass s, PProofStateClass s) => ParserP s Text
-parseHypName = parseName
+parseHypName = intercalate (pack " ") <$> (many1 parseName)
 
 -- | Parsea nombres.
 parseName :: (PExprStateClass s, PProofStateClass s) => ParserP s Text
