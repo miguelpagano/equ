@@ -9,6 +9,8 @@ import Equ.TypeChecker(unifyTest,getType)
 import Data.Text (Text)
 import Data.Function (on)
 
+import System.IO.Unsafe (unsafePerformIO)
+
 -- | Un tipo inductivo permite realizar Pattern Matching. Está relacionado con una teoria.
 data IndType = IndType {
             name :: Text
@@ -95,16 +97,25 @@ isBaseConstPattern :: PreExpr -> Type -> Bool
 isBaseConstPattern = isConstructorPattern isBaseConstructor
 
 isIndConstPattern :: PreExpr -> Type -> Bool
-isIndConstPattern = isConstructorPattern isIndConstructor          
+isIndConstPattern pe t = unsafePerformIO (putStrLn ("\nisIndConstPattern "++show pe++
+                                                    ", "++show t) >>
+                                          return (isConstructorPattern isIndConstructor pe t))
           
 isConstructorPattern :: (Operator -> Type -> Bool) -> PreExpr -> Type -> Bool
 isConstructorPattern f (UnOp op e) t = f op t && isVar e t
-isConstructorPattern f (BinOp op e1 e2) t = f op t && isVar e1 t && isVar e2 t
+isConstructorPattern f (BinOp op e1 e2) t = f op t &&
+    case opTy op of
+        t1 :-> t2 :-> t3 -> {-unsafePerformIO (putStrLn ("isIndConstructor "++show op ++", "++show t++" = "++
+                                                        show (f op t)++
+                                                    "\nisVar "++show e1++", "++show t1++" = "++show (isVar e1 t1)++
+                                                    "\nisVar "++show e2++", "++show t2++" = "++show (isVar e2 t2)) >>-}
+                             isVar e1 t1 && isVar e2 t2
+        _ -> False
 isConstructorPattern _ _ _ = False
 
 
-splitByConst :: Type -> [(PreExpr, b)] -> ([(PreExpr, b)],[(PreExpr, b)],[(PreExpr, b)]) 
-splitByConst t = foldl go ([],[],[])
+splitByConst :: Show b => Type -> [(PreExpr, b)] -> ([(PreExpr, b)],[(PreExpr, b)],[(PreExpr, b)]) 
+splitByConst t l = foldl go ([],[],[]) l
     where go (ks,us,bs) p@(e,_) | isConstantPattern e t  = (p:ks,us,bs)
                                 | isBaseConstPattern e t = (ks,p:us,bs)
                                 | isIndConstPattern e t  = (ks,us,p:bs)

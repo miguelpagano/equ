@@ -81,11 +81,13 @@ import Data.Maybe
 import Data.Either (partitionEithers,rights)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
-import Data.List (find)
+import Data.List (find,permutations)
 import Data.Function (on)
 import Control.Monad
 import Control.Arrow((&&&),(***))
 import Control.Applicative ((<$>))
+
+import System.IO.Unsafe (unsafePerformIO)
 
 -- | Funciones auxiliares que podrían ir a su propio módulo.
 isRight :: Either a b -> Bool
@@ -323,6 +325,10 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
                                   \it ->
                                   return (splitByConst (varTy x) (map (PE.toExpr *** id) ps)) >>= 
                                   \indPatterns@(constPat,basePat,indPat) ->
+--                                   unsafePerformIO (putStrLn ("---VALIDANDO PRUEBA---\n"++
+--                                                     "constPat = "++show constPat++
+--                                                     "\nbasePat = "++show basePat++
+--                                                     "\nindPat = "++show indPat) >> return (return ())) >>
                                   -- chequeamos las variables de cada pattern
                                   mapM (checkVarsPattern x pr) (map fst basePat) >>
                                   mapM (checkVarsPattern x pr) (map fst indPat) >>
@@ -387,12 +393,17 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
 
           -- Controlamos que todos los constructores (0-arios, unarios y binarios) 
           -- usados en una prueba correspondan al tipo inductivo.
-          checkConstructor :: Ord a => PErrorInduction -> 
+          checkConstructor :: (Ord a,Show a) => PErrorInduction -> 
                              (PE.PreExpr -> Maybe a) -> (IndType -> [a]) -> 
                              IndType -> [(PE.PreExpr,Proof)] -> PM ()
-          checkConstructor err get els it ps = whenPM' (elsInProof `isSublistOf` els it) 
+          checkConstructor err get els it ps = 
+                                    validateEls >>= \elsInProof ->
+                                    whenPM' (isPermutation elsInProof (els it)) 
                                                (ProofError (InductionError err) id)
-              where elsInProof = catMaybes $ map (get . fst) ps
+              where validateEls = let l = map (get . fst) ps in
+                                      if Nothing `elem` l
+                                         then Left (ProofError (InductionError err) id)
+                                         else return $ catMaybes l
           
           checkAllConstants :: IndType -> [(PE.PreExpr,Proof)] -> PM ()
           checkAllConstants = checkConstructor ConstantPatternError PE.getConstant constants
@@ -738,6 +749,9 @@ getExprProof = either (const holeExpr) buildExpr
 -- apropiado.
 isSublistOf :: Ord a => [a] -> [a] -> Bool
 isSublistOf = Set.isSubsetOf `on` Set.fromList
+
+isPermutation :: Eq a => [a] -> [a] -> Bool
+isPermutation xs ys = xs `elem` permutations ys
 
 liftA2' :: (a -> b -> PM c) -> PM a -> PM b -> PM c
 liftA2' f ma mb = ma >>= \a -> mb >>= f a

@@ -1,5 +1,5 @@
 begin proof derivationAnd 
-    [~ especificacion: and@xs = 〈∀ i : 0 ≤ i ∧ i < #xs : [].i 〉 ~]
+    [~ spec and : and@xs ≡ 〈∀ i : 0 ≤ i ∧ i < #xs : xs.i 〉 ~]
     induction in xs for 
         and@xs 
         .≡. 
@@ -10,16 +10,16 @@ begin proof derivationAnd
     where
 basic
 [] -> and@[]
-      ≡ { especificacion }
+      ≡ { spec and }
       〈∀ i : 0 ≤ i ∧ i < #[]: [].i 〉 
       ≡ { Longitud de la lista vacía }
       〈∀ i : 0 ≤ i ∧ i < 0: [].i 〉 
       ≡ { Harry Potter Equivalencia }
       〈∀ i : False : [].i〉 
-      ≡ { h }
+      ≡ { Rango Vacío Para Todo }
       True
 induction y ▹ ys with hypind -> and@(y ▹ ys)
-                                ≡ { especificacion }
+                                ≡ { spec and }
                                 〈∀ i : 0 ≤ i ∧ i < #(y ▹ ys) : (y ▹ ys).i〉
                                 ≡ { Longitud de lista no vacía }
                                 〈∀ i : 0 ≤ i ∧ i < succ (#ys) : (y ▹ ys).i〉
@@ -35,7 +35,7 @@ induction y ▹ ys with hypind -> and@(y ▹ ys)
                                 y ∧ 〈∀ i : 0 ≤ i ∧ i < #ys : (y ▹ ys).(succ i)〉
                                 ≡ { Proyectar el elemento (i+1) }
                                 y ∧ 〈∀ i : 0 ≤ i ∧ i < #ys : ys.i〉
-                                ≡ { especificacion }
+                                ≡ { spec and }
                                 y ∧ and@ys
 end proof
 

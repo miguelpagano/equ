@@ -53,7 +53,7 @@ import qualified Text.Parsec.Expr as PE
 import Data.Text(Text,pack,unpack,intercalate)
 import qualified Data.Set as Set (toList)
 import Data.Maybe
-import Data.Either(partitionEithers)
+import Data.Either(partitionEithers,lefts)
 import Data.List (intersperse, find)
 import qualified Data.Map as M (Map,empty,insert,toList,null, lookup, map,singleton) 
 
@@ -365,18 +365,21 @@ inducProof ctx = do
             keywordIn
             fInduc <- parseFocus
             keywordFor
-            fei <- parseFocus
+            fei' <- parseFocus
             keywordDot
             [rel] <- manyTill rel keywordDot
-            fef <- parseFocus
+            fef' <- parseFocus
+            fei <- typeFocus fei'
+            fef <- typeFocus fef'
             
             let eitherF = typeVarInduc (makeExpr rel fei fef) fInduc
             typedFinduc <- either (fail . show) return eitherF
             
             keywordWhere
             cs <- parseInducCases ctx rel fei fef (toExpr typedFinduc)
+            cs' <- typeCases cs
             parseProofEnd
-            return $ Ind ctx rel fei fef typedFinduc cs
+            return $ Ind ctx rel fei fef typedFinduc cs'
     where
         typeVarInduc :: PreExpr -> Focus -> Either ProofError Focus
         typeVarInduc e (Var fInduc,_) = do
@@ -541,3 +544,22 @@ mkTrans c e pSet ((e',(r,j)):steps) = go (mkSimple c r e e' j) steps
                 e0 = fromJust (getStart p)
                 e1 = fromJust (getEnd p)
                 prf' = Trans c r e0 e1 e p (mkSimple c r e1 e j)
+
+
+                
+                
+-- ESTO NO DEBERIA ESTAR ACA. EL CHEQUEO DE TIPOS DEBE SER POSTERIOR AL PARSER
+typeCases :: (PExprStateClass s, PProofStateClass s) =>
+             [(Focus,Proof)] -> ParserP s [(Focus,Proof)]
+typeCases cs = let tc_cs = map (\(f,p) -> (typeCheckPreExpr $ toExpr f,p)) cs in
+                   if lefts (map fst tc_cs) /= []
+                      then error "Alguna expresión de los casos de prueba no puede tiparse"
+                      else return (map (\(Right e,p) -> (toFocus e,p)) tc_cs)
+                      
+typeFocus :: (PExprStateClass s, PProofStateClass s) =>
+             Focus -> ParserP s Focus
+typeFocus f = case typeCheckPreExpr (toExpr f) of
+                   Left _ -> error "No puede tiparse una expresión. Si este mensaje no se entiende, jódanse por no tener el type checker listo"
+                   Right e -> return (toFocus e)
+
+                

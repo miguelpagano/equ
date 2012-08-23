@@ -96,6 +96,7 @@ match t t' = t == t'
 match2 :: Type -> Type -> Bool
 match2 (TyVar v) w = True
 match2 (TyList t) (TyList t') = match2 t t'
+match2 (TyList t) _ = False
 match2 (t1 :-> t2) (t1' :-> t2') = match2 t1 t1' && match2 t2 t2'
 match2 w (TyVar v) = True
 match2 t t' = t == t'  
