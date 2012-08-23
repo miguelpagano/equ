@@ -35,8 +35,9 @@ module Equ.Proof ( newProof
                  , module Equ.Proof.Error
                  , module Equ.Rewrite
                  , module Equ.Proof.ListedProof
+                 , module Equ.Proof.Condition
                  -- * Funciones auxiliares
-                 , addHypothesis
+                 , addHypothesis, addHypothesis'
                  , getHypothesis
                  , exprIsHypothesis 
                  , addBoolHypothesis

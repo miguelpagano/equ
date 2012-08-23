@@ -687,11 +687,27 @@ setCtx :: ctxTy -> Proof' ctxTy relTy proofTy exprTy ->  Maybe (Proof' ctxTy rel
 setCtx _ Reflex = Nothing
 setCtx c (Hole _ r f f') = Just (Hole c r f f')
 setCtx c (Simple _ r f f' b) = Just (Simple c r f f' b)
-setCtx c (Trans _ r f f' f'' p p') = Just (Trans c r f f' f'' p p')
-setCtx c (Cases _ r f f' f'' lfp p') = Just (Cases c r f f' f'' lfp p')
-setCtx c (Ind _ r f f' lf lfp) = Just (Ind c r f f' lf lfp)
-setCtx c (Deduc _ f f' p) = Just (Deduc c f f' p)
-setCtx c (Focus _ r f f' p) = Just (Focus c r f f' p)
+setCtx c (Trans _ r f f' f'' p p') = Just (Trans c r f f' f'' (setCtx' c p) (setCtx' c p'))
+setCtx c (Cases _ r f f' f'' lfp p') = Just (Cases c r f f' f'' (setCtxInList c lfp) (setMCtx' c p'))
+setCtx c (Ind _ r f f' lf lfp) = Just (Ind c r f f' lf (setCtxInList c lfp))
+setCtx c (Deduc _ f f' p) = Just (Deduc c f f' (setCtx' c p)) --VER BIEN ESTE CASO
+setCtx c (Focus _ r f f' p) = Just (Focus c r f f' (setCtx' c p)) --ESTE TAMBIEN
+
+setCtx' :: ctxTy -> Proof' ctxTy relTy proofTy exprTy ->  Proof' ctxTy relTy proofTy exprTy
+setCtx' c p = let mp = setCtx c p in
+                  case mp of
+                       Nothing -> p
+                       Just p' -> p'
+                       
+setCtxInList :: ctxTy -> [(exprTy,Proof' ctxTy relTy proofTy exprTy)] ->  
+                         [(exprTy,Proof' ctxTy relTy proofTy exprTy)]
+setCtxInList c lpf = map (\(e,p) -> (e,setCtx' c p)) lpf
+
+setMCtx' :: ctxTy -> Maybe (Proof' ctxTy relTy proofTy exprTy) ->  
+                     Maybe (Proof' ctxTy relTy proofTy exprTy)
+setMCtx' c mp = case mp of
+                     Nothing -> Nothing
+                     Just p -> Just $ setCtx' c p
 
 getStart :: Proof' ctxTy relTy proofTy exprTy -> Maybe exprTy
 getStart Reflex = Nothing
