@@ -12,7 +12,7 @@ module Equ.PreExpr ( decode
                    , createPairs
                    , subExprQuant
                    , preExprApp
-                   , quantVar, termExpr, rangeExpr
+                   , quantVar, termExpr, rangeExpr, exprApply
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
@@ -135,3 +135,10 @@ listOfVar = flip listOf isVar
         isVar (Var _,_) = True
         isVar _ = False
 
+
+-- | Dada una variable y una lista de variables, devuelve la expresión aplicación
+--   de la primera sobre todas las demás. exprApply f [x1,..,xn] = f@x1@..@xn
+exprApply :: Variable -> [Variable] -> PreExpr
+exprApply f vs = foldl (\e v -> App e (Var v)) (Var f) vs
+        
+        

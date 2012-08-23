@@ -24,6 +24,7 @@ module Equ.Theories
     , listAxioms
     , isBoolean
     , ruleExpr
+    , makeExprFromRelation
     )
     where
 
@@ -211,5 +212,6 @@ uncurry2 :: (a -> b -> c -> d) -> (a,b,c) -> d
 uncurry2 f (a,b,c) = f a b c
                                      
 
-                                     
+makeExprFromRelation :: Relation -> PreExpr -> PreExpr -> Expr
+makeExprFromRelation r e e' = Expr $ BinOp (relToOp r) e e'                             
                                      

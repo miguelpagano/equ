@@ -102,6 +102,7 @@ getRelationFromType :: Type -> Relation
 getRelationFromType (TyAtom ATyBool) = relEquiv
 getRelationFromType _ = relEq
 
+
 instance Arbitrary Rule where
     arbitrary = Rule <$> arbitrary <*> arbitrary <*> 
                          arbitrary <*> arbitrary <*> arbitrary
