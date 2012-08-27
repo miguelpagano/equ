@@ -336,9 +336,7 @@ proof mc flag = do
                 -- Si el nombre de teorema ya existia lo pisa.
                 let theoSetUpdated = M.insert pn theo theoSet
                 putState $ setProofState state $ 
-                                    pst { pTheoSet = theoSetUpdated
-                                        , lastProofName = Just pn
-                                        }
+                                    pst { lastProofName = Just pn}
                 return p
         parsePrefix :: (PExprStateClass s, PProofStateClass s) =>
                         ParserP s (Maybe Text,Maybe [Hypothesis])
