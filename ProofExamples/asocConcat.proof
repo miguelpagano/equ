@@ -1,5 +1,5 @@
 
-begin proof a induction in xs for xs ++ (ys ++ zs) .=. (xs ++ ys) ++ zs where
+begin proof induction in xs for xs ++ (ys ++ zs) .=. (xs ++ ys) ++ zs where
 basic
 [] -> [] ++ (ys ++ zs)
       = { Neutro a izquierda de concatenación }

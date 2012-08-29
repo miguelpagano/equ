@@ -8,7 +8,7 @@ module Equ.Parser.Proof ( parsePfFromString'
                         , PProofState
                         , pTheoSet
                         , PProofStateClass (..)
-                        , lastProofName ) where
+                        ) where
 
 import Equ.Parser.Expr
 import Equ.Syntax hiding (Hole)
@@ -70,8 +70,6 @@ type HypSet = M.Map HypName Hypothesis
 
 data PProofState = PProofState { pTheoSet :: TheoSet
                                , pExprSt :: PExprState
-                               -- Este campo es para guardar el nombre de la última prueba parseada.
-                               , lastProofName :: Maybe ProofName 
                                }
 
 instance Show PProofState where
@@ -318,34 +316,33 @@ proof mc flag = do
         
         parseProof :: (PExprStateClass s, PProofStateClass s) => ParserP s Proof
         parseProof = 
-            parsePrefix >>= \(mname,mhyps) -> many newline >>
+            parsePrefix >>= \mhyps -> many newline >>
             makeCtx mhyps >>= \ctxWithHyps ->
             choice [ inducProof ctxWithHyps
                    , casesProof ctxWithHyps
                    , transProof ctxWithHyps flag
                    ] >>= \p ->
-            maybe (return p) (addTheoNWP p) mname
+            return p
+            --maybe (return p) (addTheoNWP p) mname
         
-        addTheoNWP :: (PExprStateClass s, PProofStateClass s) => 
-                      Proof -> ProofName -> ParserP s Proof
-        addTheoNWP p pn = do
-                state <- getState
-                let pst = getProofState state
-                let theoSet = pTheoSet pst
-                let theo = createTheorem pn p
-                -- Si el nombre de teorema ya existia lo pisa.
-                let theoSetUpdated = M.insert pn theo theoSet
-                putState $ setProofState state $ 
-                                    pst { lastProofName = Just pn}
-                return p
+--         addTheoNWP :: (PExprStateClass s, PProofStateClass s) => 
+--                       Proof -> ProofName -> ParserP s Proof
+--         addTheoNWP p pn = do
+--                 state <- getState
+--                 let pst = getProofState state
+--                 let theoSet = pTheoSet pst
+--                 let theo = createTheorem pn p
+--                 -- Si el nombre de teorema ya existia lo pisa.
+--                 let theoSetUpdated = M.insert pn theo theoSet
+--                 putState $ setProofState state $ 
+--                                     pst { lastProofName = Just pn}
+--                 return p
         parsePrefix :: (PExprStateClass s, PProofStateClass s) =>
-                        ParserP s (Maybe Text,Maybe [Hypothesis])
+                        ParserP s (Maybe [Hypothesis])
         parsePrefix = 
-                (parseProofHyps >>= \hres -> return (Nothing, hres))
+                (parseProofHyps >>= \hres -> return hres)
                 <|>
-                parseProofWithName
-                <|>
-                return (Nothing, Nothing)
+                return Nothing
         
         parseProofHyps :: (PExprStateClass s, PProofStateClass s) => 
                           ParserP s (Maybe [Hypothesis])
@@ -520,7 +517,7 @@ parseFromFileProof fp = readFile fp >>= \s ->
 
 -- | Estado inicial del parser de pruebas.
 initPProofState :: TheoSet -> PExprState -> PProofState
-initPProofState theoSet estate = PProofState theoSet estate Nothing
+initPProofState theoSet estate = PProofState theoSet estate
 
 {- Pasar estas funciones a Equ.Proof -}
 -- | construcción de una prueba simple.
