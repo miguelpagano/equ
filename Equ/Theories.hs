@@ -29,7 +29,7 @@ module Equ.Theories
     where
 
 import Equ.Theories.AbsName
-import Equ.Theories.Common (isBoolean)
+import Equ.Theories.Common (isBoolean,equal,folFalse,folTrue)
 import qualified Equ.Theories.Arith as A
 import qualified Equ.Theories.List as L
 import qualified Equ.Theories.FOL as F
@@ -38,10 +38,12 @@ import Equ.Proof.Proof
 import Equ.Proof.Condition
 import Equ.Expr
 import Equ.PreExpr
+import Equ.Types (tyVar)
 
 import Data.Text hiding (head,zip,concatMap,map,tail)
 import Data.Maybe(isJust,fromJust)
 import Data.Tree
+import qualified Data.Map as M (singleton)
 import Control.Monad
 import Control.Arrow ((&&&))
 
@@ -89,7 +91,8 @@ axiomGroup = mkGrouped theories . uncurry (:) . ((F.assocEquivAx:) . head &&& ta
              map (map (uncurry2 createAxiom))
                      [ F.theoryAxiomList
                      , A.theoryAxiomList
-                     , L.theoryAxiomList]
+                     , L.theoryAxiomList
+                     , genericAxioms]
                      
      
 arithAxioms,listAxioms,folAxioms :: [Axiom]                                     
@@ -178,11 +181,29 @@ createRulesAssoc :: PreExpr -> [Rule]
 createRulesAssoc e = whenZ isJust rules (getRelExp e) ++ metaRules (Expr e)
     where rules (Just rel') = createPairs e >>= 
                              if relSym rel'
-                             then \(p,q) -> [mkrule (Expr p) (Expr q) rel', mkrule (Expr q) (Expr p) rel']
-                             else \(p,q) -> return (mkrule (Expr p) (Expr q) rel')
+                             then \(p,q) -> (caseExprRules p q rel') ++ [mkrule (Expr p) (Expr q) rel', mkrule (Expr q) (Expr p) rel']
+                             else \(p,q) -> (caseExprRules p q rel') ++ [(mkrule (Expr p) (Expr q) rel')]
           rules _ = []
           
-
+          
+-- | Reglas para usar pattern matching en el case. 
+{-   Si tenemos f.x = case x of
+                        0 -> e1
+                        succ n -> e2
+     entonces, ademas de la regla obvia, se generan estas:
+                f.0 = e1
+                f.(succ n) = e2
+                -}        
+caseExprRules :: PreExpr -> PreExpr -> Relation -> [Rule]
+caseExprRules p q rel = case q of
+                             Case (Var x) ps -> map (ruleCase x) ps
+                             _ -> []
+          
+    where ruleCase :: Variable -> (PreExpr,PreExpr) -> Rule
+          ruleCase v (pattern,expr) = mkrule (Expr (applySubst p $ M.singleton v pattern))
+                                             (Expr expr)
+                                             rel
+          
 -- | Dado un axioma reconstruye las reglas a partir de su expresión.
 createAxiom :: Text -> Expr -> Condition -> Axiom
 createAxiom name' ex cond = Axiom { 
@@ -214,4 +235,31 @@ uncurry2 f (a,b,c) = f a b c
 
 makeExprFromRelation :: Relation -> PreExpr -> PreExpr -> Expr
 makeExprFromRelation r e e' = Expr $ BinOp (relToOp r) e e'                             
-                                     
+
+
+-- Axiomas generales para todas las teorias. Estos axiomas en realidad estan 
+-- definidos sobre esquemas de expresiones, independientes de cada tipo de dato.
+genericAxioms :: [(Text,Expr,Condition)]
+genericAxioms = [ifAxiomTrue,ifAxiomFalse]
+
+-- PENSAR COMO DEFINIR LOS AXIOMAS CON CASE.
+ifAxiomTrue :: (Text,Expr,Condition)
+ifAxiomTrue = ( "If con guarda True"
+              ,  (Expr $ If (Con folTrue) varE1 varE2)
+                `equal`
+                (Expr varE1)
+              , GenConditions []
+              )
+              
+ifAxiomFalse :: (Text,Expr,Condition)
+ifAxiomFalse = ( "If con guarda False"
+              ,  (Expr $ If (Con folFalse) varE1 varE2)
+                `equal`
+                 (Expr varE2)
+              , GenConditions []
+              )
+                
+varE1 :: PreExpr
+varE1 = Var $ var "e1" (tyVar "A")
+varE2 :: PreExpr
+varE2 = Var $ var "e2" (tyVar "A") 

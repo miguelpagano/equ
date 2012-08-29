@@ -252,7 +252,7 @@ parseCase = reserved lexer "case" >>
             parsePreExpr >>= \ expr ->
             reserved lexer "of" >>
             manyTill1 parseCases (reserved lexer "end") >>= \ cases ->
-            return (Case expr cases)
+            return (Case expr (reverse cases))
     where
         manyTill1 :: PExprStateClass s => ParserE s a -> PExprStateClass s => ParserE s end -> PExprStateClass s => ParserE s[a]
         manyTill1 p till = p >>= \ x ->
