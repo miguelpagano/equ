@@ -182,25 +182,29 @@ keywordWhere = keyword "where"
 
 -- | Parsea nombres de declaración de teoremas.
 parseProofName :: (PExprStateClass s, PProofStateClass s) => ParserP s Text
-parseProofName = intercalate (pack " ") <$> (many1 parseName)
+parseProofName = intercalate (pack " ") <$> parseName
 
 -- | Parsea nombres de declaración de hipotesis.
 parseDeclHypName :: (PExprStateClass s, PProofStateClass s) => ParserP s Text
-parseDeclHypName = intercalate (pack " ") <$> (many1 parseName)
+parseDeclHypName = intercalate (pack " ") <$> parseName
 
 -- | Parsea nombres de hipotesis en el contexto de una justificación.
 parseHypName :: (PExprStateClass s, PProofStateClass s) => ParserP s Text
-parseHypName = intercalate (pack " ") <$> (many1 parseName)
+parseHypName = intercalate (pack " ") <$> parseName
+
+-- | Parsea un nombre.
+parseOneName :: (PExprStateClass s, PProofStateClass s) => ParserP s Text
+parseOneName = lexeme lexer ((:) <$> lower <*> many alphaNum) >>= return . pack
 
 -- | Parsea nombres.
-parseName :: (PExprStateClass s, PProofStateClass s) => ParserP s Text
-parseName =  pack <$> lexeme lexer (many1 name)
+parseName :: (PExprStateClass s, PProofStateClass s) => ParserP s [Text]
+parseName =  many1 parseName'
     where
-        name :: (PExprStateClass s, PProofStateClass s) => ParserP s Char
-        name = foldr (\str -> (<|>) (failKeyword str)) letter rNames
+        parseName' :: (PExprStateClass s, PProofStateClass s) => ParserP s Text
+        parseName' = foldr (\str -> (<|>) (failKeyword str)) parseOneName rNames
             where
                 failKeyword str = keyword str >> unexpected (show str)
-
+                
 tryNewline :: (PExprStateClass s, PProofStateClass s) => ParserP s ()
 tryNewline = newline >> return ()
 
@@ -321,22 +325,7 @@ proof mc flag = do
             choice [ inducProof ctxWithHyps
                    , casesProof ctxWithHyps
                    , transProof ctxWithHyps flag
-                   ] >>= \p ->
-            return p
-            --maybe (return p) (addTheoNWP p) mname
-        
---         addTheoNWP :: (PExprStateClass s, PProofStateClass s) => 
---                       Proof -> ProofName -> ParserP s Proof
---         addTheoNWP p pn = do
---                 state <- getState
---                 let pst = getProofState state
---                 let theoSet = pTheoSet pst
---                 let theo = createTheorem pn p
---                 -- Si el nombre de teorema ya existia lo pisa.
---                 let theoSetUpdated = M.insert pn theo theoSet
---                 putState $ setProofState state $ 
---                                     pst { lastProofName = Just pn}
---                 return p
+                   ]
         parsePrefix :: (PExprStateClass s, PProofStateClass s) =>
                         ParserP s (Maybe [Hypothesis])
         parsePrefix = 
@@ -396,11 +385,12 @@ inducProof ctx = do
                     cs <- manyTill (parseCases ctx indv) (many newline >> keywordInduc)
                     patt <- parseFocus
                     keywordWith
-                    name <- parseName
+                    name <- parseOneName
                     let mHypInd = createIndHypothesis r fei fef patt indv name
                     case mHypInd of
                          Nothing -> fail "No se puede crear la hipotesis inductiva"
                          Just hypInd -> do
+                                many whites
                                 keywordRArrow
                                 p <- proof (Just $ addHypothesis' hypInd ctx) False
                                 return ((c:cs) ++ [(patt,p)])
