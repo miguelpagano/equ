@@ -215,10 +215,22 @@ getOperators :: PreExpr' a -> [Operator]
 getOperators = nub . foldE (const []) (const []) (:) (\ o r r' -> o:r++r') (\_ _ r r' -> r ++ r') 
                      (++) [] (\r r' r'' -> concat [r,r',r''])
                      (\r r' -> concat (r:map (uncurry (++)) r'))
+
 getQuants :: PreExpr' a -> [Quantifier]
 getQuants = nub . foldE (const []) (const []) (\_ r -> r) (\_ r r' -> r++r') (\q _ r r' -> q:r ++ r')
                      (++) [] (\r r' r'' -> concat [r,r',r''])
                      (\r r' -> concat (r:map (uncurry (++)) r'))
+
+getCalledVars :: PreExpr' a -> [a]
+getCalledVars (App (Var v) e) = v:getCalledVars e
+getCalledVars (App e e') = getCalledVars e ++ getCalledVars e'
+getCalledVars (UnOp _ e) = getCalledVars e
+getCalledVars (BinOp _ e e') = getCalledVars e ++ getCalledVars e'
+getCalledVars (Quant _ _ e e') = getCalledVars e ++ getCalledVars e'
+getCalledVars (If e1 e2 e3) = getCalledVars e1 ++ getCalledVars e2 ++ getCalledVars e3
+getCalledVars (Case e ps) = getCalledVars e ++ concatMap (uncurry ((++) `on` getCalledVars)) ps
+getCalledVars (Paren e) = getCalledVars e
+getCalledVars _ = []
 
 setType :: (Variable -> Type) -> (Constant -> Type) -> (Operator -> Type) -> PreExpr -> PreExpr
 setType fv fc fo = foldE (Var . updVar) Con 

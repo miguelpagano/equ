@@ -51,10 +51,12 @@ Library
                         Equ.Rule,
                         Equ.Syntax,
                         Equ.Theories,
+                        Equ.Theories.AbsName,
                         Equ.Theories.FOL,
                         Equ.Theories.List,
                         Equ.Theories.Arith,
                         Equ.TypeChecker,
+                        Equ.TypeChecker.Unification,
                         Equ.Types,
                         Equ.Matching
     
@@ -68,10 +70,8 @@ Library
                         Equ.Proof.Monad,
                         Equ.Proof.Zipper,
                         Equ.Rewrite,
-                        Equ.Theories.AbsName,
                         Equ.Theories.Common,
-                        Equ.TypeChecker.Error,
-                        Equ.TypeChecker.Unification
+                        Equ.TypeChecker.Error
 
   -- Modules not exported by this package.
   -- 

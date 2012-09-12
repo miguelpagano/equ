@@ -20,13 +20,16 @@ module Equ.TypeChecker
     , rewrite
     , typeCheckPreExpr 
     , typeCheckPre
-    , vars
-    , cons
     , match
     , match2
       -- * Algoritmo de TypeChecking.
     , checkPreExpr
     , getType
+    , TCState(..)
+    , checkPreExpr'
+    , checkPreExpr''
+    , initCtx
+    , TCCtx(..)
     )
     where
 
@@ -60,7 +63,7 @@ type CtxSyn s = M.Map s [Type]
 -- de s&#237;mbolo; el contexto para los cuantificadores es fijo,
 -- inicialmente tiene los cuantificadores "homog&#233;neos" (por ejemplo,
 -- sumatoria est&#225;, pero forall no est&#225;).
-data Ctx = Ctx { vars :: CtxSyn VarName
+data TCCtx = TCCtx { vars :: CtxSyn VarName
                , ops  :: CtxSyn OpName 
                , cons :: CtxSyn ConName
                , quants :: CtxSyn QuantName
@@ -76,7 +79,7 @@ type TMErr = (Focus,TyErr)
 type TyState = MonadTraversal TMErr TCState
 
 data TCState = TCState { subst :: TySubst
-                       , ctx   :: Ctx
+                       , ctx   :: TCCtx
                        , fTyVar :: Int
                        }
              deriving Show
@@ -92,7 +95,7 @@ tyerr err = ask >>= \foc -> hoistEither $ Left (foc, err)
 getSub :: TyState TySubst
 getSub = gets subst
 
-getCtx :: TyState Ctx
+getCtx :: TyState TCCtx
 getCtx = gets ctx
 
 getFreshTyVar :: TyState Type
@@ -100,7 +103,7 @@ getFreshTyVar = gets fTyVar >>= \n ->
                 modify (\st -> st { fTyVar = n+1}) >>
                 return (TyVar $ T.pack (show n))
 
-modCtx :: (Ctx -> Ctx) -> TyState ()
+modCtx :: (TCCtx -> TCCtx) -> TyState ()
 modCtx f = modify (\st -> st { ctx = f (ctx st)})
 
 modSubst :: (TySubst -> TySubst) -> TyState ()
@@ -129,6 +132,9 @@ extCtx f s = M.insertWith (flip const) (f s)
 extCtxV :: Variable -> Type -> TyState ()
 extCtxV v t = modCtx (\ctx -> ctx { vars = extCtx varName v [t] (vars ctx)})
 
+extCtxVar :: VarName -> Type -> TyState ()
+extCtxVar v t = modCtx (\ctx -> ctx { vars = M.insertWith (flip const) v [t] (vars ctx)})
+
 extCtxOp :: Operator -> Type -> TyState ()
 extCtxOp o t = modCtx (\ctx -> ctx { ops = extCtx opName o [t] (ops ctx)})
 
@@ -142,20 +148,20 @@ extCtxQuan q t = modCtx (\ctx -> ctx { quants = extCtx quantName q [t] (quants c
 
 -- | Agrega los tipos vistos para una variable al contexto; esta funci&#243;n
 -- se usa en el chequeo de tipos de cuantificadores.
-addVar :: Ctx -> Variable -> [Type] -> Ctx
+addVar :: TCCtx -> Variable -> [Type] -> TCCtx
 addVar c _ [] = c
 addVar c v ts = c { vars = M.insert (tRepr v) ts (vars c) }
 
 -- | Devuelve un par con los tipos vistos de una variable y un nuevo
 -- contexto sin esa variable.
-removeVar :: Ctx -> Variable -> (Ctx,[Type])
+removeVar :: TCCtx -> Variable -> (TCCtx,[Type])
 removeVar c v = (c { vars = M.delete (tRepr v) (vars c) } , M.findWithDefault [] vn vs)
     where vn = tRepr v
           vs = vars c
 
 -- | Chequeo de diferentes elementos sint&#225;cticos simples como
 -- variables, constantes, s&#237;mbolos de funci&#243;n y operadores.
-checkSyn :: (Syntactic s,Ord k) => s -> (s -> k) -> (Ctx -> M.Map k [Type]) -> TyState Type
+checkSyn :: (Syntactic s,Ord k) => s -> (s -> k) -> (TCCtx -> M.Map k [Type]) -> TyState Type
 checkSyn s name getM = gets (getM . ctx) >>= \ctx ->
                        case M.lookup (name s) ctx of
                          Nothing -> tyerr $ ErrClashTypes s []
@@ -172,7 +178,7 @@ checkQuant :: Quantifier -> TyState Type
 checkQuant q = checkSyn q quantName quants
 
 -- | Actualiza los tipos en el contexto.
-updateCtx :: Ctx -> TySubst -> Ctx
+updateCtx :: TCCtx -> TySubst -> TCCtx
 updateCtx ctx subst = ctx { vars = M.map (map (rewrite subst)) (vars ctx) 
                           , ops = M.map (map (rewrite subst)) (ops ctx) 
                           , cons = M.map (map (rewrite subst)) (cons ctx) }
@@ -288,8 +294,8 @@ checkPat (BinOp op e e') = checkOp op >>= \t ->
 checkPat (Paren p) = checkPat p
 checkPat _ = error "Expression is not a pattern."
 
-initCtx :: Ctx
-initCtx = Ctx { vars = M.empty
+initCtx :: TCCtx
+initCtx = TCCtx { vars = M.empty
               , ops  = M.empty
               , cons = M.empty
               , quants = M.empty
@@ -343,14 +349,14 @@ renTyOp = renTyVar opTy  (\o t -> o {opTy = t})
 initCtxE :: PreExpr -> TyState ()
 initCtxE e = mkCtxVar e >> mkCtxOps e >> mkCtxCon e >> mkCtxQuan e
 
-mkSubst :: Ctx -> ((Variable -> Type), (Constant -> Type), (Operator -> Type))
-mkSubst (Ctx vars ops cons _) = (updVar,updCons,updOps)
+mkSubst :: TCCtx -> ((Variable -> Type), (Constant -> Type), (Operator -> Type))
+mkSubst (TCCtx vars ops cons _) = (updVar,updCons,updOps)
     where updVar = M.foldrWithKey (\vname ty f var -> if varName var == vname then head ty else f var) tyUnk vars
           updCons = M.foldrWithKey (\cname ty f con -> if conName con == cname then head ty else f con) tyUnk cons
           updOps =  M.foldrWithKey (\opname ty f op -> if opName op == opname then head ty else f op) tyUnk ops
           tyUnk _ = TyUnknown
 
-setType' :: Ctx -> PreExpr -> PreExpr
+setType' :: TCCtx -> PreExpr -> PreExpr
 setType' ctx e = let (v,c,o) = mkSubst ctx
                  in setType v c o e
 
@@ -360,6 +366,19 @@ setType' ctx e = let (v,c,o) = mkSubst ctx
 checkPreExpr :: PreExpr -> Either (TMErr,Log) Type
 checkPreExpr e = case runRWS (runEitherT (check' e)) (toFocus e) initTCState of
                    (res, _, l) -> either (\err -> Left (err,l)) Right res
+
+checkPreExpr' :: M.Map VarName Type -> PreExpr -> Either TMErr (Type, TCState)
+checkPreExpr' env e = case runRWS (runEitherT checkWithEnv) (toFocus e) initTCState of
+                   (res, st, l) -> either Left (\r -> Right (r,st)) res
+    where checkWithEnv = initCtxE e >> mapM_ (uncurry extCtxVar) (M.toList env) >> check e
+
+checkPreExpr'' :: Variable -> PreExpr -> Either TMErr (Type, TCState)
+checkPreExpr'' fun e = case runRWS (runEitherT checkWithEnv) (toFocus e) initTCState of
+                         (res, st, l) -> either Left (\r -> Right (r,st)) res
+    where checkWithEnv = initCtxE e >> getFreshTyVar >>= \t -> 
+                         getFreshTyVar >>= \t' ->
+                         extCtxV fun (t :-> t') >>
+                         check e
 
 typeCheckPreExpr :: PreExpr -> Either (TMErr,Log) PreExpr
 typeCheckPreExpr e = case runRWS (runEitherT (check' e)) (toFocus e) initTCState of
@@ -371,3 +390,4 @@ typeCheckPre e = case runRWS (runEitherT (check' e)) (toFocus e) initTCState of
 
 getType :: PreExpr -> Maybe Type
 getType = either (const Nothing) return . checkPreExpr
+
