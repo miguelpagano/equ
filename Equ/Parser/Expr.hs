@@ -210,7 +210,8 @@ subexpr flag =  parseSugarPreExpr parsePreExpr
 -- En el caso en que la lista es vacia, la opcion es un error
 parseConst :: PExprStateClass s => ParserE s Constant
 parseConst = foldr ((<|>) . pConst) (fail "Constante") constantsList
-    where pConst c = c <$ (reserved lexer . unpack . conRepr) c
+
+pConst c = c <$ (reserved lexer . unpack . conRepr) c
    
 -- Parseo de Cuantificadores definidos en la teoria
 parseQuant ::  PExprStateClass s => ParserE s PreExpr

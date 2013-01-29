@@ -131,6 +131,12 @@ and (Expr p) (Expr q) = Expr $ BinOp folAnd p q
 or :: Expr -> Expr -> Expr
 or (Expr p) (Expr q) = Expr $ BinOp folOr p q
 
+-- | Constructor de sucesor.
+-- PRE: La expresión n es del tipo adecuado
+-- Esta aqui porque lo necesitamos para la regla Separacion de termino
+successor :: Expr -> Expr
+successor (Expr n) = Expr $ UnOp natSucc n
+
 
 -- | Equivalencia
 equiv :: Expr -> Expr -> Expr
@@ -258,6 +264,25 @@ distRightQuant :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) -
 distRightQuant quant rel oper v qrange x term =
     rel (quant v qrange (oper term x)) (oper (quant v qrange term) x)
 
+
+-- | Reinidizado
+{- Forma general: 
+   < Q i : succ var1 <= i and i < succ var2 : varTerm1 > 
+   ==
+   < Q i : var1 <= i and i < var2 : varTerm2 > 
+   donde varTerm2 = varTerm1 donde reemplazas i por (succ i)
+-}
+reindex :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
+           Variable -> Expr ->  Expr  -> Expr -> Expr -> Expr
+reindex quant rel varQ var1 var2 varTerm1 varTerm2 =
+    rel (quant varQ range1 term1) (quant varQ range2 term2)
+    
+    where range1 = and ((successor var1) `lessOrEq` exprVarQ) (exprVarQ `less` (successor var2))
+          term1 = varTerm1
+          range2 = and (var1 `lessOrEq` exprVarQ) (exprVarQ `less` var2)
+          term2 = varTerm2
+          exprVarQ = Expr $ Var varQ
+ 
     
 -- | Regla de Anidado
 {- De nuevo acá tenemos condiciones para poder aplicar la regla.

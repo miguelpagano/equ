@@ -95,7 +95,7 @@ axiomGroup = mkGrouped theories . uncurry (:) . ((F.assocEquivAx:) . head &&& ta
                      , genericAxioms]
                      
      
-arithAxioms,listAxioms,folAxioms :: [Axiom]                                     
+arithAxioms,listAxioms,folAxioms :: [Axiom]
 arithAxioms = ungroup $ mkAxiomGroup [A.theoryAxiomList]
 listAxioms = ungroup $ mkAxiomGroup [L.theoryAxiomList]
 folAxioms = ungroup $ mkAxiomGroup [L.theoryAxiomList]
