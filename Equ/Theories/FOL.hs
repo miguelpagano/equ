@@ -151,6 +151,7 @@ theoryAxiomList = [ conmEquivAxiom
                   , magicAxiomEquiv
                   , conmutEqual
                   , reflexEqual
+                  , reindAxiom
                   ]
  
 
@@ -474,6 +475,21 @@ changeVarForAll =
           Expr peVarP = varP
           Expr peVarQ = varQ
           Expr peVarT = varT
+    
+-- | Reindizado
+reindAxiom :: (Text,Expr,Condition)
+reindAxiom =
+    ( "Reindizado Para Todo"
+    , reindex forAll equiv varNatCuant varNat1 varNat2 varP varQ
+    , GenConditions [ReplacedExpr peVarQ peVarP varNatCuant succVarCuant]
+    )
+    
+    where varNatCuant = var "i" (TyAtom ATyNat)
+          varNat1 = Expr $ Var $ var "x" (TyAtom ATyNat)
+          varNat2 = Expr $ Var $ var "y" (TyAtom ATyNat)
+          Expr peVarP = varP
+          Expr peVarQ = varQ
+          Expr succVarCuant = successor $ Expr $ Var varNatCuant
     
 -- Axiomas particulares del Para Todo
     

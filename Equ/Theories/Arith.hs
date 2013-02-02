@@ -90,11 +90,6 @@ exprVarNat s = Expr $ Var $ var s $ TyAtom ATyNat
 zero :: Expr
 zero = Expr $ Con $ natZero
 
--- | Constructor de sucesor.
--- PRE: La expresión n es del tipo adecuado
--- Esta aqui porque lo necesitamos para la regla Separacion de termino
-successor :: Expr -> Expr
-successor (Expr n) = Expr $ UnOp natSucc n
 
 one :: Expr
 one = successor zero
@@ -286,15 +281,10 @@ lessAndLessOrEq =
 reindAxiom :: (Text,Expr,Condition)
 reindAxiom =
     ( "Reindizado Sumatoria"
-    , (sumQ (metaVarNat "x") range1 term1) `equal` (sumQ (metaVarNat "x") range2 term2)
+    , reindex sumQ equal (metaVarNat "x") varI varK varL varM
     , GenConditions [ReplacedExpr peVarM peVarL (metaVarNat "x") peSuccX]
     )
-    
-    where range1 = (and ((successor varI) `lessOrEq` varXNat) $ varXNat `less` (successor varK))
-          term1 = varL
-          range2 = (and (varI `lessOrEq` varXNat) $ varXNat `less` varK)
-          term2 = varM
-          varXNat = varNat "x"
+    where varXNat = varNat "x"
           Expr peVarM = varM
           Expr peVarL = varL
           Expr peSuccX = successor varXNat
