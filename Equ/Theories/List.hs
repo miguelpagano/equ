@@ -308,18 +308,18 @@ consIndex = ( "Proyectar el elemento (i+1)"
 theoryAxiomList :: [(Text,Expr,Condition)]
 theoryAxiomList = [ emptyNeutralConcat
                   , consConcat
-                  -- ** Cardinal
+                  -- Cardinal
                   , lengthEmptyList
                   , lengthConsList
-                  -- ** Tomar n elementos
+                  -- Tomar n elementos
                   , zeroTake
                   , emptyTake
                   , consTake
-                  -- ** Tirar n elementos
+                  -- Tirar n elementos
                   , zeroDrop
                   , emptyDrop
                   , consDrop
-                  -- ** Proyeccion n-esimo elemento
+                  -- Proyeccion n-esimo elemento
                   , zeroIndex
                   , consIndex                    
                   ]

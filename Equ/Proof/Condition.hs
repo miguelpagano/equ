@@ -14,13 +14,13 @@ import Equ.Syntax
 data Condition = GenConditions [GCondition]
     deriving (Eq,Show)    
  
- -- | GCondition son condiciones que se chequean al aplicar un axioma luego de 
- --   realizar la reescritura.
-data GCondition = VarNotInExpr Variable PreExpr -- La variable no ocurre en la expresion
-                 | NotEmptyRange PreExpr -- El Rango de cuantificación es no vacío (distinto de False).
-                 | InductiveHypothesis PreExpr -- En la hipótesis inductiva, la reescritura no se hace con cualquier variable
+-- |GCondition son condiciones que se chequean al aplicar un axioma luego de 
+--   realizar la reescritura.
+data GCondition = VarNotInExpr Variable PreExpr -- ^ La variable no ocurre en la expresion
+                 | NotEmptyRange PreExpr -- ^ El Rango de cuantificación es no vacío (distinto de False).
+                 | InductiveHypothesis PreExpr -- ^ En la hipótesis inductiva, la reescritura no se hace con cualquier variable
                                               -- sino que tiene que ser exactamente con la misma variable del pattern.
-                 | ReplacedExpr PreExpr PreExpr Variable PreExpr -- ReplacedExpr p q v r chequea que p es igual a q donde se reemplaza
+                 | ReplacedExpr PreExpr PreExpr Variable PreExpr -- ^ ReplacedExpr p q v r chequea que p es igual a q donde se reemplaza
                                                                  -- v por r
     deriving (Eq,Show)
  
