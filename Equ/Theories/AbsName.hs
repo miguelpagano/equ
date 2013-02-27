@@ -23,6 +23,8 @@ data OpName = Append    -- ^ Lista: agregar por la izquierda
               | Succ    -- ^ Num (polimorfico): sucesor
               | Sum     -- ^ Num (polimorfico): suma
               | Prod    -- ^ Num (polimorfico): producto
+              | Pred    -- ^ Nat : Predecesor
+              | Dif     -- ^ Nat : Resta
               | Equival   -- ^ FOL: Equivalencia
               | Discrep -- ^ FOL: Discrepancia
               | Implic    -- ^ FOL: Implicacion

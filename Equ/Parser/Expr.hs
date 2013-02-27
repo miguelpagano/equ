@@ -270,7 +270,7 @@ parseCase = reserved lexer "case" >>
 -- mayuscula). 
 parseVariableWithType :: Type -> ParsecT String u Identity Variable
 parseVariableWithType ty = try $ 
-                    lexeme lexer ((:) <$> lower <*> many alphaNum) >>= 
+                    lexeme lexer ((:) <$> letter <*> many alphaNum) >>= 
                     \v -> return (var (pack v) ty)
 
 parseVariable :: ParsecT String u Identity Variable

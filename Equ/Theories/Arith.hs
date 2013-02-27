@@ -68,7 +68,7 @@ theoryConstantsList :: [Constant]
 theoryConstantsList = [natZero]
 -- | Operadores de  arith
 theoryOperatorsList :: [Operator]
-theoryOperatorsList = [natSucc,natSum,natProd]
+theoryOperatorsList = [natSucc,natSum,natProd,natPred,natDif]
 -- | Cuantificadores de arith
 theoryQuantifiersList :: [Quantifier]
 theoryQuantifiersList = [sumQuant,contQuant,minQuant,maxQuant]
