@@ -1,6 +1,6 @@
 Name:                equ
 Category:            Proof Checker
-Version:             0.2
+Version:             0.2.1
 Synopsis:            A proof checker for propositional calculus.
 Description:         equ is a program for checking derivations of propositional
                      calculus.
@@ -10,7 +10,7 @@ Author:              Renato Cherini, Alejandro Gadea, Emmanuel Gunther, Miguel P
 Maintainer:          Miguel Pagano <pagano@famaf.unc.edu.ar>
 Build-Type:          Simple
 Cabal-Version:       >=1.2
-Tested-with:         GHC==6.10.1
+Tested-with:         GHC==7.6.2
 Build-type:          Simple
 Bug-reports:         https://github.com/miguelpagano/equ/issues
 

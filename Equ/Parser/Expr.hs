@@ -1,3 +1,4 @@
+{-# Language Rank2Types #-}
 -- | Este modulo es el parser a Pre-Expresiones. 
 {--
 Sobre Parsec

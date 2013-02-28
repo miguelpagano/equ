@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings #-}
+{-# Language Rank2Types,OverloadedStrings #-}
 -- | Este modulo es el parser de pruebas.
 module Equ.Parser.Proof ( parsePfFromString'
                         , rel 
