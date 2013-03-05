@@ -46,7 +46,29 @@ natProd = Operator { opRepr = "*"
                    , opPrec = 22
                    , opGlyphs = []
                    }
-                   
+
+-- | Operador división.
+natDiv :: Operator
+natDiv = Operator { opRepr = "//"
+                   , opName = Div
+                   , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyNat
+                   , opAssoc = ALeft
+                   , opNotationTy = NInfix
+                   , opPrec = 22
+                   , opGlyphs = []
+                   }
+
+-- | Operador resto.
+natMod :: Operator
+natMod = Operator { opRepr = "%"
+                   , opName = Mod
+                   , opTy = TyAtom ATyNat :-> TyAtom ATyNat :-> TyAtom ATyNat
+                   , opAssoc = ALeft
+                   , opNotationTy = NInfix
+                   , opPrec = 22
+                   , opGlyphs = []
+                   }
+
 -- | Operador predecesor
 natPred :: Operator
 natPred = Operator { opRepr = "pred"
@@ -69,6 +91,17 @@ natDif = Operator { opRepr = "-"
                   , opPrec = 21
                   , opGlyphs = []
                   }
+
+-- | Operador negación numerica.
+natNegNum :: Operator
+natNegNum = Operator { opRepr = "-"
+                     , opName = NegNum
+                     , opTy = TyAtom ATyNat :-> TyAtom ATyNat
+                     , opAssoc = ALeft
+                     , opNotationTy = NPrefix
+                     , opPrec = 21
+                     , opGlyphs = []
+                     }
 
 -- | Constructor del tipo de listas polimorficas; el string indica el
 -- nombre de la variable de tipo
