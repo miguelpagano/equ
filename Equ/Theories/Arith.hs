@@ -2,7 +2,8 @@
 {-# Language OverloadedStrings #-}
 module Equ.Theories.Arith
     ( -- * Constructores y operadores.
-      natZero, natSucc, natProd, natSum
+      natZero, natSucc, natProd, natSum, natDif
+     , natMod, natDiv, natNegNum
     -- ** Listas de constructores y operadores
     , theoryConstantsList
     , theoryOperatorsList
@@ -11,7 +12,7 @@ module Equ.Theories.Arith
     , theoryAxiomList
     -- * Versión tipada de operadores.
     , varNat, zero, successor, prod
-    , intToCon
+    , intToCon, lessOper
     )
     where
 
