@@ -11,6 +11,7 @@ module Equ.PreExpr.Zipper
     ) where
 
 import Equ.PreExpr.Internal
+import Equ.PreExpr.Show
 import Equ.Syntax
 
 import Data.Serialize(Serialize, get, getWord8, put, putWord8)

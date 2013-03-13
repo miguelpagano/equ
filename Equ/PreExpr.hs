@@ -13,6 +13,7 @@ module Equ.PreExpr ( decode
                    , subExprQuant
                    , preExprApp
                    , quantVar, termExpr, rangeExpr, exprApply
+                   , prettyShow
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
@@ -30,6 +31,7 @@ import Equ.PreExpr.Internal
 import Equ.PreExpr.Zipper
 import Equ.PreExpr.Monad
 import Equ.PreExpr.Subst
+import Equ.PreExpr.Show
 
 import Data.Text(pack)
 import Data.Serialize(encode, decode)
@@ -141,4 +143,6 @@ listOfVar = flip listOf isVar
 exprApply :: Variable -> [Variable] -> PreExpr
 exprApply f vs = foldl (\e v -> App e (Var v)) (Var f) vs
         
-        
+      
+prettyShow :: PreExpr -> String
+prettyShow = showExpr

@@ -96,7 +96,7 @@ instance Arbitrary PreExpr where
 
 -- | Pretty print para las preExpresiones.
 instance Show PreExpr where
-     show = showExpr' 
+     show = showExpr'
 
 -- | Pretty-printing con parentizado de expresiones.
 showExpr' :: PreExpr -> String

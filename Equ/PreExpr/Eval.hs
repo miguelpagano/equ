@@ -18,11 +18,15 @@ semNBinOp :: Operator -> Maybe (Int -> Int -> Int)
 semNBinOp op = case opName op of
                 Sum -> Just (+)
                 Prod -> Just (*)
+                Div -> Just div
+                Dif -> Just (-)
+                Mod -> Just mod
                 _ -> Nothing
 
 semNUnOp :: Operator -> Maybe (Int -> Int)
 semNUnOp op = case opName op of
                Succ -> Just (1+)
+               Pred -> Just (\i -> i-1)
                _ -> Nothing
 
 semNConst :: Constant -> Maybe Int

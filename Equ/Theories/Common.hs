@@ -131,6 +131,7 @@ and (Expr p) (Expr q) = Expr $ BinOp folAnd p q
 or :: Expr -> Expr -> Expr
 or (Expr p) (Expr q) = Expr $ BinOp folOr p q
 
+
 -- | Constructor de sucesor.
 -- PRE: La expresión n es del tipo adecuado
 -- Esta aqui porque lo necesitamos para la regla Separacion de termino

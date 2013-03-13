@@ -11,12 +11,12 @@ module Equ.Theories.Arith
     -- ** Lista de axiomas de la teoria
     , theoryAxiomList
     -- * Versión tipada de operadores.
-    , varNat, zero, successor, prod
+    , varNat, zero, successor, prod, pred, substr, sum
     , intToCon, lessOper
     )
     where
 
-import Prelude hiding (sum,or,and)
+import Prelude hiding (sum,or,and,pred)
 import Data.Text (Text)
 
 import Equ.Syntax
@@ -104,6 +104,14 @@ sum (Expr n) (Expr m) = Expr $ BinOp natSum n m
 
 prod :: Expr -> Expr -> Expr
 prod (Expr n) (Expr m) = Expr $ BinOp natProd n m
+
+-- | Constructor de predecesor
+pred :: Expr -> Expr
+pred (Expr n) = Expr $ UnOp natPred n
+
+-- | Constructor de resta
+substr :: Expr -> Expr -> Expr
+substr (Expr n) (Expr m) = Expr $ BinOp natDif n m
 
 
 -- | Expresiones Variables de tipo Nat

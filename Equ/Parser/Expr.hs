@@ -307,7 +307,7 @@ parseFromString' :: ParenFlag -> String -> Either ParseError PreExpr
 parseFromString' flag = runParser parsePreExpr (initPExprState flag) "TEST"
 
 parseFromString :: String -> Either ParseError PreExpr
-parseFromString s = case parseFromString' UseParen s of
+parseFromString s = case parseFromString' UnusedParen s of
                          Left er -> Left er
                          Right pe -> Right $ unParen pe
 
