@@ -114,7 +114,7 @@ showExpr' (UnOp op e) = show op ++ " " ++ showParentised e
             (Quant _ _ _ _) -> "(" ++ showExpr' e' ++ ")"
             _ -> showExpr' e'
                         
-showExpr' (App e1 e2) = showExpr' e1 ++ "@" ++ showExpr' e2
+showExpr' (App e1 e2) = "(" ++ showExpr' e1 ++ "@" ++ showExpr' e2 ++ ")"
 showExpr' (Quant q v e1 e2) = "〈" ++ show q ++ show v ++ ":" 
                               ++ showExpr' e1 ++ ":" 
                               ++ showExpr' e2 ++ "〉"

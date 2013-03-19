@@ -23,14 +23,14 @@ showExpr (Con k) = show k
 showExpr (PrExHole h) = show h
 showExpr e@(UnOp op e') = 
     case evalNat e of
-        Nothing -> show op ++ showWithParentsUn e'
+        Nothing -> show op ++ " " ++ showWithParentsUn e'
         Just n -> show n
         
     where showWithParentsUn e1 = case e1 of
             (BinOp _ _ _) -> "(" ++ showExpr e1 ++ ")"
             (App _ _) -> "(" ++ showExpr e1 ++ ")"
             (Quant _ _ _ _) -> "(" ++ showExpr e1 ++ ")"
-            _ -> showExpr e
+            _ -> showExpr e1
         
 showExpr l@(BinOp op e1 e2) = 
     case showL l "" of 
