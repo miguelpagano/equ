@@ -79,19 +79,10 @@ data PExprState = PExprState { peParenFlag :: ParenFlag }
 
 data ParenFlag = UseParen | UnusedParen
 
-type ParserTable a = OperatorTable String a Identity PreExpr
+type ParserTable a = PE.OperatorTable String a Identity PreExpr
 -- a tiene que ser instancia PExprStateClass.
 type ParserE a b = ParsecT String a Identity b
-type ParserOper a = POperator String a Identity PreExpr
-type ParserSide s u m a = ParsecT s u m a -> ParsecT s u m a
-
-data POperator s u m a = Infix (ParsecT s u m ( a -> a -> a
-                                              , ParserSide s u m a)
-                                              ) PE.Assoc
-                       | Prefix (ParsecT s u m (a -> a))
-                       | Postfix (ParsecT s u m (a -> a))
-
-type OperatorTable s u m a = [[POperator s u m a]]
+type ParserOper a = PE.Operator String a Identity PreExpr
 
 class PExprStateClass a where
     getExprState :: a -> PExprState
@@ -110,7 +101,7 @@ data LangDef = LangDef {
     , holeInfoInit :: String -- ^ Inicio de información en un hueco.
     , holeInfoEnd :: String  -- ^ Fin de información en un hueco.
     , opHole :: String       -- ^ Marca de un hueco.
-    , opUnCurriedApp :: String -- ^ Operador para aplicación uncurrificada.
+    --, opUnCurriedApp :: String -- ^ Operador para aplicación uncurrificada.
     }
 
 equLang :: LangDef
@@ -122,12 +113,13 @@ equLang = LangDef {
           , holeInfoInit = "{"
           , holeInfoEnd = "}"
           , opHole = "?"
-          , opUnCurriedApp = "%"
+          -- Lo sacamos de momento, hay problemas implementando el parser.
+          --, opUnCurriedApp = "%"
           }
 
 -- | Representantes de los operadores. (Salvo para aplicación)
 rOpNames :: [String]
-rOpNames = map ($ equLang) [opApp, opHole, opUnCurriedApp] 
+rOpNames = map ($ equLang) [opApp, opHole] 
         ++ map (unpack . opRepr) operatorsList
 
 -- | Representantes de las constantes y cuantificadores.
@@ -153,17 +145,15 @@ lexer = lexer' { whiteSpace = oneOf " \t" >> return ()}
 -- Parser principal de preExpresiones.
 parsePreExpr :: PExprStateClass s => ParserE s PreExpr
 parsePreExpr = getState >>= \st ->
-               buildExprParser operatorTable (subexpr (peParenFlag $ getExprState st))
+               PE.buildExpressionParser operatorTable (subexpr (peParenFlag $ getExprState st))
                <?> "Parser error: Expresi&#243;n mal formada"
 
 -- Construimos la table que se le pasa a buildExpressionParser:
 -- Primero agregamos el operador aplicaci&#243;n, que precede a cualquier otro
 operatorTable :: PExprStateClass s => ParserTable s
-operatorTable = [parserSugarApp, parserApp] : makeTable operatorsList
+operatorTable = [parserApp] : makeTable operatorsList
     where 
-        parserApp = Infix ((App, id) <$ reservedOp lexer (opApp equLang)) PE.AssocLeft
-        parserSugarApp = Infix ((App, parseArgs) <$ reservedOp lexer (opUnCurriedApp equLang)) PE.AssocLeft
-        parseArgs p = foldl1 App <$> parens lexer (commaSep lexer p)
+        parserApp = PE.Infix (App <$ reservedOp lexer (opApp equLang)) PE.AssocLeft
 
 -- Genera un ParserTable de una lista de operadores.
 makeTable :: PExprStateClass s => [Operator] -> ParserTable s
@@ -173,9 +163,9 @@ makeTable = map makeSubList . group . reverse . sort
 makeOp :: PExprStateClass s => Operator -> [ParserOper s]
 makeOp op = map mkop $ opRepr op : opGlyphs op
     where mkop s = case opNotationTy op of 
-                     NInfix   -> Infix   ((BinOp op, id) <$ parseOp s) assoc
-                     NPrefix  -> Prefix  $ UnOp op <$ parseOp s
-                     NPostfix -> Postfix $ UnOp op <$ parseOp s
+                     NInfix   -> PE.Infix   (BinOp op <$ parseOp s) assoc
+                     NPrefix  -> PE.Prefix  $ UnOp op <$ parseOp s
+                     NPostfix -> PE.Postfix $ UnOp op <$ parseOp s
           parseOp = reservedOp lexer . unpack
           assoc = convertAssoc . opAssoc $ op
 
@@ -385,84 +375,3 @@ showError = error . show
 -- Imprimimos la preExpresion, usando que tenemos definido la instancia show.
 showPreExpr :: a -> a
 showPreExpr = id
-
--- buildExprParser :: Stream s m t => 
---                    [[POperator s u m b]] -> ParsecT s u m b -> ParsecT s u m b
-buildExprParser operators simpleExpr = foldl makeParser simpleExpr operators
-    where
-        initOps = ([],[],[],[],[])
-        makeParser term ops = 
-            let 
-            (rassoc,lassoc,nassoc,prefix,postfix) = foldr splitOp initOps ops
-
-            rassocOp   = choice rassoc
-            lassocOp   = choice lassoc
-            nassocOp   = choice nassoc
-            prefixOp   = choice prefix  <?> ""
-            postfixOp  = choice postfix <?> ""
-
-            ambigious assoc op = try $
-                do{ op
-                  ; fail ("ambiguous use of a " 
-                         ++ assoc 
-                         ++ " associative operator"
-                         )
-                  }
-
-            ambigiousRight    = ambigious "right" rassocOp
-            ambigiousLeft     = ambigious "left" lassocOp
-            ambigiousNon      = ambigious "non" nassocOp
-
-            termP = do{ pre  <- prefixP
-                      ; x    <- term
-                      ; post <- postfixP
-                      ; return (post (pre x))
-                      }
-
-            postfixP   = postfixOp <|> return id
-
-            prefixP    = prefixOp <|> return id
-
-            rassocP x  = do{ (f,parseR) <- rassocOp
-                           ; y  <- do{ z <- parseR (termP >>= rlnOps)
-                                     ; rassocP1 z 
-                                     }
-                           ; return (f x y)
-                           }
-                          <|> ambigiousLeft
-                          <|> ambigiousNon
-
-            rassocP1 x = try (rassocP x)  <|> return x
-
-            lassocP x  = do{ (f,parseR) <- lassocOp
-                           ; y <- parseR (termP >>= rlnOps)
-                           ; lassocP1 (f x y)
-                           }
-                          <|> ambigiousRight
-                          <|> ambigiousNon
-
-            lassocP1 x = lassocP x <|> return x
-
-            nassocP x = do { (f,parseR) <- nassocOp
-                           ; y <- parseR (termP >>= rlnOps)
-                           ; ambigiousRight <|> ambigiousLeft <|> 
-                             ambigiousNon   <|> return (f x y)
-                           }
-            
-            rlnOps x = try (rassocP x) <|> try (lassocP x) <|> try (nassocP x) <|> return x
-            
-            in do { x <- termP
-                  ; rlnOps x <?> "operator"
-                  }
-
-        splitOp (Infix op assoc) (rassoc,lassoc,nassoc,prefix,postfix)
-            = case assoc of
-                PE.AssocNone  -> (rassoc,lassoc,op:nassoc,prefix,postfix)
-                PE.AssocLeft  -> (rassoc,op:lassoc,nassoc,prefix,postfix)
-                PE.AssocRight -> (op:rassoc,lassoc,nassoc,prefix,postfix)
-
-        splitOp (Prefix op) (rassoc,lassoc,nassoc,prefix,postfix)
-            = (rassoc,lassoc,nassoc,op:prefix,postfix)
-
-        splitOp (Postfix op) (rassoc,lassoc,nassoc,prefix,postfix)
-            = (rassoc,lassoc,nassoc,prefix,op:postfix)
