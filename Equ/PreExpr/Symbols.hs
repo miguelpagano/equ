@@ -133,7 +133,7 @@ listIndex = Operator { opRepr = "."
                      , opTy = tyListVar "A" :-> TyAtom ATyNat :-> tyVar "A"
                      , opAssoc = ALeft
                      , opNotationTy = NInfix
-                     , opPrec = 11
+                     , opPrec = 24
                      , opGlyphs = []
                      }
 
