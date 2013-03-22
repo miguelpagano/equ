@@ -79,10 +79,10 @@ data PExprState = PExprState { peParenFlag :: ParenFlag }
 
 data ParenFlag = UseParen | UnusedParen
 
+type ParserOper a = PE.Operator String a Identity PreExpr
 type ParserTable a = PE.OperatorTable String a Identity PreExpr
 -- a tiene que ser instancia PExprStateClass.
 type ParserE a b = ParsecT String a Identity b
-type ParserOper a = PE.Operator String a Identity PreExpr
 
 class PExprStateClass a where
     getExprState :: a -> PExprState
@@ -113,7 +113,6 @@ equLang = LangDef {
           , holeInfoInit = "{"
           , holeInfoEnd = "}"
           , opHole = "?"
-          -- Lo sacamos de momento, hay problemas implementando el parser.
           --, opUnCurriedApp = "%"
           }
 
@@ -145,7 +144,7 @@ lexer = lexer' { whiteSpace = oneOf " \t" >> return ()}
 -- Parser principal de preExpresiones.
 parsePreExpr :: PExprStateClass s => ParserE s PreExpr
 parsePreExpr = getState >>= \st ->
-               PE.buildExpressionParser operatorTable (subexpr (peParenFlag $ getExprState st))
+               buildExprParser operatorTable (subexpr (peParenFlag $ getExprState st))
                <?> "Parser error: Expresi&#243;n mal formada"
 
 -- Construimos la table que se le pasa a buildExpressionParser:
@@ -297,7 +296,7 @@ parseFromString' :: ParenFlag -> String -> Either ParseError PreExpr
 parseFromString' flag = runParser parsePreExpr (initPExprState flag) "TEST"
 
 parseFromString :: String -> Either ParseError PreExpr
-parseFromString s = case parseFromString' UnusedParen s of
+parseFromString s = case parseFromString' UseParen s of
                          Left er -> Left er
                          Right pe -> Right $ unParen pe
 
@@ -375,3 +374,90 @@ showError = error . show
 -- Imprimimos la preExpresion, usando que tenemos definido la instancia show.
 showPreExpr :: a -> a
 showPreExpr = id
+
+-- buildExprParser :: Stream s m t => 
+--                    [[POperator s u m b]] -> ParsecT s u m b -> ParsecT s u m b
+buildExprParser operators simpleExpr = foldl makeParser simpleExpr operators
+    where
+        initOps = ([],[],[],[],[])
+        makeParser term ops = 
+            let 
+            (rassoc,lassoc,nassoc,prefix,postfix) = foldr splitOp initOps ops
+
+            rassocOp   = choice rassoc
+            lassocOp   = choice lassoc
+            nassocOp   = choice nassoc
+            prefixOp   = choice prefix  <?> ""
+            postfixOp  = choice postfix <?> ""
+
+            ambigious assoc op = try $
+                do{ op
+                  ; fail ("ambiguous use of a " 
+                         ++ assoc 
+                         ++ " associative operator"
+                         )
+                  }
+
+            ambigiousRight    = ambigious "right" rassocOp
+            ambigiousLeft     = ambigious "left" lassocOp
+            ambigiousNon      = ambigious "non" nassocOp
+
+            termP = do{ pre  <- prefixP
+                      ; x    <- term
+                      ; post <- postfixP
+                      ; return (post (pre x))
+                      }
+
+            postfixP   = postfixOp <|> return id
+
+            prefixP    = prefixOp <|> return id
+
+            rassocP x  = do{ f <- rassocOp
+                           ; y  <- do{ z <- termP
+                                     ; rassocP1 z 
+                                     }
+                           ; return (f x y)
+                           }
+                          <|> ambigiousLeft
+                          <|> ambigiousNon
+
+            rassocP1 x = try (rassocP x)  <|> return x
+
+            lassocP x  = do{ f <- lassocOp
+                           ; y <- termP
+                           ; lassocP1 (f x y)
+                           }
+                          <|> ambigiousRight
+                          <|> ambigiousNon
+
+            lassocP1 x = lassocP x <|> return x
+
+            nassocP x = do { f <- nassocOp
+                           ; y <- termP
+                           ; ambigiousRight <|> ambigiousLeft <|> 
+                             ambigiousNon   <|> return (f x y)
+                           }
+            
+            -- Esto originalmente no existe en la versión original de
+            -- buildExpressionParser, nosotros lo agregamos para poder
+            -- parsear expresiones en pruebas.
+            rlnOps x =  try (rassocP x) 
+                    <|> try (lassocP x) 
+                    <|> try (nassocP x) 
+                    <|> return x
+            
+            in do { x <- termP
+                  ; rlnOps x <?> "operator"
+                  }
+
+        splitOp (PE.Infix op assoc) (rassoc,lassoc,nassoc,prefix,postfix)
+            = case assoc of
+                PE.AssocNone  -> (rassoc,lassoc,op:nassoc,prefix,postfix)
+                PE.AssocLeft  -> (rassoc,op:lassoc,nassoc,prefix,postfix)
+                PE.AssocRight -> (op:rassoc,lassoc,nassoc,prefix,postfix)
+
+        splitOp (PE.Prefix op) (rassoc,lassoc,nassoc,prefix,postfix)
+            = (rassoc,lassoc,nassoc,op:prefix,postfix)
+
+        splitOp (PE.Postfix op) (rassoc,lassoc,nassoc,prefix,postfix)
+            = (rassoc,lassoc,nassoc,prefix,op:postfix)

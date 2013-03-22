@@ -457,7 +457,7 @@ transProof :: Ctx -> Bool -> (PExprStateClass s, PProofStateClass s) =>
               ParserP s Proof
 transProof ctx flag = do
                       many whites
-                      e1 <- parseFocus 
+                      e1 <- parseFocus
                       pSet <- getTheoSet
                       mkTrans ctx e1 pSet <$> manyExprLine
     where
@@ -547,4 +547,4 @@ typeFocus f = case typeCheckPreExpr (toExpr f) of
                    Left _ -> error "No puede tiparse una expresión. Si este mensaje no se entiende, jódanse por no tener el type checker listo"
                    Right e -> return (toFocus e)
 
-                
+
