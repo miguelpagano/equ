@@ -24,23 +24,6 @@ module Equ.Theories.List
     , take
     , drop
     , index
-    -- ** Concatenacion
-    , emptyNeutralConcat
-    , consConcat
-    -- ** Cardinal
-    , lengthEmptyList
-    , lengthConsList
-    -- ** Tomar n elementos
-    , zeroTake
-    , emptyTake
-    , consTake
-    -- ** Tirar n elementos
-    , zeroDrop
-    , emptyDrop
-    , consDrop
-    -- ** Proyeccion n-esimo elemento
-    , zeroIndex
-    , consIndex
     )
     where
     
@@ -106,69 +89,48 @@ index :: Expr -> Expr -> Expr
 index (Expr xs) (Expr n) = Expr $ BinOp listIndex xs n
 
 
--- Reglas para la definicion de Concatenar (++)
+-- Regla para la definicion de Concatenar (++)
 
-{- | Caso base:
+{- 
 
-@
-    [] ++ ys = ys
-@
+    xs ++ ys = case xs of
+                [] -> ys
+                (z |> zs) -> z  |> (zs ++ ys)
 
--}
-emptyNeutralConcat :: (Text,Expr,Condition)
-emptyNeutralConcat = ( "Neutro a izquierda de concatenación" 
-                     , leftNeutral concat emptyList varYS
-                     , GenConditions []
-                     )
-    where varYS = varList "ys" "A"
-
-{- | Caso inductivo
-
-@
-    (x &#9657; xs) ++ ys = x &#9657; (xs ++ ys)
-@
-
--}
-consConcat :: (Text, Expr, Condition)
-consConcat = ( "Concatenar lista no vacía",
-              ((varX `append` varXS) `concat` varYS) `equal` 
-              (varX `append` (varXS `concat` varYS)),
+   -}
+defConcat :: (Text,Expr,Condition)
+defConcat = ( "Definición de Concatenar",
+              (varXS `concat` varYS) `equal` 
+              (caseExpr varXS 
+                       [(emptyList,varYS),
+                        (varZ `append` varZS,varZ `append` (varZS `concat` varYS))])
+              ,
               GenConditions []
             )
-    where varX = Expr $ Var $ var "x" $ tyVar "A"
+    where varZ = Expr $ Var $ var "z" $ tyVar "A"
           varXS = varList "xs" "A"
           varYS = varList "ys" "A"
+          varZS = varList "zs" "A"
 
 
 -- Reglas para la definicion de length (#)
 
-{- | Caso base:
-
-@
-    #[] = 0
-@
-
+{- 
+    #xs = case xs of
+                [] -> 0
+                (y |> ys) -> 1 + # ys
 -}
-lengthEmptyList :: (Text,Expr,Condition)
-lengthEmptyList = ( "Longitud de la lista vacía"
-                  , (length emptyList) `equal` zero
-                  , GenConditions []
-                  )
-{- | Caso inductivo de la longitud de una lista.
-
-@
-    \# (x &#9657; xs) = 1 + # xs
-@
-
--}
-lengthConsList :: (Text,Expr,Condition)
-lengthConsList = ( "Longitud de lista no vacía"
-                 , (length (append varX varXS)) `equal` 
-                   (successor $ length varXS)
+defLength :: (Text,Expr,Condition)
+defLength = ( "Definición de Longitud"
+            , (length varXS) `equal` 
+              (caseExpr varXS
+                    [(emptyList,zero),
+                    (varZ `append` varZS,successor (length varZS))])
                  , GenConditions []
-                 )
-    where varX = Expr $ Var $ var "x" $ tyVar "A"
+            )
+    where varZ = Expr $ Var $ var "z" $ tyVar "A"
           varXS = varList "xs" "A"
+          varZS = varList "zs" "A"
 
 -- NOTA: En el libro Calculo de Programas, se incluyen otras reglas
 -- para la definicion de length con respecto a las operaciones concat,
@@ -178,148 +140,96 @@ lengthConsList = ( "Longitud de lista no vacía"
 
 -- Reglas para la definicion de take.
 
-{- | Caso base 1 de tomar:
+{- 
 
-@
-    xs &#8593; 0 = []
-@
-
--}
-zeroTake :: (Text,Expr,Condition) 
-zeroTake = ( "Tomar cero elementos"
-           , (take varXS zero) `equal` emptyList
-           , GenConditions []
-           )
-    where varXS = varList "xs" "A"
-                      
-{- | Caso base 2 de tomar:
-
-@
-    [] &#8593; n = []
-@
+    take xs n = case n of
+                    0 -> []
+                    succ m -> case xs of
+                                  [] -> []
+                                  y | ys -> y |> (take ys m)
+                                  
 
 -}
-emptyTake :: (Text,Expr,Condition)
-emptyTake = ( "Tomar de la lista vacía"
-            , (take emptyList varN) `equal`  emptyList
-            , GenConditions []
-            )
-    where varN = Expr $ Var $ var "x" $ TyAtom ATyNat
 
-{- | Caso inductivo de tomar:
 
-@
-    (x &#9657; xs) &#8593; (n+1) = x &#9657; (xs &#8593; n)
-@
-
--}
-consTake :: (Text,Expr,Condition)
-consTake = ( "Tomar (n+1) elementos"
-           , (take (append varX varXS) (successor varN)) `equal`
-             (append varX $ take varXS varN)
-           , GenConditions []
-           )
-    where varXS = varList "xs" "A"
-          varX = Expr $ Var $ var "x" $ tyVar "A"
+defTake :: (Text,Expr,Condition)
+defTake = ( "Definición de Take"
+          , (take varXS varN) `equal`
+            (caseExpr varN
+                [(zero,emptyList),
+                 (successor varM,caseExpr varXS
+                                    [(emptyList,emptyList),
+                                     (varZ `append` varZS,varZ `append` (take varZS varM))])])
+          , GenConditions []
+          )
+          
+    where varZ = Expr $ Var $ var "z" $ tyVar "A"
+          varXS = varList "xs" "A"
+          varZS = varList "zs" "A"
           varN = Expr $ Var $ var "n" $ TyAtom ATyNat
+          varM = Expr $ Var $ var "m" $ TyAtom ATyNat
+                                    
+
           
 
 -- Reglas para la definicion de drop
 
-{- | Caso base 1 de tirar:
-
-@
-    xs &#8595; 0 = xs
-@
-
+{-     drop xs n = case n of
+                    0 -> xs
+                    succ m -> case xs of
+                                  [] -> []
+                                  y | ys -> (take ys m)
+                                  
 -}
-zeroDrop :: (Text,Expr,Condition)
-zeroDrop = ( "Tirar cero elementos"
-           , drop varXS zero `equal` varXS
-           , GenConditions []
-           )
-    where varXS = varList "xs" "A"
-
-{- | Caso base 2 de tirar:
-
-@
-    [] &#8595; n = []
-@
-
--}
-emptyDrop :: (Text,Expr,Condition)
-emptyDrop = ( "Tirar de la lista vacía"
-            , (drop emptyList varN) `equal` emptyList
-            , GenConditions []
-            )
-    where varN = Expr $ Var $ var "x" $ TyAtom ATyNat
-
-{- | Caso inductivo de tirar.
-
-@
-    (x &#9657; xs) &#8595; (n+1) = xs &#8595; n
-@
-
--}
-consDrop :: (Text,Expr,Condition)
-consDrop = ( "Tirar (n+1) elementos"
-           , (drop (append varX varXS) (successor varN)) `equal`
-             (drop varXS varN)
-           , GenConditions []
-           )
-    where varXS = varList "xs" "A"
-          varX = Expr $ Var $ var "x" $ tyVar "A"
+defDrop :: (Text,Expr,Condition)
+defDrop = ( "Definición de Drop"
+          , (drop varXS varN) `equal`
+            (caseExpr varN
+                [(zero,varXS),
+                 (successor varM,caseExpr varXS
+                                    [(emptyList,emptyList),
+                                     (varZ `append` varZS,take varZS varM)])])
+          , GenConditions []
+          )
+          
+    where varZ = Expr $ Var $ var "z" $ tyVar "A"
+          varXS = varList "xs" "A"
+          varZS = varList "zs" "A"
           varN = Expr $ Var $ var "n" $ TyAtom ATyNat
+          varM = Expr $ Var $ var "m" $ TyAtom ATyNat
           
 -- Reglas para la definicion de Index
 
-{- | Caso base de la proyeccion:
-
-@
-   (x &#9657; xs).0 = x
-@
-
+{-
+    (x|>xs).n = case n of
+                    0 -> x
+                    succ m -> xs.m
 -}
-zeroIndex :: (Text,Expr,Condition)
-zeroIndex = ( "Proyectar el elemento inicial" 
-            , (index (append varX varXS) zero) `equal` varX
-            , GenConditions []
-            )
-    where varXS = varList "xs" "A"
-          varX = Expr $ Var $ var "x" $ tyVar "A"
 
-{- | Caso inductivo de la proyeccion:
-
-@
-   (x &#9657; xs).(n+1) = xs.n
-@
-
--}
-consIndex :: (Text,Expr,Condition)
-consIndex = ( "Proyectar el elemento (i+1)"
-            , (index (append varX varXS) (successor varN)) `equal`
-              (index varXS varN)
-            , GenConditions []
-            )
-    where varXS = varList "xs" "A"
-          varX = Expr $ Var $ var "x" $ tyVar "A"
+defIndex :: (Text,Expr,Condition)
+defIndex = ( "Definición de Indexar"
+          , (index (varX `append` varXS) varN) `equal`
+            (caseExpr varN
+                [(zero,varX),
+                 (successor varM,index varXS varM)])
+          , GenConditions []
+          )
+          
+    where varX = Expr $ Var $ var "x" $ tyVar "A"
+          varXS = varList "xs" "A"
           varN = Expr $ Var $ var "n" $ TyAtom ATyNat
+          varM = Expr $ Var $ var "m" $ TyAtom ATyNat
+
 
 theoryAxiomList :: [(Text,Expr,Condition)]
-theoryAxiomList = [ emptyNeutralConcat
-                  , consConcat
+theoryAxiomList = [ 
+                    defConcat
                   -- Cardinal
-                  , lengthEmptyList
-                  , lengthConsList
+                  , defLength
                   -- Tomar n elementos
-                  , zeroTake
-                  , emptyTake
-                  , consTake
+                  , defTake
                   -- Tirar n elementos
-                  , zeroDrop
-                  , emptyDrop
-                  , consDrop
+                  , defDrop
                   -- Proyeccion n-esimo elemento
-                  , zeroIndex
-                  , consIndex                    
+                  , defIndex                    
                   ]

@@ -195,14 +195,17 @@ createRulesAssoc e = whenZ isJust rules (getRelExp e) ++ metaRules (Expr e)
                 f.(succ n) = e2
                 -}        
 caseExprRules :: PreExpr -> PreExpr -> Relation -> [Rule]
-caseExprRules p q rel = case q of
-                             Case (Var x) ps -> map (ruleCase x) ps
-                             _ -> []
+caseExprRules p q rel = createCaseRules q
           
-    where ruleCase :: Variable -> (PreExpr,PreExpr) -> Rule
-          ruleCase v (pattern,expr) = mkrule (Expr (applySubst p $ M.singleton v pattern))
+    where createCaseRules e = case e of
+                              Case (Var y) ps -> concatMap (ruleCase y) ps
+                              _ -> []
+          
+          ruleCase :: Variable -> (PreExpr,PreExpr) -> [Rule]
+          ruleCase v (pattern,expr) = [mkrule (Expr (applySubst p $ M.singleton v pattern))
                                              (Expr expr)
-                                             rel
+                                             rel] ++ (createCaseRules expr)
+                                             
           
 -- | Dado un axioma reconstruye las reglas a partir de su expresión.
 createAxiom :: Text -> Expr -> Condition -> Axiom

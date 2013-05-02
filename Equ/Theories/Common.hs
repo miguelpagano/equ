@@ -132,6 +132,15 @@ or :: Expr -> Expr -> Expr
 or (Expr p) (Expr q) = Expr $ BinOp folOr p q
 
 
+-- Expresión case
+caseExpr :: Expr -> [(Expr,Expr)] -> Expr
+caseExpr (Expr p) ps =
+    Expr $ Case p (unexpr ps)
+    
+    where unexpr = map (\(Expr e,Expr f) -> (e,f))
+
+
+
 -- | Constructor de sucesor.
 -- PRE: La expresión n es del tipo adecuado
 -- Esta aqui porque lo necesitamos para la regla Separacion de termino
