@@ -11,7 +11,7 @@ module Equ.Theories.Arith
     -- ** Lista de axiomas de la teoria
     , theoryAxiomList
     -- * Versión tipada de operadores.
-    , varNat, zero, successor, prod, pred, substr, sum
+    , varNat, zero, successor, prod, pred, substr, sum, less
     , intToCon, lessOper
     )
     where

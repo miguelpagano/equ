@@ -314,6 +314,32 @@ changeVar :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
 changeVar quant rel v w r t r' t' =
     rel (quant v r t) (quant w r' t')
 
+    
+-- Separación de Término
+{- 
+    < Q i : m <= i < succ n : t > rel t[i -> m] oper < Q i : m <= i < n : t [i->i+1]>
+-}
+termSep1 :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
+           (Expr -> Expr -> Expr) ->
+           Variable -> Expr -> Expr -> Expr -> Expr -> Expr -> Expr
+termSep1 quant rel oper v m n t1 t2 t3 =
+    rel (quant v ((m `lessOrEq` exprV) `and` (exprV `less` successor n)) t1)
+        (oper t2 (quant v ((m `lessOrEq` exprV) `and` (exprV `less` n)) t3))
+    where exprV = Expr $ Var v
+    
+{- 
+    < Q i : m <= i < succ n : t > rel < Q i : m <= i < n : t> oper t[i -> n]
+-}
+termSepLast :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
+           (Expr -> Expr -> Expr) ->
+           Variable -> Expr -> Expr -> Expr -> Expr -> Expr
+termSepLast quant rel oper v m n t1 t2 =
+    rel (quant v ((m `lessOrEq` exprV) `and` (exprV `less` successor n)) t1)
+        (oper (quant v ((m `lessOrEq` exprV) `and` (exprV `less` n)) t1) t2)
+    where exprV = Expr $ Var v
+    
+    
+    
 -- | Extensión de applySubst a Expr
 applySubst' :: Expr -> ExprSubst -> Expr
 applySubst' (Expr p) = Expr . applySubst p

@@ -152,6 +152,8 @@ theoryAxiomList = [ conmEquivAxiom
                   , conmutEqual
                   , reflexEqual
                   , reindAxiom
+                  , termSepForAll1
+                  , termSepForAllLast
                   ]
  
 
@@ -516,6 +518,33 @@ interQuantForAll =
     , GenConditions []
     )
     
+termSepForAll1 :: (Text,Expr,Condition)
+termSepForAll1 =
+    ( "Separación del primer término Para Todo"
+    , termSep1 forAll equiv and varI m n varP varQ varR
+    , GenConditions [ReplacedExpr peVarQ peVarP varI peM,
+                     ReplacedExpr peVarR peVarP varI succI]
+    )
+    where m = Expr $ Var $ var "m" (TyAtom ATyNat)
+          n = Expr $ Var $ var "n" (TyAtom ATyNat)
+          Expr succI = successor $ Expr $ Var $ varI
+          Expr peVarQ = varQ
+          Expr peVarP = varP
+          Expr peVarR = varR
+          Expr peM = m
+    
+termSepForAllLast :: (Text,Expr,Condition)
+termSepForAllLast =
+    ( "Separación del último término Para Todo"
+    , termSepLast forAll equiv and varI m n varP varQ
+    , GenConditions [ReplacedExpr peVarQ peVarP varI peN]
+    )
+    where m = Expr $ Var $ var "m" (TyAtom ATyNat)
+          n = Expr $ Var $ var "n" (TyAtom ATyNat)
+          Expr succI = successor $ Expr $ Var $ varI
+          Expr peVarQ = varQ
+          Expr peVarP = varP
+          Expr peN = n
 
 -- ===========
 -- EXISTE
