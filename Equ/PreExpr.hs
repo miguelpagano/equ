@@ -14,6 +14,7 @@ module Equ.PreExpr ( decode
                    , preExprApp
                    , quantVar, termExpr, rangeExpr, exprApply
                    , prettyShow
+                   , preExprIsQuant
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
@@ -54,6 +55,10 @@ isPreExprParent _ = False
 isPreExprQuant :: Focus -> Bool
 isPreExprQuant (Quant _ _ _ _, _) = True
 isPreExprQuant _ = False
+
+preExprIsQuant :: PreExpr -> Bool
+preExprIsQuant (Quant _ _ _ _) = True
+preExprIsQuant _ = False
 
 -- | Creamos un hueco de preExpresion con informaci&#243;n.
 preExprHole :: HoleInfo -> PreExpr

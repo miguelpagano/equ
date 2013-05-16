@@ -150,6 +150,9 @@ tyVar = TyVar . pack
 tyBool :: Type
 tyBool = TyAtom ATyBool
 
+tyInt :: Type
+tyInt = TyAtom ATyInt
+
 -- | Ocurencia de una variable en un tipo.
 occurs :: TyVarName -> Type -> Bool
 occurs v = F.elem v
