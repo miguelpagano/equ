@@ -193,3 +193,16 @@ instance Arbitrary Type where
 arity :: Type -> Int
 arity (_ :-> t') = 1 + arity t'
 arity _ = 0
+
+argsTypes :: Type -> [Type]
+argsTypes = reverse . go []
+    where go :: [Type] -> Type -> [Type]
+          go ts (t :-> t') = go (t:ts) t'
+          go ts _ = ts
+
+resType :: Type -> Maybe Type
+resType (_ :-> t') = Just t'
+resType _ = Nothing
+
+exponential :: Type -> [Type] -> Type
+exponential = foldr (:->) 
