@@ -172,7 +172,7 @@ isTyVar :: Type -> Bool
 isTyVar (TyVar _)  = True
 isTyVar _ = False
 
--- | Instancia arbitrary para el tipo nombre de variable. 
+-- -- | Instancia arbitrary para el tipo nombre de variable. 
 instance Arbitrary TyVarName where
     arbitrary = 
         elements [(pack . ("t"++) . show) n | n <- [(0::Int)..100]]

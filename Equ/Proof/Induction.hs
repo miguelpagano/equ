@@ -28,7 +28,7 @@ createIndHypothesis :: Relation -> PE.Focus -> PE.Focus -> PE.Focus -> Variable
 createIndHypothesis rel f1 f2 p x nombre = 
     let pattern = PE.toExpr p in
         case pattern of
-             (PE.UnOp _ e) -> Just $ createHypothesis nombre (Expr $ hypIndExpr x e) (GenConditions [InductiveHypothesis e])
+             (PE.UnOp _ e@(PE.Var y)) -> Just $ createHypothesis nombre (Expr $ hypIndExpr x e) (GenConditions [InductiveHypothesis e])
              -- Si tenemos un constructor binario, tenemos que ver si los parámetros
              -- del operador son del tipo inductivo. Si ambos lo son, la HI quedará
              -- como un "y" lógico de las dos subhipótesis inductivas (vale para el operando izquierdo

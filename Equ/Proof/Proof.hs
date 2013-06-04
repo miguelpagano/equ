@@ -21,6 +21,7 @@ module Equ.Proof.Proof (
                  -- Proyecciones
                  , getCtx, getStart, getEnd, getRel, getBasic
                  , updateStart, updateEnd, updateRel, updateMiddle, updateBasic
+                 , updThmExp
                  , encode, decode
                  , setCtx, beginCtx, freshName, ctxFromList
                  , addHypothesis
@@ -139,7 +140,9 @@ data Theorem = Theorem {
     , thCondition :: Condition
     }
     deriving Eq
-    
+
+updThmExp :: PreExpr -> Theorem -> Theorem
+updThmExp e t = t { thExpr = Expr e }
 
 data EvalStep = EvConst 
               | EvFun 
@@ -925,5 +928,4 @@ conditionFunction (ReplacedExpr q p x n) =
 getGenConditions :: Condition -> [GCondition]
 getGenConditions (GenConditions lc) = lc
 getGenConditions _ = error "getGenConditions: Condición especial!"
-   
    

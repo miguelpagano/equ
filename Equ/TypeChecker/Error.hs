@@ -28,4 +28,4 @@ instance Eq TyErr where
 instance Show TyErr where
     show (ErrNotExpected t t') = "Se esperaba el tipo " ++ show t ++ " y no el tipo " ++ show t'
     show (ErrClashTypes s ts) = unpack (tRepr s) ++ " sólo puede tener un tipo" ++ show ts
-    show (ErrUnification t t' s) = "Los tipos " ++ show t ++ " y " ++ show t' ++ " no se pueden unificar"
+    show (ErrUnification t t' s) = "Los tipos de " ++ show s ++ ": " ++ show t ++ " y " ++ show t' ++ " no se pueden unificar"
