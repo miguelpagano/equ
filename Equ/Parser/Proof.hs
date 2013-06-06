@@ -60,6 +60,8 @@ import qualified Data.Map as M (Map,empty,insert,toList,null, lookup, map,single
 import Control.Monad.Identity
 import Control.Applicative ((<$>),(<$),(<*>))
 
+import System.IO.Unsafe (unsafePerformIO)
+
 type ProofName = Text
 type HypName = Text
 
@@ -363,7 +365,9 @@ inducProof ctx = do
             cs <- parseInducCases ctx rel fei fef (toExpr typedFinduc)
             cs' <- typeCases cs
             parseProofEnd
-            return $ Ind ctx rel fei fef typedFinduc cs'
+            iproof <- return $ Ind ctx rel fei fef typedFinduc cs'
+            unsafePerformIO (putStrLn ("PARSEANDO contextos de subpruebas =  " ++ show (map (getCtx . snd) cs')) >> return (return ()))
+            return iproof
     where
         typeVarInduc :: PreExpr -> Focus -> Either ProofError Focus
         typeVarInduc e (Var fInduc,_) = do

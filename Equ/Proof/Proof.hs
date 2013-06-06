@@ -23,7 +23,7 @@ module Equ.Proof.Proof (
                  , updateStart, updateEnd, updateRel, updateMiddle, updateBasic
                  , updThmExp
                  , encode, decode
-                 , setCtx, beginCtx, freshName, ctxFromList
+                 , setCtx, beginCtx, freshName, ctxFromList, addCtx, addCtxJust
                  , addHypothesis
                  , addHypothesisProof
                  , getHypothesis
@@ -53,7 +53,7 @@ import qualified Data.Set as Set
 
 import qualified Data.Map as M ( Map (..), fromList, findMax, null
                                , insert, lookup, empty, elems, singleton
-                               , map)
+                               , map, union)
 
 import Data.Monoid
 import Data.Maybe
@@ -516,6 +516,28 @@ instance (Serialize ctxTy, Serialize relTy, Serialize proofTy, Serialize exprTy)
 
 type Proof = Proof' Ctx Relation Basic Focus
 
+
+addCtxJust :: Ctx -> Proof -> Proof
+addCtxJust c pr = fromJust (addCtx c pr)
+
+-- Agregamos contexto a una prueba
+addCtx :: Ctx -> Proof ->  Maybe Proof
+addCtx c proof = getCtx proof >>= \ctx ->
+                 addCtx' (c `M.union` ctx) proof
+
+    where addCtx' ctx (Ind _ r f f' lf lfp) = Just (Ind ctx r f f' lf (addCtxInSubProofs ctx lfp))
+          addCtx' ctx (Trans _ r f f' f'' p p') = Just (Trans ctx r f f' f'' (maybe p
+                                                                                  id
+                                                                                  (addCtx ctx p)) 
+                                                                           (maybe p'
+                                                                                  id
+                                                                                  (addCtx ctx p')))
+          addCtx' ctx (Cases _ r f f' f'' lfp p') = Just (Cases ctx r f f' f'' (addCtxInSubProofs ctx lfp) 
+                                                                             (p' >>= addCtx ctx))
+          addCtx' ctx p = setCtx ctx p
+    
+          addCtxInSubProofs ctx = map (\(e,p) -> (e,fromJust $ addCtx ctx p))
+
 -- Igualdad sintáctica entre pruebas. Podríamos definir también una igualdad en donde
 -- si tenemos pruebas iguales salvo renombres de variables cuantificadas, tambien de True.
 instance Eq Proof where
@@ -712,6 +734,7 @@ setMCtx' c mp = case mp of
                      Nothing -> Nothing
                      Just p -> Just $ setCtx' c p
 
+                     
 getStart :: Proof' ctxTy relTy proofTy exprTy -> Maybe exprTy
 getStart Reflex = Nothing
 getStart (Hole _ _ f _) = Just f

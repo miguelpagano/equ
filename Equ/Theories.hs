@@ -204,7 +204,10 @@ caseExprRules p q rel = createCaseRules q
           ruleCase :: Variable -> (PreExpr,PreExpr) -> [Rule]
           ruleCase v (pattern,expr) = [mkrule (Expr (applySubst p $ M.singleton v pattern))
                                              (Expr expr)
-                                             rel] ++ (createCaseRules expr)
+                                             rel] ++
+                                      [mkrule (Expr expr)
+                                              (Expr (applySubst p $ M.singleton v pattern))
+                                              rel] ++ (createCaseRules expr)
                                              
           
 -- | Dado un axioma reconstruye las reglas a partir de su expresión.

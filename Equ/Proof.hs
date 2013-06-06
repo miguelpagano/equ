@@ -212,7 +212,7 @@ proofFromTruth ctx f f' r basic fMove =
                 then Right $ Simple beginCtx r f f' Evaluate
                 else Left $ ProofError (BasicNotApplicable Evaluate) fMove
         Hyp n -> maybe (Left $ ProofError (BasicNotApplicable $ Hyp n) fMove) 
-                       (\b -> proofFromTruth' (flip (simplesWithHyp b) fMove) b) 
+                       (\b -> proofFromTruth' (flip (simplesWithHyp b) fMove) b)
                        $ Map.lookup n ctx
         _ -> proofFromTruth' (flip simples fMove) basic
 
@@ -385,6 +385,8 @@ validateProof' proof@(Ind ctx rel f1 f2 e ps) _ =
                         -- inductiva.
                         Map.elems <$> getCtx p >>= 
                         \hypsSubProof -> whenPM' (foldl (\b h -> b && elem h hprf || h == hyp) True hypsSubProof)
+                                        (ProofError (InductionError SubProofHypothesis) id) >>
+                                        whenPM' (hyp `elem` hypsSubProof)
                                         (ProofError (InductionError SubProofHypothesis) id) >>
                         -- Ahora vemos que la subprueba prueba lo mismo que la prueba inductiva,
                         -- pero reemplazando la variable por el pattern correspondiente.

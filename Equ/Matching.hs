@@ -132,6 +132,13 @@ match' bvs (Quant q v e1 e2) (Quant p w f1 f2) (s,rnm) =
                                   , S.singleton w, freeVars f1,freeVars f2
                                   ]
 
+                                  
+match' bvs (If b e1 e2) (If b' e1' e2') (s,rnm) =
+    localGo goDown (match' bvs b b' (s,rnm)) >>=
+    (localGo goDownR . match' bvs e1 e1') >>=
+    (localGo (\f -> goDownR f >>= goRight) . match' bvs e2 e2')
+                                  
+                                  
 -- Caso particular de intentar matchear una variable con una funci&#243;n.
 {-match' _ (Fun _) (Var _) s = Left FuncWithVar
 -- Caso particular de intentar matchear una variable con una constante.
