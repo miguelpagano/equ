@@ -21,7 +21,7 @@ module Equ.Proof.Proof (
                  -- Proyecciones
                  , getCtx, getStart, getEnd, getRel, getBasic
                  , updateStart, updateEnd, updateRel, updateMiddle, updateBasic
-                 , updThmExp
+                 , updThmExp, updThmPrf
                  , encode, decode
                  , setCtx, beginCtx, freshName, ctxFromList, addCtx, addCtxJust
                  , addHypothesis
@@ -143,6 +143,9 @@ data Theorem = Theorem {
 
 updThmExp :: PreExpr -> Theorem -> Theorem
 updThmExp e t = t { thExpr = Expr e }
+
+updThmPrf :: Proof -> Theorem -> Theorem
+updThmPrf p t = t {thProof = p }
 
 data EvalStep = EvConst 
               | EvFun 
