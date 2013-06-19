@@ -93,21 +93,21 @@ instance Arbitrary PreExpr where
                 , If <$> arbitrary <*> arbitrary <*> arbitrary
                 , Case <$> arbitrary <*> arbitrary
                 ]
-
+                
 -- | Pretty print para las preExpresiones.
 instance Show PreExpr where
      show = showExpr'
 
 -- | Pretty-printing con parentizado de expresiones.
 showExpr' :: PreExpr -> String
-showExpr' (BinOp op e1 e2) = showParentised op e1 ++ "[" ++ show op ++" : "++ show (tType op) ++ "]" ++ showParentised op e2                
+showExpr' (BinOp op e1 e2) = showParentised op e1 ++ show op ++ showParentised op e2                
     where showParentised oper e = case e of
            (BinOp op' _ _) -> if opPrec oper >= opPrec op'
-                             then "("++showExpr' e ++ ")"
+                             then "("++showExpr' e++")"
                              else showExpr' e
            _ -> showExpr' e
            
-showExpr' (UnOp op e) = "[" ++ show op ++" : "++ show (tType op) ++ "]" ++ " " ++ showParentised e 
+showExpr' (UnOp op e) = show op ++ " " ++ showParentised e 
     where showParentised e' = case e of
             (BinOp _ _ _) -> "(" ++ showExpr' e' ++ ")"
             (App _ _) -> "(" ++ showExpr' e' ++ ")"
@@ -119,8 +119,8 @@ showExpr' (Quant q v e1 e2) = "〈" ++ show q ++ show v ++ ":"
                               ++ showExpr' e1 ++ ":" 
                               ++ showExpr' e2 ++ "〉"
 showExpr' (Paren e) = "[PAREN](" ++ showExpr' e ++ ")"
-showExpr' (Var x) = show x ++ " : " ++ show (tType x)
-showExpr' (Con k) = show k ++ " : " ++ show (tType k)
+showExpr' (Var x) = show x
+showExpr' (Con k) = show k
 showExpr' (PrExHole h) = show h
 showExpr' (If c e1 e2) = "if " ++ showExpr' c ++ " then " ++ showExpr' e1 ++ " else " ++ showExpr' e2
 showExpr' (Case e patterns) = "case " ++ showExpr' e ++ " of\n" ++ showPatterns patterns

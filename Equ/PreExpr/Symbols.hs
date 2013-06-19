@@ -128,7 +128,7 @@ listApp = Operator { opRepr = "▹"
 
 -- | Tomar el n-esimo elemento de la lista.
 listIndex :: Operator
-listIndex = Operator { opRepr = "."
+listIndex = Operator { opRepr = "!"
                      , opName = Index
                      , opTy = tyListVar "A" :-> TyAtom ATyNat :-> tyVar "A"
                      , opAssoc = ALeft
