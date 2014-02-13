@@ -547,8 +547,9 @@ typeCases cs = let tc_cs = map (\(f,p) -> (typeCheckPreExpr $ toExpr f,p)) cs in
                       
 typeFocus :: (PExprStateClass s, PProofStateClass s) =>
              Focus -> ParserP s Focus
-typeFocus f = case typeCheckPreExpr (toExpr f) of
-                   Left _ -> error "No puede tiparse una expresión. Si este mensaje no se entiende, jódanse por no tener el type checker listo"
-                   Right e -> return (toFocus e)
+typeFocus f = return f 
+-- case typeCheckPreExpr (toExpr f) of
+--                    Left _ -> error "No puede tiparse una expresión. Si este mensaje no se entiende, jódanse por no tener el type checker listo"
+--                    Right e -> return (toFocus e)
 
 

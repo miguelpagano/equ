@@ -12,6 +12,7 @@ module Equ.Proof ( newProof
                  , simpleProof, addEmptyStep
                  , possibleExpr
                  , beginCtx
+                 , getExprProof
                  , Truth (..)
                   -- * Axiomas y teoremas
                  , Axiom(..)
@@ -651,7 +652,7 @@ newProofWithCases :: Relation -> PE.Focus -> PE.Focus -> PE.Focus -> [PE.Focus] 
 newProofWithCases r f f' c lc orGuardsProof = Cases ctx r f f' c lp orGuardsProof
     where
         ctx :: Ctx
-        ctx = ctxFromList lc
+        ctx = beginCtx
         lp :: [(PE.Focus,Proof)]
         lp = []
 

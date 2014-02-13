@@ -12,7 +12,7 @@ module Equ.Proof.Proof (
                  , Name
                  -- * Pruebas
                  -- $proofs
-                 , Proof(..)
+                 , Proof
                  , Proof'(..)
                  , Ctx 
                  -- * Ejemplos
@@ -23,7 +23,7 @@ module Equ.Proof.Proof (
                  , updateStart, updateEnd, updateRel, updateMiddle, updateBasic
                  , updThmExp, updThmPrf
                  , encode, decode
-                 , setCtx, beginCtx, freshName, ctxFromList, addCtx, addCtxJust
+                 , setCtx, beginCtx, freshName, addCtx, addCtxJust
                  , addHypothesis
                  , addHypothesisProof
                  , getHypothesis
@@ -39,7 +39,7 @@ module Equ.Proof.Proof (
 import Equ.Expr
 import Equ.PreExpr
 import Equ.Rule
-import Equ.TypeChecker
+import Equ.TypeChecker (checkPreExpr)
 import Equ.Types
 import Equ.Proof.Condition
 import Equ.Matching(VariableRename)
@@ -48,20 +48,20 @@ import qualified Equ.Theories.Common as C (equal,folFalse)
  
 import Data.Text (Text, unpack,pack)
 import qualified Data.Text as T
-import Data.List (intersperse,map)
+-- import Data.List (intersperse,map)
 import qualified Data.Set as Set
 
-import qualified Data.Map as M ( Map (..), fromList, findMax, null
+import qualified Data.Map as M ( Map, findMax, null, fromList
                                , insert, lookup, empty, elems, singleton
                                , map, union)
 
 import Data.Monoid
 import Data.Maybe
-import Data.Serialize(Serialize, get, getWord8, put, putWord8, encode, decode)
+import Data.Serialize(Serialize, get, getWord8, put, putWord8, encode)
 
 import Control.Applicative ((<$>), (<*>))
+import Control.Arrow (second)
 import Test.QuickCheck
-import System.IO.Unsafe(unsafePerformIO)
 
 type Name = Text
 
@@ -71,7 +71,7 @@ beginCtx = M.empty
 
 -- | Retorna un nombre fresco sobre un contexto.
 freshName :: Ctx -> Name
-freshName c = if M.null c then "a" else T.concat $ [maxName] ++ ["a"]
+freshName c = if M.null c then "a" else T.concat $ maxName:["a"]
     where maxName :: Name
           maxName = (fst . M.findMax) c 
 
@@ -79,7 +79,7 @@ getHypothesis :: Name -> Ctx -> Maybe Hypothesis
 getHypothesis = M.lookup
 
 exprIsHypothesis :: Expr -> Ctx -> Bool
-exprIsHypothesis e ctx = e `elem` (map (hypExpr) $ M.elems ctx)
+exprIsHypothesis e = (e `elem`) . map hypExpr . M.elems
 
 -- instance Arbitrary Name where
 --     arbitrary = Index <$> arbitrary
@@ -161,6 +161,7 @@ data EvalStep = EvConst
 instance Show EvalStep where
     show EvConst = "Constante"
     show EvFun = "Función"
+    show EvVar = "Variable"
     show (EvUnary op) = "Definición de operador " ++ show op ++ " "
     show (EvBinary op) = "Definición de operador " ++ show op ++ " "
     show IfTrue = "Guarda verdadera"
@@ -175,6 +176,31 @@ instance Truth EvalStep where
     truthRules = const []
     truthBasic = Evaluation
     truthConditions = const (GenConditions [])
+
+instance Serialize EvalStep where
+    put EvConst = putWord8 0
+    put EvFun = putWord8 1
+    put EvVar = putWord8 2
+    put (EvUnary o) = putWord8 3 >> put o
+    put (EvBinary o)= putWord8 4 >> put o
+    put IfTrue = putWord8 5
+    put IfFalse = putWord8 6
+    put EvApp = putWord8 7
+    put EvCase = putWord8 8
+    
+    get = getWord8 >>= \tag_ ->
+          case tag_ of
+            0 -> return EvConst
+            1 -> return EvFun
+            2 -> return EvVar
+            3 -> EvUnary <$> get
+            4 -> EvBinary <$> get
+            5 -> return IfTrue
+            6 -> return IfFalse
+            7 -> return EvApp
+            8 -> return EvCase
+            _ -> fail $ "SerializeErr Basic " ++ show tag_
+
 
 instance Show Theorem where
     show th = (unpack . thName) th ++ ": " ++ (show . thExpr) th
@@ -195,7 +221,7 @@ instance Truth Theorem where
     truthRel   = thRel
     truthRules = thRules
     truthBasic = Theo
-    truthConditions = (\_ -> GenConditions [])
+    truthConditions _ = GenConditions []
 
 data Hypothesis = Hypothesis {
      hypName :: Text
@@ -235,16 +261,6 @@ instance Serialize Hypothesis where
 
 type Ctx = M.Map Name Hypothesis
 
--- Auxiliar para ctxFromList.
--- ctxFromList' :: Int -> [Focus] -> [(Name, Expr)]
--- ctxFromList' _ [] = []
--- ctxFromList' i ((e,_):fs) = (Index i, Expr e) : ctxFromList' (i+1) fs 
-
--- | En base a una lista de focus genera un contexto nuevo, en el que cada focus
--- ahora se convierte en una hip&#243;tesis.
--- ctxFromList :: [Focus] -> Ctx
--- ctxFromList = M.fromList . (ctxFromList' 0)
-ctxFromList = undefined
 
 instance Arbitrary Ctx where
     arbitrary = M.fromList <$> arbitrary
@@ -268,25 +284,25 @@ instance Truth Basic where
 
     truthExpr (Ax a) = axExpr a
     truthExpr (Theo t) = thExpr t
-    truthExpr (Hyp h) = undefined
+    truthExpr (Hyp _) = undefined
     truthExpr Evaluate = C.equal (varNat "x") (varNat "x")
     truthExpr (Evaluation _) = error ""
 
     truthRel (Ax a) = axRel a
     truthRel (Theo t) = thRel t
-    truthRel (Hyp h) = undefined
+    truthRel (Hyp _) = undefined
     truthRel Evaluate = relEq
     truthRel (Evaluation _) = relEval
 
     truthRules (Ax a) = axRules a
     truthRules (Theo t) = thRules t
-    truthRules (Hyp h) = undefined
+    truthRules (Hyp _) = undefined
     truthRules Evaluate = []
     truthRules (Evaluation _) = []
     
     truthConditions (Ax a) = axCondition a
     truthConditions (Theo t) = thCondition t
-    truthConditions (Hyp h) = undefined
+    truthConditions (Hyp _) = undefined
     truthConditions Evaluate = GenConditions []
     truthConditions (Evaluation _) = GenConditions []
 
@@ -307,12 +323,17 @@ instance Serialize Basic where
     put (Ax a) = putWord8 0 >> put a
     put (Theo t) = putWord8 1 >> put t
     put (Hyp h) = putWord8 2 >> put h
-    
+    put Evaluate = putWord8 3
+    put (Evaluation e) = putWord8 4 >> put e
+
+
     get = getWord8 >>= \tag_ ->
           case tag_ of
             0 -> Ax <$> get
             1 -> Theo <$> get
             2 -> Hyp <$> get
+            3 -> return Evaluate
+            4 -> Evaluation <$> get
             _ -> fail $ "SerializeErr Basic " ++ show tag_
 
 {- $proofs
@@ -480,29 +501,29 @@ data Proof' ctxTy relTy proofTy exprTy where
 instance (Serialize ctxTy, Serialize relTy, Serialize proofTy, Serialize exprTy) => 
          Serialize (Proof' ctxTy relTy proofTy exprTy) where
     put Reflex = putWord8 0
-    put (Hole ctxTy relTy exprTy exprTy') = 
-        putWord8 1 >> put ctxTy >> put relTy >> put exprTy >> put exprTy'
-    put (Simple ctxTy relTy exprTy exprTy' proofTy) = 
-        putWord8 2 >> put ctxTy >> put relTy >> 
+    put (Hole ctxTy rel exprTy exprTy') = 
+        putWord8 1 >> put ctxTy >> put rel >> put exprTy >> put exprTy'
+    put (Simple ctxTy rel exprTy exprTy' proofTy) = 
+        putWord8 2 >> put ctxTy >> put rel >> 
                       put exprTy >> put exprTy' >> 
                       put proofTy
-    put (Trans ctxTy relTy exprTy exprTy' exprTy'' proofTy proofTy') = 
-                putWord8 3 >> put ctxTy >> put relTy >> 
+    put (Trans ctxTy rel exprTy exprTy' exprTy'' proofTy proofTy') = 
+                putWord8 3 >> put ctxTy >> put rel >> 
                               put exprTy >> put exprTy' >> put exprTy'' >>
                               put proofTy >> put proofTy'
-    put (Cases ctxTy relTy exprTy exprTy' exprTy'' lfproofTy proofTy) = 
-                putWord8 4 >> put ctxTy >> put relTy >> 
+    put (Cases ctxTy rel exprTy exprTy' exprTy'' lfproofTy proofTy) = 
+                putWord8 4 >> put ctxTy >> put rel >> 
                               put exprTy >> put exprTy' >> put exprTy'' >>
                               put lfproofTy >> put proofTy
-    put (Ind ctxTy relTy exprTy exprTy' lf llfproofTy) = 
-                putWord8 5 >> put ctxTy >> put relTy >> 
+    put (Ind ctxTy rel exprTy exprTy' lf llfproofTy) = 
+                putWord8 5 >> put ctxTy >> put rel >> 
                               put exprTy >> put exprTy' >>
                               put lf >> put llfproofTy
     put (Deduc ctxTy exprTy exprTy' proofTy) = 
                 putWord8 6 >> put ctxTy >> put exprTy >> put exprTy' >> 
                               put proofTy
-    put (Focus ctxTy relTy exprTy exprTy' proofTy) = 
-                putWord8 7 >> put ctxTy >> put relTy >> 
+    put (Focus ctxTy rel exprTy exprTy' proofTy) = 
+                putWord8 7 >> put ctxTy >> put rel >> 
                               put exprTy >> put exprTy' >> put proofTy
     
     get = getWord8 >>= \tag_ ->
@@ -529,17 +550,15 @@ addCtx c proof = getCtx proof >>= \ctx ->
                  addCtx' (c `M.union` ctx) proof
 
     where addCtx' ctx (Ind _ r f f' lf lfp) = Just (Ind ctx r f f' lf (addCtxInSubProofs ctx lfp))
-          addCtx' ctx (Trans _ r f f' f'' p p') = Just (Trans ctx r f f' f'' (maybe p
-                                                                                  id
+          addCtx' ctx (Trans _ r f f' f'' p p') = Just (Trans ctx r f f' f'' (fromMaybe p
                                                                                   (addCtx ctx p)) 
-                                                                           (maybe p'
-                                                                                  id
+                                                                           (fromMaybe p'
                                                                                   (addCtx ctx p')))
           addCtx' ctx (Cases _ r f f' f'' lfp p') = Just (Cases ctx r f f' f'' (addCtxInSubProofs ctx lfp) 
                                                                              (p' >>= addCtx ctx))
           addCtx' ctx p = setCtx ctx p
     
-          addCtxInSubProofs ctx = map (\(e,p) -> (e,fromJust $ addCtx ctx p))
+          addCtxInSubProofs ctx = map (second (fromJust . addCtx ctx))
 
 -- Igualdad sintáctica entre pruebas. Podríamos definir también una igualdad en donde
 -- si tenemos pruebas iguales salvo renombres de variables cuantificadas, tambien de True.
@@ -578,24 +597,6 @@ instance Eq Proof where
                (fromJust $ getEnd p1) == (fromJust $ getEnd p2)-}
 
                
--- TODO: Completar esta funcion cuando se termine el parser de pruebas.
-instance Show Proof where
-    show = printProof
-    -- show Reflex = ""
-    -- show (Hole _ r f f') = "Hole " ++ show r ++ " " ++ show f ++ " " ++ show f'
-    -- show (Simple c r f f' b) = "Simple " ++ show r ++ " " ++ show  f ++ " " ++ show  f' ++ " { " ++ show b ++" } " 
-    -- show (Trans _ r f f' f'' p p') = "Trans " ++ show r ++ " " ++ show f ++ " " ++ 
-    --                                              show f' ++ " " ++ show f'' ++ " { " ++ show p ++ " } " ++
-    --                                              " { " ++ show p' ++ " } "
-    -- show (Cases _ r f f' f'' lfp orP) = "Cases " ++ show r ++ " " ++ show f ++ " " ++ 
-    --                                              show f' ++ " " ++ show f'' ++ " { " ++ show lfp ++ " } "
-    -- show (Ind c r f f' f'' lfp) = unlines [ "Induction "
-    --                                       , show c 
-    --                                       , show r ++ "(" ++ show f ++ ", " ++ show f' ++ ")" 
-    --                                       , "by induction on " ++ show f''
-    --                                       , " { " ++ show lfp ++ " } "
-    --                                       ]
-    -- show _ = "prueba no implementada"
 
 printPf :: Proof -> [String]
 printPf Reflex = [""]
@@ -606,8 +607,8 @@ printPf (Simple c r f f' b) = [ "Contexto: " ++ show c
                               , showExpr' (toExpr f)
                               , show r ++ " { " ++ show b ++ " }"
                               , showExpr' (toExpr f')]
-printPf (Trans _ r f f' f'' p p') = init (printPf p) ++ printPf p'
-printPf (Focus _ r f f' p) = [ showExpr' (toExpr f)
+printPf (Trans _ _ _ _ _ p p') = init (printPf p) ++ printPf p'
+printPf (Focus _ _ f f' p) = [ showExpr' (toExpr f)
                              , last . init $ printPf p
                              , showExpr' (toExpr f')
                              ]
@@ -620,27 +621,21 @@ printPf (Ind c r f f' f'' lfp) = [ "Induction "
                                 , "by induction on " ++ show f''
                                 , " { " ++ show lfp ++ " } "
                                 ]
-
+printPf (Cases c r f f' f'' lfp mprf) = [ "Cases "
+                                , show c 
+                                , show r ++ "(" ++ show f ++ ", " ++ show f' ++ ")" 
+                                , "by induction on " ++ show f''
+                                , " { " ++ show lfp ++ " } "
+                                , show mprf
+                                ]
+                                
+printProof :: Proof -> String
 printProof = (++"\n") . unlines . printPf
                                     
--- Hace falta mejorar esta instancia.
--- instance Show Proof where
---     show Reflex = ""
---     show (Hole _ r f f') = "\t" ++ show (fst f) ++ "\n" ++ show r ++ "{ ? }" ++  "\n\t" ++ show (fst f')
---     show (Simple _ r f f' b) = "\t" ++ show (fst f) ++ 
---                                  "\n" ++ show r ++ "{" ++ show b ++ "}" ++ 
---                                  "\n\t" ++ show (fst f')
---     show (Trans _ r f f' f'' p p') =  "\t" ++ show (fst f) ++ 
---                                         "\n" ++ show r ++ "\n{" ++ show p ++
---                                         "\n\t\n}\n\t" ++ show (fst f'') ++ 
---                                         "\n" ++ show r ++ "\n{" ++ show p' ++ 
---                                         "\n\t\n}\n\t" ++ show (fst f')
---     show (Cases _ r f f' f'' lfp) = show r ++ show f ++ show f' ++ 
---                                       show f'' ++ show lfp
---     show (Ind _ r f f' lf lfp) = show r ++ show f ++ show f' ++ 
---                                       show lf ++ show lfp
---     show (Deduc _ f f' p) = show f ++ show f' ++ show p
---     show (Focus _ r f f' p) = show r ++ show f ++ show f' ++ show p
+-- TODO: Completar esta funcion cuando se termine el parser de pruebas.
+instance Show Proof where
+    show = printProof
+
 
 instance Arbitrary Proof where
     arbitrary = sized proof
@@ -681,10 +676,9 @@ instance Arbitrary Proof where
                     pairFocusProof = (,) <$> arbitrary <*> subProof
                     listPairFocusProof :: Gen [(Focus, Proof)]
                     listPairFocusProof = vectorOf 2 pairFocusProof
-                    pPFocusProof :: Gen ([Focus], Proof)                    
-                    pPFocusProof = (,) <$> arbitrary <*> subProof
                     listPPFocusProof :: Gen [(Focus, Proof)]
                     listPPFocusProof = vectorOf 2 pairFocusProof
+    
 
 instance Monoid (Proof' ctxTy relTy proofTy exprTy) where
     mempty = Reflex
@@ -722,20 +716,15 @@ setCtx c (Deduc _ f f' p) = Just (Deduc c f f' (setCtx' c p)) --VER BIEN ESTE CA
 setCtx c (Focus _ r f f' p) = Just (Focus c r f f' (setCtx' c p)) --ESTE TAMBIEN
 
 setCtx' :: ctxTy -> Proof' ctxTy relTy proofTy exprTy ->  Proof' ctxTy relTy proofTy exprTy
-setCtx' c p = let mp = setCtx c p in
-                  case mp of
-                       Nothing -> p
-                       Just p' -> p'
+setCtx' c p = fromMaybe p (setCtx c p)
                        
 setCtxInList :: ctxTy -> [(exprTy,Proof' ctxTy relTy proofTy exprTy)] ->  
                          [(exprTy,Proof' ctxTy relTy proofTy exprTy)]
-setCtxInList c lpf = map (\(e,p) -> (e,setCtx' c p)) lpf
+setCtxInList c = map (second (setCtx' c)) 
 
 setMCtx' :: ctxTy -> Maybe (Proof' ctxTy relTy proofTy exprTy) ->  
                      Maybe (Proof' ctxTy relTy proofTy exprTy)
-setMCtx' c mp = case mp of
-                     Nothing -> Nothing
-                     Just p -> Just $ setCtx' c p
+setMCtx' c = fmap (setCtx' c)
 
                      
 getStart :: Proof' ctxTy relTy proofTy exprTy -> Maybe exprTy
@@ -786,7 +775,7 @@ updateStart (Deduc c _ f2 p) f = Deduc c f f2 p
 updateStart (Focus c r _ f2 p) f = Focus c r f f2 p
 
 updateEnd :: Proof' ctxTy relTy proofTy exprTy -> exprTy -> Proof' ctxTy relTy proofTy exprTy
-updateEnd Reflex f = Reflex
+updateEnd Reflex _ = Reflex
 updateEnd (Hole c r f1 _) f = Hole c r f1 f
 updateEnd (Simple c r f1 _ b) f = Simple c r f1 f b
 updateEnd (Trans c r f1 fm _ p p') f = Trans c r f1 fm f p (updateEnd p' f)
@@ -797,21 +786,21 @@ updateEnd (Focus c r f1 _ p) f = Focus c r f1 f p
 
 updateMiddle :: Proof' ctxTy relTy proofTy exprTy -> exprTy -> Proof' ctxTy relTy proofTy exprTy
 updateMiddle (Trans c r f1 _ f2 p p') f = Trans c r f1 f f2 (updateEnd p f) (updateStart p' f)
-updateMiddle _ f = undefined
+updateMiddle _ _ = undefined
 
 updateRel :: Proof' ctxTy relTy proofTy exprTy -> relTy -> Proof' ctxTy relTy proofTy exprTy
-updateRel Reflex r = Reflex
+updateRel Reflex _ = Reflex
 updateRel (Hole c _ f1 f2) r = Hole c r f1 f2
 updateRel (Simple c _ f1 f2 b) r = Simple c r f1 f2 b
 updateRel (Trans c _ f1 fm f2 p p') r = Trans c r f1 fm f2 p p'
 updateRel (Cases c _ f1 f2 fc list p') r = Cases c r f1 f2 fc list p'
 updateRel (Ind c _ f1 f2 l1 l2) r = Ind c r f1 f2 l1 l2
-updateRel (Deduc c f1 f2 p) r = Deduc c f1 f2 p
+updateRel (Deduc c f1 f2 p) _ = Deduc c f1 f2 p
 updateRel (Focus c _ f1 f2 p) r = Focus c r f1 f2 p
 
 updateBasic :: Proof' ctxTy relTy proofTy exprTy -> proofTy -> Proof' ctxTy relTy proofTy exprTy
-updateBasic (Simple c r f1 f2 b') b = Simple c r f1 f2 b
-updateBasic p b = p
+updateBasic (Simple c r f1 f2 _) b = Simple c r f1 f2 b
+updateBasic p _ = p
 
 {- $samples
 
@@ -901,55 +890,43 @@ addHypothesisProof e r es pf = getCtx pf >>=
 
 addHypothesis' :: Hypothesis -> Ctx -> Ctx
 addHypothesis' hyp ctx = M.insert (hypName hyp) hyp ctx
-    where n = freshName ctx
                           
-                          
+varNat :: Name -> Expr                       
 varNat s = Expr $ Var $ var s (TyAtom ATyNat)
 
-
 instanciateInCtx :: Ctx -> Variable -> Focus -> Ctx
-instanciateInCtx ctx v p =
-    M.map (replaceHypothesis v p) ctx
-            
-    where replaceHypothesis :: Variable -> Focus -> Hypothesis -> Hypothesis
-          replaceHypothesis v p hyp =
+instanciateInCtx ctx v p = M.map (replaceHypothesis v p) ctx            
+
+replaceHypothesis :: Variable -> Focus -> Hypothesis -> Hypothesis
+replaceHypothesis v p' hyp =
               let (Expr peHyp) = hypExpr hyp in
-                  hyp { hypExpr = Expr $ applySubst peHyp (M.singleton v (toExpr p)) }
+                  hyp { hypExpr = Expr $ applySubst peHyp (M.singleton v (toExpr p')) }
 
 
-conditionFunction :: GCondition -> ((ExprSubst,VariableRename) -> PreExpr -> Bool)
-conditionFunction (VarNotInExpr v p) =
-    \(subst,_) expr -> not $ Set.member v (freeVars $ applySubst p subst)
+conditionFunction :: GCondition -> (ExprSubst,VariableRename) -> PreExpr -> Bool
+conditionFunction (VarNotInExpr v p) (subst,_) _ = not $ Set.member v (freeVars $ applySubst p subst)
     
-conditionFunction (InductiveHypothesis pattern)=
+conditionFunction (InductiveHypothesis pattern) (subst,_) _ =
     -- En la hipótesis inductiva, solo podemos validar la reecritura si
     -- la expresión por la q se quiere reemplazar la variable inductiva
     -- es la misma. Ejemplo: si la HI es "x es par", solo podemos aplicarla
     -- a la expresión "x es par" y no a "(x+1) es par". Por eso pedimos que 
     -- la substitución de reescritura asigne x -> x.
-    \(subst,_) expr -> case pattern of
-                        Var var -> case (applySubst (Var var) subst) of
-                                        Var x -> varName x == varName var
-                                        _ -> False
-                        _ -> False
-conditionFunction (NotEmptyRange pattern) = 
-    \(subst,_) expr -> let range_expr = applySubst pattern subst in
-                        if range_expr == Con C.folFalse 
-                            then False
-                            else True
+    case pattern of
+         Var v -> applySubst (Var v) subst == Var v
+         _ -> False
+conditionFunction (NotEmptyRange ptn) (subst,_) _ = applySubst ptn subst /= Con C.folFalse 
                           
 {- q es igual a p donde reemplazamos x por n.
    Esta condicion se utiliza en cuantificadores. x es la variable cuantificada.
    Al chequear el reemplazo en expresiones, vemos el renombre que hizo el matching
    a la variable cuantificada. -}
-conditionFunction (ReplacedExpr q p x n) =
-    \(subst,rnm) expr -> 
-        let v = M.lookup x rnm in
+conditionFunction (ReplacedExpr q p x n) (subst,rnm) _ =
             maybe False (\v -> 
-            (applySubst q subst) == applySubst (applySubst p subst) 
+            applySubst q subst == applySubst (applySubst p subst) 
                                         (M.singleton v (applySubst (n' rnm) subst))
-            ) v
-        where n' rnm = applySubst n (M.map (\v -> Var v) rnm)
+            ) $ M.lookup x rnm
+        where n' = applySubst n . M.map Var
             
 getGenConditions :: Condition -> [GCondition]
 getGenConditions (GenConditions lc) = lc

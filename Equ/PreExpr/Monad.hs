@@ -13,13 +13,10 @@ import qualified Data.Text as T
 import qualified Data.Sequence as S
 
 import Data.Maybe (fromJust)
-import Control.Monad.Trans.Class(lift)
-import Control.Monad.Trans.Either(runEitherT, EitherT (..))
+import Control.Monad.Trans.Either(EitherT (..))
 import Control.Monad.RWS (RWS)
-import Control.Monad.RWS.Class ( local, tell, listen
-                               , MonadState  (..)
-                               , MonadReader (..)
-                               , MonadWriter (..)
+import Control.Monad.RWS.Class ( local
+                               , MonadReader
                                )
 
 -- | Navegamos por el focus cambiando el enviroment.
@@ -40,30 +37,4 @@ type Log = S.Seq T.Text
     las substituci&#243;nes resultantes de correr los algoritmos de matching y 
     type checking.
 -}
-type MonadTraversal e a = EitherT e (RWS Focus Log a)
-    
--- -- | Instanc&#237;a de MonadWriter para utilizar el log.
--- instance MonadWriter Log (MonadTraversal e a) where
---     tell w = lift (tell w)
---     listen m = EitherT $ do 
---                  (a,w) <- listen (runEitherT m)
---                  case a of
---                    Left f -> return $ Left f
---                    Right r -> return $ Right (r,w)
---     pass m = EitherT $ pass $ do
---                a <- runEitherT m
---                case a of
---                  Left f -> return $ (Left f,id)
---                  Right (r,f) -> return $ (Right r,f)
-
--- -- | Instanc&#237;a de MonadReader para navegar en el focus.
--- -- Vamos cambiando el ambiente conforme vamos haciendo recursi&#243;n en la
--- -- preExpresi&#243;n, es decir, navegando por el focus.
--- instance MonadReader Focus (MonadTraversal e a) where
---     ask = lift ask
---     local f m = EitherT $ local f (runEitherT m)
-
--- -- | Instanc&#237;a de MonadState
--- instance MonadState a (MonadTraversal e a) where
---     get = lift get
---     put s = lift (put s)
+type MonadTraversal e a = EitherT e (RWS Focus Log a)    

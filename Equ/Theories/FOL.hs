@@ -133,6 +133,10 @@ theoryAxiomList = [ conmEquivAxiom
                   , excludThirdAxiom
                   , goldenRuleAxiom
                   , defImplAxiom
+                  , trueLNeutralAnd
+                  , trueRNeutralAnd
+                  , leftWeak
+                  , rightWeak
                   -- CUANTIFICADORES
                   , emptyRangeForAll
                   , unitRangeForAll
@@ -345,6 +349,12 @@ goldenRuleAxiom = ( "Regla Dorada"
                   , ((varP `and` varQ)  `equiv` varP) `equiv` (varQ `equiv` (varP `or` varQ))
                   , GenConditions [])
 
+
+trueLNeutralAnd :: (Text,Expr,Condition)
+trueLNeutralAnd = ( "Neutro a izquierda de ∧", leftNeutral and true varP, GenConditions [])
+
+trueRNeutralAnd :: (Text,Expr,Condition)
+trueRNeutralAnd = ( "Neutro a derecha de ∧", rightNeutral and true varP, GenConditions [])
                    
 -- ===========
 -- IMPLICACION
@@ -385,7 +395,12 @@ defImplAxiom = ( "Definición del Implica"
                , (impl varP varQ) `equiv` ((or varP varQ) `equiv` varQ)
                , GenConditions []
                )
-                 
+
+leftWeak :: (Text,Expr,Condition)
+leftWeak = ( "Debilitamiento a izquierda", ((varP `and` varQ) `impl` varP) , GenConditions [])
+
+rightWeak :: (Text,Expr,Condition)
+rightWeak = ( "Debilitamiento a derecha", (((varP `and` varQ) `impl` varQ)) `equiv` true , GenConditions [])
                  
 -- ===========
 -- CONSECUENCIA
@@ -589,7 +604,7 @@ conmutEqual =
 reflexEqual :: (Text,Expr,Condition)
 reflexEqual =
     ( "Reflexividad de ="
-    , varN `equal` varN
+    , (varN `equal` varN) `equiv` true
     , GenConditions []
     )
 

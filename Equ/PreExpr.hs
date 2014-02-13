@@ -15,6 +15,11 @@ module Equ.PreExpr ( decode
                    , quantVar, termExpr, rangeExpr, exprApply
                    , prettyShow
                    , preExprIsQuant
+                   , setTypeFocus
+                   , checkIsAtom
+                   , setAtomType
+                   , setQuantType
+                   , setVarQType
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
@@ -22,8 +27,6 @@ module Equ.PreExpr ( decode
                    , module Equ.PreExpr.Subst
                    ) 
     where
-
-import Data.Set (Set,member)
 
 import Equ.Syntax(Variable(..), Operator(..), Constant(..), holeTy
                  , Quantifier (..), Func (..), var, HoleInfo, hole, Assoc(None))
@@ -34,10 +37,7 @@ import Equ.PreExpr.Monad
 import Equ.PreExpr.Subst
 import Equ.PreExpr.Show
 
-import Data.Text(pack)
-import Data.Serialize(encode, decode)
-import Data.Function(on)
-import Data.Maybe (fromJust,isNothing)
+import Data.Serialize(decode)
 import Control.Arrow ((***))
 
 -- | Dado un focus de una preExpresion, nos dice si esta es un hueco.
@@ -136,11 +136,11 @@ listOf f = flip filter (toFocuses $ toExpr f)
 
 -- | Retorna una lista con las variables que aparecen en una expresión.
 listOfVar :: Focus -> [Focus]
-listOfVar = flip listOf isVar
+listOfVar = flip listOf isFocusVar
     where
-        isVar :: Focus -> Bool
-        isVar (Var _,_) = True
-        isVar _ = False
+        isFocusVar :: Focus -> Bool
+        isFocusVar (Var _,_) = True
+        isFocusVar _ = False
 
 
 -- | Dada una variable y una lista de variables, devuelve la expresión aplicación
@@ -151,3 +151,42 @@ exprApply f vs = foldl (\e v -> App e (Var v)) (Var f) vs
       
 prettyShow :: PreExpr -> String
 prettyShow = showExpr
+
+
+-- | Dado un focus, un move y un tipo, cambiamos el tipo del focus al que 
+-- nos mueve el move.
+setAtomType :: Focus -> (Focus -> Focus) -> Type -> Focus
+setAtomType f go t = set t (go f)
+    where
+        set :: Type -> Focus -> Focus
+        set t (Var v,p) = (Var $ v {varTy = t},p)
+        set t (Con c,p) = (Con $ c {conTy = t},p)
+        set t (PrExHole h,p) = (PrExHole $ h {holeTy = t},p)
+        set t (_,_) = error "SetAtomType!"
+
+setQuantType :: Focus -> (Focus -> Focus) -> Type -> Focus
+setQuantType f go t = goTop $ set t (go f)
+    where
+        set :: Type -> Focus -> Focus
+        set t (Quant q v e e',p) = (Quant (q {quantTy = t}) v e e',p)
+
+setVarQType :: Focus -> (Focus -> Focus) -> Type -> Focus
+setVarQType f go t = goTop $ set t (go f)
+    where
+        set :: Type -> Focus -> Focus
+        set t (Quant q v e e',p) = (Quant q v{varTy = t} e e',p)
+
+-- | Actualiza el tipo de todos los focus a los que nos mueve Move.
+setTypeFocus :: [(Focus, Focus -> Focus)] -> Type -> Focus -> Focus
+setTypeFocus [] _ f' = goTop f'
+setTypeFocus ((_,go):fs) t f' = setTypeFocus fs t (goTop $ set t (go f'))
+    where set :: Type -> Focus -> Focus
+          set t (UnOp op e, p) = (UnOp (op{opTy = t}) e,p)
+          set t (BinOp op e e', p) = (BinOp (op{opTy = t}) e e',p)
+
+-- | Checkea si un focus es un atomo de preExpresion.
+checkIsAtom :: Focus -> Bool
+checkIsAtom (Var _,_) = True
+checkIsAtom (Con _,_) = True
+checkIsAtom (PrExHole _,_) = True
+checkIsAtom _ = False

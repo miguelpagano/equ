@@ -50,13 +50,13 @@ rewriteInformative (Expr e) (Rule{lhs=Expr l,rhs=Expr r}) =
 --  expresi&#243;n focalizada, en caso de exito reemplazamos la expresi&#243;n inicial
 --  por la expresi&#243;n resultante dentro del focus.
 focusedRewrite :: Focus -> Rule -> RM (Focus,Focus)
-focusedRewrite f@(pe, p) r = exprRewrite (Expr pe) r >>= 
+focusedRewrite f@(pe, _) r = exprRewrite (Expr pe) r >>= 
                              \(Expr pe')-> return $ (replace f pe',f)
                              
 -- | Igual que la anterior, pero ademas retorna la lista de substituciones.
 focusedRewriteInformative :: Focus -> Rule -> RM (Focus,Focus,ExprSubst)
-focusedRewriteInformative f@(pe, p) r = rewriteInformative (Expr pe) r >>= 
-                                        \(Expr pe',subst)-> return $ (replace f pe',f,subst)
+focusedRewriteInformative f@(pe, _) r = rewriteInformative (Expr pe) r >>= 
+                                        \(Expr pe',subs)-> return $ (replace f pe',f,subs)
                              
 rewriteAllFocuses :: PreExpr -> Rule -> [RM (Focus,Focus)]
 rewriteAllFocuses e r = map (flip focusedRewrite r) (toFocuses e)
@@ -93,7 +93,7 @@ rewriteAllFocusesInformative e r = map (flip focusedRewriteInformative r) (toFoc
 expresiones a reescribir tengan el mismo tipo (salvo unificación).
 -}
 typedRewrite :: Expr -> Rule -> RM Expr
-typedRewrite e@(Expr pe) ru@(Rule{lhs=Expr l,rhs=Expr r}) = 
+typedRewrite e@(Expr pe) ru@(Rule{lhs=Expr l,rhs=Expr _}) = 
     let (Right te) = checkPreExpr pe
         (Right tr) = checkPreExpr l
     in case unify te tr emptySubst of

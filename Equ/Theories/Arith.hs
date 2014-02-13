@@ -158,6 +158,9 @@ oneLNeutralProd = leftNeutral prod one varI
 oneRNeutralProd :: Expr
 oneRNeutralProd = rightNeutral prod one varI
 
+zeroRAbsProd :: Expr
+zeroRAbsProd = rightAbs prod zero varI
+
 symProd :: Expr
 symProd = symmetryEqual prod varI varJ
 
@@ -309,6 +312,7 @@ theoryAxiomList = [ ("Evaluar suma", evalSum,GenConditions [])
                   -- Producto
                   , ("Neutro a izquierda del producto",oneLNeutralProd,GenConditions [])
                   , ("Neutro a derecha del producto", oneRNeutralProd,GenConditions [])
+                  , ("Absorbente a derecha del producto", zeroRAbsProd, GenConditions [])
                   , ("Simetría del producto", symProd,GenConditions [])
                   , ("Asociatividad del producto", assocProd,GenConditions [])
                   , emptyRangeSum, unitRangeSum, partRangeSum, termRuleSum

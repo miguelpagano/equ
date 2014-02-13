@@ -69,12 +69,12 @@ instance Functor PreExpr' where
     
 instance F.Foldable PreExpr' where
     foldMap f (Var a) = f a 
-    foldMap f (Con _) = M.mempty
-    foldMap f (PrExHole _) = M.mempty
+    foldMap _ (Con _) = M.mempty
+    foldMap _ (PrExHole _) = M.mempty
     foldMap f (UnOp _ e) = foldMap f e
     foldMap f (BinOp _ e e') = foldMap f e `M.mappend` foldMap f e'
     foldMap f (App e e')  = foldMap f e `M.mappend` foldMap f e'
-    foldMap f (Quant q a e e') = f a `M.mappend` foldMap f e `M.mappend` foldMap f e'
+    foldMap f (Quant _ a e e') = f a `M.mappend` foldMap f e `M.mappend` foldMap f e'
     foldMap f (Paren e) = foldMap f e
     foldMap f (If c e1 e2) = foldMap f c `M.mappend` foldMap f e1 `M.mappend` foldMap f e2
     foldMap f (Case e ps) =  M.mconcat (foldMap f e:map (uncurry (M.mappend `on` foldMap f)) ps)
@@ -233,10 +233,11 @@ getCalledVars (Paren e) = getCalledVars e
 getCalledVars _ = []
 
 setType :: (Variable -> Type) -> (Constant -> Type) -> (Operator -> Type) -> PreExpr -> PreExpr
-setType fv fc fo = foldE (Var . updVar) Con 
+setType fv fc fo = foldE (Var . updVar) (Con . updCon)
                    (UnOp . updOp) (BinOp . updOp) 
                    Quant App (PrExHole $ hole "") If Case 
     where updOp op = op {opTy = fo op}
-          updVar var = var { varTy = fv var}
-          updCon con = con { conTy = fc con}
+          updVar v = v { varTy = fv v}
+          updCon c = c { conTy = fc c}
+
 

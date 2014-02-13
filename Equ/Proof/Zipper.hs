@@ -20,6 +20,8 @@ import Data.Maybe(fromJust)
 import qualified Equ.PreExpr as PE (Focus)
 import Equ.Rule(Relation)
 
+import Control.Applicative ((<$>))
+
 -- | Definición de los posibles lugares en los que podemos estar
 -- enfocándonos.
 data ProofPath' ctxTy relTy proofTy exprTy = 
@@ -29,8 +31,8 @@ data ProofPath' ctxTy relTy proofTy exprTy =
 
 instance Show (ProofPath' ctxTy relTy proofTy exprTy) where
     show Top = "Top"
-    show (TransL path p) = "TransL | " ++ show path
-    show (TransR p path) = "TransR | " ++ show path
+    show (TransL path _) = "TransL | " ++ show path
+    show (TransR _ path) = "TransR | " ++ show path
                
             
 type ProofFocus' ctxTy relTy proofTy exprTy = (Proof' ctxTy relTy proofTy exprTy
@@ -38,14 +40,6 @@ type ProofFocus' ctxTy relTy proofTy exprTy = (Proof' ctxTy relTy proofTy exprTy
 
 type ProofPath = ProofPath' Ctx Relation Basic PE.Focus
 type ProofFocus = ProofFocus' Ctx Relation Basic PE.Focus
-
--- instance Show ProofPath where
---     show Top = "Top"
---     show (TransL p proof) = "TransL " ++ show p ++ " " ++ show proof
---     show (TransR proof p) = "TransR " ++ show proof ++ " " ++ show p
-    
--- instance Show ProofFocus where
---     show (pr,path) = "(" ++ show pr ++ "," ++ show path ++ ")"
 
 toProof :: ProofFocus' ctxTy relTy proofTy exprTy -> Proof' ctxTy relTy proofTy exprTy
 toProof (p, Top) = p
@@ -111,9 +105,7 @@ goTop' pf = goTop' $ goUp' pf
 
 -- | Se mueve a la derecha todo lo q pueda.
 goEnd :: ProofFocus' ctxTy relTy proofTy exprTy -> ProofFocus' ctxTy relTy proofTy exprTy
-goEnd pf = case (goDownR pf) of
-                Nothing -> pf
-                Just pf' -> goEnd pf'
+goEnd pf = maybe pf goEnd $ goDownR pf
 
 -- | Ir a la izquierda en un focus, sin cambiar de nivel.
 goLeft :: ProofFocus' ctxTy relTy proofTy exprTy -> 
@@ -129,31 +121,23 @@ goLeft' pf = pf
      que esta en la parte izquierda: 
 -}
 goFirstLeft :: ProofFocus' ctxTy relTy proofTy exprTy -> ProofFocus' ctxTy relTy proofTy exprTy
-goFirstLeft pf = case (goRight pf) of
-                      Nothing -> case (goUp pf) of
-                                      Nothing -> pf
-                                      Just pf' -> goFirstLeft pf'
-                      Just pf' -> pf
+goFirstLeft pf = maybe (maybe pf goFirstLeft (goUp pf)) 
+                       (const pf) 
+                       (goRight pf)
                
 -- | Simétrica a goFirstLeft
 goFirstRight :: ProofFocus' ctxTy relTy proofTy exprTy -> ProofFocus' ctxTy relTy proofTy exprTy
-goFirstRight pf = case (goLeft pf) of
-                      Nothing -> case (goUp pf) of
-                                      Nothing -> pf
-                                      Just pf' -> goFirstRight pf'
-                      Just pf' -> pf                       
+goFirstRight pf = maybe (maybe pf goFirstRight (goUp pf)) 
+                        (const pf) 
+                        (goLeft pf)
                       
 -- | Baja a la hoja de mas a la izquierda
 goLeftLeaf :: ProofFocus' ctxTy relTy proofTy exprTy -> ProofFocus' ctxTy relTy proofTy exprTy
-goLeftLeaf pf = case (goDownL pf) of
-                     Nothing -> pf
-                     Just pf' -> goLeftLeaf pf'
+goLeftLeaf pf = maybe pf goLeftLeaf $ goDownL pf
                
 -- | Baja a la hoja de mas a la derecha
 goRightLeaf :: ProofFocus' ctxTy relTy proofTy exprTy -> ProofFocus' ctxTy relTy proofTy exprTy
-goRightLeaf pf = case (goDownR pf) of
-                     Nothing -> pf
-                     Just pf' -> goRightLeaf pf'
+goRightLeaf pf = maybe pf goRightLeaf $ goDownR pf
 
 -- | Ir a la derecha en un focus, sin cambiar de nivel.
 goRight :: ProofFocus' ctxTy relTy proofTy exprTy -> 
@@ -170,24 +154,13 @@ goRight' pf = pf
      NOTA: Tal como está ahora, si estamos en la ultima hoja, vuelva a la primera.
      -}
 goNextStep :: ProofFocus' ctxTy relTy proofTy exprTy -> ProofFocus' ctxTy relTy proofTy exprTy
-goNextStep pf = let pf' = goFirstLeft pf in
-                    case goRight pf' of
-                         Nothing -> pf  -- Estamos en la última hoja de la derecha
-                         Just pf'' -> goLeftLeaf pf''
+goNextStep pf = maybe pf goLeftLeaf $ goRight (goFirstLeft pf)
 
 goPrevStep :: ProofFocus' ctxTy relTy proofTy exprTy -> ProofFocus' ctxTy relTy proofTy exprTy
-goPrevStep pf = let pf' = goFirstRight pf in
-                    case goLeft pf' of
-                         Nothing -> pf -- Estamos en la primera hoja de la izquierda
-                         Just pf'' -> goRightLeaf pf''
-                         
-                         
+goPrevStep pf = maybe pf goRightLeaf $ goLeft (goFirstRight pf)
 
 goNextStep' :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe (ProofFocus' ctxTy relTy proofTy exprTy)
-goNextStep' pf = let pf' = goFirstLeft pf in
-                    case goRight pf' of
-                         Nothing -> Nothing  -- Estamos en la última hoja de la derecha
-                         Just pf'' -> Just $ goLeftLeaf pf''
+goNextStep' pf = goLeftLeaf <$> goRight (goFirstLeft pf)
 
 goPrevStep' :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe (ProofFocus' ctxTy relTy proofTy exprTy)
 goPrevStep' pf = let pf' = goFirstRight pf in

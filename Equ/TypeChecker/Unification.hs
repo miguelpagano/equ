@@ -34,7 +34,7 @@ findVar v = M.findWithDefault (TyVar v) v
 -- | Uso de una sustituci&#243;n para reemplazar todas las variables en un
 -- tipo.
 rewrite :: TySubst -> Type -> Type
-rewrite s = (>>= (\v -> findVar v s))
+rewrite s = (>>= (flip findVar s))
 
 (@@) :: TySubst -> TySubst -> TySubst
 s @@ s' = M.fromList $ [(u, rewrite s t) | (u,t) <- M.toList s'] ++ M.toList s
@@ -48,14 +48,17 @@ unify (t :-> t') (r :-> r') s = unify t r s >>= \s' -> unify t' r' s'
 unify (TyList t) (TyList t') s = unify t t' s
 unify t@(TyVar v) t' s | t == t' = return s
                        | v `occurs` t' = Left $ ErrUnification (TyVar v) t' (M.toList s)
-                       | v `M.member` s  = unify (M.findWithDefault TyUnknown v s) t' s
-                       | otherwise =  return $ M.map ((tyreplace v) t') $ M.insert v t' s
+                       | otherwise = case M.lookup v s of
+                                       Nothing -> return $ M.map ((tyreplace v) t') $ M.insert v t' s
+                                       Just t'' -> if t == t'' then return $ M.map ((tyreplace v) t') $ M.insert v t' s
+                                                   else unify (M.findWithDefault TyUnknown v s) t' s
+--return $ M.map ((tyreplace v) t') $ 
 unify t (TyVar v) s = unify (TyVar v) t s
 unify t t' s = Left $ ErrUnification t t' (M.toList s)
 
 unifyList :: [Type] -> TySubst -> Either TyErr TySubst
 unifyList [] s = return s
-unifyList [t] s = return s
+unifyList [_] s = return s
 unifyList (t:t':ts) s = unify t t' s >>= unifyList (t':ts)
 
 -- | Usamos unify para comprobar si existe o no unificaci&#243;n. 
@@ -72,33 +75,19 @@ unificate t t' = either (const Nothing) (return . flip rewrite t) $ unify t t' e
 
 -- | Devuelve True si el tipo izquierdo matchea con el derecho.
 match :: Type -> Type -> Bool
-match (TyVar v) w = True
+match (TyVar _) _ = True
 match (TyList t) (TyList t') = match t t'
 match (t1 :-> t2) (t1' :-> t2') = match t1 t1' && match t2 t2'
 match t t' = t == t'
 
-
--- matchWithSubst :: Type -> Type -> TySubst -> Maybe TySubst
--- matchWithSubst (TyVar v) w subst =
---     let match_v = M.lookup v subst in
---         case match_v of
---              Nothing -> M.insert v w subst
---              Just z -> if z==w 
---                           then Just subst
---                           else Nothing
--- matchWithSubst (TyList t) (TyList t') subst = matchWithSubst t t' subst
--- matchWithSubst (t1 :-> t2) (t1' :-> t2') subst = 
---     matchWithSubst t1 t1' subst >>= matchWithSubst t2 t2'
--- matchWithSubst t t' subst = t == t'
-
 -- | Esta funcion hace matching de variable con tipo concreto y tambien de tipo
 --   concreto con variable.
 match2 :: Type -> Type -> Bool
-match2 (TyVar v) w = True
+match2 (TyVar _) _ = True
 match2 (TyList t) (TyList t') = match2 t t'
-match2 (TyList t) _ = False
+-- match2 (TyList _) _ = False
 match2 (t1 :-> t2) (t1' :-> t2') = match2 t1 t1' && match2 t2 t2'
-match2 w (TyVar v) = True
+match2 _ (TyVar _) = True
 match2 t t' = t == t'  
 
 

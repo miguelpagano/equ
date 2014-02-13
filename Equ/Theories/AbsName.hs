@@ -113,6 +113,13 @@ instance Serialize OpName where
     put Or       = putWord8 15
     put Neg      = putWord8 16
     put Equal    = putWord8 17
+    put Div      = putWord8 18
+    put Mod      = putWord8 19
+    put Pred     = putWord8 20
+    put Dif      = putWord8 21
+    put NegNum   = putWord8 19
+    put LessThan = putWord8 20
+    put LessOrEqThan = putWord8 21
 
     get = do
     tag_ <- getWord8
@@ -135,16 +142,33 @@ instance Serialize OpName where
         15 -> return Or
         16 -> return Neg
         17 -> return Equal
+        18 -> return Div
+        19 -> return Mod
+        20 -> return Pred
+        21 -> return Dif
+        22 -> return NegNum
+        23 -> return LessThan
+        24 -> return LessOrEqThan
         _ -> fail "Problem: Instance Serialize OpName."
 
 instance Serialize QuantName where
     put Forall = putWord8 0
     put Exist = putWord8 1
+    put SumQuant = putWord8 2
+    put ThatQuant = putWord8 3
+    put ContQuant = putWord8 4
+    put MinQuant  = putWord8 5
+    put MaxQuant  = putWord8 6
 
     get = do
     tag_ <- getWord8
     case tag_ of
         0 -> return Forall
         1 -> return Exist
+        2 -> return SumQuant 
+        3 -> return ThatQuant
+        4 -> return ContQuant
+        5 -> return MinQuant
+        6 -> return MaxQuant
         _ -> fail "Problem: Instance Serialize QuantName."
 

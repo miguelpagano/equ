@@ -187,7 +187,14 @@ leftNeutral op n e = (n `op` e) `equal` e
 rightNeutral :: (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr
 rightNeutral op n e = (e `op` n) `equal` e
 
+-- | Absorbente a izquierda: @a op e = a@.
+leftAbs ::  (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr
+leftAbs op a e = (a `op` e) `equal` a
 
+
+-- | Absorbente a derecha: @e op a = a@.
+rightAbs ::  (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr
+rightAbs op a e = (e `op` a) `equal` a
 
 {-| Expresiones para la construcción de axiomas para cuantificadores en general.
     En cada teoria se puede llamar a estas funciones para construir los axiomas

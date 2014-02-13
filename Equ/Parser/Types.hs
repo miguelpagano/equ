@@ -6,7 +6,6 @@ module Equ.Parser.Types ( listAtomTy, parseTy, parseType
 import Text.Parsec
 import Text.Parsec.Token
 import Text.Parsec.Language
-import Text.Parsec.String
 import qualified Text.Parsec.Expr as PE
 
 import Control.Monad.Identity

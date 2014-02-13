@@ -8,7 +8,6 @@ module Equ.Types where
 
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T (head)
-import Data.Poset
 import Data.Char
 
 import Control.Applicative
@@ -133,14 +132,6 @@ instance Show Type where
     show (TyAtom t) = show t
     show (t :-> t') = show t ++ " -> " ++ show t'
 
-    
-instance Poset Type where
-    (TyAtom ATyNat) `leq` (TyAtom ATyInt) = True
-    (TyAtom ATyInt) `leq` (TyAtom ATyNum) = True
-    (TyAtom ATyNat) `leq` (TyAtom ATyNum) = True
-    (TyList t1) `leq` (TyList t2) = t1 `leq` t2
-    (t1 :-> t2) `leq` (s1 :-> s2) = s1 `leq` t1 && t2 `leq` s2
-    t1 `leq` t2 = t1==t2
 
 -- | Constructor de TyVar
 tyVar :: String -> Type

@@ -95,8 +95,8 @@ data Rule = Rule {
     deriving (Show, Eq)
 
 
-
-mkrule e e' rel = Rule e e' rel "" ""
+mkrule :: Expr -> Expr -> Relation -> Rule
+mkrule e e' r = Rule e e' r "" ""
 
 getRelationFromType :: Type -> Relation
 getRelationFromType (TyAtom ATyBool) = relEquiv
@@ -108,8 +108,8 @@ instance Arbitrary Rule where
                          arbitrary <*> arbitrary <*> arbitrary
 
 instance Serialize Rule where
-    put (Rule lhs rhs rel n desc) = put lhs >> put rhs >> put rel >>
-                                    put n >> put desc  
+    put (Rule ls rs r n d) = put ls >> put rs >> put r >>
+                                put n >> put d
 
     get = Rule <$> get <*> get <*> get <*> get <*> get
 
