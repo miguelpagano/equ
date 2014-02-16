@@ -35,6 +35,7 @@ module Equ.Parser.Expr
     , parseVariableWithType
     , parser
     , parserVar
+    , parsePattern
     , VarTy
     , initPExprState
     , EitherName
@@ -65,6 +66,8 @@ import Equ.Theories.List(listApp, listEmpty)
 import Equ.Theories.Arith(intToCon)
 import Equ.Parser.Types(listAtomTy, parseTyFromString)
 
+
+import Equ.IndTypes (constrList)
 
 data PError = UnOpNotApplied Operator 
             | BinOpNotApplied Operator
@@ -193,6 +196,17 @@ subexpr flag =  parseSugarPreExpr parsePreExpr
                         UseParen -> Paren
                         UnusedParen -> id
 
+-- Parser principal de preExpresiones.
+parsePattern :: PExprStateClass s => ParserE s PreExpr
+parsePattern = buildExprParser (makeTable constrList) subpattern
+               <?> "Parser error: Expresi&#243;n mal formada"
+
+subpattern :: PExprStateClass s => ParserE s PreExpr
+subpattern = parens lexer parsePattern  
+            <|> Con <$> parseConst
+            <|> Var <$> parseVariable
+
+
 -- Parseo de Constantes definidas en la teoria
 -- Vamos juntando las opciones de parseo de acuerdo a cada constante en la lista.
 -- En el caso en que la lista es vacia, la opcion es un error
@@ -200,6 +214,7 @@ parseConst :: PExprStateClass s => ParserE s Constant
 parseConst = foldr ((<|>) . pConst) (fail "Constante") constantsList
 
 pConst c = c <$ (reserved lexer . unpack . conRepr) c
+
    
 -- Parseo de Cuantificadores definidos en la teoria
 parseQuant ::  PExprStateClass s => ParserE s PreExpr
@@ -248,10 +263,10 @@ parseCase = reserved lexer "case" >>
                            manyTill p till >>= \ xs ->
                            return (x:xs)
         parseCases :: PExprStateClass s => ParserE s (PreExpr,PreExpr)
-        parseCases = parsePreExpr >>= \ c ->
+        parseCases = parsePattern >>= \ p ->
                      reserved lexer "->" >>
                      parsePreExpr >>= \ ce ->
-                     return (c,ce)
+                     return (p,ce)
 
 -- Esta funcion parsea una variable. Nos fijamos que empiece con
 -- minuscula para distinguirla de las funciones (que empiezan con

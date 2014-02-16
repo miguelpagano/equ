@@ -4,6 +4,7 @@ module Equ.IndTypes (
     , list
     , bool
     , getIndType
+    , constrList
     )
     where
 
@@ -34,3 +35,7 @@ getIndType (TyAtom ATyNat) = Just natural
 getIndType (TyAtom ATyBool) = Just bool
 getIndType (TyList t) = Just list
 getIndType _ = Nothing
+
+-- | Constructores de todos los tipos, útil para el parser de patrones.
+constrList =  indConstructors natural ++ indConstructors list
+                   
