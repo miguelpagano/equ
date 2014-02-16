@@ -66,8 +66,6 @@ import Equ.Theories.Arith(intToCon)
 import Equ.Parser.Types(listAtomTy, parseTyFromString)
 
 
-import System.IO.Unsafe
-
 data PError = UnOpNotApplied Operator 
             | BinOpNotApplied Operator
 
@@ -390,7 +388,7 @@ buildExprParser operators simpleExpr = foldl makeParser simpleExpr operators
             prefixOp   = choice prefix  <?> ""
             postfixOp  = choice postfix <?> ""
 
-            ambigious assoc op = try $
+            ambiguous assoc op = try $
                 do{ op
                   ; fail ("ambiguous use of a " 
                          ++ assoc 
@@ -398,9 +396,9 @@ buildExprParser operators simpleExpr = foldl makeParser simpleExpr operators
                          )
                   }
 
-            ambigiousRight    = ambigious "right" rassocOp
-            ambigiousLeft     = ambigious "left" lassocOp
-            ambigiousNon      = ambigious "non" nassocOp
+            ambiguousRight    = ambiguous "right" rassocOp
+            ambiguousLeft     = ambiguous "left" lassocOp
+            ambiguousNon      = ambiguous "non" nassocOp
 
             termP = do{ pre  <- prefixP
                       ; x    <- term
@@ -418,8 +416,8 @@ buildExprParser operators simpleExpr = foldl makeParser simpleExpr operators
                                      }
                            ; return (f x y)
                            }
-                          <|> ambigiousLeft
-                          <|> ambigiousNon
+                          <|> ambiguousLeft
+                          <|> ambiguousNon
 
             rassocP1 x = try (rassocP x)  <|> return x
 
@@ -427,15 +425,15 @@ buildExprParser operators simpleExpr = foldl makeParser simpleExpr operators
                            ; y <- termP
                            ; lassocP1 (f x y)
                            }
-                          <|> ambigiousRight
-                          <|> ambigiousNon
+                          <|> ambiguousRight
+                          <|> ambiguousNon
 
             lassocP1 x = lassocP x <|> return x
 
             nassocP x = do { f <- nassocOp
                            ; y <- termP
-                           ; ambigiousRight <|> ambigiousLeft <|> 
-                             ambigiousNon   <|> return (f x y)
+                           ; ambiguousRight <|> ambiguousLeft <|> 
+                             ambiguousNon   <|> return (f x y)
                            }
             
             -- Esto originalmente no existe en la versión original de

@@ -14,8 +14,10 @@ data TyErr = ErrNotExpected Type Type -- ^ El tipo inferido/obtenido (primer
 
            -- | Una variable tiene un tipo distinto al asignado por el
            -- contexto.
-           | forall s . Syntactic s => ErrClashTypes s [Type]  
+           | forall s . Syntactic s => ErrClashTypes s [Type]
+           | forall s . Syntactic s => ErrNoType s
            | ErrUnification Type Type [(TyVarName,Type)]
+
 
 instance Eq TyErr where
     (ErrNotExpected t t') == (ErrNotExpected t'' t''') = t == t'' && t' == t'''
@@ -28,4 +30,5 @@ instance Eq TyErr where
 instance Show TyErr where
     show (ErrNotExpected t t') = "Se esperaba el tipo " ++ show t ++ " y no el tipo " ++ show t'
     show (ErrClashTypes s ts) = unpack (tRepr s) ++ " sólo puede tener un tipo" ++ show ts
+    show (ErrNoType s) = "No hay información de tipo para: " ++ unpack (tRepr s) 
     show (ErrUnification t t' s) = "Los tipos de " ++ show s ++ ": " ++ show t ++ " y " ++ show t' ++ " no se pueden unificar"
