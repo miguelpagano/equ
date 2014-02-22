@@ -1,18 +1,23 @@
 -- | Transforma una PreExpresi&#243;n en una Expresi&#243;n.
 module Equ.TypeChecker.Unification
     ( module Equ.TypeChecker.Error      
-      -- * Algoritmo de unificaci&#243;n con relaci&#243;n de orden.
+      -- * Algoritmo de unificaci&#243;n y variantes
     , unify
-    , emptySubst
     , unifyList
     , unifyTest
     , unificate
     , rewrite
     , findVar
+    -- * Algoritmo de matching
     , match
-    --, matchWithSubst
     , match2
+    -- * Sustituciones de tipo
+    , emptySubst
     , TySubst
+    -- * Controles de tipos inductivos
+    , checkReturnType
+    , typeContains
+    , typeContains'
     )
     where
 
@@ -21,8 +26,6 @@ import Equ.Types
 import Equ.TypeChecker.Error
 
 import qualified Data.Map as M
--- TODO: tener en cuenta subtipado
--- import Data.Poset (leq) 
 
 -- | Tipo de la sustituci&#243;n para unificar expresiones de tipo.
 type TySubst = M.Map TyVarName Type
@@ -90,4 +93,26 @@ match2 (t1 :-> t2) (t1' :-> t2') = match2 t1 t1' && match2 t2 t2'
 match2 _ (TyVar _) = True
 match2 t t' = t == t'  
 
+-- | Devuelve el tipo que está más a la derecha de la última flecha.
+getResType :: Type -> Type
+getResType (_ :-> t') = getResType t'
+getResType t = t
 
+-- | Verifica si @t@ es unificable con el tipo "resultado" del segundo argumento.
+checkReturnType :: Type -> Type -> Bool
+checkReturnType t = unifyTest t . getResType
+
+
+-- typeContains t t' es true si t es t' o es de tipo funcion y contiene a t', ejemplo:
+-- typeContains (t1 :-> t2 :-> t3) t1 = true
+-- typeContains (t1 :-> t2 :-> t3) t4 = false
+typeContains :: Type -> Type -> Bool
+typeContains t t' = case t of
+                        t1 :-> t2 -> typeContains t1 t' || typeContains t2 t'
+                        t'' -> unifyTest t'' t'
+
+ 
+typeContains' :: Type -> Type -> Bool
+typeContains' t t' = case t of
+                          t1 :-> t2 -> unifyTest t1 t' || typeContains' t2 t'
+                          _ -> False

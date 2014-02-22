@@ -1,4 +1,5 @@
 -- | La teoría de aritmética.
+
 {-# Language OverloadedStrings #-}
 module Equ.Theories.Arith
     ( -- * Constructores y operadores.
@@ -16,6 +17,9 @@ module Equ.Theories.Arith
     )
     where
 
+-- TODO: Agregar reglas para este módulo.
+
+
 import Prelude hiding (sum,or,and,pred)
 import Data.Text (Text)
 
@@ -25,16 +29,11 @@ import Equ.Expr
 import Equ.PreExpr
 import Equ.PreExpr.Symbols
 import Equ.PreExpr.Eval
--- TODO: Agregar reglas para este módulo.
-import Equ.Rule 
+
 import Equ.Theories.AbsName
 import Equ.Theories.Common
 import Equ.Proof.Condition
 
-import Control.Applicative
--- Estos módulos definen los símbolos de función
--- que devuelven expresiones de tipo Num.
- 
  
 -- | Cuantificador Sumatoria
 sumQuant :: Quantifier
@@ -83,10 +82,6 @@ varNat s = Expr $ Var $ var s (TyAtom ATyNat)
 metaVarNat :: Text -> Variable
 metaVarNat s = var s (TyAtom ATyNat)
 
--- | Expresiones Meta-Variables de tipo Nat
-exprVarNat :: Text -> Expr
-exprVarNat s = Expr $ Var $ var s $ TyAtom ATyNat 
-
 -- | Constructor de Constante zero
 zero :: Expr
 zero = Expr $ Con $ natZero
@@ -115,7 +110,7 @@ substr (Expr n) (Expr m) = Expr $ BinOp natDif n m
 
 
 -- | Expresiones Variables de tipo Nat
-varI,varJ,varK :: Expr
+varI,varJ,varK,varL,varM :: Expr
 varI= Expr $ Var $ var "i" $ TyAtom ATyNat 
 varJ= Expr $ Var $ var "j" $ TyAtom ATyNat 
 varK= Expr $ Var $ var "k" $ TyAtom ATyNat 
@@ -128,6 +123,7 @@ varP= Expr $ Var $ var "p" tyBool
 varQ= Expr $ Var $ var "q" tyBool
 
 -- | Expresiones Variables de cualquier tipo
+varN :: Expr
 varN= Expr $ Var $ var "n" $ tyVar "A"
 
 
@@ -179,7 +175,7 @@ sumQ v (Expr r) (Expr t) = Expr $ Quant sumQuant v r t
 emptyRangeSum :: (Text,Expr,Condition)
 emptyRangeSum = ( "Rango Vacío Sumatoria"
                 , emptyRange sumQ equal varX varI zero
-                , GenConditions []
+                , noCondition
                 )
                 
 -- | Rango Unitario para sumatoria
@@ -198,13 +194,13 @@ unitRangeSum = ( "Rango Unitario Sumatoria"
 partRangeSum :: (Text,Expr,Condition)
 partRangeSum = ( "Partición de Rango Sumatoria"
                , partRange sumQ equal sum varX varP varQ varI
-               , GenConditions []
+               , noCondition
                )
 
 termRuleSum :: (Text,Expr,Condition)
 termRuleSum = ( "Regla del Término Sumatoria"
               , termRule sumQ equal sum varX varP varI varJ
-              , GenConditions []
+              , noCondition
               )
               
 distLeftProdSum :: (Text,Expr,Condition)
@@ -256,7 +252,7 @@ defLessAxiom :: (Text,Expr,Condition)
 defLessAxiom =
     ( "Definición de <"
     , equiv (less varI (successor varI)) true
-    , GenConditions []
+    , noCondition
     )
     
 -- | Definición de Menor o Igual
@@ -264,14 +260,14 @@ defLessOrEq :: (Text,Expr,Condition)
 defLessOrEq =
     ( "Definición de ≤"
     , (lessOrEq varI varJ) `equiv` (or (less varI varJ) (equal varI varJ))
-    , GenConditions []
+    , noCondition
     )
     
 emptyInterv :: (Text,Expr,Condition)
 emptyInterv =
     ( "Intervalo Vacío"
     , (and (lessOrEq varI varJ) (less varJ varI)) `equiv` false
-    , GenConditions []
+    , noCondition
     )
     
 arithInterv :: (Text,Expr,Condition)
@@ -279,14 +275,14 @@ arithInterv =
     ( "Aritmética en Intervalo"
     , (and (lessOrEq zero varI) (less varI $ successor varK)) `equiv`
       (or (equal varI zero) (and (less zero varI) (less varI $ successor varK)))
-    , GenConditions []
+    , noCondition
     )
     
 lessAndLessOrEq :: (Text,Expr,Condition)
 lessAndLessOrEq =
     ( "Relación entre < y ≤"
     , (varI `less` varJ) `equiv` ((successor varI) `lessOrEq` varJ)
-    , GenConditions []
+    , noCondition
     )
     
 -- | Reindizado
@@ -304,17 +300,17 @@ reindAxiom =
        
 -- | Axiomas: los construimos automáticamente.
 theoryAxiomList :: [(Text,Expr,Condition)]
-theoryAxiomList = [ ("Evaluar suma", evalSum,GenConditions [])
-                  , ("Neutro a izquierda de la suma",zeroLNeutralSum,GenConditions [])
-                  , ("Neutro a derecha de la suma", zeroRNeutralSum,GenConditions [])
-                  , ("Simetría de la suma", symSum,GenConditions [])
-                  , ("Asociatividad de la suma", assocSum,GenConditions [])
+theoryAxiomList = [ ("Evaluar suma", evalSum,noCondition)
+                  , ("Neutro a izquierda de la suma",zeroLNeutralSum,noCondition)
+                  , ("Neutro a derecha de la suma", zeroRNeutralSum,noCondition)
+                  , ("Simetría de la suma", symSum,noCondition)
+                  , ("Asociatividad de la suma", assocSum,noCondition)
                   -- Producto
-                  , ("Neutro a izquierda del producto",oneLNeutralProd,GenConditions [])
-                  , ("Neutro a derecha del producto", oneRNeutralProd,GenConditions [])
-                  , ("Absorbente a derecha del producto", zeroRAbsProd, GenConditions [])
-                  , ("Simetría del producto", symProd,GenConditions [])
-                  , ("Asociatividad del producto", assocProd,GenConditions [])
+                  , ("Neutro a izquierda del producto",oneLNeutralProd,noCondition)
+                  , ("Neutro a derecha del producto", oneRNeutralProd,noCondition)
+                  , ("Absorbente a derecha del producto", zeroRAbsProd, noCondition)
+                  , ("Simetría del producto", symProd,noCondition)
+                  , ("Asociatividad del producto", assocProd,noCondition)
                   , emptyRangeSum, unitRangeSum, partRangeSum, termRuleSum
                   , distLeftProdSum, distRightProdSum, nestedRuleSum, changeVarSum
                   , emptyInterv, arithInterv, lessAndLessOrEq, reindAxiom

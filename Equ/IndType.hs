@@ -2,16 +2,15 @@
 module Equ.IndType where
 
 import Equ.Types
+import Equ.TypeChecker.Unification
 import Equ.Syntax
 import Equ.PreExpr hiding (isVar)
-import Equ.TypeChecker(unifyTest,getType)
 
 import Data.Text (Text)
 import Data.Function (on)
 
-import System.IO.Unsafe (unsafePerformIO)
-
--- | Un tipo inductivo permite realizar Pattern Matching. Está relacionado con una teoria.
+-- | Un tipo inductivo permite realizar pattern-matching. Está
+-- relacionado con una teoria.
 data IndType = IndType {
             name :: Text
           , ty :: Type
@@ -27,101 +26,74 @@ instance Eq IndType where
 -- | Un tipo inductivo valido debe ser construido con la siguiente funcion.
 -- | Si es el tipo que se quiere construir, t, es válido devuelve Just t. Otro caso Nothing.
 createIndType :: Text -> Type -> [Constant] -> [Operator] -> [Operator] -> Maybe IndType
-createIndType name t constants bcons icons = 
-    if validConstructors constants bcons icons t
-        then Just $ IndType {
-                        name = name
-                      , ty = t
-                      , constants = constants
-                      , baseConstructors = bcons
-                      , indConstructors = icons
-                    }
-        else Nothing
+createIndType nm t consts baseConstrs indConstrs = 
+    if validConstrs consts baseConstrs indConstrs t
+    then Just $ IndType { name = nm
+                        , ty = t
+                        , constants = consts
+                        , baseConstructors = baseConstrs
+                        , indConstructors = indConstrs
+                        }
+    else Nothing
                                        
-             
-validConstructors :: [Constant] -> [Operator] -> [Operator] -> Type -> Bool
-validConstructors constants bcons indcons t =
-       (and $ map (flip isConstant t) constants) &&
-       (and $ map (flip isBaseConstructor t) bcons) &&
-       (and $ map (flip isIndConstructor t) indcons)
-             
+-- | Controla que ciertas constantes y operadores sean los
+-- constructores del tipo apropiado.
+validConstrs :: [Constant] -> [Operator] -> [Operator] -> Type -> Bool
+validConstrs consts baseConstrs indConstrs t = all (isConstant t) consts &&
+                                               all (isBaseConstructor t) baseConstrs &&
+                                               all (isIndConstructor t) indConstrs
+
 isValidIndType :: IndType -> Bool
-isValidIndType it = 
-    validConstructors consts bcons icons (ty it)
-    
-    where bcons = baseConstructors it
-          icons = indConstructors it
+isValidIndType it = validConstrs consts baseConstrs indConstrs (ty it)
+    where baseConstrs = baseConstructors it
+          indConstrs = indConstructors it
           consts = constants it
           
 
-isVar :: PreExpr -> Type -> Bool
-isVar (Var v) t = unifyTest t (varTy v)
-isVar _ _ = False
+isVarTyped :: PreExpr -> Type -> Bool
+isVarTyped (Var v) t = unifyTest t (varTy v)
+isVarTyped _ _ = False
           
-isConstant :: Constant -> Type -> Bool
-isConstant c t = unifyTest t (conTy c)
+isConstant :: Type -> Constant -> Bool
+isConstant t c = unifyTest t (conTy c)
           
-isBaseConstructor :: Operator -> Type -> Bool
-isBaseConstructor op t = case opTy op of
+isBaseConstructor :: Type -> Operator -> Bool
+isBaseConstructor t op = case opTy op of
                             t1 :-> t2 -> unifyTest t t2 && not (typeContains t1 t)
-                            otherwise -> False
+                            _ -> False
           
-isIndConstructor :: Operator -> Type -> Bool
-isIndConstructor op t = case opTy op of
-                            t1 :-> t2 -> checkReturnType t t2 && (typeContains t1 t || typeContains' t2 t)--(unifyTest t t2) && (typeContains t1 t)
-                            otherwise -> False
-          -- typeContains t t' es true si t es t' o es de tipo funcion y contiene a t', ejemplo:
-          -- typeContains (t1 :-> t2 :-> t3) t1 = true
-          -- typeContains (t1 :-> t2 :-> t3) t4 = false
+isIndConstructor :: Type -> Operator -> Bool
+isIndConstructor t op = case opTy op of
+                            t1 :-> t2 -> checkReturnType t t2 && (typeContains t1 t || typeContains' t2 t)
+                            _ -> False          
           
-    where checkReturnType t t' = 
-            case t' of
-                t1 :-> t2 -> checkReturnType t t2
-                t'' -> unifyTest t t'' 
-          
-          typeContains' t t' = 
-            case t of
-                t1 :-> t2 -> (unifyTest t1 t') || (typeContains' t2 t')
-                t'' -> False
-          
-typeContains :: Type -> Type -> Bool
-typeContains t t' = case t of
-                        t1 :-> t2 -> typeContains t1 t' || typeContains t2 t'
-                        t'' -> unifyTest t'' t'
-          
-isConstantPattern :: PreExpr -> Type -> Bool
-isConstantPattern (Con c) t = isConstant c t
+isConstantPattern :: Type -> PreExpr -> Bool
+isConstantPattern t (Con c) = isConstant t c
 isConstantPattern _ _ = False
 
-isBaseConstPattern :: PreExpr -> Type -> Bool
+isBaseConstPattern :: Type -> PreExpr -> Bool
 isBaseConstPattern = isConstructorPattern isBaseConstructor
 
-isIndConstPattern :: PreExpr -> Type -> Bool
-isIndConstPattern pe t = unsafePerformIO (putStrLn ("\nisIndConstPattern "++show pe++
-                                                    ", "++show t) >>
-                                          return (isConstructorPattern isIndConstructor pe t))
+isIndConstPattern :: Type -> PreExpr -> Bool
+isIndConstPattern = isConstructorPattern isIndConstructor
           
-isConstructorPattern :: (Operator -> Type -> Bool) -> PreExpr -> Type -> Bool
-isConstructorPattern f (UnOp op e) t = f op t && isVar e t
-isConstructorPattern f (BinOp op e1 e2) t = f op t &&
+isConstructorPattern :: (Type -> Operator -> Bool) -> Type -> PreExpr -> Bool
+isConstructorPattern f t (UnOp op e) = f t op && isVarTyped e t
+isConstructorPattern f t (BinOp op e1 e2) = f t op &&
     case opTy op of
-        t1 :-> t2 :-> t3 -> {-unsafePerformIO (putStrLn ("isIndConstructor "++show op ++", "++show t++" = "++
-                                                        show (f op t)++
-                                                    "\nisVar "++show e1++", "++show t1++" = "++show (isVar e1 t1)++
-                                                    "\nisVar "++show e2++", "++show t2++" = "++show (isVar e2 t2)) >>-}
-                             isVar e1 t1 && isVar e2 t2
+        t1 :-> t2 :-> _ -> isVarTyped e1 t1 && isVarTyped e2 t2
         _ -> False
 isConstructorPattern _ _ _ = False
 
 
 splitByConst :: Show b => Type -> [(PreExpr, b)] -> ([(PreExpr, b)],[(PreExpr, b)],[(PreExpr, b)]) 
 splitByConst t l = foldl go ([],[],[]) l
-    where go (ks,us,bs) p@(e,_) | isConstantPattern e t  = (p:ks,us,bs)
-                                | isBaseConstPattern e t = (ks,p:us,bs)
-                                | isIndConstPattern e t  = (ks,us,p:bs)
+    where go (ks,us,bs) p@(e,_) | isConstantPattern t e  = (p:ks,us,bs)
+                                | isBaseConstPattern t e = (ks,p:us,bs)
+                                | isIndConstPattern t e  = (ks,us,p:bs)
                                 | otherwise = (ks,us,bs)
 
 
 isConstructor :: IndType -> Operator -> Bool
-isConstructor ty op =  op `elem` baseConstructors ty || op `elem` indConstructors ty
+isConstructor t op =  op `elem` baseConstructors t ++ indConstructors t
 

@@ -2,18 +2,16 @@
    -- | Este m&#243;dulo define la noci&#243;n de un ejercicio en equ.
 module Equ.Exercise where
 
-import Equ.Exercise.Conf (TypeCheck, ExerciseConf, createExerciseConf)
+import Equ.Exercise.Conf (ExerciseConf, createExerciseConf)
 
 import Equ.Expr
 import Equ.Proof.Annot
-import qualified Equ.Rule as R
 import Equ.Proof
 
 import Data.Text hiding (null)
-import qualified Data.Map as M 
 
 import Control.Applicative ((<$>), (<*>))
-import Data.Serialize (Serialize, get, getWord8, put, putWord8)
+import Data.Serialize (Serialize, get, put)
 
 -- Enunciado del ejercicio.
 data Statement = Statement { title :: Text
@@ -23,8 +21,8 @@ data Statement = Statement { title :: Text
                            } deriving Show
 
 instance Serialize Statement where
-    put (Statement title stat initExpr hints) = 
-        put title >> put stat >> put initExpr >> put hints
+    put (Statement t s i h) = 
+        put t >> put s >> put i >> put h
     
     get = Statement <$> get <*> get <*> get <*> get
 
@@ -36,8 +34,8 @@ data Exercise = Exercise { exerConf :: ExerciseConf
                          }
 
 instance Serialize Exercise where
-    put (Exercise exerConf exerStat exerProof exerAnnots) =
-        put exerConf >> put exerStat >> put exerProof >> put exerAnnots
+    put (Exercise conf st prf ann) =
+        put conf >> put st >> put prf >> put ann
         
     get = Exercise <$> get <*> get <*> get <*> get
 
@@ -55,9 +53,9 @@ createStatement e = Statement empty empty e empty
 -- En el cual la prueba es un hueco con el contexto y relaci´on propio de la
 -- configuraci´on del ejercicio.
 createExercise :: Expr -> Maybe ProofAnnotation -> Exercise
-createExercise e mpa = Exercise exerConf stmnt Nothing mpa
+createExercise e mpa = Exercise conf stmnt Nothing mpa
     where
-        exerConf :: ExerciseConf
-        exerConf = createExerciseConf
+        conf :: ExerciseConf
+        conf = createExerciseConf
         stmnt :: Statement
         stmnt = createStatement e

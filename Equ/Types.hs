@@ -153,12 +153,15 @@ occurs v = F.elem v
 tyreplace :: TyVarName -> Type -> Type -> Type
 tyreplace v t t' = t' >>= (\w -> if v == w then t else TyVar w) 
 
+-- | Crea variables de tipos que no pueden ser parseadas.
 tyVarInternal :: Int -> Type
 tyVarInternal n = tyVar $ "V" ++ show n
 
+-- | Una variable de tipo es interna si comienza con mayúscula.
 isTyVarInternal :: TyVarName -> Bool
 isTyVarInternal = isUpper . T.head 
 
+-- | Predicado que decide si un tipo es una variable de tipo.
 isTyVar :: Type -> Bool
 isTyVar (TyVar _)  = True
 isTyVar _ = False
@@ -181,19 +184,25 @@ instance Arbitrary Type where
               , (:->) <$> arbitrary <*> arbitrary
               ]
 
+-- | La aridad de un tipo es la cantidad de flechas que hay.
 arity :: Type -> Int
 arity (_ :-> t') = 1 + arity t'
 arity _ = 0
 
+-- | Devuelve los tipos de los argumentos de un tipo funcional.
 argsTypes :: Type -> [Type]
 argsTypes = reverse . go []
     where go :: [Type] -> Type -> [Type]
           go ts (t :-> t') = go (t:ts) t'
           go ts _ = ts
 
+-- | Devuelve el tipo del resultado de un tipo funcional, sino
+-- devuelve nada.
 resType :: Type -> Maybe Type
 resType (_ :-> t') = Just t'
 resType _ = Nothing
 
+-- | Construye un tipo funcional a partir del tipo del resultado
+-- y el tipo de sus argumentos.
 exponential :: Type -> [Type] -> Type
 exponential = foldr (:->) 

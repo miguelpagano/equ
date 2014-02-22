@@ -25,6 +25,7 @@ import Control.Monad.RWS (runRWS)
 import Control.Monad.Trans.Either (runEitherT, hoistEither)
 import Control.Monad.RWS.Class(ask)
 
+import Control.Arrow (first)
 
 -- | Estructura general para los errores informativos con contexto.
 type MatchMErr = (Focus,MatchError)
@@ -185,6 +186,6 @@ match :: PreExpr -> PreExpr -> Either (MatchMErr,Log) (ExprSubst,VariableRename)
 match e e' = matchWithSubst e e' (M.empty,M.empty)
 
 matchWithSubst :: PreExpr -> PreExpr -> (ExprSubst,VariableRename) -> Either (MatchMErr,Log) (ExprSubst,VariableRename)
-matchWithSubst e e' subs@(s,rnm) = case runRWS (runEitherT (match' [] e e' subs)) (toFocus e') subs of
-                   (res, _, l) -> either (\err -> Left (err,l)) (Right . prune) res
-    where prune (s,rnm) = (M.filterWithKey (\v e -> Var v /= e) s,rnm)
+matchWithSubst e e' subs = case runRWS (runEitherT (match' [] e e' subs)) (toFocus e') subs of
+                   (res, _, l) -> either (\err -> Left (err,l)) (Right . first prune) res
+    where prune s = M.filterWithKey (\v -> (Var v /=)) s

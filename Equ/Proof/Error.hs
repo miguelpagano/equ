@@ -16,7 +16,7 @@ instance Eq ProofError where
     (==) (ProofError er _) (ProofError er' _) = er == er'
                 
 instance Show ProofError where
-    show (ProofError p m) = show p
+    show (ProofError p _) = show p
     
 data ProofError' = Rewrite [RewriteError]
                 | BasicNotApplicable Basic
@@ -72,8 +72,8 @@ instance Show ProofError' where
     show HoleProof = "La prueba tiene un hueco"
     show (ClashCtx c1 c2) = "Los contextos no coinciden: "++ show c1 ++ ", " ++ show c2
     show (ClashRel r1 r2) = "Las relaciones no coinciden: "++ show r1 ++ ", "++show r2
-    show (ClashAddStep p1 p2) = "No es posible agregar paso"
-    show (ProofEndWithHole p) = "La prueba no puede terminar en hueco"
+    show (ClashAddStep _ _) = "No es posible agregar paso"
+    show (ProofEndWithHole _) = "La prueba no puede terminar en hueco"
     show (ClashProofNotHole p) = "La prueba " ++ show p ++" debe ser un hueco"
     show ReflexHasNoCtx = "Una prueba reflexiva no debe tener contexto"
     show ReflexHasNoStart = "Una prueba reflexiva no debe tener expresión inicial"

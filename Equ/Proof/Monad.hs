@@ -5,14 +5,13 @@ import Equ.Proof.Error
 import Equ.Proof.Proof hiding (getCtx, getStart, getEnd, getRel, setCtx)
 import qualified Equ.Proof.Proof as P ( getCtx, getStart
                                       , getEnd, getRel
-                                      , setCtx, freshName) 
+                                      , setCtx
+                                      ) 
 
-import Equ.Rewrite(RM)
 import Equ.PreExpr
 import Equ.Rule
 import Equ.Proof.Zipper(goTop')
 
-import qualified Data.Map as M (fromList, toList)
 
 type PM a = Either ProofError a
 
@@ -24,11 +23,8 @@ whenPM' :: Bool -> ProofError -> PM ()
 whenPM' b e | b = return ()
             | otherwise = Left e
 
--- liftRw :: RM a -> PM a
--- liftRw (Left err) = Left $ [Rewrite err]
--- liftRw (Right a) = return a
 
--- Lifting de proyecciones de Proof a la mónada de Proof.
+-- | Lifting de proyecciones de Proof a la mónada de Proof.
 getCtx :: Proof -> PM Ctx
 getCtx = maybe (Left $ ProofError ReflexHasNoCtx goTop') return . P.getCtx
 

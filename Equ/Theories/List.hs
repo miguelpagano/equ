@@ -33,14 +33,12 @@ import Equ.Types
 import Equ.Expr
 import Equ.PreExpr
 import Equ.PreExpr.Symbols
-import Equ.Rule
-import Equ.Theories.AbsName
 import Equ.Theories.Common
 import Equ.Proof.Condition
 
 import Data.Text (Text)
 
-import Equ.Theories.Arith (zero,successor)
+import Equ.Theories.Arith (zero)
 
 
 -- | Constantes de listas.
@@ -105,7 +103,7 @@ defConcat = ( "Definición de Concatenar",
                        [(emptyList,varYS),
                         (varZ `append` varZS,varZ `append` (varZS `concat` varYS))])
               ,
-              GenConditions []
+              noCondition
             )
     where varZ = Expr $ Var $ var "z" $ tyVar "A"
           varXS = varList "xs" "A"
@@ -126,7 +124,7 @@ defLength = ( "Definición de Longitud"
               (caseExpr varXS
                     [(emptyList,zero),
                     (varZ `append` varZS,successor (length varZS))])
-                 , GenConditions []
+                 , noCondition
             )
     where varZ = Expr $ Var $ var "z" $ tyVar "A"
           varXS = varList "xs" "A"
@@ -160,7 +158,7 @@ defTake = ( "Definición de Take"
                  (successor varM,caseExpr varXS
                                     [(emptyList,emptyList),
                                      (varZ `append` varZS,varZ `append` (take varZS varM))])])
-          , GenConditions []
+          , noCondition
           )
           
     where varZ = Expr $ Var $ var "z" $ tyVar "A"
@@ -189,7 +187,7 @@ defDrop = ( "Definición de Drop"
                  (successor varM,caseExpr varXS
                                     [(emptyList,emptyList),
                                      (varZ `append` varZS,take varZS varM)])])
-          , GenConditions []
+          , noCondition
           )
           
     where varZ = Expr $ Var $ var "z" $ tyVar "A"
@@ -212,7 +210,7 @@ defIndex = ( "Definición de Indexar"
             (caseExpr varN
                 [(zero,varX),
                  (successor varM,index varXS varM)])
-          , GenConditions []
+          , noCondition
           )
           
     where varX = Expr $ Var $ var "x" $ tyVar "A"

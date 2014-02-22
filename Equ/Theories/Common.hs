@@ -6,11 +6,9 @@ import Equ.Types
 import Equ.Expr
 import Equ.PreExpr
 import Equ.PreExpr.Symbols(natSucc)
-import Equ.Rule
 import Equ.Theories.AbsName
 import Prelude hiding (and,or)
 
-import qualified Data.Map as M
 
 -- | Constante True
 folTrue :: Constant
@@ -211,7 +209,7 @@ rightAbs op a e = (e `op` a) `equal` a
    -}
 emptyRange :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
               Variable -> Expr -> Expr -> Expr
-emptyRange quant rel v term neuter = rel (quant v false term) neuter
+emptyRange quant r v term neuter = r (quant v false term) neuter
 
 -- | Rango Unitario para un cuantificador
 {- Esta funcion crea la expresion para un axioma de rango unitario. Toma una funcion
@@ -235,8 +233,7 @@ unitRange quant rel v e term derExpr = rel (quant v qrange term) derExpr
 -}
 partRange :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
              (Expr -> Expr -> Expr) -> Variable -> Expr -> Expr -> Expr -> Expr
-partRange quant rel oper v r s t =
-    rel (quant v (or r s) t) (oper (quant v r t) (quant v s t))
+partRange quant re oper v r s t = re (quant v (or r s) t) (oper (quant v r t) (quant v s t))
 
     
 -- PARTICION DE RANGO GENERALIZADA: Necesito importar el cuantificador existencial.
@@ -247,8 +244,8 @@ partRange quant rel oper v r s t =
    -}
 termRule :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
             (Expr -> Expr -> Expr) -> Variable -> Expr -> Expr -> Expr -> Expr
-termRule quant rel oper v qrange term1 term2 =
-    rel (quant v qrange (oper term1 term2)) (oper (quant v qrange term1)
+termRule quant r oper v qrange term1 term2 =
+    r (quant v qrange (oper term1 term2)) (oper (quant v qrange term1)
                                                   (quant v qrange term2))
 -- | Regla del término constante
 {- Forma general:
@@ -259,7 +256,7 @@ termRule quant rel oper v qrange term1 term2 =
    
 constTermRule :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
                  Variable -> Expr -> Expr -> Expr
-constTermRule quant rel v r c = rel (quant v r c) c
+constTermRule quant re v r c = re (quant v r c) c
 
 -- | Distributividad a izquierda en cuantificadores
 {- Puede usarse cuando tenemos un operador que es distributivo a izquierda 
@@ -271,15 +268,15 @@ constTermRule quant rel v r c = rel (quant v r c) c
    -}
 distLeftQuant :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
                  (Expr -> Expr -> Expr) -> Variable -> Expr -> Expr -> Expr -> Expr
-distLeftQuant quant rel oper v qrange x term =
-    rel (quant v qrange (oper x term)) (oper x (quant v qrange term))
+distLeftQuant quant r oper v qrange x term =
+    r (quant v qrange (oper x term)) (oper x (quant v qrange term))
 
     
 -- | Distributividad a derecha en cuantificadores
 distRightQuant :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
                  (Expr -> Expr -> Expr) -> Variable -> Expr -> Expr -> Expr -> Expr
-distRightQuant quant rel oper v qrange x term =
-    rel (quant v qrange (oper term x)) (oper (quant v qrange term) x)
+distRightQuant quant r oper v qrange x term =
+    r (quant v qrange (oper term x)) (oper (quant v qrange term) x)
 
 
 -- | Reinidizado
@@ -291,8 +288,8 @@ distRightQuant quant rel oper v qrange x term =
 -}
 reindex :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
            Variable -> Expr ->  Expr  -> Expr -> Expr -> Expr
-reindex quant rel varQ var1 var2 varTerm1 varTerm2 =
-    rel (quant varQ range1 term1) (quant varQ range2 term2)
+reindex quant r varQ var1 var2 varTerm1 varTerm2 =
+    r (quant varQ range1 term1) (quant varQ range2 term2)
     
     where range1 = and ((successor var1) `lessOrEq` exprVarQ) (exprVarQ `less` (successor var2))
           term1 = varTerm1
@@ -312,14 +309,14 @@ reindex quant rel varQ var1 var2 varTerm1 varTerm2 =
    -}
 nestedRule :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
               Variable -> Variable -> Expr -> Expr -> Expr -> Expr
-nestedRule quant rel v w r s term =
-    rel (quant v true (quant w (and r s) term)) 
+nestedRule quant re v w r s term =
+    re (quant v true (quant w (and r s) term)) 
         (quant v r (quant w s term))
    
 changeVar :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
               Variable -> Variable -> Expr -> Expr -> Expr -> Expr -> Expr
-changeVar quant rel v w r t r' t' =
-    rel (quant v r t) (quant w r' t')
+changeVar quant re v w r t r' t' =
+    re (quant v r t) (quant w r' t')
 
     
 -- Separación de Término
@@ -329,8 +326,8 @@ changeVar quant rel v w r t r' t' =
 termSep1 :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
            (Expr -> Expr -> Expr) ->
            Variable -> Expr -> Expr -> Expr -> Expr -> Expr -> Expr
-termSep1 quant rel oper v m n t1 t2 t3 =
-    rel (quant v ((m `lessOrEq` exprV) `and` (exprV `less` successor n)) t1)
+termSep1 quant r oper v m n t1 t2 t3 =
+    r (quant v ((m `lessOrEq` exprV) `and` (exprV `less` successor n)) t1)
         (oper t2 (quant v ((m `lessOrEq` exprV) `and` (exprV `less` n)) t3))
     where exprV = Expr $ Var v
     
@@ -340,8 +337,8 @@ termSep1 quant rel oper v m n t1 t2 t3 =
 termSepLast :: (Variable -> Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) ->
            (Expr -> Expr -> Expr) ->
            Variable -> Expr -> Expr -> Expr -> Expr -> Expr
-termSepLast quant rel oper v m n t1 t2 =
-    rel (quant v ((m `lessOrEq` exprV) `and` (exprV `less` successor n)) t1)
+termSepLast quant r oper v m n t1 t2 =
+    r (quant v ((m `lessOrEq` exprV) `and` (exprV `less` successor n)) t1)
         (oper (quant v ((m `lessOrEq` exprV) `and` (exprV `less` n)) t1) t2)
     where exprV = Expr $ Var v
     

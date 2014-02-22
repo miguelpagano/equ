@@ -188,10 +188,10 @@ updateMiddleFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> exprTy ->
 updateMiddleFocus (p,path) f = Just (updateMiddle p f,path)
 
 getStartFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe exprTy
-getStartFocus (p,path) = getStart p
+getStartFocus = getStart . fst
 
 getEndFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe exprTy
-getEndFocus (p,path) = getEnd p
+getEndFocus = getEnd . fst
 
 getBasicFocus :: ProofFocus' ctxTy relTy proofTy exprTy -> Maybe proofTy
-getBasicFocus (p,path) = getBasic p
+getBasicFocus = getBasic . fst

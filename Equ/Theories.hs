@@ -14,6 +14,7 @@ module Equ.Theories
     , createTheorem
     , theoremAddProof
     , createHypothesis
+    , createHypothesis'
     , toForest
     , Grouped
     , TheoryName
@@ -25,6 +26,7 @@ module Equ.Theories
     , isBoolean
     , ruleExpr
     , makeExprFromRelation
+    , mkPreExprFromRel
     )
     where
 
@@ -41,7 +43,7 @@ import Equ.PreExpr
 import Equ.Types (tyVar)
 
 import Data.Text hiding (head,zip,concatMap,map,tail)
-import Data.Maybe(isJust,fromJust)
+import Data.Maybe(isJust,fromJust,fromMaybe)
 import Data.Tree
 import qualified Data.Map as M (singleton)
 import Control.Monad
@@ -141,9 +143,9 @@ getRelExp _ = Nothing
 
     
 ruleExpr :: Rule -> PreExpr
-ruleExpr rule =
-    let (Expr l,Expr r,re) = (lhs rule,rhs rule,rel rule) in
-        BinOp (relToOp re) l r
+ruleExpr rule = BinOp (relToOp re) l r
+    where (Expr l,Expr r,re) = (lhs rule,rhs rule,rel rule)
+
         
 
 -- DUDA: VER SI ESTAS FUNCIONES QUE SIGUEN DEBEN IR EN ESTE MODULO O EN OTRO.
@@ -160,8 +162,8 @@ createTheorem th_name proof = Theorem {
     , thRel = fromJust $ getRel proof
     , thProof = proof
     , thRules = createRulesAssoc expr
-    , thCondition = GenConditions []
-    }
+    , thCondition = noCondition
+   }
     
     where exp1 = (toExpr $ fromJust $ getStart proof)
           exp2 = (toExpr $ fromJust $ getEnd proof)          
@@ -195,20 +197,15 @@ createRulesAssoc e = whenZ isJust rules (getRelExp e) ++ metaRules (Expr e)
                 f.(succ n) = e2
                 -}        
 caseExprRules :: PreExpr -> PreExpr -> Relation -> [Rule]
-caseExprRules p q rel = createCaseRules q
+caseExprRules p q r = createCaseRules q
           
-    where createCaseRules e = case e of
-                              Case (Var y) ps -> concatMap (ruleCase y) ps
-                              _ -> []
+    where createCaseRules (Case (Var v) ps) = concatMap (ruleCase v) ps
+          createCaseRules _ = []
           
           ruleCase :: Variable -> (PreExpr,PreExpr) -> [Rule]
-          ruleCase v (pattern,expr) = [mkrule (Expr (applySubst p $ M.singleton v pattern))
-                                             (Expr expr)
-                                             rel] ++
-                                      [mkrule (Expr expr)
-                                              (Expr (applySubst p $ M.singleton v pattern))
-                                              rel] ++ (createCaseRules expr)
-                                             
+          ruleCase v (pattern,expr) = createRuleComm (Expr e') (Expr expr) (createCaseRules expr)
+                   where e' = applySubst p $ M.singleton v pattern
+                         createRuleComm e1 e2 rs = mkrule e1 e2 r : mkrule e2 e1 r : rs
           
 -- | Dado un axioma reconstruye las reglas a partir de su expresión.
 createAxiom :: Text -> Expr -> Condition -> Axiom
@@ -227,7 +224,19 @@ createHypothesis :: Text -> Expr -> Condition -> Hypothesis
 createHypothesis name' ex@(Expr pe) cond = Hypothesis { 
                         hypName = name'
                       , hypExpr = ex
-                      , hypRel = fromJust $ getRelExp pe
+                      , hypRel = fromMaybe (error $ "Ahhh!  " ++ show pe) $ getRelExp pe
+                      , hypRule = createRulesAssoc pe
+                      , hypCondition = cond
+                    } 
+
+
+-- | Dada una expresion, construye una hipotesis, calculando todas las reglas.
+-- Esta variante de la anterior es menos frágil, porque sabemos la relación.
+createHypothesis' :: Text -> Expr -> Relation -> Condition -> Hypothesis
+createHypothesis' name' ex@(Expr pe) r cond = Hypothesis { 
+                        hypName = name'
+                      , hypExpr = ex
+                      , hypRel = r
                       , hypRule = createRulesAssoc pe
                       , hypCondition = cond
                     } 
@@ -238,10 +247,11 @@ whenZ p act a = if p a then act a else mzero
 uncurry2 :: (a -> b -> c -> d) -> (a,b,c) -> d
 uncurry2 f (a,b,c) = f a b c
                                      
-
 makeExprFromRelation :: Relation -> PreExpr -> PreExpr -> Expr
-makeExprFromRelation r e e' = Expr $ BinOp (relToOp r) e e'                             
+makeExprFromRelation r e e' = Expr $ mkPreExprFromRel r e e' 
 
+mkPreExprFromRel :: Relation -> PreExpr -> PreExpr -> PreExpr
+mkPreExprFromRel r e e' =  BinOp (relToOp r) e e'
 
 -- Axiomas generales para todas las teorias. Estos axiomas en realidad estan 
 -- definidos sobre esquemas de expresiones, independientes de cada tipo de dato.
@@ -254,7 +264,7 @@ ifAxiomTrue = ( "If con guarda True"
               ,  (Expr $ If (Con folTrue) varE1 varE2)
                 `equal`
                 (Expr varE1)
-              , GenConditions []
+              , noCondition
               )
               
 ifAxiomFalse :: (Text,Expr,Condition)
@@ -262,10 +272,11 @@ ifAxiomFalse = ( "If con guarda False"
               ,  (Expr $ If (Con folFalse) varE1 varE2)
                 `equal`
                  (Expr varE2)
-              , GenConditions []
+              , noCondition
               )
                 
 varE1 :: PreExpr
 varE1 = Var $ var "e1" (tyVar "A")
 varE2 :: PreExpr
-varE2 = Var $ var "e2" (tyVar "A") 
+varE2 = Var $ var "e2" (tyVar "A")
+

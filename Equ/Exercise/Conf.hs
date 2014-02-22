@@ -1,11 +1,9 @@
 module Equ.Exercise.Conf where
 
-import Equ.Theories (Grouped (..))
-import Equ.Proof.Proof(Axiom (..))
+import Equ.Theories (Grouped)
 import Equ.Proof hiding (Simple, Focus, Cases)
 
-import Data.Text hiding (empty, map)
-import qualified Data.Set as S (Set (..), empty)
+import qualified Data.Set as S (Set, empty)
 
 import Control.Applicative ((<$>), (<*>))
 import Data.Serialize (Serialize, get, getWord8, put, putWord8)

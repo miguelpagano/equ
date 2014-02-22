@@ -14,16 +14,18 @@ import qualified Data.Monoid as M
 import Data.Function (on)
 import Data.List(nub)
 
-data PreExpr' a = Var a
-                | Con !Constant
-                | PrExHole !Hole
-                | UnOp !Operator (PreExpr' a)
-                | BinOp !Operator (PreExpr' a) (PreExpr' a)
-                | App (PreExpr' a) (PreExpr' a)
-                | Quant !Quantifier a (PreExpr' a) (PreExpr' a)
-                | Paren (PreExpr' a)
-                | If (PreExpr' a) (PreExpr' a) (PreExpr' a)
-                | Case (PreExpr' a) [((PreExpr' a),(PreExpr' a))]
+-- | Nuestras expresiones son un funtor cuya variable representa las
+-- variables.
+data PreExpr' a = Var a                -- ^ Variables
+                | Con !Constant        -- ^ Constantes
+                | PrExHole !Hole       -- ^ Expresión incompleta con cierta información
+                | UnOp !Operator (PreExpr' a) -- ^ Operador unario con su argumento
+                | BinOp !Operator (PreExpr' a) (PreExpr' a) -- ^ Operador binario con sus argumentos.
+                | App (PreExpr' a) (PreExpr' a)  -- ^ Aplicación de dos expresiones
+                | Quant !Quantifier a (PreExpr' a) (PreExpr' a) -- ^ Expresiones cuantificadas
+                | Paren (PreExpr' a)          -- ^ Expresiones parentizadas explícitamente
+                | If (PreExpr' a) (PreExpr' a) (PreExpr' a) -- ^ Expresión condicional
+                | Case (PreExpr' a) [((PreExpr' a),(PreExpr' a))] -- ^ Análisis por casos
                   deriving Eq
 
 instance Serialize a => Serialize (PreExpr' a) where
@@ -52,8 +54,6 @@ instance Serialize a => Serialize (PreExpr' a) where
         9 -> If <$> get <*> get <*> get
         10 -> Case <$> get <*> get
         _ -> fail $ "SerializeErr (PreExpr' a) " ++ show tag_
-
-type PreExpr = PreExpr' Variable
 
 instance Functor PreExpr' where
     fmap f (Var a) = Var $ f a
@@ -93,6 +93,10 @@ instance Arbitrary PreExpr where
                 , If <$> arbitrary <*> arbitrary <*> arbitrary
                 , Case <$> arbitrary <*> arbitrary
                 ]
+
+-- | Las expresiones concretas de nuestros lenguajes.
+type PreExpr = PreExpr' Variable
+
                 
 -- | Pretty print para las preExpresiones.
 instance Show PreExpr where
@@ -114,18 +118,18 @@ showExpr' (UnOp op e) = show op ++ " " ++ showParentised e
             (Quant _ _ _ _) -> "(" ++ showExpr' e' ++ ")"
             _ -> showExpr' e'
                         
-showExpr' (App e1 e2) = "(" ++ showExpr' e1 ++ "@" ++ showExpr' e2 ++ ")"
-showExpr' (Quant q v e1 e2) = "〈" ++ show q ++ show v ++ ":" 
+showExpr' (App e1 e2) = showExpr' e1 ++ "." ++ showExpr' e2
+showExpr' (Quant q v e1 e2) = "〈" ++ show q ++ show v ++ ":" 
                               ++ showExpr' e1 ++ ":" 
-                              ++ showExpr' e2 ++ "〉"
-showExpr' (Paren e) = "[PAREN](" ++ showExpr' e ++ ")"
+                              ++ showExpr' e2 ++ "〉"
+showExpr' (Paren e) = "(" ++ showExpr' e ++ ")"
 showExpr' (Var x) = show x
 showExpr' (Con k) = show k
 showExpr' (PrExHole h) = show h
 showExpr' (If c e1 e2) = "if " ++ showExpr' c ++ " then " ++ showExpr' e1 ++ " else " ++ showExpr' e2
 showExpr' (Case e patterns) = "case " ++ showExpr' e ++ " of\n" ++ showPatterns patterns
     where showPatterns = unlines . map showPattern
-          showPattern (p,e') = "\t" ++ showExpr' p ++ " -> " ++ showExpr' e'
+          showPattern (p,e') = "\t" ++ showExpr' p ++ " → " ++ showExpr' e'
 
 {-- | Funcion que, dada una PreExpr, elimina las expresiones "Paren" que son necesarias
     para desambiguar expresiones. Ejemplo:
@@ -165,29 +169,34 @@ unParen e = e
 
 
 -- | Substitucion de variable por variable en preExpresiones.
--- PRE = { v' variable fresca para pe }
+-- La precondición es que @v'@ sea fresca para @e@.
 rename :: Eq a => a -> a -> PreExpr' a -> PreExpr' a
 rename v v' e = substVar v v' <$> e
     where substVar w w' w'' | w == w'' = w'
                             | w /= w'' = w''
+                            | otherwise = w''
 
 
           
--- Esta funcion toma una expresión que es un operador aplicado y retorna el operador.
--- Si se le pasa una expresión de otro tipo, es indefinida.
+-- | Esta funcion toma una expresión que es un operador aplicado y
+-- retorna justamente el operador; sino devuelve nada.
 getOperator :: PreExpr' a -> Maybe Operator
 getOperator (UnOp op _) = Just op
 getOperator (BinOp op _ _) = Just op
 getOperator _ = Nothing
 
+-- | Si la expresión es una constante, devuelve justamente esa constante;
+-- sino devuelve nada.
 getConstant :: PreExpr' a -> Maybe Constant
 getConstant (Con c) = Just c
 getConstant _ = Nothing
 
+-- | Vista de una expresión como variable o como lo que es.
 isVar :: a -> PreExpr' b -> Either a b
 isVar _ (Var x) = Right x
 isVar a _ = Left a
 
+-- | Operador de recursión sobre @PreExpr'@.
 foldE :: (a -> b) -> (Constant -> b) -> (Operator -> b -> b) -> 
         (Operator -> b -> b -> b) -> (Quantifier -> a -> b -> b -> b) -> (b -> b -> b) -> b -> 
         (b -> b -> b -> b) -> (b -> [(b,b)] -> b) ->
@@ -205,22 +214,44 @@ foldE v c f b qf a h i cs (Case e patterns) = cs (foldE v c f b qf a h i cs e) (
     where rec = map (foldE v c f b qf a h i cs *** foldE v c f b qf a h i cs)
 
 
+-- | Obtiene todas las constantes de una expresión.
 getConstants :: PreExpr' a -> [Constant]
-getConstants = nub . foldE (const []) return (\_ r -> r) (\_ r r' -> r++r') (\_ _ r r' -> r ++ r')
-                     (++) [] (\r r' r'' -> concat [r,r',r''])
-                     (\r r' -> concat (r:map (uncurry (++)) r'))
+getConstants = nub . foldE (const []) 
+                           return 
+                           (\_ r -> r) 
+                           (\_ r r' -> r++r') 
+                           (\_ _ r r' -> r ++ r')
+                           (++) 
+                           [] 
+                           (\r r' r'' -> concat [r,r',r''])
+                           (\r r' -> concat (r:map (uncurry (++)) r'))
 
-
+-- | Obtiene todos los operadores de una expresión.
 getOperators :: PreExpr' a -> [Operator]
-getOperators = nub . foldE (const []) (const []) (:) (\ o r r' -> o:r++r') (\_ _ r r' -> r ++ r') 
-                     (++) [] (\r r' r'' -> concat [r,r',r''])
-                     (\r r' -> concat (r:map (uncurry (++)) r'))
+getOperators = nub . foldE (const []) 
+                           (const []) 
+                           (:) 
+                           (\ o r r' -> o:r++r') 
+                           (\_ _ r r' -> r ++ r') 
+                           (++) 
+                           [] 
+                           (\r r' r'' -> concat [r,r',r''])
+                           (\r r' -> concat (r:map (uncurry (++)) r'))
 
+-- | Obtiene todos los cuantificadores de una expresión.
 getQuants :: PreExpr' a -> [Quantifier]
-getQuants = nub . foldE (const []) (const []) (\_ r -> r) (\_ r r' -> r++r') (\q _ r r' -> q:r ++ r')
-                     (++) [] (\r r' r'' -> concat [r,r',r''])
-                     (\r r' -> concat (r:map (uncurry (++)) r'))
+getQuants = nub . foldE (const []) 
+                        (const []) 
+                        (\_ r -> r) 
+                        (\_ r r' -> r++r') 
+                        (\q _ r r' -> q:r ++ r')
+                        (++) 
+                        [] 
+                        (\r r' r'' -> concat [r,r',r''])
+                        (\r r' -> concat (r:map (uncurry (++)) r'))
 
+-- | Devuelve la lista de variables que son usadas como nombres de función
+-- en una expresión.
 getCalledVars :: PreExpr' a -> [a]
 getCalledVars (App (Var v) e) = v:getCalledVars e
 getCalledVars (App e e') = getCalledVars e ++ getCalledVars e'
@@ -232,10 +263,18 @@ getCalledVars (Case e ps) = getCalledVars e ++ concatMap (uncurry ((++) `on` get
 getCalledVars (Paren e) = getCalledVars e
 getCalledVars _ = []
 
+-- | Dadas asignaciones de tipo para variables, constantes y operadores,
+-- actualiza el tipo de todas las subexpresiones de una expresión.
 setType :: (Variable -> Type) -> (Constant -> Type) -> (Operator -> Type) -> PreExpr -> PreExpr
-setType fv fc fo = foldE (Var . updVar) (Con . updCon)
-                   (UnOp . updOp) (BinOp . updOp) 
-                   Quant App (PrExHole $ hole "") If Case 
+setType fv fc fo = foldE (Var . updVar) 
+                         (Con . updCon)
+                         (UnOp . updOp) 
+                         (BinOp . updOp) 
+                         Quant 
+                         App 
+                         (PrExHole $ hole "") 
+                         If 
+                         Case 
     where updOp op = op {opTy = fo op}
           updVar v = v { varTy = fv v}
           updCon c = c { conTy = fc c}

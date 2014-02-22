@@ -52,8 +52,7 @@ import qualified Text.Parsec.Expr as PE
 
 import Data.Text (pack,unpack)
 import Data.List(group,sort)
-import Data.Map (Map,insert,member,(!))
-import qualified Data.Map as M
+import Data.Map (Map)
 import Control.Monad.Identity
 import Control.Applicative ((<$>),(<$),(<*>))
 
@@ -64,13 +63,10 @@ import Equ.Types
 import Equ.Theories (operatorsList,constantsList,quantifiersList)
 import Equ.Theories.List(listApp, listEmpty)
 import Equ.Theories.Arith(intToCon)
-import Equ.Parser.Types(listAtomTy, parseTyFromString)
+import Equ.Parser.Types(listAtomTy)
 
 
 import Equ.IndTypes (constrList)
-
-data PError = UnOpNotApplied Operator 
-            | BinOpNotApplied Operator
 
 type VarTy = (Int,Map EitherName Type)
 
@@ -91,7 +87,7 @@ class PExprStateClass a where
     
 instance PExprStateClass PExprState where
     getExprState = id
-    setExprState s exprState = exprState
+    setExprState _ exprState = exprState
 
 -- | Configuración del parser.
 data LangDef = LangDef {
@@ -140,6 +136,7 @@ lexer' = makeTokenParser $
                      --, opLetter = newline
                      }
 
+lexer :: GenTokenParser String u Identity
 lexer = lexer' { whiteSpace = oneOf " \t" >> return ()}
 
 -- Parser principal de preExpresiones.
@@ -213,6 +210,7 @@ subpattern = parens lexer parsePattern
 parseConst :: PExprStateClass s => ParserE s Constant
 parseConst = foldr ((<|>) . pConst) (fail "Constante") constantsList
 
+pConst :: Constant -> ParserE u Constant
 pConst c = c <$ (reserved lexer . unpack . conRepr) c
 
    
@@ -313,18 +311,6 @@ parseFromString s = case parseFromString' UseParen s of
                          Left er -> Left er
                          Right pe -> Right $ unParen pe
 
-parseFromStringUnusedP :: String -> Either ParseError PreExpr
-parseFromStringUnusedP s = case parseFromString' UnusedParen s of
-                         Left er -> Left er
-                         Right pe -> Right $ unParen pe
-
-parseFromFilePreExpr :: FilePath -> IO ()
-parseFromFilePreExpr fp = readFile fp >>= \s -> 
-                        case parseFromString s of
-                            Right ps -> print "-------" >> 
-                                        print ps
-                            Left err -> print err
-
 initPExprState :: ParenFlag -> PExprState
 initPExprState = PExprState
 -- | Gramatica de parseo.
@@ -388,8 +374,10 @@ showError = error . show
 showPreExpr :: a -> a
 showPreExpr = id
 
--- buildExprParser :: Stream s m t => 
---                    [[POperator s u m b]] -> ParsecT s u m b -> ParsecT s u m b
+buildExprParser :: Stream s m t => 
+                    [[PE.Operator s u m b]] -> ParsecT s u m b -> ParsecT s u m b
+-- buildExprParser :: Stream t t2 t3 =>
+--                          [[PE.Operator t t1 t2 b]] -> ParsecT t t1 t2 b -> ParsecT t t1 t2 b
 buildExprParser operators simpleExpr = foldl makeParser simpleExpr operators
     where
         initOps = ([],[],[],[],[])
@@ -403,13 +391,11 @@ buildExprParser operators simpleExpr = foldl makeParser simpleExpr operators
             prefixOp   = choice prefix  <?> ""
             postfixOp  = choice postfix <?> ""
 
-            ambiguous assoc op = try $
-                do{ op
-                  ; fail ("ambiguous use of a " 
-                         ++ assoc 
-                         ++ " associative operator"
-                         )
-                  }
+            ambiguous assoc op = try $ do 
+                                   _ <- op 
+                                   fail ("ambiguous use of a " 
+                                        ++ assoc 
+                                        ++ " associative operator")
 
             ambiguousRight    = ambiguous "right" rassocOp
             ambiguousLeft     = ambiguous "left" lassocOp

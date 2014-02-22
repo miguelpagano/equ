@@ -25,6 +25,7 @@ module Equ.Proof.Proof (
                  , encode, decode
                  , setCtx, beginCtx, freshName, addCtx, addCtxJust
                  , addHypothesis
+                 , addHypotheses
                  , addHypothesisProof
                  , getHypothesis
                  , exprIsHypothesis 
@@ -38,18 +39,15 @@ module Equ.Proof.Proof (
 
 import Equ.Expr
 import Equ.PreExpr
-import Equ.Rule
+import Equ.Rule hiding (rel)
 import Equ.TypeChecker (checkPreExpr)
 import Equ.Types
 import Equ.Proof.Condition
-import Equ.Matching(VariableRename)
 
-import qualified Equ.Theories.Common as C (equal,folFalse)
+import qualified Equ.Theories.Common as C (equal)
  
 import Data.Text (Text, unpack,pack)
 import qualified Data.Text as T
--- import Data.List (intersperse,map)
-import qualified Data.Set as Set
 
 import qualified Data.Map as M ( Map, findMax, null, fromList
                                , insert, lookup, empty, elems, singleton
@@ -71,7 +69,7 @@ beginCtx = M.empty
 
 -- | Retorna un nombre fresco sobre un contexto.
 freshName :: Ctx -> Name
-freshName c = if M.null c then "a" else T.concat $ maxName:["a"]
+freshName c = if M.null c then "_0" else T.concat $ maxName:["_0"]
     where maxName :: Name
           maxName = (fst . M.findMax) c 
 
@@ -141,9 +139,11 @@ data Theorem = Theorem {
     }
     deriving Eq
 
+-- | Cambia la expresión de un teorema.
 updThmExp :: PreExpr -> Theorem -> Theorem
 updThmExp e t = t { thExpr = Expr e }
 
+-- | Cambia la prueba en un teorema.
 updThmPrf :: Proof -> Theorem -> Theorem
 updThmPrf p t = t {thProof = p }
 
@@ -542,7 +542,7 @@ type Proof = Proof' Ctx Relation Basic Focus
 
 
 addCtxJust :: Ctx -> Proof -> Proof
-addCtxJust c pr = fromJust (addCtx c pr)
+addCtxJust c pr = fromMaybe (error "Bleee!") (addCtx c pr)
 
 -- Agregamos contexto a una prueba
 addCtx :: Ctx -> Proof ->  Maybe Proof
@@ -558,7 +558,7 @@ addCtx c proof = getCtx proof >>= \ctx ->
                                                                              (p' >>= addCtx ctx))
           addCtx' ctx p = setCtx ctx p
     
-          addCtxInSubProofs ctx = map (second (fromJust . addCtx ctx))
+          addCtxInSubProofs ctx = map (second (addCtxJust ctx))
 
 -- Igualdad sintáctica entre pruebas. Podríamos definir también una igualdad en donde
 -- si tenemos pruebas iguales salvo renombres de variables cuantificadas, tambien de True.
@@ -584,20 +584,9 @@ instance Eq Proof where
         ctx==ctx' && rel==rel' && f1==f1' && f2==f2' &&
         p==p'
     _==_ = False
-    
-    
 
 
-{-    
-instance Eq Proof where
-    Reflex == Reflex = True
-    Reflex == _ = False
-    _ == Reflex = False
-    p1 == p2 = (fromJust $ getStart p1) == (fromJust $ getStart p2) &&
-               (fromJust $ getEnd p1) == (fromJust $ getEnd p2)-}
-
-               
-
+-- | Pretty-printer para pruebas.
 printPf :: Proof -> [String]
 printPf Reflex = [""]
 printPf (Hole _ r f f') = [ showExpr' (toExpr f)
@@ -632,7 +621,6 @@ printPf (Cases c r f f' f'' lfp mprf) = [ "Cases "
 printProof :: Proof -> String
 printProof = (++"\n") . unlines . printPf
                                     
--- TODO: Completar esta funcion cuando se termine el parser de pruebas.
 instance Show Proof where
     show = printProof
 
@@ -648,6 +636,7 @@ instance Arbitrary Proof where
                       , Simple <$> arbitrary <*> arbitrary <*> 
                                    arbitrary <*> arbitrary <*> arbitrary
                       ]
+            proof n | n < 0 = return Reflex  
             proof n | n > 0 = 
                 oneof [ return Reflex
                       , Hole <$> arbitrary <*> arbitrary <*> 
@@ -688,10 +677,12 @@ instance Monoid (Proof' ctxTy relTy proofTy exprTy) where
                           (fromJust $ getStart p1) (fromJust $ getStart p2) 
                           (fromJust $ getEnd p2) p1 p2
 
+-- | La prueba está incompleta en el top-level?
 isHole :: Proof' ctxTy relTy proofTy exprTy -> Bool
 isHole (Hole _ _ _ _) = True
 isHole _ = False
 
+-- | Obtiene el contexto (de hipótesis) de una prueba.
 getCtx :: Proof' ctxTy relTy proofTy exprTy -> Maybe ctxTy
 getCtx Reflex = Nothing
 getCtx (Hole c _ _ _) = Just c
@@ -704,7 +695,8 @@ getCtx (Focus c _ _ _ _) = Just c
 
 -- Esta función me hace pensar si no hara falta lo mismo para los demas
 -- componentes de las pruebas.
--- | Cambiamos el contexto de una prueba.
+-- | Cambiamos el contexto de una prueba, si la prueba tiene; si no
+-- fallamos buenamente.
 setCtx :: ctxTy -> Proof' ctxTy relTy proofTy exprTy ->  Maybe (Proof' ctxTy relTy proofTy exprTy)
 setCtx _ Reflex = Nothing
 setCtx c (Hole _ r f f') = Just (Hole c r f f')
@@ -715,18 +707,21 @@ setCtx c (Ind _ r f f' lf lfp) = Just (Ind c r f f' lf (setCtxInList c lfp))
 setCtx c (Deduc _ f f' p) = Just (Deduc c f f' (setCtx' c p)) --VER BIEN ESTE CASO
 setCtx c (Focus _ r f f' p) = Just (Focus c r f f' (setCtx' c p)) --ESTE TAMBIEN
 
+-- | Cambiamos el contexto de una prueba.
 setCtx' :: ctxTy -> Proof' ctxTy relTy proofTy exprTy ->  Proof' ctxTy relTy proofTy exprTy
 setCtx' c p = fromMaybe p (setCtx c p)
-                       
+
+-- | 
 setCtxInList :: ctxTy -> [(exprTy,Proof' ctxTy relTy proofTy exprTy)] ->  
                          [(exprTy,Proof' ctxTy relTy proofTy exprTy)]
-setCtxInList c = map (second (setCtx' c)) 
+setCtxInList c = map (second $ setCtx' c)
 
 setMCtx' :: ctxTy -> Maybe (Proof' ctxTy relTy proofTy exprTy) ->  
                      Maybe (Proof' ctxTy relTy proofTy exprTy)
-setMCtx' c = fmap (setCtx' c)
+setMCtx' = fmap . setCtx'
 
-                     
+-- | En una prueba ecuacional, obtiene el lado izquierdo de la prueba:
+-- @getStart e₁ ≡ … ≡ eₙ = e₁@ 
 getStart :: Proof' ctxTy relTy proofTy exprTy -> Maybe exprTy
 getStart Reflex = Nothing
 getStart (Hole _ _ f _) = Just f
@@ -737,6 +732,8 @@ getStart (Ind _ _ f _ _ _) = Just f
 getStart (Deduc _ f _ _) = Just f
 getStart (Focus _ _ f _ _) = Just f
 
+-- | Obtiene la expresión final de una prueba ecuacional:
+-- @getEnd e₁ ≡ … ≡ eₙ = eₙ@ 
 getEnd :: Proof' ctxTy relTy proofTy exprTy -> Maybe exprTy
 getEnd Reflex = Nothing
 getEnd (Hole _ _ _ f) = Just f
@@ -760,10 +757,12 @@ getRel (Ind _ r _ _ _ _) = Just r
 getRel (Deduc _ _ _ _) = Nothing
 getRel (Focus _ r _ _ _) = Just r
 
+-- | Si la prueba es simple, devuelve la justificación del paso.
 getBasic:: Proof' ctxTy relTy proofTy exprTy -> Maybe proofTy
 getBasic (Simple _ _ _ _ b) = Just b
 getBasic _ = Nothing
 
+-- | Actualiza la expresión inicial de una prueba ecuacional.
 updateStart :: Proof' ctxTy relTy proofTy exprTy -> exprTy -> Proof' ctxTy relTy proofTy exprTy
 updateStart Reflex _ = Reflex
 updateStart (Hole c r _ f2) f = Hole c r f f2
@@ -774,6 +773,7 @@ updateStart (Ind c r _ f2 l1 l2) f = Ind c r f f2 l1 l2
 updateStart (Deduc c _ f2 p) f = Deduc c f f2 p
 updateStart (Focus c r _ f2 p) f = Focus c r f f2 p
 
+-- | Actualiza la expresión final de una prueba ecuacional.
 updateEnd :: Proof' ctxTy relTy proofTy exprTy -> exprTy -> Proof' ctxTy relTy proofTy exprTy
 updateEnd Reflex _ = Reflex
 updateEnd (Hole c r f1 _) f = Hole c r f1 f
@@ -784,10 +784,12 @@ updateEnd (Ind c r f1 _ l1 l2) f = Ind c r f1 f l1 l2
 updateEnd (Deduc c f1 _ p) f = Deduc c f1 f p
 updateEnd (Focus c r f1 _ p) f = Focus c r f1 f p
 
+-- | Actualiza la expresión intermedia de una prueba por transitividad.
 updateMiddle :: Proof' ctxTy relTy proofTy exprTy -> exprTy -> Proof' ctxTy relTy proofTy exprTy
 updateMiddle (Trans c r f1 _ f2 p p') f = Trans c r f1 f f2 (updateEnd p f) (updateStart p' f)
-updateMiddle _ _ = undefined
+updateMiddle _ _ = error "updateMiddle: caso no contemplado!"
 
+-- | Actualiza la relación correspondiente a una prueba.
 updateRel :: Proof' ctxTy relTy proofTy exprTy -> relTy -> Proof' ctxTy relTy proofTy exprTy
 updateRel Reflex _ = Reflex
 updateRel (Hole c _ f1 f2) r = Hole c r f1 f2
@@ -798,6 +800,7 @@ updateRel (Ind c _ f1 f2 l1 l2) r = Ind c r f1 f2 l1 l2
 updateRel (Deduc c f1 f2 p) _ = Deduc c f1 f2 p
 updateRel (Focus c _ f1 f2 p) r = Focus c r f1 f2 p
 
+-- | Actualiza la justificación en una prueba básica.
 updateBasic :: Proof' ctxTy relTy proofTy exprTy -> proofTy -> Proof' ctxTy relTy proofTy exprTy
 updateBasic (Simple c r f1 f2 _) b = Simple c r f1 f2 b
 updateBasic p _ = p
@@ -887,10 +890,14 @@ addHypothesisProof e r es pf = getCtx pf >>=
                                return . addHypothesis e r es >>= \(ctx',_) ->
                                setCtx ctx' pf
 
-
+-- | Agrega una hipótesis sin verificar tipos.
 addHypothesis' :: Hypothesis -> Ctx -> Ctx
 addHypothesis' hyp ctx = M.insert (hypName hyp) hyp ctx
-                          
+
+addHypotheses :: Ctx -> [Hypothesis] -> Ctx
+addHypotheses ctx = foldr addHypothesis' ctx
+
+-- | Crea una variable de tipo nat.
 varNat :: Name -> Expr                       
 varNat s = Expr $ Var $ var s (TyAtom ATyNat)
 
@@ -903,32 +910,3 @@ replaceHypothesis v p' hyp =
                   hyp { hypExpr = Expr $ applySubst peHyp (M.singleton v (toExpr p')) }
 
 
-conditionFunction :: GCondition -> (ExprSubst,VariableRename) -> PreExpr -> Bool
-conditionFunction (VarNotInExpr v p) (subst,_) _ = not $ Set.member v (freeVars $ applySubst p subst)
-    
-conditionFunction (InductiveHypothesis pattern) (subst,_) _ =
-    -- En la hipótesis inductiva, solo podemos validar la reecritura si
-    -- la expresión por la q se quiere reemplazar la variable inductiva
-    -- es la misma. Ejemplo: si la HI es "x es par", solo podemos aplicarla
-    -- a la expresión "x es par" y no a "(x+1) es par". Por eso pedimos que 
-    -- la substitución de reescritura asigne x -> x.
-    case pattern of
-         Var v -> applySubst (Var v) subst == Var v
-         _ -> False
-conditionFunction (NotEmptyRange ptn) (subst,_) _ = applySubst ptn subst /= Con C.folFalse 
-                          
-{- q es igual a p donde reemplazamos x por n.
-   Esta condicion se utiliza en cuantificadores. x es la variable cuantificada.
-   Al chequear el reemplazo en expresiones, vemos el renombre que hizo el matching
-   a la variable cuantificada. -}
-conditionFunction (ReplacedExpr q p x n) (subst,rnm) _ =
-            maybe False (\v -> 
-            applySubst q subst == applySubst (applySubst p subst) 
-                                        (M.singleton v (applySubst (n' rnm) subst))
-            ) $ M.lookup x rnm
-        where n' = applySubst n . M.map Var
-            
-getGenConditions :: Condition -> [GCondition]
-getGenConditions (GenConditions lc) = lc
-getGenConditions _ = error "getGenConditions: Condición especial!"
-   

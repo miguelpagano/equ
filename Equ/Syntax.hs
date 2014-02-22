@@ -28,7 +28,7 @@ data Variable = Variable {
     }
 
 instance Eq Variable where 
-    v == v' = tRepr v == tRepr v'
+    v == v' = varName v == varName v'
 
 data Constant = Constant {
       conRepr :: Text
@@ -59,7 +59,7 @@ instance Ord Operator where
     compare a b = opPrec a `compare` opPrec b
     
 instance Ord Variable where
-    compare v v' = tRepr v `compare` tRepr v'
+    compare v v' = varName v `compare` varName v'
     
 data Func = Func {
       funcName :: FuncName
@@ -67,10 +67,10 @@ data Func = Func {
     }
 
 instance Eq Func where 
-    f == f' = tRepr f == tRepr f'
+    f == f' = funcName f == funcName f'
     
 instance Ord Func where
-    f <= f' = tRepr f <= tRepr f'
+    compare f f' = funcName f `compare` funcName f'
 
 data Assoc = None | ALeft | ARight
     deriving Eq

@@ -11,6 +11,7 @@ module Equ.IndTypes (
 import Equ.IndType
 import Equ.Types
 import Equ.PreExpr.Symbols(tyListVar)
+import Equ.Syntax
 import qualified Equ.Theories.Arith as EquArith
 import qualified Equ.Theories.List as EquList
 import qualified Equ.Theories.FOL as EquFOL
@@ -33,9 +34,10 @@ bool =  fromJust $ createIndType "Bool" (TyAtom ATyBool) [EquFOL.folTrue, EquFOL
 getIndType :: Type -> Maybe IndType
 getIndType (TyAtom ATyNat) = Just natural
 getIndType (TyAtom ATyBool) = Just bool
-getIndType (TyList t) = Just list
+getIndType (TyList _) = Just list
 getIndType _ = Nothing
 
 -- | Constructores de todos los tipos, útil para el parser de patrones.
+constrList :: [Operator]
 constrList =  indConstructors natural ++ indConstructors list
                    
