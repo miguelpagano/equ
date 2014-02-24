@@ -18,12 +18,9 @@ import Equ.PreExpr ( PreExpr'(..)
                    , toFocus
                    , Focus
                    , toExpr
-                   , freeVars)
-import Equ.TypeChecker (typeCheckPreExpr)
+                   )
+
 import Equ.Proof (validateProof)
-import Equ.Proof.Error ( ProofError(..)
-                       , ProofError'(..)
-                       , PErrorInduction(VarIndNotInExpr))
 import Equ.Proof.Proof ( Proof'(..)
                        , Ctx
                        , Basic (..) 
@@ -33,16 +30,14 @@ import Equ.Proof.Proof ( Proof'(..)
                        , getEnd 
                        , getStart
                        , beginCtx
-                       , addHypotheses
+                       , createVacuousHyp
                        , addHypothesis'
                        , getCtx
                        , setCtx
                        , Proof
                        , instanciateInCtx)
-import Equ.Proof.Condition
-import Equ.Proof.Induction (createIndHypothesis)
+import Equ.Proof.Condition (noCondition)
 import Equ.Theories ( axiomGroup
-                    , relToOp
                     , createHypothesis)
 import Equ.Rule hiding (rel)
 
@@ -51,9 +46,7 @@ import Text.Parsec.Token
 import Text.Parsec.Language
 
 import Data.Text(Text,pack,unpack,intercalate)
-import qualified Data.Set as Set (toList)
 import Data.Maybe
-import Data.List (find)
 import qualified Data.Map as M (Map,empty,lookup) 
 
 import Control.Monad.Identity
@@ -263,7 +256,7 @@ parseHypothesis = between keywordSBOpen keywordSBClose parseHyps
                 n <- parseDeclHypName
                 keywordDots
                 f <- parseFocus
-                return $ createHypothesis n (Expr $ toExpr f) (GenConditions [])
+                return $ createHypothesis n (Expr $ toExpr f) noCondition
 
 -- | Parser de pruebas.
 proof :: (PExprStateClass s, PProofStateClass s) => Maybe Ctx -> 
@@ -312,45 +305,28 @@ inducProof ctx = do
             when (null rels) (fail "No relation")
             let relOp = head rels
             fef <- parseFocus
-            
-            let eitherF = typeVarInduc (makeExpr relOp fei fef) fInduc
-            typedFinduc <- either (fail . show) return eitherF
-            
+                        
             keywordWhere
-            cs <- parseInducCases relOp fei fef (toExpr typedFinduc)
+            cs <- parseInducCases (toExpr fInduc)
             parseProofEnd
-            iproof <- return $ Ind ctx relOp fei fef typedFinduc cs
+            iproof <- return $ Ind ctx relOp fei fef fInduc cs 
             return iproof
     where
-        typeVarInduc :: PreExpr -> Focus -> Either ProofError Focus
-        typeVarInduc e (Var fInduc,_) = do
-            typedFei <- either (Left . (flip ProofError id)
-                                     . ClashTypingProofExpr . fst)
-                               return 
-                               (typeCheckPreExpr e)
-            maybe (Left $ ProofError (InductionError VarIndNotInExpr) id) 
-                  (return . toFocus . Var)
-                  (find (==fInduc) (Set.toList (freeVars typedFei)))
-        typeVarInduc _ _ = Left $ ProofError (InductionError VarIndNotInExpr) id
-        makeExpr :: Relation -> Focus -> Focus -> PreExpr
-        makeExpr r e e' = BinOp (relToOp r) (toExpr e) (toExpr e')
         parseInducCases:: (PExprStateClass s, PProofStateClass s) => 
-                          Relation -> Focus -> Focus -> 
-                          PreExpr -> ParserP s [(Focus,Proof)]
-        parseInducCases r fei fef (Var indv) = do
+                           PreExpr -> ParserP s [(Focus,Proof)]
+        parseInducCases (Var indv) = do
                     keywordBasic
                     c <- parseCases ctx indv
                     cs <- manyTill (parseCases ctx indv) (many newline >> keywordInduc)
                     patt <- parseFocus
                     keywordWith
                     nameHyp <- parseOneName
-                    let hypInds = createIndHypothesis r fei fef patt indv nameHyp
-                    when (null hypInds) (fail "No se puede crear la hipotesis inductiva")
+                    let hypInds = createVacuousHyp nameHyp
                     _ <- many whites
                     keywordRArrow
-                    p <- proof (Just $ addHypotheses ctx hypInds) False
+                    p <- proof (Just $ addHypothesis' hypInds ctx) False
                     return ((c:cs) ++ [(patt,p)])
-        parseInducCases _ _ _ _ = fail "No es una variable!"
+        parseInducCases _ = fail "No es una variable!"
 
 -- | Parseo de una prueba por casos.
 -- TODO: Es igual a la de arriba, pero esto tal vez vaya a cambiar, así que 
@@ -389,7 +365,7 @@ casesProof ctx = do
         addHypothesisCase (f,p) =
             let hyp = createHypothesis "Caso" 
                                         (Expr $ toExpr f) 
-                                        (GenConditions []) 
+                                        noCondition
             in getCtx p >>= \ctx' ->
                setCtx (addHypothesis' hyp ctx') p
                     

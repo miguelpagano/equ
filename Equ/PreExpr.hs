@@ -5,6 +5,7 @@
 module Equ.PreExpr ( decode
                    , preExprHole
                    , isPreExprHole
+                   , isPEHole
                    , placeHolderVar
                    , isPlaceHolderVar
                    , emptyExpr
@@ -46,10 +47,13 @@ import Equ.PreExpr.Show
 import Data.Serialize(decode)
 import Control.Arrow ((***))
 
+isPEHole :: PreExpr -> Bool
+isPEHole (PrExHole _) = True
+isPEHole _ = False
+
 -- | Dado un focus de una preExpresion, nos dice si esta es un hueco.
 isPreExprHole :: Focus -> Bool
-isPreExprHole (PrExHole _, _) = True
-isPreExprHole _ = False
+isPreExprHole = isPEHole . fst
 
 isPreExprParent :: Focus -> Bool
 isPreExprParent (Paren _,_) = True

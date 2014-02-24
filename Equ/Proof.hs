@@ -223,21 +223,22 @@ validateProof' proof@(Deduc _ p q prf) mvFocus =
           Expr true' = true
                     
           
--- Falta ver que las variables de un pattern sean frescas respecto a las expresiones
--- de la prueba, donde reemplazamos la variable inductiva por una constante.
+-- TODO: ver que las variables de un pattern sean frescas respecto a
+-- las expresiones de la prueba, donde reemplazamos la variable
+-- inductiva por una constante.
 validateProof' proof@(Ind _ rel f1 f2 e ps) _ =
     either (const $  Left errProof) (return . PE.toFocus) 
         (typeCheckPreExpr (PE.toExpr f1)) >>= \typedF1 ->
-    -- Primero verificamos que e sea variable:
-    PE.isVar (errProofPlace (InductionError IndInNotVar)) (PE.toExpr e) >>= \x ->
+    -- Primero verificamos que e sea una variable:
+    PE.isVar errIndVar (PE.toExpr e) >>= \x ->
     -- Luego vemos que la variable esté en la expresión f1
-    whenPM' (Set.member x (PE.freeVars (PE.toExpr typedF1)))
-            (errProofPlace (InductionError VarIndNotInExpr)) >>
+    whenPM' (Set.member x (PE.freeVars (PE.toExpr typedF1))) errIndVar >>
     -- Chequeamos los casos de inducción:
     checkPatterns x proof ps >>
     return proof
     
-    where checkPatterns :: Variable -> Proof -> [(PE.Focus,Proof)] -> PM ()
+    where errIndVar = errProofPlace $ InductionError VarIndNotInExpr
+          checkPatterns :: Variable -> Proof -> [(PE.Focus,Proof)] -> PM ()
           checkPatterns x pr ps' = getIndType' x >>= \it ->
                                   -- chequeamos las variables de cada pattern
                                   mapM_ (checkVarsPattern x pr) (map fst basePat) >>
@@ -272,16 +273,13 @@ validateProof' proof@(Ind _ rel f1 f2 e ps) _ =
           checkCaseVar v (PE.Var v') = whenPM' (v'==v) errCase
           checkCaseVar _ _ = Left errCase
           
-          errCase = ProofError (InductionError VarExprCases) id
+          errCase = errProofPlace $ InductionError VarExprCases
 
-          getIndType' :: Variable -> PM IndType
-          getIndType' = maybe (Left errIndType) return . getIndType . varTy
-              where errIndType = ProofError (InductionError TypeNotInductive) id
 
 
           -- Esta funcion chequea las pruebas de cada tipo de patrón base
           -- (no aplica hipótesis inductiva).
-          checkSubProof x pr cs = mapM_ go cs 
+          checkSubProof x pr = mapM_ go
               where go (expr,p) = 
                             -- Chequeamos que la prueba p demuestra lo mismo que pr, pero
                             -- aplicando la substitucion correspondiente
@@ -294,65 +292,20 @@ validateProof' proof@(Ind _ rel f1 f2 e ps) _ =
           checkSubProofInd x pr cs = Map.elems <$> getCtx proof >>= \hypsProof ->
                                      mapM_ (go hypsProof) cs
               where go hprf (expr,p) = 
-                        let hyps = createIndHypothesis rel f1 f2 (PE.toFocus expr) x "HI" in
+                        let hyps = createIndHypothesis rel f1 f2 (PE.toFocus expr) x "hypind" in
                         -- Chequeamos que cada hipótesis del contexto de la subprueba
                         -- esté en el contexto de la prueba inductiva, o sea hipótesis
                         -- inductiva.
-                        Map.elems <$> getCtx p >>= \hypsSubProof -> 
+                        getCtx p >>= \ctx' ->
+                        return (setCtx' (replaceVacuousHyp hyps ctx') p) >>= \p' ->
+                        Map.elems <$> getCtx p' >>= \hypsSubProof -> 
                         allElems (hprf ++ hyps) hypsSubProof errSubProof >>
-                        allElems hypsSubProof hyps errSubProof >>
                         -- Ahora vemos que la subprueba prueba lo mismo que la prueba inductiva,
                         -- pero reemplazando la variable por el pattern correspondiente.
-                        sameProofWithSubst p pr (Map.singleton x expr) >>
-                        validateProof' p id
-                    errSubProof = ProofError (InductionError SubProofHypothesis) id
+                        sameProofWithSubst p' pr (Map.singleton x expr) >>
+                        validateProof' p' id
+                    errSubProof = errProofPlace $ InductionError SubProofHypothesis
 
-
-          -- Controlamos que todos los constructores (0-arios, unarios y binarios) 
-          -- usados en una prueba correspondan al tipo inductivo.
-          checkConstructor :: (Ord a,Show a) => PErrorInduction -> 
-                             (PE.PreExpr -> Maybe a) -> (IndType -> [a]) -> 
-                             IndType -> [(PE.PreExpr,Proof)] -> PM ()
-          checkConstructor err get els it ps' = 
-                                    validateEls >>= \elsInProof ->
-                                    whenPM' (isPermutation elsInProof (els it)) 
-                                               (errProofPlace (InductionError err))
-              where validateEls = let l = map (get . fst) ps' in
-                                      if Nothing `elem` l
-                                      then Left (errProofPlace (InductionError err))
-                                      else return $ catMaybes l
-          
-          checkAllConstants :: IndType -> [(PE.PreExpr,Proof)] -> PM ()
-          checkAllConstants = checkConstructor ConstantPatternError PE.getConstant constants
-                    
-          checkAllBaseConst = checkConstructor OperatorPatternError PE.getOperator baseConstructors
-          
-          checkAllIndConst = checkConstructor OperatorPatternError PE.getOperator indConstructors
-          
-          -- Chequeamos que un pattern no contiene variables que estén en las
-          -- expresiones originales (salvo que sea la misma variable inductiva).
-          checkVarsPattern :: Variable -> Proof ->  PE.PreExpr -> PM ()
-          checkVarsPattern v p pattern = 
-              getStart p >>= \fs -> getEnd p >>= \fe ->
-              return (Set.map varName $ PE.freeVars $ PE.toExpr fs) >>= 
-              \varNames1 ->
-              return (Set.map varName $ PE.freeVars $ PE.toExpr fe) >>=
-              \varNames2 -> 
-              return (Set.delete (varName v) $ Set.union varNames1 varNames2) >>= \varNames ->
-              return (Set.map varName $ PE.freeVars pattern) >>= 
-              \varNamesPattern ->
-              whenPM' (Set.notMember True $ Set.map (flip Set.member varNames) varNamesPattern)
-                      (errProofPlace (InductionError VariablePatternError))
-              
-          cheqEqCases :: ([(PE.PreExpr,a)],[(PE.PreExpr,a)],[(PE.PreExpr,a)]) ->
-                         ([(PE.PreExpr,b)],[(PE.PreExpr,b)],[(PE.PreExpr,b)]) ->
-                         PM ()
-          cheqEqCases (l1,l2,l3) (l1',l2',l3') = 
-              whenPM' (map fst l1 == map fst l1' && 
-                       map fst l2 == map fst l2' && 
-                       map fst l3 == map fst l3') 
-                (errProofPlace (InductionError ExprCases))
-              
           
           -- | Toma la lista de patterns de la prueba y de la expresion case y devuelve
           --   una sola lista con el pattern, la prueba y la expresion del case.
@@ -377,7 +330,7 @@ validateProof' proof@(Ind _ rel f1 f2 e ps) _ =
               mapM_ (go hypsProof) cs
               where errSubPrfHyp = errProofPlace $ InductionError SubProofHypothesis
                     go hprf (pattern,subp,expr) = 
-                        let hyps = createIndHypothesis rel f1 f2 (PE.toFocus pattern) v "HI" in
+                        let hyps = createIndHypothesis rel f1 f2 (PE.toFocus pattern) v "hypind" in
                         -- Chequeamos que cada hipótesis del contexto de la subprueba
                         -- esté en el contexto de la prueba inductiva, o sea hipótesis
                         -- inductiva.
@@ -389,13 +342,14 @@ validateProof' proof@(Ind _ rel f1 f2 e ps) _ =
           correctSubProofCase :: Variable -> PE.PreExpr -> Proof -> Proof -> 
                                  PE.PreExpr -> PM ()
           correctSubProofCase v pattern pr subp expr =
-                getStart pr >>= \stPr -> getStart subp >>= \stSubp ->
+                getStart pr >>= \stPr -> 
+                getStart subp >>= \stSubp ->
                 getEnd subp >>= \endSubp -> 
                 (return $ PE.applySubst (PE.toExpr stPr) (Map.singleton v pattern)) >>= \stReplaced ->
                 getRel pr >>= \relPr -> getRel subp >>= \relSubp ->
                 whenPM' (PE.toExpr stSubp==stReplaced && 
                          PE.toExpr endSubp==expr && relSubp==relPr)
-                        (errProofPlace (InductionError IncorrectSubProof))
+                        (errProofPlace $ InductionError IncorrectSubProof)
               
               
 -- | Validación de una prueba por casos. La prueba de exahustividad de las guardas
@@ -620,8 +574,57 @@ isPermutation xs ys = Set.fromList xs == Set.fromList ys
 liftA2' :: (a -> b -> PM c) -> PM a -> PM b -> PM c
 liftA2' f ma mb = ma >>= \a -> mb >>= f a
 
-errProofPlace :: ProofError' -> ProofError
-errProofPlace err = ProofError err id
+allElems :: (Show a,Eq a) => [a] -> [a] -> ProofError -> PM ()
+allElems inList l _ = whenPM' (all (`elem` inList) l) (error $ show l ++ "\n" ++ show inList)
 
-allElems :: Eq a => [a] -> [a] -> ProofError -> PM ()
-allElems inList = whenPM' . all (`elem` inList) 
+
+-- | Todos los constructores (0-arios, unarios y binarios) usados en
+-- una prueba correspondan al tipo inductivo.
+checkConstructor :: (Ord a,Show a) => PErrorInduction -> 
+                   (PE.PreExpr -> Maybe a) -> (IndType -> [a]) -> 
+                   IndType -> [(PE.PreExpr,Proof)] -> PM ()
+checkConstructor err get els it ps' = 
+                          validateEls >>= \elsInProof ->
+                          whenPM' (isPermutation elsInProof (els it)) 
+                                  (errProofPlace $ InductionError err)
+    where l = map (get . fst) ps'
+          validateEls = if Nothing `elem` l
+                        then Left (errProofPlace $ InductionError err)
+                        else return $ catMaybes l
+
+checkAllConstants :: IndType -> [(PE.PreExpr,Proof)] -> PM ()
+checkAllConstants = checkConstructor ConstantPatternError PE.getConstant constants
+checkAllBaseConst :: IndType -> [(PE.PreExpr,Proof)] -> PM ()
+checkAllBaseConst = checkConstructor OperatorPatternError PE.getOperator baseConstructors
+checkAllIndConst :: IndType -> [(PE.PreExpr,Proof)] -> PM ()
+checkAllIndConst = checkConstructor OperatorPatternError PE.getOperator indConstructors
+
+-- | Un pattern no contiene variables que estén en las expresiones
+-- originales (salvo que sea la misma variable inductiva).
+-- TODO: Explicar el sentido.
+checkVarsPattern :: Variable -> Proof ->  PE.PreExpr -> PM ()
+checkVarsPattern v p pattern = 
+    getStart p >>= \fs -> getEnd p >>= \fe ->
+    return (Set.map varName $ PE.freeVars $ PE.toExpr fs) >>= 
+    \varNames1 ->
+    return (Set.map varName $ PE.freeVars $ PE.toExpr fe) >>=
+    \varNames2 -> 
+    return (Set.delete (varName v) $ Set.union varNames1 varNames2) >>= \varNames ->
+    return (Set.map varName $ PE.freeVars pattern) >>= 
+    \varNamesPattern ->
+    whenPM' (Set.notMember True $ Set.map (flip Set.member varNames) varNamesPattern)
+            (errProofPlace (InductionError VariablePatternError))
+
+-- | TODO: documentar!
+cheqEqCases :: ([(PE.PreExpr,a)],[(PE.PreExpr,a)],[(PE.PreExpr,a)]) ->
+               ([(PE.PreExpr,b)],[(PE.PreExpr,b)],[(PE.PreExpr,b)]) ->
+               PM ()
+cheqEqCases (l1,l2,l3) (l1',l2',l3') =  whenPM' (map fst l1 == map fst l1' && 
+                                                 map fst l2 == map fst l2' && 
+                                                 map fst l3 == map fst l3') 
+                                                (errProofPlace $ InductionError ExprCases)
+
+-- | TODO : documentar!
+getIndType' :: Variable -> PM IndType
+getIndType' = maybe (Left errIndType) return . getIndType . varTy
+    where errIndType = errProofPlace $ InductionError TypeNotInductive

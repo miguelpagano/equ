@@ -86,8 +86,8 @@ instance Show ProofError' where
     
                                      
     show (InductionError er) = "Error en Prueba Inductiva: "++ show er
-    show (ContextsNotEqual) = "La subprueba no tiene el mismo contexto que la prueba general"
-    show (RelNotEqual) = "La subprueba no tiene la misma relación que la prueba general"
+    show ContextsNotEqual = "La subprueba no tiene el mismo contexto que la prueba general"
+    show RelNotEqual = "La subprueba no tiene la misma relación que la prueba general"
     show (CasesError er) = "Error en Prueba por casos: " ++ show er
     show (BasicConditionError b) = "No se satisfacen las condiciones de aplicación del paso básico: "++ show b
     show (ClashTypingProofExpr tyErr) = "Error al tipar expresión de la prueba: " ++ show tyErr
@@ -95,13 +95,13 @@ instance Show ProofError' where
     
 
 instance Show PErrorInduction where
-    show (IndInNotVar) = "Solo se puede hacer inducción en variables."
-    show (VarIndNotInExpr) = "La variable sobre la que se hace inducción debe ocurrir en la primera expresión de la prueba"
-    show (TypeNotInductive) = "El tipo de la variable sobre la que se hace inducción debe ser inductivo"
-    show (SubProofHypothesis) = "Las subpruebas no pueden agregar hipótesis extras, salvo la inductiva en caso de que corresponda"
-    show (ConstantPatternError) = "La constante no es un constructor del tipo inductivo"
-    show (OperatorPatternError) = "El operador no es un constructor del tipo inductivo"
-    show  IncorrectSubProof = "Expresiones en sub-pruebas no se corresponden con las expresiones de la prueba general."
+    show IndInNotVar = "Solo se puede hacer inducción en variables."
+    show VarIndNotInExpr = "La variable sobre la que se hace inducción debe ocurrir en la primera expresión de la prueba"
+    show TypeNotInductive = "El tipo de la variable sobre la que se hace inducción debe ser inductivo"
+    show SubProofHypothesis = "Las subpruebas no pueden agregar hipótesis extras, salvo la inductiva en caso de que corresponda"
+    show ConstantPatternError = "La constante no es un constructor del tipo inductivo"
+    show OperatorPatternError = "El operador no es un constructor del tipo inductivo"
+    show IncorrectSubProof = "Expresiones en sub-pruebas no se corresponden con las expresiones de la prueba general."
     show VariablePatternError = "Un pattern contiene una variable distinta a la variable inductiva y que ocurre "++
                                 "en una expresión de la prueba general"
     show ExprCases = "Los casos de la expresión case no se corresponden con los de la prueba inductiva."
@@ -121,3 +121,5 @@ getMoveFocus (ProofError _ move) = move
 errProof :: ProofError
 errProof = ProofError Error id
     
+errProofPlace :: ProofError' -> ProofError
+errProofPlace err = ProofError err id

@@ -23,12 +23,17 @@ module Equ.Proof.Proof (
                  , updateStart, updateEnd, updateRel, updateMiddle, updateBasic
                  , updThmExp, updThmPrf
                  , encode, decode
-                 , setCtx, beginCtx, freshName, addCtx, addCtxJust
+                 , setCtx
+                 , setCtx'
+                 , beginCtx, freshName, addCtx, addCtxJust
+                 , replaceHyp
+                 , replaceVacuousHyp
                  , addHypothesis
                  , addHypotheses
                  , addHypothesisProof
                  , getHypothesis
                  , exprIsHypothesis 
+                 , createVacuousHyp
                  , addHypothesis'
                  , printProof
                  , conditionFunction
@@ -49,7 +54,7 @@ import qualified Equ.Theories.Common as C (equal)
 import Data.Text (Text, unpack,pack)
 import qualified Data.Text as T
 
-import qualified Data.Map as M ( Map, findMax, null, fromList
+import qualified Data.Map as M ( Map, findMax, null, fromList, toList
                                , insert, lookup, empty, elems, singleton
                                , map, union)
 
@@ -63,21 +68,6 @@ import Test.QuickCheck
 
 type Name = Text
 
--- | Comienza un contexto en base a una preExpresion.
-beginCtx :: Ctx
-beginCtx = M.empty
-
--- | Retorna un nombre fresco sobre un contexto.
-freshName :: Ctx -> Name
-freshName c = if M.null c then "_0" else T.concat $ maxName:["_0"]
-    where maxName :: Name
-          maxName = (fst . M.findMax) c 
-
-getHypothesis :: Name -> Ctx -> Maybe Hypothesis
-getHypothesis = M.lookup
-
-exprIsHypothesis :: Expr -> Ctx -> Bool
-exprIsHypothesis e = (e `elem`) . map hypExpr . M.elems
 
 -- instance Arbitrary Name where
 --     arbitrary = Index <$> arbitrary
@@ -221,7 +211,7 @@ instance Truth Theorem where
     truthRel   = thRel
     truthRules = thRules
     truthBasic = Theo
-    truthConditions _ = GenConditions []
+    truthConditions _ = noCondition
 
 data Hypothesis = Hypothesis {
      hypName :: Text
@@ -265,6 +255,34 @@ type Ctx = M.Map Name Hypothesis
 instance Arbitrary Ctx where
     arbitrary = M.fromList <$> arbitrary
 
+-- | Comienza un contexto en base a una preExpresion.
+beginCtx :: Ctx
+beginCtx = M.empty
+
+-- | Retorna un nombre fresco sobre un contexto.
+freshName :: Ctx -> Name
+freshName c = if M.null c then "_0" else T.concat $ maxName:["_0"]
+    where maxName :: Name
+          maxName = (fst . M.findMax) c 
+
+getHypothesis :: Name -> Ctx -> Maybe Hypothesis
+getHypothesis = M.lookup
+
+exprIsHypothesis :: Expr -> Ctx -> Bool
+exprIsHypothesis e = (e `elem`) . map hypExpr . M.elems
+
+createVacuousHyp :: Text -> Hypothesis
+createVacuousHyp t = Hypothesis t holeExpr relEq [] noCondition
+
+replaceHyp :: Text -> Hypothesis -> Ctx -> Ctx
+replaceHyp = M.insert
+
+replaceVacuousHyp :: [Hypothesis] -> Ctx -> Ctx
+replaceVacuousHyp hyps ctx = indCtx `M.union` ctx
+    where isHole' (Expr e) = isPEHole e
+          indHypNames = map fst . filter (isHole' . hypExpr . snd) $ M.toList ctx
+          indCtx = M.fromList $ zip indHypNames hyps
+                  
 -- | Las pruebas elementales son aplicar un axioma (en un foco), 
 -- usar un teorema ya probado, o usar una hip&#243;tesis.
 data Basic where
@@ -487,7 +505,7 @@ data Proof' ctxTy relTy proofTy exprTy where
               Maybe (Proof' ctxTy relTy proofTy exprTy) ->
               Proof' ctxTy relTy proofTy exprTy
     -- Haremos inducción en una sola VARIABLE. Para no modificar tanto, asumimos
-    -- que la expresion donde se hace inducción es de tipo "Var a".
+    -- que la expresion donde se hace inducción es de la forma "Var a".
     Ind    :: ctxTy -> relTy -> exprTy -> exprTy -> exprTy -> 
               [(exprTy,Proof' ctxTy relTy proofTy exprTy)] -> 
               Proof' ctxTy relTy proofTy exprTy
