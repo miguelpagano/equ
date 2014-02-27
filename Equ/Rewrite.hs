@@ -96,7 +96,7 @@ typedRewrite :: Expr -> Rule -> RM Expr
 typedRewrite e@(Expr pe) ru@(Rule{lhs=Expr l,rhs=Expr _}) = 
     let (Right te) = checkPreExpr pe
         (Right tr) = checkPreExpr l
-    in case unify te tr emptySubst of
+    in case mgu te tr of
             Left er -> Left $ Type er
             Right _ -> exprRewrite e ru
             

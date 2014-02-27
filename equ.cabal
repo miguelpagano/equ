@@ -48,6 +48,8 @@ Library
                         Equ.Theories.List,
                         Equ.Theories.Arith,
                         Equ.TypeChecker,
+                        Equ.TypeChecker.State,
+                        Equ.TypeChecker.Proof,
                         Equ.TypeChecker.Unification,
                         Equ.Types,
                         Equ.Matching
