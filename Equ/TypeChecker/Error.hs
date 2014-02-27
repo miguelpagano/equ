@@ -16,19 +16,20 @@ data TyErr = ErrNotExpected Type Type -- ^ El tipo inferido/obtenido (primer
            -- contexto.
            | forall s . Syntactic s => ErrClashTypes s [Type]
            | forall s . Syntactic s => ErrNoType s
-           | ErrUnification Type Type [(TyVarName,Type)]
-
+           | ErrUnification Type Type
+           | ErrMatching Type Type
+           | ErrMerge
 
 instance Eq TyErr where
     (ErrNotExpected t t') == (ErrNotExpected t'' t''') = t == t'' && t' == t'''
     (ErrClashTypes _ l) == (ErrClashTypes _ l') = l == l'
-    (ErrUnification t t' s) == (ErrUnification t'' t''' s') = t == t''   &&
-                                                              t' == t''' &&
-                                                              s == s'
+    (ErrUnification t t') == (ErrUnification t'' t''') = t == t'' && t' == t'''
     _ == _ = False
 
 instance Show TyErr where
     show (ErrNotExpected t t') = "Se esperaba el tipo " ++ show t ++ " y no el tipo " ++ show t'
     show (ErrClashTypes s ts) = unpack (tRepr s) ++ " sólo puede tener un tipo" ++ show ts
     show (ErrNoType s) = "No hay información de tipo para: " ++ unpack (tRepr s) 
-    show (ErrUnification t t' s) = "Los tipos de " ++ show s ++ ": " ++ show t ++ " y " ++ show t' ++ " no se pueden unificar"
+    show (ErrUnification t t') = "Los tipos " ++ show t ++ " y " ++ show t' ++ " no se pueden unificar"
+    show (ErrMatching t t') = "El tipo " ++ show t ++ " no matchea con " ++ show t'
+    show ErrMerge = "No se pudieron combinar dos sustituciones"
