@@ -4,18 +4,17 @@ Version:             0.2.1
 Synopsis:            A proof checker for propositional calculus.
 Description:         equ is a program for checking derivations of propositional
                      calculus.
-License:             GPL
+license:             GPL-3
 License-file:        LICENSE
 Author:              Renato Cherini, Alejandro Gadea, Emmanuel Gunther, Miguel Pagano
 Maintainer:          Miguel Pagano <pagano@famaf.unc.edu.ar>
 Build-Type:          Simple
-Cabal-Version:       >=1.2
+Cabal-Version:       >=1.6
 Tested-with:         GHC==7.6.2
 Build-type:          Simple
 Bug-reports:         https://github.com/miguelpagano/equ/issues
 
-
-Source-repository this
+Source-repository head
   Type:     git
   Location: http://github.com/miguelpagano/equ
   Branch:   master
@@ -54,24 +53,21 @@ Library
                         Equ.Types,
                         Equ.Matching
     
-    Other-modules:      Equ.Matching.Error
-                        Equ.Parser.Expr,
-                        Equ.Parser.Types,
-                        Equ.PreExpr.Internal,
-                        Equ.PreExpr.Monad,
-                        Equ.PreExpr.Subst,
-                        Equ.PreExpr.Zipper,
-                        Equ.Proof.Monad,
-                        Equ.Proof.Zipper,
-                        Equ.Rewrite,
-                        Equ.Theories.Common,
-                        Equ.TypeChecker.Error
-
-  -- Modules not exported by this package.
-  -- 
-  -- Packages needed in order to build this package.
-  -- Last three for test.
-  Build-depends:        base >= 4.2, cereal >= 0.3.3.0, QuickCheck,
+    Other-modules:     Equ.TypeChecker.Error,
+                       Equ.TypeChecker.Expression,
+                       Equ.Proof.Monad,       
+                       Equ.Proof.Zipper,
+                       Equ.Theories.Common,
+                       Equ.Parser.Expr,
+                       Equ.Parser.Types,
+                       Equ.PreExpr.Subst,
+                       Equ.PreExpr.Monad,
+                       Equ.PreExpr.Pattern,
+                       Equ.PreExpr.Internal,
+                       Equ.PreExpr.Zipper,
+                       Equ.Matching.Error,
+                       Equ.Rewrite
+  Build-depends:        base >= 4.2 && < 6, cereal >= 0.3.3.0, QuickCheck,
                         containers >= 0.4.0.0, text >= 0.11.1.5, mtl >= 2.0.1.0,
                         parsec >= 3.1.1, transformers >= 0.2.2.0, 
                         either >= 3.0.2, lens
@@ -81,3 +77,4 @@ Library
   
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   -- Build-tools:    
+
