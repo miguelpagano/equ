@@ -54,7 +54,6 @@ Library
                         Equ.Matching
     
     Other-modules:     Equ.TypeChecker.Error,
-                       Equ.TypeChecker.Expression,
                        Equ.Proof.Monad,       
                        Equ.Proof.Zipper,
                        Equ.Theories.Common,
@@ -62,7 +61,6 @@ Library
                        Equ.Parser.Types,
                        Equ.PreExpr.Subst,
                        Equ.PreExpr.Monad,
-                       Equ.PreExpr.Pattern,
                        Equ.PreExpr.Internal,
                        Equ.PreExpr.Zipper,
                        Equ.Matching.Error,
