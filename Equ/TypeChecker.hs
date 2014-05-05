@@ -1,14 +1,27 @@
+----------------------------------------------------------------------------
+-- |
+-- Module      :  $Header$
+-- Copyright   :  (c) Proyecto Theona, 2012-2013
+--                (c) Alejandro Gadea, Emmanuel Gunther, Miguel Pagano
+-- License     :  GPL-3
+--
+-- Maintainer  :  miguel.pagano+theona@gmail.com
+-- Stability   :  experimental
+-- Portability :  portable
+--
+-- Algoritmo de chequeo e inferencia de tipos para pre-expre-
+-- siones. Este algoritmo es esencialmente el de Hindley-Milner-Damas
+-- para el cálculo lambda: si tenemos informacion en la pre-expresion
+-- entonces se verifica que sea unificable con el tipo de inferido. A
+-- diferencia de esos algoritmos, no se hay un contexto donde se
+-- declara el tipo de las variabes, ya que la informacion de las
+-- variables (símbolos de función y constantes son tratadas
+-- exactamente de la misma manera) está contenida en la expresión
+-- misma (en este aspecto se parece más al chequeo de un cálculo à la
+-- Church).
+--
+----------------------------------------------------------------------------
 {-# Language DoAndIfThenElse,OverloadedStrings #-}
-{-| Algoritmo de chequeo e inferencia de tipos para pre-expre-
-siones. Este algoritmo es esencialmente el de Hindley-Milner-Damas
-para el cálculo lambda: si tenemos informacion en la pre-expresion
-entonces se verifica que sea unificable con el tipo de inferido. A
-diferencia de esos algoritmos, no se hay un contexto donde se declara
-el tipo de las variabes, ya que la informacion de las variables
-(símbolos de función y constantes son tratadas exactamente de la misma
-manera) está contenida en la expresión misma (en este aspecto se
-parece más al chequeo de un cálculo à la Church).
--}
 module Equ.TypeChecker 
     ( module Equ.TypeChecker.Error      
       -- * Algoritmo de unificaci&#243;n con relaci&#243;n de orden.
@@ -79,7 +92,7 @@ check (PrExHole h) = return (tType h)
 check (Paren e) = check e
 check (UnOp op e) = do t <- check e
                        t' <- checkOp op
-                       w <- getFreshTyVar 
+                       w <- getFreshTyVar
                        _ <- unifyS t' (t :-> w) 
                        rewriteS w
 check (BinOp op e e') = do te <- check e
@@ -91,7 +104,7 @@ check (BinOp op e e') = do te <- check e
 check (App e e') = do te <- check e
                       te' <- check e'
                       w <- getFreshTyVar
-                      _ <- unifyS  te (te' :-> w) 
+                      _ <- unifyS te (te' :-> w) 
                       rewriteS w
 check (Quant q v r t) = do tyQ <- checkQuant q
                            tyV <- getFreshTyVar
@@ -106,7 +119,7 @@ check (Quant q v r t) = do tyQ <- checkQuant q
                                  rewriteS tyT
                              t1 -> tyerr $ ErrNotExpected (tyV :-> tyT) t1
 check (If b t f) = do tb <- check b
-                      _ <- unifyS tb  (TyAtom ATyBool)
+                      _ <- unifyS tb $ TyAtom ATyBool
                       tt <- check t
                       tf <- check f
                       _ <- unifyS tt tf

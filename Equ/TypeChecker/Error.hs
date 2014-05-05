@@ -1,6 +1,18 @@
--- | Definición de los erores del type-checker.
-{-# Language ExistentialQuantification #-} 
-
+----------------------------------------------------------------------------
+-- |
+-- Module      :  $Header$
+-- Copyright   :  (c) Proyecto Theona, 2012-2013
+--                (c) Alejandro Gadea, Emmanuel Gunther, Miguel Pagano
+-- License     :  <license>
+--
+-- Maintainer  :  miguel.pagano+theona@gmail.com
+-- Stability   :  experimental
+-- Portability :  portable
+--
+-- Definición de los erores del type-checker.
+--
+----------------------------------------------------------------------------
+{-# Language ExistentialQuantification #-}
 module Equ.TypeChecker.Error where
 import Equ.Syntax
 import Equ.Types
@@ -19,6 +31,8 @@ data TyErr = ErrNotExpected Type Type -- ^ El tipo inferido/obtenido (primer
            | ErrUnification Type Type
            | ErrMatching Type Type
            | ErrMerge
+           | ErrNotFunType Type -- ^ Se esperaba un tipo funcional
+           | ErrArity Type Int -- ^ Se aplicaron menos o más argumentos que los esperados
 
 instance Eq TyErr where
     (ErrNotExpected t t') == (ErrNotExpected t'' t''') = t == t'' && t' == t'''
@@ -33,3 +47,5 @@ instance Show TyErr where
     show (ErrUnification t t') = "Los tipos " ++ show t ++ " y " ++ show t' ++ " no se pueden unificar"
     show (ErrMatching t t') = "El tipo " ++ show t ++ " no matchea con " ++ show t'
     show ErrMerge = "No se pudieron combinar dos sustituciones"
+    show (ErrNotFunType t) = "Se esperaba un tipo funcional, pero el tipo es: " ++ show t
+    show (ErrArity t n) = "El tipo " ++ show t ++ "espera una cantidad distinta de argumentos, que la provista (" ++ show n ++ ")"

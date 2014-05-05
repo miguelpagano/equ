@@ -328,7 +328,7 @@ idempotOrAxiom = ("Idempotencia del ∨", varP `or` varP `equiv` varP,noConditio
 
                       
 distEqOrAxiom :: (Text,Expr,Condition)
-distEqOrAxiom = ("Distributividad de ≡ con ∨"
+distEqOrAxiom = ("Distributividad de ∨ con ≡"
                 , equiv (or varP (equiv varQ varR)) (equiv (or varP varQ) (or varP varR))
                 , noCondition)
 
