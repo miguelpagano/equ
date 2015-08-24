@@ -14,6 +14,7 @@ module Equ.Theories.FOL
     -- * Versión tipada de operadores.
     , true, false, equal, equiv, discrep
     , neg, and, or, impl, conseq, forAll, exist
+    , conmEquivAxiom -- TESTING!!
     -- ** Cuantificador \"Existe\"
     -- *** Definicion
     )

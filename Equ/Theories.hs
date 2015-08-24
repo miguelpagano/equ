@@ -12,6 +12,7 @@ module Equ.Theories
     , relationList
     , relToOp
     , createTheorem
+    , createRulesAssoc -- TESTING!
     , theoremAddProof
     , createHypothesis
     , createHypothesis'
@@ -20,9 +21,6 @@ module Equ.Theories
     , TheoryName
     , theories
     , theoriesInGroup
-    , arithAxioms
-    , folAxioms
-    , listAxioms
     , isBoolean
     , ruleExpr
     , makeExprFromRelation
@@ -95,12 +93,6 @@ axiomGroup = mkGrouped theories . uncurry (:) . ((F.assocEquivAx:) . head &&& ta
                      , A.theoryAxiomList
                      , L.theoryAxiomList
                      , genericAxioms]
-                     
-     
-arithAxioms,listAxioms,folAxioms :: [Axiom]
-arithAxioms = ungroup $ mkAxiomGroup [A.theoryAxiomList]
-listAxioms = ungroup $ mkAxiomGroup [L.theoryAxiomList]
-folAxioms = ungroup $ mkAxiomGroup [L.theoryAxiomList]
                      
 
 operatorsList :: [Operator]

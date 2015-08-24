@@ -27,6 +27,7 @@ module Equ.PreExpr ( decode
                    , setAtomType
                    , setQuantType
                    , setVarQType
+                   , glue -- TESTING!!
                    , module Equ.Syntax
                    , module Equ.PreExpr.Internal
                    , module Equ.PreExpr.Zipper
@@ -134,8 +135,22 @@ glue :: Operator -> [PreExpr] -> [PreExpr]
 glue _ [] = []
 glue _ [e]    = return e
 glue op [e,e'] = return $ BinOp op e e'
-glue op es = concat [(uncurry (zipWith (BinOp op)) . (glue op *** glue op)) ps 
-                    | ps <- [splitAt i es | i <- [1..length es-1]]]     
+glue op es = 
+    let ps = [splitAt i es | i <- [1..length es-1]]
+    in
+        concatMap (glue' op) ps
+        
+glue' :: Operator -> ([PreExpr],[PreExpr]) -> [PreExpr]
+glue' op pss = 
+    let (ps1',ps2') = (glue op *** glue op) pss
+    in
+        combine op ps1' ps2'
+    where combine :: Operator -> [PreExpr] -> [PreExpr] -> [PreExpr]
+          combine op ps ps' = foldl (\l e -> map (BinOp op e) ps' ++ l) [] ps
+    
+    {- asi estaba antes:
+        concat [(uncurry (zipWith (BinOp op)) . (glue op *** glue op)) ps 
+        | ps <- [splitAt i es | i <- [1..length es-1]]] -}
 
 
 listOf :: Focus -> (Focus -> Bool) -> [Focus]
