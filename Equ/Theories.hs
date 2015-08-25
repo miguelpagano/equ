@@ -21,6 +21,8 @@ module Equ.Theories
     , TheoryName
     , theories
     , theoriesInGroup
+    , arithAxioms
+    , listAxioms
     , isBoolean
     , ruleExpr
     , makeExprFromRelation
@@ -94,6 +96,9 @@ axiomGroup = mkGrouped theories . uncurry (:) . ((F.assocEquivAx:) . head &&& ta
                      , L.theoryAxiomList
                      , genericAxioms]
                      
+arithAxioms, listAxioms :: [Axiom]
+arithAxioms = ungroup $ mkAxiomGroup [A.theoryAxiomList]
+listAxioms = ungroup $ mkAxiomGroup [L.theoryAxiomList]
 
 operatorsList :: [Operator]
 operatorsList = ungroup opGroup
