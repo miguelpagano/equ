@@ -29,7 +29,7 @@ module Equ.TypeChecker.Unification
 import           Equ.Types
 import           Equ.TypeChecker.Error
 
-import qualified Data.Map as M
+import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import           Data.Maybe
 import           Data.List
@@ -63,7 +63,7 @@ instance Types [Type] where
     tv = S.unions . map tv
 
 (@@) :: TySubst -> TySubst -> TySubst
-s @@ s' = M.fromList $ [(u, rewrite s t) | (u,t) <- M.toList s'] ++ M.toList s
+s @@ s' = M.foldrWithKey' (\u t s1 -> M.insert u (rewrite s t) s1) s s' 
 
 merge :: TySubst -> TySubst -> Either TyErr TySubst
 merge s s' = if agree 
