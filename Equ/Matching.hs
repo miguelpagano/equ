@@ -10,6 +10,7 @@ module Equ.Matching
     ( module Equ.Matching.Error
     , match
     , matchWithSubst
+    , match'
     , MatchMErr
     , VariableRename
     )
@@ -27,6 +28,7 @@ import Control.Monad.RWS.Class(ask)
 
 import Control.Arrow (first)
 
+
 -- | Estructura general para los errores informativos con contexto.
 type MatchMErr = (Focus,MatchError)
 
@@ -35,6 +37,8 @@ type VariableRename = M.Map Variable Variable
 
 -- | M&#243;nada de estado para matching.
 type MatchState = MonadTraversal MatchMErr (ExprSubst,VariableRename)
+
+
 
 -- | Generaci&#243;n de mensaje de Error.
 matcherr :: MatchError -> MatchState a
@@ -74,9 +78,8 @@ v por e'. Si v est&#225; en el mapa, entonces para que haya matching tiene que e
 asociada con la expresi&#243;n e'.
 -}
 match' bvs e@(Var v) e' (s,rnm) 
-                          | e == e' = return $ (M.insert v e' s,rnm)
-                          | v `elem` bvs = matcherr $ BindingVar v
-                          | otherwise = 
+                 | v `elem` bvs = matcherr $ BindingVar v
+                 | otherwise = 
                               maybe (return $ (M.insert v e' s,rnm))
                                     (\f -> whenML (e' == f) (DoubleMatch v f e') (s,rnm))
                                     $ M.lookup v s
