@@ -122,8 +122,7 @@ theoryQuantifiersList = [folForall,folExist]
 
 theoryAxiomList :: [(Text,Expr,Condition)]
 theoryAxiomList = [ conmEquivAxiom
-                  , trueLNeutralEquiv
-                  , trueRNeutralEquiv
+                  , trueNeutralEquiv
                   , negEquivAxiom
                   , falseDefAxiom
                   , discrepDefAxiom
@@ -134,8 +133,7 @@ theoryAxiomList = [ conmEquivAxiom
                   , excludThirdAxiom
                   , goldenRuleAxiom
                   , defImplAxiom
-                  , trueLNeutralAnd
-                  , trueRNeutralAnd
+                  , trueNeutralAnd
                   , leftWeak
                   , rightWeak
                   -- CUANTIFICADORES
@@ -252,14 +250,14 @@ conmEquivAxiom = ("Conmutatividad de la Equivalencia",
                   symmetryEquiv equiv varP varQ,
                   noCondition)
 
-trueLNeutralEquiv :: (Text,Expr,Condition)
-trueLNeutralEquiv = ("Neutro de la equivalencia a izquierda", 
-                     leftNeutralEquiv equiv true varP,
-                     noCondition)
+-- trueLNeutralEquiv :: (Text,Expr,Condition)
+-- trueLNeutralEquiv = ("Neutro de la equivalencia a izquierda", 
+--                      leftNeutralEquiv equiv true varP,
+--                      noCondition)
 
-trueRNeutralEquiv :: (Text,Expr,Condition)
-trueRNeutralEquiv = ("Neutro de la equivalencia a derecha", 
-                     rightNeutralEquiv equiv true varP,
+trueNeutralEquiv :: (Text,Expr,Condition)
+trueNeutralEquiv = ("Neutro de la equivalencia", 
+                     (varP `equiv` true) `equiv` varP,
                      noCondition)
 
 
@@ -352,11 +350,11 @@ goldenRuleAxiom = ( "Regla Dorada"
                   , noCondition)
 
 
-trueLNeutralAnd :: (Text,Expr,Condition)
-trueLNeutralAnd = ( "Neutro a izquierda de ∧", leftNeutral and true varP, noCondition)
+trueNeutralAnd :: (Text,Expr,Condition)
+trueNeutralAnd = ( "Neutro de ∧", (varP `and` true) `equiv` varP, noCondition)
 
-trueRNeutralAnd :: (Text,Expr,Condition)
-trueRNeutralAnd = ( "Neutro a derecha de ∧", rightNeutral and true varP, noCondition)
+-- trueRNeutralAnd :: (Text,Expr,Condition)
+-- trueRNeutralAnd = ( "Neutro a derecha de ∧", rightNeutral and true varP, noCondition)
                    
 -- ===========
 -- IMPLICACION
