@@ -134,6 +134,7 @@ theoryAxiomList = [ conmEquivAxiom
                   , excludThirdAxiom
                   , goldenRuleAxiom
                   , defImplAxiom
+                  , defConseqAxiom
                   , trueLNeutralAnd
                   , trueRNeutralAnd
                   , leftWeak
@@ -368,7 +369,7 @@ trueRNeutralAnd = ( "Neutro a derecha de ∧", rightNeutral and true varP, noCon
 
 defImplAxiom :: (Text,Expr,Condition)
 defImplAxiom = ( "Definición del Implica"
-               , (impl varP varQ) `equiv` ((or (neg varP) varQ) `equiv` varQ)
+               , (impl varP varQ) `equiv` ((or varP varQ) `equiv` varQ)
                , noCondition
                )
 
@@ -382,6 +383,12 @@ rightWeak = ( "Debilitamiento a derecha", (((varP `and` varQ) `impl` varQ)) `equ
 -- CONSECUENCIA
 -- ===========
 -- TODO!!
+
+defConseqAxiom :: (Text,Expr,Condition)
+defConseqAxiom = ( "Definición de consecuencia"
+               , (conseq varP varQ) `equiv` ((or varP varQ) `equiv` varP)
+               , noCondition
+               )
 
 -- AXIOMAS PARA LOS CUANTIFICADORES
 

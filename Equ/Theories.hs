@@ -78,7 +78,10 @@ toForest :: (TheoryName -> b) -> (a -> b) -> Grouped a -> Forest b
 toForest fn fa = map (\(t,as) -> Node (fn t) (map (\x -> Node (fa x) []) as))
 
 opGroup :: Grouped Operator
-opGroup = mkGrouped theories [F.theoryOperatorsList, A.theoryOperatorsList, L.theoryOperatorsList]
+opGroup = mkGrouped theories [ F.theoryOperatorsList
+                             , A.theoryOperatorsList
+                             , L.theoryOperatorsList
+                             ]
 
 constGroup :: Grouped Constant
 constGroup = mkGrouped theories [F.theoryConstantsList, A.theoryConstantsList, L.theoryConstantsList]

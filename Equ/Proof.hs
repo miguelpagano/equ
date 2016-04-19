@@ -86,6 +86,7 @@ import Data.Function (on)
 import Control.Arrow((&&&),(***))
 import Control.Applicative ((<$>))
 
+import System.IO.Unsafe
 
 -- | Funciones auxiliares que podrían ir a su propio módulo.
 isRight :: Either a b -> Bool
