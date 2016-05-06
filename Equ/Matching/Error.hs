@@ -4,11 +4,13 @@ module Equ.Matching.Error where
 import Equ.PreExpr
 
 -- | Errores de matching.
-data MatchError = DoubleMatch Variable PreExpr PreExpr
+data MatchError = DoubleMatch Variable FlatExpr FlatExpr
                 | BindingVar Variable
-                | InequPreExpr PreExpr PreExpr
+                | InequPreExpr FlatExpr FlatExpr
                 | InequOperator Operator Operator
                 | InequQuantifier Quantifier Quantifier
+                | SubTermsAC Operator [FlatExpr] [FlatExpr]
+                | NOperands Operator [FlatExpr] [FlatExpr]
                 deriving Eq
 
 -- | Pretty print de errores de matching.
@@ -25,4 +27,5 @@ instance Show MatchError where
                                     show e' ++ "\""
     show (InequQuantifier e e')  = "\"" ++ show e ++ 
                                     "\" =/= \"" ++ 
-                                    show e' ++ "\""
+                                    show e' ++ "\""                                 
+    show _ = "otro error"

@@ -1,7 +1,6 @@
 module Equ.Proof.Error where
 
 import Equ.Rule (Relation)
-import Equ.Rewrite (RewriteError)
 import Equ.TypeChecker (TyErr)
 import Equ.PreExpr (Focus)
 import Equ.Proof.Zipper(ProofFocus)
@@ -18,8 +17,7 @@ instance Eq ProofError where
 instance Show ProofError where
     show (ProofError p _) = show p
     
-data ProofError' = Rewrite [RewriteError]
-                | BasicNotApplicable Basic
+data ProofError' = BasicNotApplicable Basic
                 | HoleProof        -- Prueba vacía.
                 | ClashCtx Ctx Ctx -- Contextos distintos.
                 | ClashRel Relation Relation -- Relaciones distintas
@@ -67,7 +65,6 @@ data PErrorCases =
     deriving Eq
                      
 instance Show ProofError' where
-    show (Rewrite r) = "Error de reescritura: "++ show r
     show (BasicNotApplicable b) = "No se puede aplicar el paso básico: "++ show b
     show HoleProof = "La prueba tiene un hueco"
     show (ClashCtx c1 c2) = "Los contextos no coinciden: "++ show c1 ++ ", " ++ show c2

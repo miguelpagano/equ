@@ -86,8 +86,6 @@ import Data.Function (on)
 import Control.Arrow((&&&),(***))
 import Control.Applicative ((<$>))
 
-import System.IO.Unsafe
-
 -- | Funciones auxiliares que podrían ir a su propio módulo.
 isRight :: Either a b -> Bool
 isRight (Right _) = True
@@ -108,62 +106,57 @@ checkEqWithDefault def a b | a /= b = Left def
 whenEqWithDefault :: Eq a => ProofError -> a -> a -> PM a
 whenEqWithDefault def a b = whenPM (==a) def b >> return b
 
-checkSimpleStepFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t -> 
+checkSimpleStepFromRule :: Truth t => [Operator] -> PE.Focus -> PE.Focus -> Relation -> t -> 
                            Rule -> (ProofFocus -> ProofFocus) -> PM ()
-checkSimpleStepFromRule f1 f2 _ t rule move = do
-      let   fs1 = PE.toFocuses e1
-            fs2 = PE.toFocuses $ PE.toExpr f2
-            Expr leftE = lhs rule
-            Expr rightE = rhs rule
-            fs1' = filter (isRight . match leftE . fst) fs1
-            fs2' = filter (isRight . match rightE . fst) fs2
-            es = concatMap (flip map fs2') (map (pegar (truthRel t)) fs1')
-            (_,res) = partitionEithers $ map lastMatch es
-            res' = filter ((==PE.toExpr f2) . PE.toExpr . replaceExpr) res
-            res'' = filter checkConditions res'
-      whenPM' (not $ null res'') err
+checkSimpleStepFromRule opsac f1 f2 rel t rule move =
+    do
+      let   -- Nos quedamos con todos los focos posibles de e1
+            fs1 = PE.toFocuses e1
+            -- y pegamos esos focos de e1 con los correspondientes en f2
+            es = concatMap (flip (glueExpr rel) f2) fs1
+            
+            erule = ruleExpr rule
+            -- Luego hago matching entre la regla y cada una de las expresiones
+            -- pegadas.
+            (mers,moks) = partitionEithers $ map (match opsac erule) es
+      whenPM' (not $ null moks) err
         
     where
         e1 = PE.toExpr f1
         err :: ProofError
         err = ProofError (BasicNotApplicable $ truthBasic t) move
-        pegar :: Relation -> PE.Focus -> PE.Focus -> (PE.PreExpr,PE.Focus)
-        pegar rel f1'@(e1',_) (e2,_) = (mkPreExprFromRel rel e1' e2,f1')
-        replaceExpr :: (PE.PreExpr,PE.Focus,(PE.ExprSubst,VariableRename)) -> PE.Focus
-        replaceExpr (PE.BinOp _ _ f2',focus,_) = PE.replace focus f2'
-        replaceExpr _ = error "La expresion pegada no puede ser distinta de BinOp"
-        lastMatch :: (PE.PreExpr,PE.Focus) -> Either (MatchMErr,PE.Log) (PE.PreExpr,PE.Focus,(PE.ExprSubst,VariableRename))
-        lastMatch (expr,f) = match (ruleExpr rule) expr >>= \subst ->
-                             return (expr,f,subst)
-        checkConditions :: (PE.PreExpr,PE.Focus,(PE.ExprSubst,VariableRename)) -> Bool
-        checkConditions (_,_,subst) = all (\check -> check subst e1) condPreds
-            where condPreds = map conditionFunction (getGenConditions $ truthConditions t)
-
-        
+        glueExpr :: Relation -> PE.Focus -> PE.Focus -> [PE.PreExpr]
+        glueExpr r (e1',path) f2' = 
+            case PE.applyPathToExpr path (fst f2') of
+                Nothing -> []
+                Just (e2,p2) -> if path == p2
+                                   then [mkPreExprFromRel r e1' e2]
+                                   else []
 
 {- 
 Funciones para construir y manipular pruebas.
 Este kit de funciones deber&#237;a proveer todas las herramientas
 necesarias para desarrollar pruebas en equ.
 -}
-proofFromRule :: Truth t => PE.Focus -> PE.Focus -> Relation -> t ->
+proofFromRule :: Truth t => [Operator] -> PE.Focus -> PE.Focus -> Relation -> t ->
                             Rule -> (ProofFocus -> ProofFocus) -> PM Proof
-proofFromRule f1 f2 rel t r fMove = 
-                        checkSimpleStepFromRule f1 f2 rel t r fMove >>
+proofFromRule opsac f1 f2 rel t r fMove = 
+                        checkSimpleStepFromRule opsac f1 f2 rel t r fMove >>
                         (return $ Simple beginCtx rel f1 f2 $ truthBasic t)
 
-proofFromRuleWithHyp :: (Truth t, Truth t') => Ctx -> PE.Focus -> PE.Focus -> Relation -> t -> t' ->
+proofFromRuleWithHyp :: (Truth t, Truth t') => [Operator] -> Ctx -> PE.Focus -> 
+                            PE.Focus -> Relation -> t -> t' ->
                             Rule -> (ProofFocus -> ProofFocus) -> PM Proof
-proofFromRuleWithHyp ctx f1 f2 rel t b r fMove = 
-                        checkSimpleStepFromRule f1 f2 rel b r fMove >>
+proofFromRuleWithHyp opsac ctx f1 f2 rel t b r fMove = 
+                        checkSimpleStepFromRule opsac f1 f2 rel b r fMove >>
                         (return $ Simple ctx rel f1 f2 $ truthBasic t)
 
 -- | Dados dos focuses f1 y f2, una relacion rel y un axioma o
 -- teorema, intenta crear una prueba para f1 rel f2, utilizando el
 -- paso simple de aplicar el axioma o teorema.
-proofFromTruth :: Ctx -> PE.Focus -> PE.Focus -> Relation -> Basic -> 
+proofFromTruth :: [Operator] -> Ctx -> PE.Focus -> PE.Focus -> Relation -> Basic -> 
                   (ProofFocus -> ProofFocus) -> PM Proof
-proofFromTruth ctx f f' r basic fMove = 
+proofFromTruth opsac ctx f f' r basic fMove = 
     case basic of
         Evaluate -> 
                 if checkEval f f' 
@@ -174,8 +167,8 @@ proofFromTruth ctx f f' r basic fMove =
                        $ Map.lookup n ctx
         _ -> proofFromTruth' (flip simples fMove) basic
 
-    where simples = proofFromRule f f' r basic
-          simplesWithHyp = proofFromRuleWithHyp ctx f f' r basic
+    where simples = proofFromRule opsac f f' r basic
+          simplesWithHyp = proofFromRuleWithHyp opsac ctx f f' r basic
 
     
 proofFromTruth' :: Truth t => (Rule -> Either a b) -> t -> Either a b
@@ -185,41 +178,41 @@ proofFromTruth' fValidateRule basic =
         (_, p:_) -> Right p
         (er, []) -> Left $ head er
     
-validateProofFocus :: ProofFocus -> PM Proof
-validateProofFocus = validateProof . fst
+validateProofFocus :: [Operator] -> ProofFocus -> PM Proof
+validateProofFocus opsac = validateProof opsac . fst
 
 -- | Valida una prueba completa vista como lista
-validateListedProof :: ListedProof -> PM Proof
-validateListedProof lProof = validateProof (toProof $ pFocus lProof)
+validateListedProof :: [Operator] -> ListedProof -> PM Proof
+validateListedProof opsac lProof = validateProof opsac (toProof $ pFocus lProof)
 
 -- | Valida el paso de una prueba vista como lista.
-validateStepProof :: ListedProof -> PM Proof
-validateStepProof lProof = let p = (pList lProof)!!(selIndex lProof) 
-                           in validateProof p
+validateStepProof :: [Operator] -> ListedProof -> PM Proof
+validateStepProof opsac lProof = let p = (pList lProof)!!(selIndex lProof) 
+                                 in validateProof opsac p
                           
-validateProof :: Proof -> PM Proof
-validateProof p =  validateProof' p goTop'
+validateProof :: [Operator] -> Proof -> PM Proof
+validateProof opsac p =  validateProof' opsac p goTop'
                           
-validateProof' :: Proof -> (ProofFocus -> ProofFocus) -> PM Proof
-validateProof' (Hole _ _ _ _) moveFocus = Left $ ProofError HoleProof moveFocus
-validateProof' (Simple ctx rel f1 f2 b) moveFocus = proofFromTruth ctx f1 f2 rel b moveFocus
-validateProof' proof@(Trans _ _ f1 f f2 p1 p2) moveFocus = 
+validateProof' :: [Operator] -> Proof -> (ProofFocus -> ProofFocus) -> PM Proof
+validateProof' _ (Hole _ _ _ _) moveFocus = Left $ ProofError HoleProof moveFocus
+validateProof' opsac (Simple ctx rel f1 f2 b) moveFocus = proofFromTruth opsac ctx f1 f2 rel b moveFocus
+validateProof' opsac proof@(Trans _ _ f1 f f2 p1 p2) moveFocus = 
     getStart p1 >>= whenEqWithDefault err f1 >>
     getEnd p1 >>= whenEqWithDefault err f >>
     getStart p2 >>= whenEqWithDefault err f >>
     getEnd p2 >>= whenEqWithDefault err f2 >>
-    validateProof' p1 (goDownL' . moveFocus) >>= \p1' ->
-    validateProof' p2 (goDownR' . moveFocus) >>= \p2' ->
+    validateProof' opsac p1 (goDownL' . moveFocus) >>= \p1' ->
+    validateProof' opsac p2 (goDownR' . moveFocus) >>= \p2' ->
     return (mappend p1' p2')
     
     where err :: ProofError
           err = ProofError (TransInconsistent proof) moveFocus
     
-validateProof' proof@(Deduc _ p q prf) mvFocus = 
+validateProof' opsac proof@(Deduc _ p q prf) mvFocus = 
     getEnd prf >>= whenEqWithDefault err q >>
     case (addHypothesisProof (PE.toExpr p) relEquiv [true'] prf) of
       Nothing -> Left err
-      Just prf' -> validateProof' prf' mvFocus >> return proof
+      Just prf' -> validateProof' opsac prf' mvFocus >> return proof
     where err = ProofError DeducInvalidEnd mvFocus
           Expr true' = true
                     
@@ -227,7 +220,7 @@ validateProof' proof@(Deduc _ p q prf) mvFocus =
 -- TODO: ver que las variables de un pattern sean frescas respecto a
 -- las expresiones de la prueba, donde reemplazamos la variable
 -- inductiva por una constante.
-validateProof' proof@(Ind _ rel f1 f2 e ps) _ =
+validateProof' opsac proof@(Ind _ rel f1 f2 e ps) _ =
     either (const $  Left errProof) (return . PE.toFocus) 
         (typeCheckPreExpr (PE.toExpr f1)) >>= \typedF1 ->
     -- Primero verificamos que e sea una variable:
@@ -287,7 +280,7 @@ validateProof' proof@(Ind _ rel f1 f2 e ps) _ =
                             sameProofWithSubst p pr (Map.singleton x expr) >>
                             sameCtxs pr p >>
                             -- Finalmente validamos la prueba p y continuamos chequeando.
-                            validateProof' p id
+                            validateProof' opsac p id
                              
           
           checkSubProofInd x pr cs = Map.elems <$> getCtx proof >>= \hypsProof ->
@@ -304,7 +297,7 @@ validateProof' proof@(Ind _ rel f1 f2 e ps) _ =
                         -- Ahora vemos que la subprueba prueba lo mismo que la prueba inductiva,
                         -- pero reemplazando la variable por el pattern correspondiente.
                         sameProofWithSubst p' pr (Map.singleton x expr) >>
-                        validateProof' p' id
+                        validateProof' opsac p' id
                     errSubProof = errProofPlace $ InductionError SubProofHypothesis
 
           
@@ -322,7 +315,7 @@ validateProof' proof@(Ind _ rel f1 f2 e ps) _ =
                         getCtx subp >>= \ctxSub ->
                         getCtx pr >>= \ctxPr ->
                         whenPM' (ctxSub == ctxPr) (errProofPlace ContextsNotEqual) >>
-                        validateProof' subp id
+                        validateProof' opsac subp id
                 
                         
           checkSubProofIndCase :: Variable -> Proof -> [(PE.PreExpr,Proof,PE.PreExpr)] -> PM ()
@@ -338,7 +331,7 @@ validateProof' proof@(Ind _ rel f1 f2 e ps) _ =
                         Map.elems <$> getCtx subp >>= \hypsSubProof -> 
                         allElems (hprf ++ hyps) hypsSubProof errSubPrfHyp >>
                         correctSubProofCase v pattern pr subp expr >>
-                        validateProof' subp id
+                        validateProof' opsac subp id
               
           correctSubProofCase :: Variable -> PE.PreExpr -> Proof -> Proof -> 
                                  PE.PreExpr -> PM ()
@@ -355,7 +348,7 @@ validateProof' proof@(Ind _ rel f1 f2 e ps) _ =
               
 -- | Validación de una prueba por casos. La prueba de exahustividad de las guardas
 --   es opcional. Ver como podemos dar un mensaje Warning en ese caso.
-validateProof' proof@(Cases _ _ _ _ _ cases mGuardsProof) _ = 
+validateProof' opsac proof@(Cases _ _ _ _ _ cases mGuardsProof) _ = 
     -- Primero chequeamos la prueba que dice que el "o" de las guardas vale:
        maybe (return ()) checkGuardsProof mGuardsProof >>
     -- Ahora debemos chequear cada prueba de casos. Cada subprueba debe tener
@@ -380,7 +373,7 @@ validateProof' proof@(Cases _ _ _ _ _ cases mGuardsProof) _ =
             whenPM' (relGP==relEquiv) errProof >> 
             whenPM' (stGP==orCE) errProof >>
             whenPM' (endGP==(PE.toFocus $ PE.Con folTrue)) errProof >>
-            validateProof' guardsProof id >>
+            validateProof' opsac guardsProof id >>
             return ()
             
           orCasesExpr :: [PE.Focus] -> PM PE.Focus  
@@ -401,11 +394,11 @@ validateProof' proof@(Cases _ _ _ _ _ cases mGuardsProof) _ =
               (return $ Map.elems ctx) >>= \hypsProof ->
               (return $ Map.elems cpCtx) >>= \hypsCasesProof ->
               allElems (hypCase:hypsProof) hypsCasesProof errHypCase >>
-              validateProof' cProof id >> 
+              validateProof' opsac cProof id >> 
               return ()
            where errHypCase = errProofPlace $ CasesError HypothesisCases
               
-validateProof' _ _ = error "ValidateProof!"
+validateProof' _ _ _ = error "ValidateProof!"
 
 -- | Chequea que los contextos de dos pruebas sean iguales.
 sameCtxs :: Proof -> Proof -> PM ()
@@ -437,11 +430,12 @@ sameProofWithSubst p1 p2 subst =
 
 -- | Devuelve las posibles expresiones de aplicar una 
 possibleExpr :: PE.PreExpr -> Basic -> [(PE.PreExpr, Maybe PE.Focus)]
-possibleExpr p basic = 
+possibleExpr p basic = undefined
+{-
             case basic of
                 Evaluate -> filter (flip ((/=) . fst) p) [(evalExpr p,Nothing)]
                 _ -> map ((PE.toExpr &&& Just) . fst) . typed $ concatMap (rewriteAllFocuses p) (truthRules basic)
-    where typed = filter (isRight . checkPreExpr . PE.toExpr . fst) . rights
+                where typed = filter (isRight . checkPreExpr . PE.toExpr . fst) . rights -}
 {- | Comenzamos una prueba dados dos focus y una relaci&#243;n entre ellas, de 
         la cual no tenemos una prueba.
     {POS: El contexto de la prueba es vacio.}

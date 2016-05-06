@@ -31,7 +31,7 @@ module Equ.Theories
     where
 
 import Equ.Theories.AbsName
-import Equ.Theories.Common (isBoolean,equal,folFalse,folTrue)
+import Equ.Theories.Common (isBoolean,equal,folFalse,folTrue,equiv)
 import qualified Equ.Theories.Arith as A
 import qualified Equ.Theories.List as L
 import qualified Equ.Theories.FOL as F
@@ -180,13 +180,21 @@ metaRules e = [ mkrule e F.true relEquiv, mkrule F.true e relEquiv]
 -- | Dada una expresión, genera todas las reglas posibles de partir
 -- esa expresión. 
 createRulesAssoc :: PreExpr -> [Rule]
-createRulesAssoc e = whenZ isJust rules (getRelExp e) ++ metaRules (Expr e)
+createRulesAssoc e@(BinOp op l r) = 
+    case opToRel op of
+         Just rel -> let rule = mkrule (Expr l) (Expr r) rel
+                     in
+                         [rule,mkrule (Expr e) F.true relEquiv]
+         Nothing  -> error "createRulesAssoc: Expresion con operador que no es relacion"
+createRulesAssoc _ = error "createRulesAssoc: Expresion que no es BinOp"
+    
+{-createRulesAssoc e = whenZ isJust rules (getRelExp e) ++ metaRules (Expr e)
     where rules (Just rel') = createPairs e >>= 
                              if relSym rel'
                              then \(p,q) -> (caseExprRules p q rel') ++ [mkrule (Expr p) (Expr q) rel', mkrule (Expr q) (Expr p) rel']
                              else \(p,q) -> (caseExprRules p q rel') ++ [(mkrule (Expr p) (Expr q) rel')]
           rules _ = []
-          
+          -}        
           
 -- | Reglas para usar pattern matching en el case. 
 {-   Si tenemos f.x = case x of

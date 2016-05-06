@@ -3,7 +3,6 @@
 module Equ.Parser.Proof ( parsePfFromString'
                         , rel 
                         , proof
-                        , parseFromFileProof
                         , initPProofState
                         , PProofState
                         , pTheoSet
@@ -429,6 +428,7 @@ parsePfFromString' = either handleError Right . runParser
         handleError = Left 
 
 -- | Parsea una prueba desde un archivo.
+{-
 parseFromFileProof :: FilePath -> IO ()
 parseFromFileProof fp = readFile fp >>= \s -> 
                         case parsePfFromString' s of
@@ -438,7 +438,7 @@ parseFromFileProof fp = readFile fp >>= \s ->
                                                            , show $ map validateProof ps
                                                            ]
                             Left err -> putStrLn $ show err
-
+                            -}
 -- | Estado inicial del parser de pruebas.
 initPProofState :: TheoSet -> PExprState -> PProofState
 initPProofState theoSet estate = PProofState theoSet estate

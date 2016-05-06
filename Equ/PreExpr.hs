@@ -33,6 +33,8 @@ module Equ.PreExpr ( decode
                    , module Equ.PreExpr.Zipper
                    , module Equ.PreExpr.Monad
                    , module Equ.PreExpr.Subst
+                   , FlatExpr(..)
+                   , flat
                    ) 
     where
 
@@ -44,6 +46,7 @@ import Equ.PreExpr.Zipper
 import Equ.PreExpr.Monad
 import Equ.PreExpr.Subst
 import Equ.PreExpr.Show
+import Data.List (permutations)
 
 import Data.Serialize(decode)
 import Control.Arrow ((***))
@@ -212,3 +215,37 @@ checkIsAtom (Var _,_) = True
 checkIsAtom (Con _,_) = True
 checkIsAtom (PrExHole _,_) = True
 checkIsAtom _ = False
+
+
+-- | Flatten expresions.
+data FlatExpr = FBin Operator [FlatExpr]
+              | FVar Variable
+              | FCon Constant
+              | FUn Operator FlatExpr
+              | FQuant Quantifier Variable FlatExpr FlatExpr
+    deriving (Eq,Show)
+
+{-
+instance Eq FlatExpr where
+    (FBin op1 fs1) == (FBin op2 fs2) = (op1 == op2) && (fs1 `elem` permutations fs2)
+    (FVar v) == (FVar w) = v == w
+    (FCon c1) == (FCon c2) = c1 == c2
+    (FUn op1 fe1) == (FUn op2 fe2) = (op1 == op2) && (fe1 == fe2)
+    (FQuant q1 v f1 g1) == (FQuant q2 w f2 g2) = (q1 == q2) && (v == w) &&
+                                                 (f1 == f2) && (g1 == g2)
+    _ == _ = False
+-}
+  
+flat :: PreExpr -> FlatExpr 
+flat (Var v)            = FVar v
+flat (Con c)           = FCon c
+flat (UnOp op pe)       = FUn op $ flat pe
+flat (BinOp op pe pe')  = FBin op $ (flat' pe op) ++ (flat' pe' op)
+flat (Quant q v pe pe') = FQuant q v (flat pe) (flat pe')
+flat pe = error $ "Not implemented: flat of " ++ show pe
+
+flat' :: PreExpr -> Operator -> [FlatExpr]
+flat' pe@(BinOp op e e') op'
+    | op == op' = flat' e op' ++ flat' e' op'
+    | otherwise = [flat pe]
+flat' pe _ = [flat pe]

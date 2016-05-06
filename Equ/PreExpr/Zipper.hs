@@ -7,7 +7,7 @@ module Equ.PreExpr.Zipper
     , toExpr, toFocus, toFocuses, toFocusesWithGo, focusToFocuses
     , replace
     , goDown, goUp, goLeft, goRight, goDownR, goDownL, goTop
-    , goIfTrue, goIfFalse
+    , goIfTrue, goIfFalse, applyPathToExpr
     ) where
 
 import Equ.PreExpr.Internal
@@ -37,17 +37,37 @@ data Path = Top
           | CasePatternL PreExpr Path PreExpr [(PreExpr,PreExpr)] [(PreExpr,PreExpr)]
           | CasePatternR PreExpr Path PreExpr [(PreExpr,PreExpr)] [(PreExpr,PreExpr)]
             deriving (Eq,Show)
+
             
-            
-            
--- | Dado un Path y un Focus, le aplica el camino que indica ese path al focus.
--- applyPathToFocus :: Path -> Focus -> Maybe Focus
--- applyPathToFocus Top f = Just f
--- applyPathToFocus (UnOpD _ p) f = goDown f >>= applyPathToFocus p
--- applyPathToFocus (BinOpL _ p _) f = goDownL f >>= applyPathToFocus p
--- applyPathToFocus (BinOpR _ _ p) f = goDownR f >>= applyPathToFocus p
--- applyPathToFocus (AppL p _) f = 
---             
+pathToGo :: Path -> (Focus -> Maybe Focus) -> (Focus -> Maybe Focus)
+pathToGo Top f = f
+pathToGo (UnOpD _ p) l = \f -> pathToGo p l f >>= goDown
+pathToGo (BinOpL _ p _) l = \f -> pathToGo p l f >>= goDownL
+pathToGo (BinOpR _ _ p) l = \f -> pathToGo p l f >>= goDownR
+pathToGo (AppL p _) l = \f -> pathToGo p l f >>= goDownL
+pathToGo (AppR _ p) l = \f -> pathToGo p l f >>= goDownR
+pathToGo (QuantL _ _ p _) l = \f -> pathToGo p l f >>= goDownL
+pathToGo (QuantR _ _ _ p) l = \f -> pathToGo p l f >>= goDownR
+pathToGo (ParenD p) l = \f -> pathToGo p l f >>= goDown
+pathToGo (IfCond p _ _) l = \f -> pathToGo p l f >>= goDownL
+pathToGo (IfTrue _ p _) l = \f -> pathToGo p l f >>= goDownR
+pathToGo (IfFalse _ _ p) l = \f -> pathToGo p l f >>= goDownR >>= goRight
+pathToGo (CaseD p _) l = \f -> pathToGo p l f >>= goDown
+pathToGo (CasePatternL _ p _  left right) l = \f -> pathToGo p l f >>= goDown >>=
+                                              freplicate goRight (length left * 2)
+pathToGo (CasePatternR _ p _  left right) l = \f -> pathToGo p l f >>= goDown >>=
+                                              freplicate goRight (length left * 2 + 1)
+
+freplicate :: (Focus -> Maybe Focus) -> Int -> (Focus -> Maybe Focus)
+freplicate go 0 = go
+freplicate go n = \f -> go f >>= freplicate go (n-1)
+
+
+-- | Dado un Path y una expresion, le aplica el camino que indica ese path al focus.
+applyPathToExpr :: Path -> PreExpr -> Maybe Focus
+applyPathToExpr path = pathToGo path Just . toFocus
+
+               
 {- El path en una expresion "case" lo definimos: Si estamos enfocados en la expresion sobre la que se hace pattern
    matching, entonces usamos CaseD.
    Si queremos enfocarnos en un pattern de la lista de patterns, entonces necesitamos guardar la expresión sobre la
@@ -291,8 +311,6 @@ goRight (pe, CasePatternR e path pattern left right) =
 goTop :: Focus -> Focus
 goTop (e,Top) = (e,Top)
 goTop f = goTop $ fromJust $ goUp f
-
-
 
 
 goIfTrue,goIfFalse :: Focus -> Maybe Focus
