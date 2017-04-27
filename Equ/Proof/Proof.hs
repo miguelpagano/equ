@@ -225,7 +225,7 @@ instance Eq Hypothesis where
     h1 == h2 = hypExpr h1 == hypExpr h2 && hypRel h1 == hypRel h2 && hypRule h1 == hypRule h2
 
 instance Show Hypothesis where
-    show hyp = show (hypName hyp) ++ ":" ++ show (hypExpr hyp)
+    show hyp = show (hypName hyp) ++ ":" ++ show (hypExpr hyp) ++ " | " ++ show (hypRule hyp)
 
 instance Truth Hypothesis where
     truthName = hypName
@@ -250,10 +250,6 @@ instance Serialize Hypothesis where
 -- deducci&#243;n asumimos el antecedente de una implicaci&#243;n.
 
 type Ctx = M.Map Name Hypothesis
-
-
-instance Arbitrary Ctx where
-    arbitrary = M.fromList <$> arbitrary
 
 -- | Comienza un contexto en base a una preExpresion.
 beginCtx :: Ctx
@@ -327,8 +323,10 @@ instance Truth Basic where
     truthBasic b = b
 
 instance Show Basic where
-    show = unpack . truthName
-    
+  show (Theo t) = "theorem: " ++ show t
+  show (Ax a) = "axiom: " ++ show a
+  show (Hyp h) = "hypothesis: " ++ show h
+  show _ = "what?"
 -- 
 instance Arbitrary Basic where
     arbitrary = 
