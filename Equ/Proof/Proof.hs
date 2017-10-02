@@ -642,8 +642,8 @@ instance Show Proof where
 
 
 instance Arbitrary Proof where
-    arbitrary = sized proof
-        where
+    arbitrary = undefined
+{-        where
             proof :: Int -> Gen Proof
             proof 0 = 
                 oneof [ return Reflex
@@ -683,7 +683,7 @@ instance Arbitrary Proof where
                     listPairFocusProof = vectorOf 2 pairFocusProof
                     listPPFocusProof :: Gen [(Focus, Proof)]
                     listPPFocusProof = vectorOf 2 pairFocusProof
-    
+-}    
 
 instance Monoid (Proof' ctxTy relTy proofTy exprTy) where
     mempty = Reflex
