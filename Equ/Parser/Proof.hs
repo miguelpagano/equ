@@ -47,7 +47,7 @@ import Text.Parsec.Language
 import Data.Text(Text,pack,unpack,intercalate)
 import Data.Maybe
 import qualified Data.Map as M (Map,empty,lookup) 
-
+import Control.Monad (when)
 import Control.Monad.Identity
 import Control.Applicative ((<$>),(<$),(<*>))
 

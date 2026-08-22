@@ -70,9 +70,9 @@ Library
   Build-depends:        base >= 4.2 && < 6, cereal >= 0.3.3.0, QuickCheck,
                         containers >= 0.4.0.0, text >= 0.11.1.5, mtl >= 2.0.1.0,
                         parsec >= 3.1.1, transformers >= 0.2.2.0, 
-                        either >= 3.0.2, lens, combinat >= 0.2.7.0 
+                        either >= 3.0.2, lens, combinat >= 0.2.7.0 , transformers-either
 
-  GHC-Options:         -Odph -Wall
+  GHC-Options:         -O2 -Wall
   -- HS-Source-Dirs:
   
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.

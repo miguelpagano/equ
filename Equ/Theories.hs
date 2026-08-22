@@ -42,12 +42,13 @@ import Equ.Expr
 import Equ.PreExpr
 import Equ.Types (tyVar)
 
-import Data.Text hiding (head,zip,concatMap,map,tail)
+import Data.Text hiding (head,zip,concatMap,map,tail,show)
 import Data.Maybe(isJust,fromJust,fromMaybe)
 import Data.Tree
 import qualified Data.Map as M (singleton)
 import Control.Monad
 import Control.Arrow ((&&&))
+
 
 type TheoryName = Text
 

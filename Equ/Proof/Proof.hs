@@ -685,6 +685,11 @@ instance Arbitrary Proof where
                     listPPFocusProof = vectorOf 2 pairFocusProof
 -}    
 
+instance Semigroup (Proof' ctxTy relTy proofTy exprTy) where
+    p1 <> p2 = Trans (fromJust $ getCtx p1) (fromJust $ getRel p1) 
+                          (fromJust $ getStart p1) (fromJust $ getStart p2) 
+                          (fromJust $ getEnd p2) p1 p2
+
 instance Monoid (Proof' ctxTy relTy proofTy exprTy) where
     mempty = Reflex
     mappend Reflex p = p

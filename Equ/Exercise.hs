@@ -8,7 +8,7 @@ import Equ.Expr
 import Equ.Proof.Annot
 import Equ.Proof
 
-import Data.Text hiding (null)
+import Data.Text hiding (null,show)
 
 import Control.Applicative ((<$>), (<*>))
 import Data.Serialize (Serialize, get, put)

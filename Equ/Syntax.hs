@@ -15,7 +15,7 @@ import Equ.Theories.AbsName
 import Control.Applicative((<$>),(<*>))
 import Test.QuickCheck(Arbitrary, arbitrary, elements)
 
-import Data.Text hiding (null)
+import Data.Text hiding (null,show)
 import Data.Serialize(Serialize, get, getWord8, put, putWord8)
 
 type VarName = Text

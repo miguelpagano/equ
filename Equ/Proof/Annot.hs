@@ -6,7 +6,7 @@ import Equ.Proof.Proof
 import Equ.Proof.Zipper (ProofFocus',toProofFocus)
 import Equ.Proof.ListedProof
 
-import Data.Text hiding (null)
+import Data.Text hiding (null,show)
 
 
 -- | Anotacin para una expresi´on.
